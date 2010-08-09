@@ -5,9 +5,9 @@
 #include <SDL/SDL_opengl.h>
 #include "assert.h"
 #include "bool.h"
-#include "entity.h"
+#include "object.h"
 
-extern ENTITY * VideoEntity;
+extern Object * VideoObject;
 
 typedef struct video {
   unsigned int
@@ -45,6 +45,6 @@ bool video_setScaling (VIDEO * v, float scale);
 float video_getXResolution ();
 float video_getYResolution ();
 
-int video_handler (ENTITY * e, eMessage msg, void * a, void * b);
+int video_handler (Object * e, objMsg msg, void * a, void * b);
 
 #endif /* VIDEO_H */

@@ -77,7 +77,7 @@ END_TEST
 
 START_TEST (test_turtle_pen) {
   struct turtle * t = turtle_create ();
-  const TLINES * l = turtle_getLines (t);
+  const TLINES l = turtle_getLines (t);
   fail_unless (
     turtle_getPenStatus (t) == TURTLE_PENDOWN,
     "Turtle pen should be down automatically on creation.");
@@ -154,7 +154,7 @@ END_TEST
 START_TEST (test_symbols_define) {
   TURTLE * t = turtle_create ();
   VECTOR3 v = vectorCreate (0.0, 0.0, 0.0);
-  const TLINES * l = turtle_getLines (t);
+  const TLINES l = turtle_getLines (t);
   SYMBOLSET * s = symbol_createSet ();
   SYMBOL * sym = NULL;
 
@@ -205,7 +205,7 @@ END_TEST
 
 START_TEST (test_symbols_path) {
   TURTLE * t = turtle_create ();
-  const TLINES * l = turtle_getLines (t);
+  const TLINES l = turtle_getLines (t);
   SYMBOLSET * s = symbol_createSet ();
   VECTOR3 v = vectorCreate (0.0, 0.0, 0.0);
 

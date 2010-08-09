@@ -1,14 +1,14 @@
 #ifndef SYSTEM_H
 #define SYSTEM_H
 
-#include "entity.h"
+#include "object.h"
 #include "video.h"
 #include "input.h"
 #include "physics.h"
 #include "world.h"
 #include "timer.h"
 
-extern ENTITY * SystemEntity;
+extern Object * SystemObject;
 
 typedef struct system {
   enum system_states {
@@ -27,6 +27,6 @@ typedef struct system {
 SYSTEM * system_create ();
 void system_destroy (SYSTEM *);
 
-int system_handler (ENTITY * e, eMessage msg, void * a, void * b);
+int system_handler (Object * o, objMsg msg, void * a, void * b);
 
 #endif /* SYSTEM_H */

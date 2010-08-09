@@ -3,47 +3,47 @@
 #include "../src/fcmp.h"
 
 void video_setup (void) {
-  entclass_init (video_handler, NULL, NULL, NULL);
+  objClass_init (video_handler, NULL, NULL, NULL);
 }
 
 void video_teardown (void) {
-  entclass_destroyS ("video");
+  objClass_destroy ("video");
 }
 
 START_TEST (test_video_create) {
-  ENTITY * ev = entity_create ("video", NULL, NULL, NULL);
+  Object * ev = obj_create ("video", NULL, NULL, NULL);
   VIDEO * v = NULL;
   fail_unless (
     ev != NULL,
     "Video handler must create entity");
-  v = entity_getClassData (ev, "video");
+  v = obj_getClassData (ev, "video");
   fail_unless (
     v != NULL,
     "Video handler must add video data on creation.");
-  entity_message (ev, EM_DESTROY, NULL, NULL);
+  obj_message (ev, OM_DESTROY, NULL, NULL);
 }
 END_TEST
 
 START_TEST (test_video_initialize) {
-  ENTITY * ev = entity_create ("video", NULL, NULL, NULL);
-  VIDEO * v = entity_getClassData (ev, "video");
+  Object * ev = obj_create ("video", NULL, NULL, NULL);
+  VIDEO * v = obj_getClassData (ev, "video");
 
-  entity_message (ev, EM_START, NULL, NULL);
+  obj_message (ev, OM_START, NULL, NULL);
   fail_unless (
     v->screen != NULL,
     "Video start must create a SDL screen.");
 
   // ... other stuff
 
-  entity_message (ev, EM_DESTROY, NULL, NULL);
+  obj_message (ev, OM_DESTROY, NULL, NULL);
 }
 END_TEST
 
 START_TEST (test_video_resize) {
-  ENTITY * ev = entity_create ("video", NULL, NULL, NULL);
-  VIDEO * v = entity_getClassData (ev, "video");
+  Object * ev = obj_create ("video", NULL, NULL, NULL);
+  VIDEO * v = obj_getClassData (ev, "video");
   float x = 0, y = 0;
-  entity_message (ev, EM_START, NULL, NULL);
+  obj_message (ev, OM_START, NULL, NULL);
 
   x = video_getXResolution ();
   y = video_getYResolution ();
@@ -80,7 +80,7 @@ START_TEST (test_video_resize) {
     x, y, 250.0, 250.0
   );
 
-  entity_message (ev, EM_DESTROY, NULL, NULL);
+  obj_message (ev, OM_DESTROY, NULL, NULL);
 }
 END_TEST
 

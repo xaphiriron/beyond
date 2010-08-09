@@ -1,6 +1,6 @@
 #include "video.h"
 
-ENTITY * VideoEntity = NULL;
+Object * VideoObject = NULL;
 
 VIDEO * video_create () {
   VIDEO * v = xph_alloc (sizeof (VIDEO), "VIDEO");
@@ -140,37 +140,37 @@ bool video_setScaling (VIDEO * v, float scale) {
 
 float video_getXResolution () {
   const VIDEO * v = NULL;
-  if (VideoEntity == NULL) {
+  if (VideoObject == NULL) {
     return -1;
   }
-  v = entity_getClassData (VideoEntity, "video");
+  v = obj_getClassData (VideoObject, "video");
   return v->resolution * v->width;
 }
 
 float video_getYResolution () {
   const VIDEO * v = NULL;
-  if (VideoEntity == NULL) {
+  if (VideoObject == NULL) {
     return -1;
   }
-  v = entity_getClassData (VideoEntity, "video");
+  v = obj_getClassData (VideoObject, "video");
   return v->resolution * v->height;
 }
 
 
-int video_handler (ENTITY * e, eMessage msg, void * a, void * b) {
+int video_handler (Object * o, objMsg msg, void * a, void * b) {
   VIDEO * v = NULL;
   switch (msg) {
-    case EM_CLSNAME:
+    case OM_CLSNAME:
       strncpy (a, "video", 32);
       return EXIT_SUCCESS;
-    case EM_CLSINIT:
-    case EM_CLSFREE:
+    case OM_CLSINIT:
+    case OM_CLSFREE:
       return EXIT_FAILURE;
-    case EM_CLSVARS:
+    case OM_CLSVARS:
       return EXIT_FAILURE;
-    case EM_CREATE:
-      if (VideoEntity != NULL) {
-        entity_destroy (e);
+    case OM_CREATE:
+      if (VideoObject != NULL) {
+        obj_destroy (o);
         return EXIT_FAILURE;
       }
       v = video_create ();
@@ -179,34 +179,34 @@ int video_handler (ENTITY * e, eMessage msg, void * a, void * b) {
       } else {
         video_loadDefaultSettings (v);
       }
-      entity_addClassData (e, "video", v);
-      VideoEntity = e;
+      obj_addClassData (o, "video", v);
+      VideoObject = o;
       return EXIT_SUCCESS;
     default:
       break;
   }
-  v = entity_getClassData (e, "video");
+  v = obj_getClassData (o, "video");
   switch (msg) {
-    case EM_SHUTDOWN:
-    case EM_DESTROY:
-      VideoEntity = NULL;
+    case OM_SHUTDOWN:
+    case OM_DESTROY:
+      VideoObject = NULL;
       video_destroy (v);
-      entity_rmClassData (e, "video");
-      entity_destroy (e);
+      obj_rmClassData (o, "video");
+      obj_destroy (o);
       return EXIT_SUCCESS;
 
-    case EM_START:
+    case OM_START:
       return video_initialize (v) == TRUE
         ? EXIT_SUCCESS
         : EXIT_FAILURE;
 
-    case EM_PRERENDER:
+    case OM_PRERENDER:
       /* i really have no clue what video steps need to be taken each frame-- if i'm actually using the buffers to speed up rendering, then i don't actually want to clear the color and depth buffers each frame. but right now i'm not, so i am!
        */
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
       glMatrixMode (GL_MODELVIEW);
       return EXIT_SUCCESS;
-    case EM_POSTRENDER:
+    case OM_POSTRENDER:
       glFlush();
       if (v->doublebuffer) {
         SDL_GL_SwapBuffers();
@@ -214,7 +214,7 @@ int video_handler (ENTITY * e, eMessage msg, void * a, void * b) {
       return EXIT_SUCCESS;
 
     default:
-      return entity_pass ();
+      return obj_pass ();
   }
   return EXIT_FAILURE;
 }

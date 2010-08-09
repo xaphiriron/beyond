@@ -12,7 +12,7 @@ int main (void) {
   srunner_add_suite (sr, make_line_suite ());
   srunner_add_suite (sr, make_turtle_suite ());
 //   srunner_add_suite (sr, make_list_suite ());
-  srunner_add_suite (sr, make_entity_suite ());
+//   srunner_add_suite (sr, make_entity_suite ());
   srunner_add_suite (sr, make_video_suite ());
 
   srunner_add_suite (sr, make_timer_suite ());

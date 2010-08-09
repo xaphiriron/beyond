@@ -1,6 +1,6 @@
 #include "point.h"
 
-bool point_addNoDup (POINTS * l, float x, float y) {
+bool point_addNoDup (POINTS v, float x, float y) {
   int i = 0;
   bool dup = FALSE;
   VECTOR3
@@ -10,7 +10,7 @@ bool point_addNoDup (POINTS * l, float x, float y) {
   p.z = 0;
   p.x = x;
   p.y = y;
-  while ((t = listIndex ((struct list *)l, i++)) != NULL) {
+  while ((vector_at (t, (Vector *)v, i++)) != NULL) {
     if (pointcmp (t, &p)) {
       dup = TRUE;
       break;
@@ -19,7 +19,7 @@ bool point_addNoDup (POINTS * l, float x, float y) {
   if (dup == FALSE) {
     t = xph_alloc (sizeof (VECTOR3), "VECTOR3");
     *t = p;
-    listAdd ((struct list *)l, t);
+    vector_push_back ((Vector *)v, t);
     //printf ("%s: DONE; POINT ADDED\n", __FUNCTION__);
     return TRUE;
   }
@@ -27,7 +27,7 @@ bool point_addNoDup (POINTS * l, float x, float y) {
   return FALSE;
 }
 
-bool point_findMinMax (const POINTS * l, float * xminp, float * xmaxp, float * yminp, float * ymaxp) {
+bool point_findMinMax (const POINTS v, float * xminp, float * xmaxp, float * yminp, float * ymaxp) {
   //printf ("WE'RE IN %s\n", __FUNCTION__);
   float
     xmin = 0,
@@ -35,13 +35,14 @@ bool point_findMinMax (const POINTS * l, float * xminp, float * xmaxp, float * y
     xmax = 0,
     ymax = 0;
   int i = 0;
-  if (listItemCount ((struct list *)l) < 1) {
+  VECTOR3 * p = NULL;
+  if (vector_size ((Vector *)v) < 1) {
     return FALSE;
   }
-  VECTOR3 * p = listIndex ((struct list *)l, i);
+  vector_at (p, (Vector *)v, i);
   xmin = xmax = p->x;
   ymin = ymax = p->y;
-  while ((p = listIndex ((struct list *)l, i++)) != NULL) {
+  while ((vector_at (p, (Vector *)v, i++)) != NULL) {
     //printf ("POINT #%d: %f, %f\n", i, p->x, p->y);
     if (p->x <= xmin) {
       xmin = p->x;

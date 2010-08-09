@@ -7,7 +7,7 @@ Suite * make_master_suite (void);
 Suite * make_float_suite (void);
 Suite * make_line_suite (void);
 //Suite * make_list_suite (void);
-Suite * make_entity_suite (void);
+//Suite * make_entity_suite (void);
 Suite * make_turtle_suite (void);
 Suite * make_video_suite (void);
 

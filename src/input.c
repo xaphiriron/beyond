@@ -1,17 +1,17 @@
 #include "input.h"
 
-ENTITY * ControlEntity = NULL;
+Object * ControlObject = NULL;
 
 CONTROL * control_create () {
   CONTROL * c = xph_alloc (sizeof (CONTROL), "CONTROL");
   memset (c, '\0', sizeof (CONTROL));
-  c->controlledEntity = NULL;
-  c->focusedEntities = listCreate (4, sizeof (ENTITY));
+  c->controlledObject = NULL;
+  c->focusedObjects = vector_create (4, sizeof (Object *));
   return c;
 }
 
 void control_destroy (CONTROL * c) {
-  listDestroy (c->focusedEntities);
+  vector_destroy (c->focusedObjects);
   xph_free (c);
 }
 
@@ -19,7 +19,7 @@ void control_destroy (CONTROL * c) {
 enum input_responses control_getResponseForSDLKey (const SDLKey key) {
   const SYSTEM * sys = entity_getClassData (SystemEntity, "SYSTEM");
   unsigned int state = sys->state;
-  ENTITY * ire = ControlEntity->firstChild;
+  Object * ire = ControlObject->firstChild;
   inputResponse * ir = NULL;
   while (ire != NULL && (ir = entity_getClassData (ire, "inputResponse")) != NULL) {
     if (inputResponse_triggeredByKeyAndState (ir, key, state)) {
@@ -32,9 +32,9 @@ enum input_responses control_getResponseForSDLKey (const SDLKey key) {
 */
 
 enum input_responses control_getResponse (const SDL_Event * e, const Uint8 * k) {
-  ENTITY * ire = ControlEntity->firstChild;
+  Object * ire = ControlObject->firstChild;
   inputResponse * ir = NULL;
-  while (ire != NULL && (ir = entity_getClassData (ire, "inputResponse")) != NULL) {
+  while (ire != NULL && (ir = obj_getClassData (ire, "inputResponse")) != NULL) {
     //printf ("checking inputResponse data of %p/%p for a hit\n", ire, ir);
     if (inputResponse_matches (ir, e, k)) {
       //printf (" got it! (%d)\n", ir->response);
@@ -45,36 +45,36 @@ enum input_responses control_getResponse (const SDL_Event * e, const Uint8 * k) 
   return 0;
 }
 
-bool control_loadConfigSettings (ENTITY * ec, char * configPath) {
+bool control_loadConfigSettings (Object * ec, char * configPath) {
   control_loadDefaultSettings (ec);
   return FALSE;
 }
 
-void control_loadDefaultSettings (ENTITY * ec) {
-  ENTITY * key = NULL;
+void control_loadDefaultSettings (Object * ec) {
+  Object * key = NULL;
 
-  entity_create ("inputResponse", ControlEntity,
-    input_createTriggerList (2,
+  obj_create ("inputResponse", ControlObject,
+    input_createTriggerVector (2,
       input_createTrigger (TI_KEYBOARD, INPUT_SDLKEY, SDLK_ESCAPE),
       input_createTrigger (TI_SYSTEM, SDL_QUIT)
     ),
     (void *)IR_QUIT
   );
-  entity_create ("inputResponse", ControlEntity,
-    input_createTriggerList (1,
+  obj_create ("inputResponse", ControlObject,
+    input_createTriggerVector (1,
       input_createTrigger (TI_KEYBOARD, INPUT_SDLKEY, SDLK_UP)
     ),
     (void *)IR_AVATAR_MOVE_FORWARD
   );
-  entity_create ("inputResponse", ControlEntity,
-    input_createTriggerList (1,
+  obj_create ("inputResponse", ControlObject,
+    input_createTriggerVector (1,
       input_createTrigger (TI_KEYBOARD, INPUT_SDLKEY, SDLK_DOWN)
     ),
     (void *)IR_AVATAR_MOVE_BACKWARD
   );
 
-  key = entity_create ("inputResponse", ControlEntity,
-    input_createTriggerList (2,
+  key = obj_create ("inputResponse", ControlObject,
+    input_createTriggerVector (2,
       input_createTrigger (TI_KEYBOARD, INPUT_SDLKEY, SDLK_LEFT),
       input_createTrigger (TI_KEYBOARD, INPUT_SDLKEY, EK_SHIFT)
     ),
@@ -83,8 +83,8 @@ void control_loadDefaultSettings (ENTITY * ec) {
   inputResponse_setTriggerMode (key, TR_AND);
 //  inputResponse_setActiveMask (key, STATE_FIRSTPERSONVIEW);
 
-  key = entity_create ("inputResponse", ControlEntity,
-    input_createTriggerList (2,
+  key = obj_create ("inputResponse", ControlObject,
+    input_createTriggerVector (2,
       input_createTrigger (TI_KEYBOARD, INPUT_SDLKEY, SDLK_RIGHT),
       input_createTrigger (TI_KEYBOARD, INPUT_SDLKEY, EK_SHIFT)
     ),
@@ -93,30 +93,30 @@ void control_loadDefaultSettings (ENTITY * ec) {
   inputResponse_setTriggerMode (key, TR_AND);
 //  inputResponse_setActiveMask (key, STATE_FIRSTPERSONVIEW);
 
-  entity_create ("inputResponse", ControlEntity,
-    input_createTriggerList (1,
+  obj_create ("inputResponse", ControlObject,
+    input_createTriggerVector (1,
       input_createTrigger (TI_KEYBOARD, INPUT_SDLKEY, SDLK_LEFT)
     ),
     (void *)IR_AVATAR_MOVE_LEFT
   );
 
-  entity_create ("inputResponse", ControlEntity,
-    input_createTriggerList (1,
+  obj_create ("inputResponse", ControlObject,
+    input_createTriggerVector (1,
       input_createTrigger (TI_KEYBOARD, INPUT_SDLKEY, SDLK_RIGHT)
     ),
     (void *)IR_AVATAR_MOVE_RIGHT
   );
 
-  entity_create ("inputResponse", ControlEntity,
-    input_createTriggerList (1,
+  obj_create ("inputResponse", ControlObject,
+    input_createTriggerVector (1,
       input_createTrigger (TI_KEYBOARD, INPUT_SDLKEY, SDLK_TAB)
     ),
     (void *)IR_CAMERA_MODE_SWITCH
   );
 
 /*
-  entity_create ("inputResponse", ControlEntity,
-    input_createTriggerList (1,
+  entity_create ("inputResponse", ControlObject,
+    input_createTriggerVector (1,
       input_createTrigger ()
     ),
     (void *)IR_
@@ -124,7 +124,7 @@ void control_loadDefaultSettings (ENTITY * ec) {
 */
 }
 
-inputResponse * input_createResponse (struct list * triggers, enum trigger_req type, enum input_responses response, unsigned int activeMask) {
+inputResponse * input_createResponse (Vector * triggers, enum trigger_req type, enum input_responses response, unsigned int activeMask) {
   inputResponse * r = xph_alloc (sizeof (inputResponse), "inputResponse");
   r->triggers = triggers;
   r->type = type;
@@ -134,23 +134,24 @@ inputResponse * input_createResponse (struct list * triggers, enum trigger_req t
 }
 
 void input_destroyResponse (inputResponse * r) {
-  while (listItemCount (r->triggers) > 0) {
-    input_destroyTrigger (listPop (r->triggers));
+  void * v = NULL;
+  while (vector_size (r->triggers) > 0) {
+    input_destroyTrigger (vector_pop_back (v, r->triggers));
   }
-  listDestroy (r->triggers);
+  vector_destroy (r->triggers);
   xph_free (r);
 }
 
-void inputResponse_setTriggerMode (ENTITY * e, enum trigger_req trigger) {
-  inputResponse * r = entity_getClassData (e, "inputResponse");
+void inputResponse_setTriggerMode (Object * o, enum trigger_req trigger) {
+  inputResponse * r = obj_getClassData (o, "inputResponse");
   if (r == NULL) {
     return;
   }
   r->type = trigger;
 }
 
-void inputResponse_setActiveMask (ENTITY * e, unsigned int mask) {
-  inputResponse * r = entity_getClassData (e, "inputResponse");
+void inputResponse_setActiveMask (Object * o, unsigned int mask) {
+  inputResponse * r = obj_getClassData (o, "inputResponse");
   if (r == NULL) {
     return;
   }
@@ -164,7 +165,7 @@ bool inputResponse_triggeredByKeyAndState (const inputResponse * r, const SDLKey
   if ((state & r->activeMask) == 0) {
     return FALSE;
   }
-  while ((t = listIndex (r->triggers, i++)) != NULL) {
+  while (vector_at (t, r->triggers, i++) != NULL) {
     if (inputTrigger_matchesKey (t, key)) {
       if (TR_OR == r->type) {
         return TRUE;
@@ -188,7 +189,7 @@ bool inputResponse_matches (const inputResponse * r, const SDL_Event * e, const 
     return FALSE;
   }
 */
-  while ((t = listIndex (r->triggers, i++)) != NULL) {
+  while (vector_at (t, r->triggers, i++) != NULL) {
     if ((e != NULL && inputTrigger_matchesEvent (t, e)) ||
         (k != NULL && inputTrigger_matchesKeystate (t, k))) {
       if (TR_OR == r->type) {
@@ -245,12 +246,12 @@ inputTrigger * input_createTrigger (enum input_type type, ...) {
   return it;
 }
 
-struct list * input_createTriggerList (int n, ...) {
-  struct list * l = listCreate (n + 1, sizeof (inputTrigger *));
+Vector * input_createTriggerVector (int n, ...) {
+  Vector * l = vector_create (n + 1, sizeof (inputTrigger *));
   va_list args;
   va_start (args, n);
   while (n-- > 0) {
-    listAdd (l, va_arg (args, inputTrigger *));
+    vector_push_back (l, va_arg (args, inputTrigger *));
   }
   va_end (args);
   return l;
@@ -349,85 +350,85 @@ bool inputTrigger_matchesEvent (const inputTrigger * t, const SDL_Event * e) {
 }
 
 
-int control_handler (ENTITY * e, eMessage msg, void * a, void * b) {
+int control_handler (Object * e, objMsg msg, void * a, void * b) {
   CONTROL * c = NULL;
 
-  ENTITY * focus = NULL;
+  Object * focus = NULL;
 //  inputResponse * continuous = NULL;
   int i = 0;
   enum input_responses responseType = 0;
 
   switch (msg) {
-    case EM_CLSNAME:
+    case OM_CLSNAME:
       strncpy (a, "control", 32);
       return EXIT_SUCCESS;
-    case EM_CLSINIT:
-      entclass_init (inputResponse_handler, NULL, NULL, NULL);
+    case OM_CLSINIT:
+      objClass_init (inputResponse_handler, NULL, NULL, NULL);
       return EXIT_SUCCESS;
-    case EM_CLSFREE:
-      entclass_destroyS ("inputResponse");
+    case OM_CLSFREE:
+      objClass_destroy ("inputResponse");
       return EXIT_SUCCESS;
-    case EM_CLSVARS:
+    case OM_CLSVARS:
       return EXIT_FAILURE;
-    case EM_CREATE:
-      if (ControlEntity != NULL) {
-        entity_destroy (e);
+    case OM_CREATE:
+      if (ControlObject != NULL) {
+        obj_destroy (e);
         return EXIT_FAILURE;
       }
       c = control_create ();
-      ControlEntity = e;
+      ControlObject = e;
       if (a != NULL) {
         control_loadConfigSettings (e, a);
       } else {
         control_loadDefaultSettings (e);
       }
-      entity_addClassData (e, "control", c);
+      obj_addClassData (e, "control", c);
       return EXIT_SUCCESS;
     default:
       break;
   }
-  c = entity_getClassData (e, "control");
+  c = obj_getClassData (e, "control");
   assert (c != NULL);
   switch (msg) {
-    case EM_SHUTDOWN:
-    case EM_DESTROY:
-      ControlEntity = NULL;
+    case OM_SHUTDOWN:
+    case OM_DESTROY:
+      ControlObject = NULL;
       control_destroy (c);
-      entity_rmClassData (e, "control");
-      entity_destroy (e);
+      obj_rmClassData (e, "control");
+      obj_destroy (e);
       return EXIT_SUCCESS;
 
-    case EM_START:
+    case OM_START:
       if (SDL_WasInit (SDL_INIT_JOYSTICK) == 0) {
         SDL_InitSubSystem (SDL_INIT_JOYSTICK);
       }
       return EXIT_SUCCESS;
 
-    case EM_SUSPEND:
+    case OM_SUSPEND:
       return EXIT_FAILURE;
 
 
-    case EM_UPDATE:
+    case OM_UPDATE:
       c->keystate = SDL_GetKeyState (NULL);
       while (SDL_PollEvent (&c->event)) {
-        //printf ("ControlEntity:EM_UPDATE: we got an event\n");
-        entity_message (e, EM_INPUT, &c->event, c->keystate);
+        //printf ("ControlObject:OM_UPDATE: we got an event\n");
+        obj_message (e, OM_INPUT, &c->event, c->keystate);
 /*
         if (c->event.type == SDL_KEYDOWN || c->event.type == SDL_KEYUP) {
         } else if (c->event.type == SDL_[whatever]) {
         } else {
-          entity_message (e, EM_SYSINPUT, &c->event, c->keystate);
+          entity_message (e, OM_SYSINPUT, &c->event, c->keystate);
         }
 */
         i = 0;
-        while ((focus = listIndex (c->focusedEntities, i++)) != NULL) {
-          entity_message (focus, EM_INPUT, &c->event, c->keystate);
+        while (vector_at (focus, c->focusedObjects, i++) != NULL) {
+          obj_message (focus, OM_INPUT, &c->event, c->keystate);
         }
       }
       return EXIT_SUCCESS;
 
-    case EM_INPUT:
-      //printf ("ControlEntity:EM_INPUT: omg handling input\n");
+    case OM_INPUT:
+      //printf ("ControlObject:OM_INPUT: omg handling input\n");
       responseType = control_getResponse (a, b);
       if (responseType == 0) {
         printf ("no response\n");
@@ -437,7 +438,7 @@ int control_handler (ENTITY * e, eMessage msg, void * a, void * b) {
       switch (responseType) {
         // ... imagine a big list here
         case IR_QUIT:
-          entity_message (SystemEntity, EM_SHUTDOWN, NULL, NULL);
+          obj_message (SystemObject, OM_SHUTDOWN, NULL, NULL);
           return EXIT_SUCCESS;
 
         default:
@@ -446,45 +447,45 @@ int control_handler (ENTITY * e, eMessage msg, void * a, void * b) {
       return EXIT_SUCCESS;
 
     default:
-      return entity_pass ();
+      return obj_pass ();
   }
   return EXIT_FAILURE;
 }
 
-int inputResponse_handler (ENTITY * e, eMessage msg, void * a, void * b) {
+int inputResponse_handler (Object * e, objMsg msg, void * a, void * b) {
   inputResponse * i = NULL;
   switch (msg) {
-    case EM_CLSNAME:
+    case OM_CLSNAME:
       strncpy (a, "inputResponse", 32);
       return EXIT_SUCCESS;
-    case EM_CLSINIT:
-    case EM_CLSFREE:
+    case OM_CLSINIT:
+    case OM_CLSFREE:
       return EXIT_FAILURE;
-    case EM_CLSVARS:
+    case OM_CLSVARS:
       return EXIT_FAILURE;
 
-    case EM_CREATE:
+    case OM_CREATE:
       i = input_createResponse (a, TR_OR, (enum input_responses)b, 0xffff);
-      entity_addClassData (e, "inputResponse", i);
+      obj_addClassData (e, "inputResponse", i);
       return EXIT_SUCCESS;
 
     default:
       break;
   }
-  i = entity_getClassData (e, "inputResponse");
+  i = obj_getClassData (e, "inputResponse");
   switch (msg) {
-    case EM_SHUTDOWN:
-    case EM_DESTROY:
+    case OM_SHUTDOWN:
+    case OM_DESTROY:
       input_destroyResponse (i);
-      entity_rmClassData (e, "inputResponse");
-      entity_destroy (e);
+      obj_rmClassData (e, "inputResponse");
+      obj_destroy (e);
       return EXIT_SUCCESS;
 
-/* I don't know if these will even response to EM_INPUT-- they're not really made to be messaged, just to store data. which probably means they shouldn't be entities, but whatever. (it might be a good idea though to do the polling for responses through entity messages, though. entity_messageChildren is kind of the perfect function for it
+/* I don't know if these will even response to OM_INPUT-- they're not really made to be messaged, just to store data. which probably means they shouldn't be entities, but whatever. (it might be a good idea though to do the polling for responses through entity messages, though. entity_messageChildren is kind of the perfect function for it
 */
 
     default:
-      return entity_pass ();
+      return obj_pass ();
   }
   return EXIT_FAILURE;
 }

@@ -35,9 +35,9 @@ TURTLE * turtle_createA (float x, float y, float z, float rot) {
   t->heading = rot;
   t->position = vectorCreate (x, y, z);
   t->penDown = tDefault.penDown;
-  t->locationStack = listCreate (4, sizeof (struct tloc *));
-  t->lines = listCreate (4, sizeof (LINE *));
-  t->points = (POINTS *)listCreate (4, sizeof (VECTOR3 *));
+  t->locationStack = vector_create (4, sizeof (struct tloc *));
+  t->lines = vector_create (4, sizeof (LINE *));
+  t->points = vector_create (4, sizeof (VECTOR3 *));
 
   t->scale = 0;
   t->center = vectorCreate (0, 0, 0);
@@ -55,16 +55,19 @@ static void tDefaults () {
 }
 
 void turtle_destroy (TURTLE * t) {
-  while (listItemCount (t->locationStack) > 0) {
-    xph_free (listPop (t->locationStack));
+  void * v = NULL;
+  while (vector_size (t->locationStack) > 0) {
+    xph_free (vector_pop_back (v, t->locationStack));
   }
-  listDestroy (t->locationStack);
-  while (listItemCount ((struct list *)t->points) > 0) {
-    xph_free (listPop ((struct list *)t->points));
+  v = NULL;
+  vector_destroy (t->locationStack);
+  while (vector_size (t->points) > 0) {
+    xph_free (vector_pop_back (v, t->locationStack));
   }
-  listDestroy ((struct list *)t->points);
+  v = NULL;
+  vector_destroy (t->points);
   turtle_clearLines (t);
-  listDestroy (t->lines);
+  vector_destroy (t->lines);
   xph_free (t);
 }
 
@@ -106,8 +109,8 @@ void turtle_move (TURTLE * t, float mag) {
   LINE * l = NULL;
   //printf ("TURTLE MOVED FROM %.2f,%.2f TO %.2f,%.2f ON A REQUEST TO MOVE %f FORWARD\n", t->position.x, t->position.y, n.x, n.y, mag);
   if (turtle_getPenStatus (t) == TURTLE_PENDOWN) {
-    if (listItemCount (t->lines) > 0) {
-      l = listIndex (t->lines, listItemCount (t->lines) - 1);
+    if (vector_size (t->lines) > 0) {
+      vector_back (l, t->lines);
       //printf ("got line %p\n", l);
       line_coordsAtT (l, 0, &j.x, &j.y);
       line_coordsAtT (l, 1, &k.x, &k.y);
@@ -118,12 +121,12 @@ void turtle_move (TURTLE * t, float mag) {
         //printf ("woo resizing line\n");
         line_resize (l, 0, line_tNearestCoords (l, n.x, n.y));
       } else {
-        listAdd (t->lines, line_createThroughPoints (&t->position, &n, LINE_SETENDPOINTS));
+        vector_push_back (t->lines, line_createThroughPoints (&t->position, &n, LINE_SETENDPOINTS));
       }
     } else {
       //l = line_createThroughPoints (&t->position, &n, LINE_SETENDPOINTS);
       //printf ("LINE DRAWN FROM %.2f,%.2f TO %.2f,%.2f (%.2f,%.2f)\n", l->x0, l->y0, l->x0 + l->f, l->y0 + l->g, l->f, l->g);
-      listAdd (t->lines, line_createThroughPoints (&t->position, &n, LINE_SETENDPOINTS));
+      vector_push_back (t->lines, line_createThroughPoints (&t->position, &n, LINE_SETENDPOINTS));
     }
     t->scaleCenterClean = FALSE;
   }
@@ -142,11 +145,12 @@ void turtle_push (TURTLE * t) {
   struct tloc * tloc = xph_alloc (sizeof (struct tloc), "tloc");
   tloc->heading = t->heading;
   tloc->position = t->position;
-  listPush (t->locationStack, tloc);
+  vector_push_back (t->locationStack, tloc);
 }
 
 void turtle_pop (TURTLE * t) {
-  struct tloc * tloc = listPop (t->locationStack);
+  struct tloc * tloc = NULL;
+  vector_pop_back (tloc, t->locationStack);
   if (tloc == NULL) {
     return;
   }
@@ -156,11 +160,11 @@ void turtle_pop (TURTLE * t) {
   turtle_recalcHeading (t);
 }
 
-const TLINES * turtle_getLines (const TURTLE * t) {
-  return &t->lines;
+const TLINES turtle_getLines (const TURTLE * t) {
+  return (const TLINES)&t->lines;
 }
 
-const POINTS * turtle_getPoints (TURTLE * t) {
+const POINTS turtle_getPoints (TURTLE * t) {
   if (t->scaleCenterClean == FALSE) {
     turtle_createPoints (t);
   }
@@ -230,11 +234,12 @@ const VECTOR3 * turtle_getCenter (TURTLE * t) {
 }
 
 void turtle_clearLines (TURTLE * t) {
-  while (listItemCount (t->lines) > 0) {
-    line_destroy (listPop (t->lines));
+  void * v = NULL;
+  while (vector_size (t->lines) > 0) {
+    line_destroy (vector_pop_back (v, t->lines));
   }
-  while (listItemCount ((struct list *)t->points) > 0) {
-    xph_free (listPop ((struct list *)t->points));
+  while (vector_size (t->points) > 0) {
+    xph_free (vector_pop_back (v, t->points));
   }
   t->scaleCenterClean = FALSE;
 }
@@ -247,7 +252,7 @@ void turtle_resetPosition (TURTLE * t) {
 
 static void turtle_recalcScaleCenter (TURTLE * t, float xResolution, float yResolution) {
   //printf ("WE'RE IN %s\n", __FUNCTION__);
-  const POINTS * points = turtle_getPoints (t);
+  const POINTS points = turtle_getPoints (t);
   float
     xmin = 0, xmax = 0,
     ymin = 0, ymax = 0,
@@ -283,19 +288,20 @@ static void turtle_recalcScaleCenter (TURTLE * t, float xResolution, float yReso
 static void turtle_createPoints (TURTLE * t) {
   //printf ("WE'RE IN %s\n", __FUNCTION__);
   LINE * line = NULL;
-  POINTS * points = (POINTS *)listCreate (4, sizeof (VECTOR3 *));
+  POINTS points = vector_create (4, sizeof (VECTOR3 *));
   int i = 0;
   float
    x0, y0,
    x1, y1;
+  void * v = NULL;
   if (t->points != NULL) {
-    while (listItemCount ((struct list *)t->points) > 0) {
-      xph_free (listPop ((struct list *)t->points));
+    while (vector_size (t->points) > 0) {
+      xph_free (vector_pop_back (v, t->points));
     }
-    listDestroy ((struct list *)t->points);
+    vector_destroy (t->points);
     t->points = NULL;
   }
-  while ((line = listIndex (t->lines, i++)) != NULL) {
+  while ((vector_at (line, t->lines, i++)) != NULL) {
     line_coordsAtT (line, 0, &x0, &y0);
     line_coordsAtT (line, 1, &x1, &y1);
     //printf ("LINE %d of %d: x0 %.2f, y0 %.2f, f %.2f, g %.2f MAPS TO: T0 %.2f,%.2f; T1 %.2f,%.2f\n", i, listItemCount (t->lines), line->x0, line->y0, line->f, line->g, x0, y0, x1, y1);
@@ -329,8 +335,8 @@ void turtle_setDefault (enum turtle_settings s, ...) {
   va_end (arg);
 }
 
-int tline_count (const TLINES * l) {
-  return listItemCount (*l);
+int tline_count (const TLINES v) {
+  return vector_size (*v);
 }
 
 void turtle_runPath (char * p, TURTLE * t, const SYMBOLSET * s) {
@@ -381,7 +387,7 @@ void turtle_runCycle (char * c, TURTLE * t, const SYMBOLSET * set) {
 
 SYMBOLSET * symbol_createSet () {
   SYMBOLSET * s = xph_alloc (sizeof (SYMBOLSET), "SYMBOLSET");
-  s->symbols = listCreate (2, sizeof (SYMBOL *));
+  s->symbols = vector_create (2, sizeof (SYMBOL *));
   return s;
 }
 
@@ -398,10 +404,11 @@ void symbol_destroy (SYMBOL * s) {
 }
 
 void symbol_destroySet (SYMBOLSET * s) {
-  while (listItemCount (s->symbols) > 0) {
-    symbol_destroy (listPop (s->symbols));
+  void * v = NULL;
+  while (vector_size (s->symbols) > 0) {
+    symbol_destroy (vector_pop_back (v, s->symbols));
   }
-  listDestroy (s->symbols);
+  vector_destroy (s->symbols);
   xph_free (s);
 }
 
@@ -438,24 +445,24 @@ SYMBOL * symbol_addOperation (SYMBOLSET * set, char s, enum symbol_commands type
   }
   va_end (arg);
   if (!overwrite) {
-    listAdd (set->symbols, sym);
-    listSort (set->symbols, symbol_sort);
+    vector_push_back (set->symbols, sym);
+    vector_sort (set->symbols, symbol_sort);
   }
   return NULL;
 }
 
 bool symbol_isDefined (const SYMBOLSET * set, char s) {
-  return listSearch (set->symbols, &s, symbol_search) != NULL
+  return vector_search (set->symbols, &s, symbol_search) != NULL
     ? TRUE
     : FALSE;
 }
 
 SYMBOL * symbol_getSymbol (const SYMBOLSET * set, char s) {
-  return listSearch (set->symbols, &s, symbol_search);
+  return vector_search (set->symbols, &s, symbol_search);
 }
 
 int symbol_definedSymCount (const SYMBOLSET * set) {
-  return listItemCount (set->symbols);
+  return vector_size (set->symbols);
 }
 
 int gcd (int m, int n) {
@@ -478,8 +485,9 @@ int symbol_cyclesToClose (char * s, const SYMBOLSET * set) {
   int
     i = 0,
     l = strlen (s);
-  struct list * rotationStack = listCreate (4, sizeof (float *));
+  Vector * rotationStack = vector_create (4, sizeof (float *));
   SYMBOL * sym = NULL;
+  void * v = NULL;
   while (i < l) {
     sym = symbol_getSymbol (set, s[i++]);
     if (sym == NULL) {
@@ -492,11 +500,11 @@ int symbol_cyclesToClose (char * s, const SYMBOLSET * set) {
       case SYM_STACKPUSH:
         st = xph_alloc (sizeof (float), "float");
         *st = turn;
-        listPush (rotationStack, st);
+        vector_push_back (rotationStack, st);
         break;
       case SYM_STACKPOP:
-        if (listItemCount (rotationStack) != 0) {
-          st = listPop (rotationStack);
+        if (vector_size (rotationStack) != 0) {
+          vector_pop_back (st, rotationStack);
           turn = *st;
           xph_free (st);
         }
@@ -505,10 +513,10 @@ int symbol_cyclesToClose (char * s, const SYMBOLSET * set) {
         break;
     }
   }
-  while (listItemCount (rotationStack) > 0) {
-    xph_free (listPop (rotationStack));
+  while (vector_size (rotationStack) > 0) {
+    xph_free (vector_pop_back (v, rotationStack));
   }
-  listDestroy (rotationStack);
+  vector_destroy (rotationStack);
   // this probably won't work if the total turning isn't an integer.
   //printf ("total turning: %f\n", turn);
   //printf ("fmod (%f, 360.0) = %f\n", turn, fmod (turn, 360.0));
@@ -533,60 +541,62 @@ int symbol_search (const void * key, const void * datum) {
 
 LSYSTEM * lsystem_create () {
   LSYSTEM * l = xph_alloc (sizeof (LSYSTEM), "LYSYSTEM");
-  l->p = listCreate (4, sizeof (PRODUCTION *));
+  l->p = vector_create (4, sizeof (PRODUCTION *));
   return l;
 }
 
 void lsystem_destroy (LSYSTEM * l) {
-  while (listItemCount (l->p) > 0) {
-    production_destroy (listPop (l->p));
+  void * v = NULL;
+  while (vector_size (l->p) > 0) {
+    production_destroy (vector_pop_back (v, l->p));
   }
-  listDestroy (l->p);
+  vector_destroy (l->p);
   xph_free (l);
 }
 
 PRODUCTION * production_create (const char l, const char * exp) {
   PRODUCTION * p = xph_alloc (sizeof (PRODUCTION), "PRODUCTION");
   p->l = l;
-  p->exp = listCreate (2, sizeof (char *));
+  p->exp = vector_create (2, sizeof (char *));
   production_addRule (p, exp);
   return p;
 }
 
 void production_destroy (PRODUCTION * p) {
-  while (listItemCount (p->exp) > 0) {
-    xph_free (listPop (p->exp));
+  void * v = NULL;
+  while (vector_size (p->exp) > 0) {
+    xph_free (vector_pop_back (v, p->exp));
   }
-  listDestroy (p->exp);
+  vector_destroy (p->exp);
   xph_free (p);
 }
 
 void production_addRule (PRODUCTION * p, const char * exp) {
   char * pexp = xph_alloc (strlen (exp) + 1, "PRODUCTION->exp[]");
   strcpy (pexp, exp);
-  listAdd (p->exp, pexp);
+  vector_push_back (p->exp, pexp);
 }
 
 bool lsystem_isDefined (const LSYSTEM * l, const char s) {
-  return (listSearch (l->p, &s, production_search) == NULL)
+  return (vector_search (l->p, &s, production_search) == NULL)
     ? FALSE
     : TRUE;
 }
 
 PRODUCTION * lsystem_getProduction (const LSYSTEM * l, char s) {
-  return listSearch (l->p, &s, production_search);
+  return vector_search (l->p, &s, production_search);
 }
 
 int lsystem_addProduction (LSYSTEM * l, const char s, const char * p) {
   PRODUCTION * sp = lsystem_getProduction (l, s);
   if (sp == NULL) {
     sp = production_create (s, p);
-    listAdd (l->p, sp);
-    listSort (l->p, production_sort);
+    vector_push_back (l->p, sp);
+    vector_sort (l->p, production_sort);
   } else {
     production_addRule (sp, p);
   }
-  return listItemCount (sp->exp);
+  return vector_size (sp->exp);
 }
 
 void lsystem_clearProductions (LSYSTEM * l, const char s) {
@@ -594,29 +604,31 @@ void lsystem_clearProductions (LSYSTEM * l, const char s) {
   if (sp == NULL) {
     return;
   }
-  listRemove (l->p, sp);
+  vector_remove (l->p, sp);
   production_destroy (sp);
 }
 
 char * lsystem_getRandProduction (const LSYSTEM * l, const char s) {
   PRODUCTION * sp = lsystem_getProduction (l, s);
   int i = 0;
-  char * r = NULL;
+  char
+    * r = NULL,
+    * v = NULL;
   if (sp == NULL) {
     r = xph_alloc (2, "LSYSTEM production");
     r[0] = s;
     r[1] = '\0';
     return r;
   }
-  i = listItemCount (sp->exp);
+  i = vector_size (sp->exp);
   if (i == 1) {
-    r = xph_alloc (strlen (listIndex (sp->exp, 0)) + 1, "LSYSTEM production");
-    strcpy (r, listIndex (sp->exp, 0));
+    r = xph_alloc (strlen (vector_front (v, sp->exp)) + 1, "LSYSTEM production");
+    strcpy (r, v);
     return r;
   }
   i = random () % i;
-  r = xph_alloc (strlen (listIndex (sp->exp, i)) + 1, "LSYSTEM production");
-  strcpy (r, listIndex (sp->exp, i));
+  r = xph_alloc (strlen (vector_at (v, sp->exp, i)) + 1, "LSYSTEM production");
+  strcpy (r, v);
   return r;
 }
 

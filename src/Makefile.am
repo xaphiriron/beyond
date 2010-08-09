@@ -14,10 +14,10 @@ libline_la_SOURCES = line.c line.h
 bin_PROGRAMS = beyond
 beyond_SOURCES = \
   xph_memory.c xph_memory.h \
-  list.c list.h \
+  cpv.c cpv.h \
   point.c point.h \
   turtle.c turtle.h \
-  entity.c entity.h \
+  object.c object.h \
   video.c video.h \
   turtledraw.c turtledraw.h \
   input.c input.h \

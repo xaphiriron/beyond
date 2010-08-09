@@ -3,30 +3,30 @@
 int main (int argc, char * argv[]) {
   SYSTEM * sys = NULL;
 
-  entclass_init (system_handler, NULL, NULL, NULL);
-  sys = entity_getClassData (SystemEntity, "SYSTEM");
+  objClass_init (system_handler, NULL, NULL, NULL);
+  sys = obj_getClassData (SystemObject, "SYSTEM");
 
-  entity_message (SystemEntity, EM_START, NULL, NULL);
+  obj_message (SystemObject, OM_START, NULL, NULL);
 
   while (!sys->quit) {
-    entity_message (SystemEntity, EM_UPDATE, NULL, NULL);
+    obj_message (SystemObject, OM_UPDATE, NULL, NULL);
 
-    entity_message (ControlEntity, EM_UPDATE, NULL, NULL);
-    entity_message (PhysicsEntity, EM_UPDATE, NULL, NULL);
-    while (physics_hasTime (PhysicsEntity)) {
-      entity_messagePre (WorldEntity, EM_UPDATE, NULL, NULL);
-      entity_messagePre (WorldEntity, EM_POSTUPDATE, NULL, NULL);
+    obj_message (ControlObject, OM_UPDATE, NULL, NULL);
+    obj_message (PhysicsObject, OM_UPDATE, NULL, NULL);
+    while (physics_hasTime (PhysicsObject)) {
+      obj_messagePre (WorldObject, OM_UPDATE, NULL, NULL);
+      obj_messagePre (WorldObject, OM_POSTUPDATE, NULL, NULL);
     }
 
-    entity_messagePre (VideoEntity, EM_PRERENDER, NULL, NULL);
-    entity_messagePre (WorldEntity, EM_PRERENDER, NULL, NULL);
-    entity_messagePre (WorldEntity, EM_RENDER, NULL, NULL);
-    entity_messagePre (WorldEntity, EM_POSTRENDER, NULL, NULL);
-    entity_messagePre (VideoEntity, EM_POSTRENDER, NULL, NULL);
+    obj_messagePre (VideoObject, OM_PRERENDER, NULL, NULL);
+    obj_messagePre (WorldObject, OM_PRERENDER, NULL, NULL);
+    obj_messagePre (WorldObject, OM_RENDER, NULL, NULL);
+    obj_messagePre (WorldObject, OM_POSTRENDER, NULL, NULL);
+    obj_messagePre (VideoObject, OM_POSTRENDER, NULL, NULL);
   }
 
-  entity_message (SystemEntity, EM_DESTROY, NULL, NULL);
-  entclass_destroyS ("SYSTEM");
-  entclass_destroyAll ();
+  obj_message (SystemObject, OM_DESTROY, NULL, NULL);
+  objClass_destroy ("SYSTEM");
+  objects_destroyEverything ();
   return 0;
 }

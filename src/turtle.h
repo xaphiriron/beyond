@@ -6,7 +6,7 @@
 #include "bool.h"
 #include "xph_memory.h"
 #include "vector.h"
-#include "list.h"
+#include "cpv.h"
 #include "line.h"
 #include "point.h"
 
@@ -74,7 +74,7 @@ enum turtle_settings {
   TURTLE_POSITION
 };
 
-typedef struct list * TLINES;
+typedef Vector ** TLINES;
 
 struct tloc {
   float heading;
@@ -87,10 +87,10 @@ typedef struct turtle {
    position,
    headingVector;
   enum turtle_pen penDown;
-  struct list
+  Vector
     * locationStack,
     * lines;
-  POINTS * points;
+  POINTS points;
 
   bool scaleCenterClean;
   VECTOR3 center;
@@ -110,7 +110,7 @@ enum symbol_commands {
 };
 
 typedef struct symbolset {
-  struct list * symbols;
+  Vector * symbols;
 } SYMBOLSET;
 
 typedef struct symbol {
@@ -120,12 +120,12 @@ typedef struct symbol {
 } SYMBOL;
 
 typedef struct lsystem {
-  struct list * p;
+  Vector * p;
 } LSYSTEM;
 
 typedef struct production {
   char l;
-  struct list * exp;
+  Vector * exp;
 } PRODUCTION;
 
 TURTLE * turtle_create ();
@@ -146,8 +146,8 @@ void turtle_pop (TURTLE *);
 void turtle_SETFAKERESOLUTION (float x, float y);
 void turtle_FAKERESOLUTION (bool enable);
 
-const TLINES * turtle_getLines (const TURTLE *);
-const POINTS * turtle_getPoints (TURTLE *);
+const TLINES turtle_getLines (const TURTLE *);
+const POINTS turtle_getPoints (TURTLE *);
 float turtle_getScale (TURTLE *);
 const VECTOR3 * turtle_getCenter (TURTLE *);
 void turtle_clearLines (TURTLE *);
@@ -155,7 +155,7 @@ void turtle_resetPosition (TURTLE *);
 
 void turtle_setDefault (enum turtle_settings, ...);
 
-int tline_count (const TLINES *);
+int tline_count (const TLINES);
 
 void turtle_runPath (char * p, TURTLE *, const SYMBOLSET *);
 void turtle_runCycle (char * c, TURTLE *, const SYMBOLSET *);

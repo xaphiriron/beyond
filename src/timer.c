@@ -92,14 +92,14 @@ float timer_timeSinceLastUpdate (const TIMER * t) {
   return timeval_cmp (&now, &t->lastUpdate);
 }
 
-static struct list * TimerRegistry = NULL;
+static Vector * TimerRegistry = NULL;
 
 void timer_updateAll () {
   TIMER * t = NULL;
   int i = 0;
   if (TimerRegistry == NULL)
     timer_createTimerRegistry ();
-  while ((t = listIndex (TimerRegistry, i++)) != NULL) {
+  while (vector_at (t, TimerRegistry, i++) != NULL) {
     timer_update (t);
   }
 }
@@ -107,26 +107,27 @@ void timer_updateAll () {
 static void timer_registerTimer (TIMER * t) {
   if (TimerRegistry == NULL)
     timer_createTimerRegistry ();
-  listAdd (TimerRegistry, t);
+  vector_push_back (TimerRegistry, t);
 }
 
 static void timer_unregisterTimer (TIMER * t) {
   if (TimerRegistry == NULL)
     timer_createTimerRegistry ();
-  listRemove (TimerRegistry, t);
+  vector_remove (TimerRegistry, t);
 }
 
 static void timer_createTimerRegistry () {
   if (NULL != TimerRegistry) {
     return;
   }
-  TimerRegistry = listCreate (8, sizeof (struct timer *));
+  TimerRegistry = vector_create (8, sizeof (struct timer *));
 }
 
 void timer_destroyTimerRegistry () {
-  while (listItemCount (TimerRegistry) > 0) {
-    timer_destroy (listPop (TimerRegistry));
+  TIMER * t = NULL;
+  while (vector_size (TimerRegistry) > 0) {
+    timer_destroy (vector_pop_back (t, TimerRegistry));
   }
-  listDestroy (TimerRegistry);
+  vector_destroy (TimerRegistry);
   TimerRegistry = NULL;
 }

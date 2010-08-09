@@ -3,7 +3,7 @@
 
 #include <stdarg.h>
 #include <SDL/SDL.h>
-#include "entity.h"
+#include "object.h"
 #include "system.h"
 
 /* wow this is a jumble. all this code needs to be condensed and reworked so that half the functions are not named control_ and half are named input_. functions which are not actually used should be removed; functions which don't do what they say they do should be rewritten or renamed. Most of the time "system state" is ignored because it's not really well-documented how it'll work yet, but sometimes it's not.
@@ -13,7 +13,7 @@ most importantly right now: the order of the inputResponses as children of Contr
 the solution probably has something to do with cycling through every event on a keydown and giving precidence to the responses with the most complex triggers or sorting the responses so the a response with a key set comes before any responses with a subset of its keys.
  */
 
-extern ENTITY * ControlEntity;
+extern Object * ControlObject;
 
 enum xph_extrakeys {
   EK_SHIFT = SDLK_LAST + 1,
@@ -28,8 +28,8 @@ typedef struct control {
   Uint8 * keystate;
   // other data (mouse coords, etc) here
 
-  ENTITY * controlledEntity;
-  struct list * focusedEntities;
+  Object * controlledObject;
+  Vector * focusedObjects;
 
   // we need to put "continuous" events somewhere (timed events, events that
   // start and keep going for a while, etc), but I'm not sure where. not even
@@ -108,7 +108,7 @@ enum trigger_req {
 };
 
 typedef struct inputResponse {
-  struct list * triggers;
+  Vector * triggers;
   enum trigger_req type;
 
   enum input_responses {
@@ -139,19 +139,19 @@ void control_destroy (CONTROL *);
 enum input_responses control_getResponseForSDLKey (const SDLKey);
 enum input_responses control_getResponse (const SDL_Event * e, const Uint8 * k);
 
-bool control_loadConfigSettings (ENTITY * ec, char * configPath);
-void control_loadDefaultSettings (ENTITY * ec);
+bool control_loadConfigSettings (Object * o, char * configPath);
+void control_loadDefaultSettings (Object * o);
 
 /*
 INPUTFRAME * input_createFrame (char * name);
 void input_destroyFrame (INPUTFRAME *);
 */
 
-inputResponse * input_createResponse (struct list * triggers, enum trigger_req type, enum input_responses response, unsigned int activeMask);
+inputResponse * input_createResponse (Vector * triggers, enum trigger_req type, enum input_responses response, unsigned int activeMask);
 void input_destroyResponse (inputResponse *);
 
-void inputResponse_setTriggerMode (ENTITY * e, enum trigger_req);
-void inputResponse_setActiveMask (ENTITY * e, unsigned int mask);
+void inputResponse_setTriggerMode (Object * o, enum trigger_req);
+void inputResponse_setActiveMask (Object * o, unsigned int mask);
 
 bool inputResponse_triggeredByKeyAndState (const inputResponse * r, const SDLKey key, const unsigned int state);
 bool inputResponse_matches (const inputResponse * r, const SDL_Event * e, const Uint8 * k);
@@ -160,7 +160,7 @@ bool input_matchResponse (const INPUTRESPONSE * r, const SDL_Event * e, const Ui
 */
 
 inputTrigger * input_createTrigger (enum input_type type, ...);
-struct list * input_createTriggerList (int n, ...);
+Vector * input_createTriggerVector (int n, ...);
 void input_destroyTrigger (inputTrigger *);
 
 bool inputTrigger_matchesKey (const inputTrigger * t, const SDLKey key);
@@ -174,10 +174,10 @@ bool input_matchTriggerToKeystate (const INPUTTRIGGER * t, const Uint8 * k);
 
 
 
-int control_handler (ENTITY * e, eMessage msg, void * a, void * b);
+int control_handler (Object * o, objMsg msg, void * a, void * b);
 /*
 int inputFrame_handler (ENTITY * e, eMessage msg, void * a, void * b);
 */
-int inputResponse_handler (ENTITY * e, eMessage msg, void * a, void * b);
+int inputResponse_handler (Object * o, objMsg msg, void * a, void * b);
 
 #endif /* INPUT_H */

@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include "system.h"
-#include "entity.h"
+#include "object.h"
 
 int main (int argc, char * argv[]);
 

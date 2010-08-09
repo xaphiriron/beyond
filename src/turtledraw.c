@@ -1,11 +1,11 @@
 #include "turtledraw.h"
 
-extern ENTITY * VideoEntity;
+extern Object * VideoObject;
 
 int turtle_drawLines (TURTLE * t) {
-  const TLINES * lines = turtle_getLines (t);
+  const TLINES lines = turtle_getLines (t);
   const LINE * l = NULL;
-  const VIDEO * video = entity_getClassData (VideoEntity, "video");
+  const VIDEO * video = obj_getClassData (VideoObject, "video");
   int i = 0;
   float
     x0 = 0, y0 = 0,
@@ -21,7 +21,7 @@ int turtle_drawLines (TURTLE * t) {
   glLoadIdentity ();
 
   glBegin (GL_LINES);
-  while ((l = listIndex (*(const struct list **)lines, i++)) != NULL) {
+  while (vector_at (l, *lines, i++) != NULL) {
     //printf ("LINE %d of %d/%d: %p\n", i, listItemCount (*(const struct list **)lines), tline_count (lines), l);
     line_coordsAtT (l, 0, &x0, &y0);
     line_coordsAtT (l, 1, &x1, &y1);

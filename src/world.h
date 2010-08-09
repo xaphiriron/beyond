@@ -3,10 +3,10 @@
 
 #include <SDL/SDL_opengl.h>
 #include "xph_memory.h"
-#include "entity.h"
+#include "object.h"
 #include "vector.h"
 
-extern ENTITY * WorldEntity;
+extern Object * WorldObject;
 
 typedef struct world {
   VECTOR3 origin;
@@ -15,6 +15,6 @@ typedef struct world {
 WORLD * world_create ();
 void world_destroy (WORLD *);
 
-int world_handler (ENTITY * e, eMessage msg, void * a, void * b);
+int world_handler (Object * o, objMsg msg, void * a, void * b);
 
 #endif /* WORLD_H */

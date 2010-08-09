@@ -1,6 +1,6 @@
 #include "world.h"
 
-ENTITY * WorldEntity = NULL;
+Object * WorldObject = NULL;
 
 WORLD * world_create () {
   WORLD * w = xph_alloc (sizeof (WORLD), "WORLD");
@@ -16,68 +16,68 @@ void world_destroy (WORLD * w) {
   xph_free (w);
 }
 
-int world_handler (ENTITY * e, eMessage msg, void * a, void * b) {
+int world_handler (Object * o, objMsg msg, void * a, void * b) {
   WORLD * w = NULL;
   switch (msg) {
-    case EM_CLSNAME:
+    case OM_CLSNAME:
       strncpy (a, "world", 32);
       return EXIT_SUCCESS;
-    case EM_CLSINIT:
-    case EM_CLSFREE:
+    case OM_CLSINIT:
+    case OM_CLSFREE:
       return EXIT_FAILURE;
-    case EM_CLSVARS:
+    case OM_CLSVARS:
       return EXIT_FAILURE;
 
-    case EM_CREATE:
-      if (WorldEntity != NULL) {
-        entity_destroy (e);
+    case OM_CREATE:
+      if (WorldObject != NULL) {
+        obj_destroy (o);
         return EXIT_FAILURE;
       }
       w = world_create ();
-      entity_addClassData (e, "world", w);
-      WorldEntity = e;
+      obj_addClassData (o, "world", w);
+      WorldObject = o;
       return EXIT_SUCCESS;
 
     default:
       break;
   }
-  w = entity_getClassData (e, "world");
+  w = obj_getClassData (o, "world");
   switch (msg) {
-    case EM_SHUTDOWN:
-    case EM_DESTROY:
-      WorldEntity = NULL;
+    case OM_SHUTDOWN:
+    case OM_DESTROY:
+      WorldObject = NULL;
       world_destroy (w);
-      entity_rmClassData (e, "world");
-      entity_destroy (e);
+      obj_rmClassData (o, "world");
+      obj_destroy (o);
       return EXIT_SUCCESS;
 
-    case EM_UPDATE:
+    case OM_UPDATE:
       // integrate kids or prepare kids to be integrated
       return EXIT_FAILURE;
 
-    case EM_POSTUPDATE:
+    case OM_POSTUPDATE:
       // do integration things which depend on all world objects having their
       // new position and momentum and the like
       return EXIT_FAILURE;
 
-    case EM_PRERENDER:
+    case OM_PRERENDER:
       // called after video:prerender and before this:render
       glPushMatrix ();
       //glLoadMatrixf (w->c->viewMatrix);
       return EXIT_SUCCESS;
 
-    case EM_RENDER:
+    case OM_RENDER:
       // DRAW THINGS
       //triplane_render (w->tp, &w->origin);
       return EXIT_SUCCESS;
 
-    case EM_POSTRENDER:
+    case OM_POSTRENDER:
       // called after this:render. do we really need this?
       glPopMatrix ();
       return EXIT_SUCCESS;
 
     default:
-      return entity_pass ();
+      return obj_pass ();
   }
   return EXIT_FAILURE;
 }
