@@ -5,6 +5,7 @@
 #include <SDL/SDL.h>
 #include "object.h"
 #include "system.h"
+#include "timer.h"
 
 /* wow this is a jumble. all this code needs to be condensed and reworked so that half the functions are not named control_ and half are named input_. functions which are not actually used should be removed; functions which don't do what they say they do should be rewritten or renamed. Most of the time "system state" is ignored because it's not really well-documented how it'll work yet, but sometimes it's not.
 
@@ -30,6 +31,9 @@ typedef struct control {
 
   Object * controlledObject;
   Vector * focusedObjects;
+
+  TIMER * lastInput;
+  float inputDelay;
 
   // we need to put "continuous" events somewhere (timed events, events that
   // start and keep going for a while, etc), but I'm not sure where. not even

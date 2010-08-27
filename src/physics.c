@@ -5,6 +5,7 @@ Object * PhysicsObject = NULL;
 PHYSICS * physics_create (ACCUMULATOR * acc) {
   PHYSICS * p = xph_alloc (sizeof (PHYSICS), "PHYSICS");
   p->acc = acc;
+  p->timestep = p->acc->delta;
   return p;
 }
 
@@ -14,7 +15,11 @@ void physics_destroy (PHYSICS * p) {
 }
 
 bool physics_hasTime (Object * o) {
+  //bool time = FALSE;
   PHYSICS * p = obj_getClassData (o, "physics");
+  //time = accumulator_withdrawlTime (p->acc);
+  //printf ("%s: %s\n", __FUNCTION__, time ? "TRUE" : "FALSE");
+  //printf ("  time passed: %f\n", p->acc->timer->elapsed);
   return accumulator_withdrawlTime (p->acc);
 }
 
@@ -56,8 +61,11 @@ int physics_handler (Object * o, objMsg msg, void * a, void * b) {
       obj_destroy (o);
       return EXIT_SUCCESS;
 
+    // the physics entity is just an accumulator. it doesn't do any actual physics. why are we doing things this way, anyway?
     case OM_UPDATE:
+      // the important thing to remember here is that the accumulator does not update the timer it is using, which means this is safe to call anywhere between timesteps, since the timer will return the same value.
       accumulator_update (p->acc);
+      //printf ("have %f seconds in the accumulator; enough for %d timesteps\n", p->acc->accumulated, (int)(p->acc->accumulated / p->acc->delta));
       return EXIT_SUCCESS;
 
     default:

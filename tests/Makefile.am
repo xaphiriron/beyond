@@ -7,11 +7,13 @@ AM_CPPFLAGS = -Wall -Werror
 TESTS = \
   check_check \
   check_vector \
-  check_object
+  check_object \
+  check_entity
 check_PROGRAMS = \
   check_check \
   check_vector \
-  check_object
+  check_object \
+  check_entity
 
 check_check_SOURCES = \
   check_check.c \
@@ -47,3 +49,12 @@ check_object_SOURCES = \
   $(top_builddir)/src/cpv.c
 check_object_CFLAGS = @CHECK_CFLAGS@
 check_object_LDADD = @CHECK_LIBS@
+
+check_entity_SOURCES = \
+  check_entity.c \
+  component_debug.c \
+  $(top_builddir)/src/cpv.c \
+  $(top_builddir)/src/object.c \
+  $(top_builddir)/src/entity.c
+check_entity_CFLAGS = @CHECK_CFLAGS@
+check_entity_LDADD = @CHECK_LIBS@

@@ -74,9 +74,15 @@ void timer_update (TIMER * t) {
   if (TIMER_RUNNING != t->paused) {
     return;
   }
+  if (t->lastUpdate.tv_sec == 0) {
+    // If we're on the first update of the timer, skip calculating the difference, since it'll be huge and break everything.
+    t->lastUpdate = t->clock->now;
+    return;
+  }
   u = timeval_cmp (&t->clock->now, &t->lastUpdate);
   t->elapsed += u * t->scale;
   t->lastUpdate = t->clock->now;
+  //printf ("%s: %f time elapsed total, %f between updates, %f inc. scaling\n", __FUNCTION__, t->elapsed, u, u * t->scale);
 }
 
 float timer_timeElapsed (const TIMER * t) {

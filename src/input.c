@@ -51,7 +51,10 @@ bool control_loadConfigSettings (Object * ec, char * configPath) {
 }
 
 void control_loadDefaultSettings (Object * ec) {
+  CONTROL * c = obj_getClassData (ec, "control");
   Object * key = NULL;
+
+  c->inputDelay = 0.025;
 
   obj_create ("inputResponse", ControlObject,
     input_createTriggerVector (2,
@@ -78,7 +81,7 @@ void control_loadDefaultSettings (Object * ec) {
       input_createTrigger (TI_KEYBOARD, INPUT_SDLKEY, SDLK_LEFT),
       input_createTrigger (TI_KEYBOARD, INPUT_SDLKEY, EK_SHIFT)
     ),
-    (void *)IR_AVATAR_PAN_LEFT
+    (void *)IR_AVATAR_MOVE_LEFT
   );
   inputResponse_setTriggerMode (key, TR_AND);
 //  inputResponse_setActiveMask (key, STATE_FIRSTPERSONVIEW);
@@ -88,7 +91,7 @@ void control_loadDefaultSettings (Object * ec) {
       input_createTrigger (TI_KEYBOARD, INPUT_SDLKEY, SDLK_RIGHT),
       input_createTrigger (TI_KEYBOARD, INPUT_SDLKEY, EK_SHIFT)
     ),
-    (void *)IR_AVATAR_PAN_RIGHT
+    (void *)IR_AVATAR_MOVE_RIGHT
   );
   inputResponse_setTriggerMode (key, TR_AND);
 //  inputResponse_setActiveMask (key, STATE_FIRSTPERSONVIEW);
@@ -97,14 +100,28 @@ void control_loadDefaultSettings (Object * ec) {
     input_createTriggerVector (1,
       input_createTrigger (TI_KEYBOARD, INPUT_SDLKEY, SDLK_LEFT)
     ),
-    (void *)IR_AVATAR_MOVE_LEFT
+    (void *)IR_AVATAR_PAN_LEFT
   );
 
   obj_create ("inputResponse", ControlObject,
     input_createTriggerVector (1,
       input_createTrigger (TI_KEYBOARD, INPUT_SDLKEY, SDLK_RIGHT)
     ),
-    (void *)IR_AVATAR_MOVE_RIGHT
+    (void *)IR_AVATAR_PAN_RIGHT
+  );
+
+  obj_create ("inputResponse", ControlObject,
+    input_createTriggerVector (1,
+      input_createTrigger (TI_KEYBOARD, INPUT_SDLKEY, SDLK_KP8)
+    ),
+    (void *)IR_AVATAR_PAN_UP
+  );
+
+  obj_create ("inputResponse", ControlObject,
+    input_createTriggerVector (1,
+      input_createTrigger (TI_KEYBOARD, INPUT_SDLKEY, SDLK_KP2)
+    ),
+    (void *)IR_AVATAR_PAN_DOWN
   );
 
   obj_create ("inputResponse", ControlObject,
@@ -353,6 +370,7 @@ bool inputTrigger_matchesEvent (const inputTrigger * t, const SDL_Event * e) {
 int control_handler (Object * e, objMsg msg, void * a, void * b) {
   CONTROL * c = NULL;
 
+//   WORLD * w = NULL;
   Object * focus = NULL;
 //  inputResponse * continuous = NULL;
   int i = 0;
@@ -376,13 +394,13 @@ int control_handler (Object * e, objMsg msg, void * a, void * b) {
         return EXIT_FAILURE;
       }
       c = control_create ();
+      obj_addClassData (e, "control", c);
       ControlObject = e;
       if (a != NULL) {
         control_loadConfigSettings (e, a);
       } else {
         control_loadDefaultSettings (e);
       }
-      obj_addClassData (e, "control", c);
       return EXIT_SUCCESS;
     default:
       break;
@@ -425,25 +443,79 @@ int control_handler (Object * e, objMsg msg, void * a, void * b) {
           obj_message (focus, OM_INPUT, &c->event, c->keystate);
         }
       }
+      if (c->lastInput != NULL) {
+        if (timer_timeElapsed (c->lastInput) < c->inputDelay) {
+          break;
+        } else {
+          timer_destroy (c->lastInput);
+          c->lastInput = NULL;
+        }
+      }
+      obj_message (e, OM_INPUT, NULL, c->keystate);
+      while (vector_at (focus, c->focusedObjects, i++) != NULL) {
+        obj_message (focus, OM_INPUT, NULL, c->keystate);
+      }
       return EXIT_SUCCESS;
 
     case OM_INPUT:
       //printf ("ControlObject:OM_INPUT: omg handling input\n");
       responseType = control_getResponse (a, b);
       if (responseType == 0) {
-        printf ("no response\n");
+        //printf ("no response\n");
         return EXIT_FAILURE;
       }
       printf ("got response: %d\n", responseType);
+/*
       switch (responseType) {
         // ... imagine a big list here
         case IR_QUIT:
           obj_message (SystemObject, OM_SHUTDOWN, NULL, NULL);
           return EXIT_SUCCESS;
 
+        case IR_AVATAR_MOVE_FORWARD:
+          w = obj_getClassData (WorldObject, "world");
+          camera_move (w->c, M_PI_2);
+          return EXIT_SUCCESS;
+
+        case IR_AVATAR_MOVE_BACKWARD:
+          w = obj_getClassData (WorldObject, "world");
+          camera_move (w->c, M_PI * 1.5);
+          return EXIT_SUCCESS;
+
+        case IR_AVATAR_MOVE_RIGHT:
+          w = obj_getClassData (WorldObject, "world");
+          camera_move (w->c, M_PI);
+          return EXIT_SUCCESS;
+
+        case IR_AVATAR_MOVE_LEFT:
+          w = obj_getClassData (WorldObject, "world");
+          camera_move (w->c, 0.0);
+          return EXIT_SUCCESS;
+
+        case IR_AVATAR_PAN_LEFT:
+          w = obj_getClassData (WorldObject, "world");
+          camera_yaw (w->c, CAMERA_FORWARD);
+          return EXIT_SUCCESS;
+
+        case IR_AVATAR_PAN_RIGHT:
+          w = obj_getClassData (WorldObject, "world");
+          camera_yaw (w->c, CAMERA_BACKWARD);
+          return EXIT_SUCCESS;
+
+        case IR_AVATAR_PAN_UP:
+          w = obj_getClassData (WorldObject, "world");
+          camera_pitch (w->c, CAMERA_FORWARD);
+          return EXIT_SUCCESS;
+
+        case IR_AVATAR_PAN_DOWN:
+          w = obj_getClassData (WorldObject, "world");
+          camera_pitch (w->c, CAMERA_BACKWARD);
+          return EXIT_SUCCESS;
+
         default:
           return EXIT_FAILURE;
       }
+*/
       return EXIT_SUCCESS;
 
     default:

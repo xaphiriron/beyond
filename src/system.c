@@ -6,6 +6,7 @@ SYSTEM * system_create () {
   SYSTEM * s = xph_alloc (sizeof (SYSTEM), "SYSTEM");
   s->quit = FALSE;
   s->clock = clock_create ();
+  s->timer_mult = 1.0;
   s->state = STATE_INIT;
   return s;
 }
@@ -36,7 +37,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b) {
       obj_create ("control", SystemObject,
         NULL, NULL);
       obj_create ("physics", SystemObject,
-        accumulator_create (timer_create (s->clock, 1.0), 0.05), NULL);
+        accumulator_create (timer_create (s->clock, 1.0), 0.03), NULL);
       obj_create ("world", SystemObject,
         NULL, NULL);
 

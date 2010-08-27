@@ -9,6 +9,8 @@ extern Object * PhysicsObject;
 
 typedef struct physics {
   ACCUMULATOR * acc;
+
+  float timestep;
 } PHYSICS;
 
 PHYSICS * physics_create (ACCUMULATOR *);

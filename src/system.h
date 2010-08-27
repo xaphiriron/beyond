@@ -22,6 +22,7 @@ typedef struct system {
 
   bool quit;
   CLOCK * clock;
+  float timer_mult;
 } SYSTEM;
 
 SYSTEM * system_create ();

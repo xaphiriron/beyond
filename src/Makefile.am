@@ -12,23 +12,49 @@ libline_la_SOURCES = line.c line.h
 
 
 bin_PROGRAMS = beyond
-beyond_SOURCES = \
+#bin_PROGRAMS = beyond logo
+beyond_SOURCES =	\
   xph_memory.c xph_memory.h \
-  cpv.c cpv.h \
-  point.c point.h \
-  turtle.c turtle.h \
-  object.c object.h \
-  video.c video.h \
-  turtledraw.c turtledraw.h \
-  input.c input.h \
-  timer.c timer.h \
+  cpv.c cpv.h		\
+  object.c object.h	\
+  video.c video.h	\
+  input.c input.h	\
+  timer.c timer.h	\
   accumulator.c accumulator.h \
-  physics.c physics.h \
-  world.c world.h \
-  system.c system.h \
+  physics.c physics.h	\
+  entity.c entity.h	\
+  component_position.c component_position.h	\
+  component_integrate.c component_integrate.h	\
+  component_camera.c component_camera.h		\
+  component_collide.c component_collide.h	\
+  hex.c hex.h		\
+  world.c world.h	\
+  system.c system.h	\
   beyond.c beyond.h
-beyond_LDADD = \
-  libline.la \
-  libvector.la \
-  libfcmp.la \
+beyond_LDADD =	\
+  libline.la	\
+  libvector.la	\
+  libfcmp.la	\
   -lm -lGL -lSDL
+
+# logo_SOURCES = \
+#   xph_memory.c xph_memory.h \
+#   cpv.c cpv.h		\
+#   object.c object.h	\
+#   timer.c timer.h	\
+#   video.c video.h	\
+#   input.c input.h	\
+#   accumulator.c accumulator.h \
+#   physics.c physics.h	\
+#   point.c point.h	\
+#   world.c world.h	\
+#   hex.c hex.h		\
+#   turtle.c turtle.h	\
+#   turtledraw.c turtledraw.h \
+#   system.c system.h	\
+#   logo.c
+# logo_LDADD =	\
+#   libline.la	\
+#   libvector.la	\
+#   libfcmp.la	\
+#   -lm -lGL -lSDL

@@ -611,7 +611,11 @@ bool obj_addClassData (Object * o, const char * c, void * d) {
 }
 
 void * obj_getClassData (Object * o, const char * c) {
-  struct objData * od = vector_search (o->objData, c, objData_search);
+  struct objData * od = NULL;
+  if (o == NULL || c == NULL) {
+    return NULL;
+  }
+  od = vector_search (o->objData, c, objData_search);
   if (od == NULL) {
     return NULL;
   }

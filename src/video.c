@@ -25,15 +25,15 @@ bool video_loadConfigSettings (VIDEO * v, char * configPath) {
 
 void video_loadDefaultSettings (VIDEO * v) {
   v->height = 540;
-  v->width = 720;
+  v->width = 960;
   v->orthographic = FALSE;
   v->doublebuffer = TRUE;
-  v->resolution = 1.0;
+  v->resolution = 0.03;
   v->title = xph_alloc (16, "video->title");
   strncpy (v->title, "beyond 0.0.0.1", 16);
   v->icon = NULL;
   v->near = 10.0;
-  v->far = 800.0;
+  v->far = 5000.0;
   v->SDLmode = SDL_OPENGL;
   v->screen = NULL;
 }
@@ -43,6 +43,12 @@ void video_enableSDLmodules () {
 }
 
 void video_enableGLmodules () {
+  glClearColor (0.0, 0.0, 0.0, 0.0);
+  glClearDepth (1.0);
+  glEnable (GL_DEPTH_TEST);
+  glEnable (GL_CULL_FACE);
+  glPolygonMode (GL_FRONT, GL_FILL);
+  //glPolygonMode (GL_BACK, GL_LINE);
 }
 
 
@@ -102,19 +108,22 @@ bool video_initialize (VIDEO * v) {
 void video_regenerateDisplay (VIDEO * v) {
   float
     glWidth = video_getXResolution () / 2.0,
-    glHeight = video_getYResolution () / 2.0;
+    glHeight = video_getYResolution () / 2.0,
+    glNear = v->near,
+    glFar = v->far;
   glViewport (0, 0, v->width, v->height);
   glMatrixMode (GL_PROJECTION);
   glLoadIdentity ();
   if (v->orthographic == TRUE) {
     glOrtho (-glWidth, glWidth,
              -glHeight, glHeight,
-             v->near, v->far);
+             glNear, glFar);
   } else {
     glFrustum (-glWidth, glWidth,
                -glHeight, glHeight,
-               v->near, v->far);
+               glNear, glFar);
   }
+  //printf ("%s: opengl frustum is %5.3f by %5.3f with a resolution of %5.3f and a near/far value of %5.3f/%5.3f\n", __FUNCTION__, glWidth, glHeight, v->resolution, glNear, glFar);
   glMatrixMode (GL_MODELVIEW);
   glLoadIdentity ();
 }

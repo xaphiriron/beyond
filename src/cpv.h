@@ -35,7 +35,9 @@ void _vector_remove (Vector * v, void * val, size_t s);
 
 
 #define		vector_assign(v, i, c)	\
-		_vector_assign (v, i, &c, sizeof (typeof (c)))
+		({typeof (c) _c = c; \
+		_vector_assign (v, i, &_c, sizeof (typeof (_c))); \
+		})
 void _vector_assign (Vector * v, int i, void * d, size_t s);
 
 

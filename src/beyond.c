@@ -2,6 +2,7 @@
 
 int main (int argc, char * argv[]) {
   SYSTEM * sys = NULL;
+  //unsigned int i = 0;
 
   objClass_init (system_handler, NULL, NULL, NULL);
   sys = obj_getClassData (SystemObject, "SYSTEM");
@@ -16,7 +17,10 @@ int main (int argc, char * argv[]) {
     while (physics_hasTime (PhysicsObject)) {
       obj_messagePre (WorldObject, OM_UPDATE, NULL, NULL);
       obj_messagePre (WorldObject, OM_POSTUPDATE, NULL, NULL);
+      //i++;
     }
+    //printf ("ran %d physics cycle%s this frame\n", i, (i == 1 ? "" : "s"));
+    //i = 0;
 
     obj_messagePre (VideoObject, OM_PRERENDER, NULL, NULL);
     obj_messagePre (WorldObject, OM_PRERENDER, NULL, NULL);
