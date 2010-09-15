@@ -106,6 +106,9 @@ collide_intersection * collide_hex (Entity * e, HEX * hex) {
   }
   pdata = p->comp_data;
   cdata = c->comp_data;
+  if (cdata->onStableGround) {
+    return NULL;
+  }
   switch (cdata->i.type) {
     case COLLIDE_SPHERE:
       // there are four possibilities:
@@ -325,12 +328,13 @@ void collide_response (collide_intersection * x) {
   struct position_data * pdata;
   struct integrate_data * idata;
   collide_data * cdata;
+  //VECTOR3 newPos;
   if (x == NULL) {
     return;
   }
+  printf ("%s: WE'VE GOT A COLLISION\n", __FUNCTION__);
   if (x->type == COLLIDE_HEX) {
     // to "bounce" what we'd do is take x->pointofintersection - a->pos * a->{bounciness} and set that as a's new velocity. but we're not going to do that. We're going
-    //printf ("LETS DO THIS:\n");
     p = entity_getAs (x->a, "position");
     i = entity_getAs (x->a, "integrate");
     c = entity_getAs (x->a, "collide");
@@ -342,6 +346,12 @@ void collide_response (collide_intersection * x) {
     cdata->onStableGround = TRUE;
     if (i != NULL) {
       //printf ("zeroing velocity and acceleration\n");
+      //newPos = vectorCreate (
+      //  x->pointofcontact.x,
+      //  x->pointofcontact.y,
+      //  x->pointofcontact.z
+      //);
+      //setPosition (x->a, newPos);
       idata = i->comp_data;
       idata->velocity = vectorCreate (0, 0, 0);
       idata->acceleration = vectorCreate (0, 0, 0);
@@ -400,6 +410,11 @@ int component_collide (Object * obj, objMsg msg, void * a, void * b) {
       break;
   }
   switch (msg) {
+    case OM_SHUTDOWN:
+    case OM_DESTROY:
+      obj_destroy (obj);
+      return EXIT_SUCCESS;
+
     case OM_COMPONENT_INIT_DATA:
       cd = a;
       *cd = xph_alloc (sizeof (collide_data), "collide_data");

@@ -70,6 +70,11 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b) {
       break;
   }
   switch (msg) {
+    case OM_SHUTDOWN:
+    case OM_DESTROY:
+      obj_destroy (obj);
+      return EXIT_SUCCESS;
+
     case OM_COMPONENT_INIT_DATA:
       cd = a;
       *cd = xph_alloc (sizeof (struct camera_data), "struct camera_data");
@@ -88,6 +93,7 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b) {
         vector_at (e, v, i++);
         updateCamera (e);
       }
+      vector_destroy (v);
       return EXIT_SUCCESS;
 
     case OM_POSTUPDATE:

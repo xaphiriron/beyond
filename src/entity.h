@@ -43,12 +43,14 @@ Component * entity_getAs (Entity * e, const char * comp_name);
 bool entity_registerComponentAndSystem (objHandler func);
 Vector * entity_getEntitiesWithComponent (int n, ...);
 System * entity_getSystemByName (const char * comp_name);
+void entity_destroySystem (const char * comp_name);
+void entity_destroyEverything ();
 
 bool component_instantiateOnEntity (const char * comp_name, Entity * e);
 bool component_removeFromEntity (const char * comp_name, Entity * e);
 
-bool component_messageEntity (Component * c, char * message);
-bool component_messageSystem (Component * c, char * message);
+bool component_messageEntity (Component * c, char * message, void * arg);
+bool component_messageSystem (Component * c, char * message, void * arg);
 
 void entitySubsystem_update (const char * comp_name);
 void entitySubsystem_postupdate (const char * comp_name);

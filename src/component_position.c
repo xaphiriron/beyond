@@ -38,6 +38,11 @@ int component_position (Object * obj, objMsg msg, void * a, void * b) {
   }
 
   switch (msg) {
+    case OM_SHUTDOWN:
+    case OM_DESTROY:
+      obj_destroy (obj);
+      return EXIT_SUCCESS;
+
     case OM_COMPONENT_INIT_DATA:
       cd = a;
       *cd = xph_alloc (sizeof (struct position_data), "struct position_data");

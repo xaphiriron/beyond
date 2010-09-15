@@ -29,24 +29,29 @@ int system_handler (Object * o, objMsg msg, void * a, void * b) {
       s = obj_getClassData (SystemObject, "SYSTEM");
 
       objClass_init (video_handler, NULL, NULL, NULL);
-      objClass_init (control_handler, NULL, NULL, NULL);
       objClass_init (physics_handler, NULL, NULL, NULL);
       objClass_init (world_handler, NULL, NULL, NULL);
+
+      entity_registerComponentAndSystem (component_position);
+      entity_registerComponentAndSystem (component_integrate);
+      entity_registerComponentAndSystem (component_camera);
+      entity_registerComponentAndSystem (component_collide);
+      entity_registerComponentAndSystem (component_input);
+      entity_registerComponentAndSystem (component_walking);
+
       obj_create ("video", SystemObject,
-        NULL, NULL);
-      obj_create ("control", SystemObject,
         NULL, NULL);
       obj_create ("physics", SystemObject,
         accumulator_create (timer_create (s->clock, 1.0), 0.03), NULL);
       obj_create ("world", SystemObject,
         NULL, NULL);
 
-#ifdef MOM_DEBUG
+#ifdef MEM_DEBUG
       atexit (xph_audit);
-#endif /* MOM_DEBUG */
+#endif /* MEM_DEBUG */
       return EXIT_SUCCESS;
     case OM_CLSFREE:
-      //entclass_destroyAll ();
+      entity_destroyEverything ();
       SDL_Quit ();
       return EXIT_SUCCESS;
     case OM_CLSVARS:
@@ -73,7 +78,6 @@ int system_handler (Object * o, objMsg msg, void * a, void * b) {
     case OM_DESTROY:
       // this is post-order because if it was pre-order it wouldn't hit all its children due to an annoying issue I can't fix easily. When an entity is destroyed it detatches itself from the entity hierarchy, and since the *Entity globals are at the top of the entity tree, destroying them makes their children no longer siblings and thus unable to message each other. most likely I'll need to rework how messaging works internally, so I can ensure a message sent pre/post/in/whatever will hit all of the entities it should, at the moment the message was first sent (messages that change the entity tree that use the entity tree to flow are kind of a challenge, as you might imagine :/)
       obj_messagePost (WorldObject, OM_DESTROY, NULL, NULL);
-      obj_messagePost (ControlObject, OM_DESTROY, NULL, NULL);
       obj_messagePost (VideoObject, OM_DESTROY, NULL, NULL);
       obj_messagePost (PhysicsObject, OM_DESTROY, NULL, NULL);
 
@@ -86,7 +90,6 @@ int system_handler (Object * o, objMsg msg, void * a, void * b) {
     case OM_START:
       // for the record, the VideoEntity calls SDL_Init; everything else calls SDL_InitSubSystem. so the video entity has to start first. If this becomes a problem, feel free to switch the SDL_Init call to somewhere where it will /really/ always be called first (the system entity seems like a good place) and make everything else use SDL_InitSubSystem.
       obj_message (VideoObject, OM_START, NULL, NULL);
-      obj_message (ControlObject, OM_START, NULL, NULL);
       obj_message (PhysicsObject, OM_START, NULL, NULL);
       obj_message (WorldObject, OM_START, NULL, NULL);
       return EXIT_SUCCESS;

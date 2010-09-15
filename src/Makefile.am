@@ -18,7 +18,6 @@ beyond_SOURCES =	\
   cpv.c cpv.h		\
   object.c object.h	\
   video.c video.h	\
-  input.c input.h	\
   timer.c timer.h	\
   accumulator.c accumulator.h \
   physics.c physics.h	\
@@ -27,6 +26,8 @@ beyond_SOURCES =	\
   component_integrate.c component_integrate.h	\
   component_camera.c component_camera.h		\
   component_collide.c component_collide.h	\
+  component_input.c component_input.h		\
+  component_walking.c component_walking.h	\
   hex.c hex.h		\
   world.c world.h	\
   system.c system.h	\

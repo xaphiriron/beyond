@@ -197,12 +197,15 @@ WORLD * world_create () {
 
   e = entity_create ();
   component_instantiateOnEntity ("position", e);
-  setPosition (e, vectorCreate (0.0, -30.0, 0.0));
+  setPosition (e, vectorCreate (0.0, -60.0, 0.0));
   component_instantiateOnEntity ("integrate", e);
   component_instantiateOnEntity ("camera", e);
   component_instantiateOnEntity ("collide", e);
   setCollideType (e, COLLIDE_SPHERE);
   setCollideRadius (e, 30.0);
+  component_instantiateOnEntity ("input", e);
+  component_instantiateOnEntity ("walking", e);
+  input_addControlledEntity (e);
   w->camera = e;
 
   return w;
@@ -216,16 +219,20 @@ void world_destroy (WORLD * w) {
 
 void world_update () {
   entitySubsystem_update ("position");
+  entitySubsystem_update ("walking");
   entitySubsystem_update ("integrate");
   entitySubsystem_update ("camera");
   entitySubsystem_update ("collide");
+  entitySubsystem_update ("input");
 }
 
 void world_postupdate () {
   entitySubsystem_postupdate ("position");
+  entitySubsystem_postupdate ("walking");
   entitySubsystem_postupdate ("integrate");
   entitySubsystem_postupdate ("camera");
   entitySubsystem_postupdate ("collide");
+  entitySubsystem_postupdate ("input");
 }
 
 int world_handler (Object * o, objMsg msg, void * a, void * b) {
@@ -247,10 +254,6 @@ int world_handler (Object * o, objMsg msg, void * a, void * b) {
         obj_destroy (o);
         return EXIT_FAILURE;
       }
-      entity_registerComponentAndSystem (component_position);
-      entity_registerComponentAndSystem (component_integrate);
-      entity_registerComponentAndSystem (component_camera);
-      entity_registerComponentAndSystem (component_collide);
 
       w = world_create ();
       obj_addClassData (o, "world", w);

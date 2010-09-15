@@ -3,7 +3,6 @@
 
 #include "object.h"
 #include "video.h"
-#include "input.h"
 #include "physics.h"
 #include "world.h"
 #include "timer.h"

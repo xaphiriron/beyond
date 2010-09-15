@@ -54,7 +54,7 @@ START_TEST (test_component_message_entity) {
   component_instantiateOnEntity ("COMPONENT_NAME_2", e);
   cd = entity_getAs (e, "COMPONENT_NAME");
   mark_point ();
-  component_messageEntity (cd, "COMPONENT_MESSAGE_ENTITY_COMPONENTS");
+  component_messageEntity (cd, "COMPONENT_MESSAGE_ENTITY_COMPONENTS", NULL);
   mark_point ();
   entitySubsystem_update ("COMPONENT_NAME");
   entitySubsystem_update ("COMPONENT_NAME_2");
@@ -80,7 +80,7 @@ START_TEST (test_system_component_message) {
   component_instantiateOnEntity ("COMPONENT_NAME", f);
   component_instantiateOnEntity ("COMPONENT_NAME_2", g);
   cd = entity_getAs (e, "COMPONENT_NAME");
-  component_messageSystem (cd, "COMPONENT_MESSAGE_SYSTEM_COMPONENTS");
+  component_messageSystem (cd, "COMPONENT_MESSAGE_SYSTEM_COMPONENTS", NULL);
   entitySubsystem_update ("COMPONENT_NAME");
   cd = entity_getAs (f, "COMPONENT_NAME");
   fail_unless (debugComponent_messageReceived (cd, "COMPONENT_MESSAGE_SYSTEM_COMPONENTS") == TRUE);
@@ -104,7 +104,7 @@ START_TEST (test_system_system_message) {
   component_instantiateOnEntity ("COMPONENT_NAME", f);
   component_instantiateOnEntity ("COMPONENT_NAME_2", g);
   cd = entity_getAs (e, "COMPONENT_NAME");
-  component_messageSystem (cd, "COMPONENT_MESSAGE_OTHER_SYSTEMS");
+  component_messageSystem (cd, "COMPONENT_MESSAGE_OTHER_SYSTEMS", NULL);
   entitySubsystem_update ("COMPONENT_NAME");
   cd = entity_getAs (g, "COMPONENT_NAME_2");
   fail_unless (debugComponent_messageReceived (cd, "COMPONENT_MESSAGE_OTHER_SYSTEMS") == TRUE);

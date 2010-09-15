@@ -14,6 +14,8 @@
 #include "component_integrate.h"
 #include "component_camera.h"
 #include "component_collide.h"
+#include "component_input.h"
+#include "component_walking.h"
 
 extern Object * WorldObject;
 

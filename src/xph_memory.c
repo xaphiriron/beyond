@@ -61,7 +61,7 @@ void * xph_realloc (void * d, size_t size) {
   j = *k;
   a = realloc (j->address, size);
   if (a == NULL) {
-    fprintf (stderr, "Out of memory (tried to allocate %d bytes, %d absolutely). There's really nothing we can do here except crash, sorry. Hope you saved recently! :D", size - j->size, size);
+    fprintf (stderr, "Out of memory (tried to allocate %d bytes, %d absolutely). There's really nothing we can do here except crash, sorry. Hope you saved recently! :D\n", size - j->size, size);
     exit (1);
   }
   j->address = a;
@@ -82,7 +82,7 @@ void xph_free (void * d) {
   assert (mlist != NULL);
   k = bsearch (d, mlist->a, mlist->o, sizeof (struct mdata *), memory_search);
   if (k == NULL) {
-    fprintf (stderr, "Attempted to free %p, which is not allocated.", d);
+    fprintf (stderr, "Attempted to free %p, which is not allocated.\n", d);
     return;
   }
   free ((*k)->address);

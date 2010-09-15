@@ -70,7 +70,7 @@ int component_message_tracker_obj_func (Object * o, objMsg msg, void * a, void *
     case OM_COMPONENT_DESTROY_DATA:
       break;
 
-    // arguments: (struct comp_message *, NULL)
+    // arguments: (struct comp_message *, optional void * ptr dependant on message)
     case OM_COMPONENT_RECEIVE_MESSAGE:
       comp_msg = a;
       from = comp_msg->from;
@@ -87,7 +87,7 @@ int component_message_tracker_obj_func (Object * o, objMsg msg, void * a, void *
       break;
 
     // arguments: (NULL, NULL)
-    case OM_SYSTEM_UPDATE:
+    case OM_UPDATE:
       break;
 
     default:

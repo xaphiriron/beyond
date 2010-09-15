@@ -195,6 +195,7 @@ Vector * entity_getEntitiesWithComponent (int n, ...) {
     }
   }
 
+  xph_free (comp_names);
   xph_free (components);
   xph_free (indices);
   return final;
@@ -214,18 +215,45 @@ System * entity_getSystemByName (const char * comp_name) {
   return sys;
 }
 
+void entity_destroySystem (const char * comp_name) {
+  System * sys = entity_getSystemByName (comp_name);
+  Component * c = NULL;
+  if (sys == NULL) {
+    return;
+  }
+  while (vector_size (sys->entities) > 0) {
+    vector_front (c, sys->entities);
+    component_removeFromEntity (sys->comp_name, c->e);
+  }
+  vector_remove (SystemRegistry, sys);
+  vector_destroy (sys->entities);
+  obj_message (sys->system, OM_DESTROY, NULL, NULL);
+  objClass_destroy (sys->comp_name);
+  xph_free (sys);
+}
+
+// TODO: there's no way to get a list of existing entities, so there's no way to batch destroy them either.
+void entity_destroyEverything () {
+  System * sys = NULL;
+  if (SystemRegistry == NULL) {
+    return;
+  }
+  while (vector_size (SystemRegistry) > 0) {
+    vector_front (sys, SystemRegistry);
+    entity_destroySystem (sys->comp_name);
+  }
+  vector_destroy (SystemRegistry);
+  SystemRegistry = NULL;
+}
 
 bool component_instantiateOnEntity (const char * comp_name, Entity * e) {
-  void * comp_data = NULL;
   System * sys = entity_getSystemByName (comp_name);
   Component * instance = NULL;
   if (sys == NULL) {
     return FALSE;
   }
-  obj_message (sys->system, OM_COMPONENT_INIT_DATA, &comp_data, e);
   instance = xph_alloc (sizeof (struct comp_map), "struct comp_map");
   instance->e = e;
-  instance->comp_data = comp_data;
   instance->reg = sys;
   instance->comp_guid = ++ComponentGUIDs;
   // we care less about enforcing uniqueness of component guids than we do about entities.
@@ -233,6 +261,7 @@ bool component_instantiateOnEntity (const char * comp_name, Entity * e) {
   vector_push_back (e->components, instance);
   vector_sort (sys->entities, comp_sort);
   vector_sort (e->components, comp_sort);
+  obj_message (sys->system, OM_COMPONENT_INIT_DATA, &instance->comp_data, e);
   return TRUE;
 }
 
@@ -247,7 +276,7 @@ bool component_removeFromEntity (const char * comp_name, Entity * e) {
     fprintf (stderr, "%s: Entity #%d doesn't have a component \"%s\"\n", __FUNCTION__, e->guid, comp_name);
     return FALSE;
   }
-  obj_message (sys->system, OM_COMPONENT_DESTROY_DATA, comp->comp_data, e);
+  obj_message (sys->system, OM_COMPONENT_DESTROY_DATA, &comp->comp_data, e);
   vector_remove (sys->entities, comp);
   vector_remove (e->components, comp);
   xph_free (comp);
@@ -268,7 +297,7 @@ Component * entity_getAs (Entity * e, const char * comp_name) {
   return comp;
 }
 
-bool component_messageEntity (Component * comp, char * message) {
+bool component_messageEntity (Component * comp, char * message, void * arg) {
   struct comp_message * msg = xph_alloc (sizeof (struct comp_message), "struct comp_message");
   Component * t = NULL;
   int i = 0;
@@ -280,14 +309,18 @@ bool component_messageEntity (Component * comp, char * message) {
       continue;
     }
     msg->to = t;
-    obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, msg, NULL);
+    obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, msg, arg);
   }
   xph_free (msg);
   return TRUE;
 }
 
-bool component_messageSystem (Component * comp, char * message) {
-  obj_message (comp->reg->system, OM_SYSTEM_RECEIVE_MESSAGE, comp, message);
+bool component_messageSystem (Component * comp, char * message, void * arg) {
+  new (struct comp_message, msg);
+  msg->from = comp;
+  msg->message = message;
+  obj_message (comp->reg->system, OM_SYSTEM_RECEIVE_MESSAGE, msg, message);
+  xph_free (msg);
   return TRUE;
 }
 

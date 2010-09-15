@@ -12,7 +12,6 @@ int main (int argc, char * argv[]) {
   while (!sys->quit) {
     obj_message (SystemObject, OM_UPDATE, NULL, NULL);
 
-    obj_message (ControlObject, OM_UPDATE, NULL, NULL);
     obj_message (PhysicsObject, OM_UPDATE, NULL, NULL);
     while (physics_hasTime (PhysicsObject)) {
       obj_messagePre (WorldObject, OM_UPDATE, NULL, NULL);

@@ -32,9 +32,11 @@ void * vector_search (Vector * v, const void * k, int (*f)(const void *, const v
 }
 
 int in_vector (const Vector * v, const void * k) {
-  int i = 0;
-  //printf ("offset: %d; size: %d\n", v->o, vector_size (v));
-  while (i < v->o) {
+  int
+    i = 0,
+    s = vector_size (v);
+  //printf ("offset: %d; size: %d\n", v->o, s);
+  while (i < s) {
     //printf ("%s: memcmp between i:%d and %p is %d\n", __FUNCTION__, i, k, memcmp (v->l + i * v->s, k, v->s));
     if (memcmp (v->l + i * v->s, k, v->s) == 0) {
       return i;
@@ -69,20 +71,24 @@ void _vector_assign (Vector * v, int i, void * d, size_t s) {
     exit(5);
   }
 //   vector_debug_print_final (v, __FUNCTION__);
+  //printf ("attempting to place something at offset %d (when a/o is %d/%d)\n", i, v->a, v->o);
   if (i < 0) {
     return;
   } else if (i >= v->a) {
     while (i >= v->a) {
-      //printf ("about to try resizing\n");
+      //printf ("about to try resizing (to %d)\n", v->a * 2);
       _vector_resize (v, v->a * 2, NULL);
       //printf ("done w/ resize\n");
     }
   }
   l = v->l + i * v->s;
   memcpy (l, d, v->s);
-  v->o = (v->o <= i) ? i+1 : v->o+1;
+  //printf ("%s: value of %d/%p is %p\n", __FUNCTION__, i, l, *(void **)l);
+  // v->o is the NUMBER OF ITEMS in the vector, not the offset of the highest in-use index; we don't actually care what i was in this context.
+  // FIXME: if i as an index in the vector is already in use, then we shouldn't increase v->o.
+  v->o++;
   if (v->o > v->a) {
-    printf ("vector offset > allocated memory. this should not be possible and is very bad. (so bad we're going to blow up everything in the hope you notice. let's assume this will be taken out after beta)\n");
+    printf ("vector offset (%d) > allocated memory (%d). this should not be possible and is very bad. (so bad we're going to blow up everything in the hope you notice. let's assume this will be taken out after beta)\n", v->o, v->a);
     exit(1);
   }
   //printf ("done w/ %s; new size: %d/%d\n", __FUNCTION__, v->o, v->a);
@@ -95,11 +101,12 @@ void * _vector_at (const Vector * v, int i, size_t s) {
     fprintf (stderr, "invalid vector retrieval: vector stores units of size %d, but attempted to get something of size %d.\n", v->s, s);
     exit(6);
   }
-  if (i < 0 || i >= v->o) {
+  if (i < 0 || i >= v->a) {
     // this chunk of memory should always be a block of zeros as large as the target needs to zero itself out entirely. We'd normally return NULL here, except because of the macros involved in actually calling this function it's impossible to avoid dereferencing the address returned, which obviously makes it a bad idea to return NULL.
     return v->l + v->a * v->s;
   }
   //printf ("%s: got %p from %d\n", __FUNCTION__, v->l + i * v->s, v->o - 1);
+  //printf ("%s: value of %d/%p is %p\n", __FUNCTION__, i, v->l + i * v->s, *(void **)(v->l + i * v->s));
   return v->l + i * v->s;
 }
 
@@ -119,6 +126,15 @@ bool vector_empty (const Vector * v) {
     : FALSE;
 }
 
+/* hey so this function (as well as a lot of other functions with the same
+ * bug, namely a test against v->o to see if the index is out of bounds) is
+ * totally not going to work right on any vector which is filled in a
+ * non-sequential manner. Vaguely, what needs to be done is to alter the
+ * struct so that it is possible to differentiate between "number of indices
+ * filled" and "the indices which have values in them". Right now v->o is the
+ * former and that means using it is not a good way to test what is the
+ * highest in-use index in the vector.
+ */
 void vector_erase (Vector * v, int i) {
   int j = i;
   if (i < 0 || i >= v->o) {

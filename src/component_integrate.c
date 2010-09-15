@@ -1,5 +1,9 @@
 #include "component_integrate.h"
 
+void addExtraVelocity (struct integrate_data * idata, VECTOR3 * vel) {
+  idata->extra_velocity = vectorAdd (&idata->extra_velocity, vel);
+}
+
 void applyForce (struct integrate_data * idata, VECTOR3 * force, float delta) {
   VECTOR3 f = vectorMultiplyByScalar (force, 1 / idata->mass);
   vectorMultiplyByScalar (&f, 1 / delta);
@@ -14,7 +18,7 @@ void applyGravity (struct integrate_data * idata, float delta) {
   idata->tar_acceleration = vectorAdd (&idata->acceleration, &g);
 }
 
-void commitIntegration (Entity * e) {
+void commitIntegration (Entity * e, float delta) {
   Component
     * p = entity_getAs (e, "position"),
     * i = entity_getAs (e, "integrate");
@@ -26,20 +30,29 @@ void commitIntegration (Entity * e) {
   pdata = p->comp_data;
   idata = i->comp_data;
 
+  //printf ("%s: entity #%d\n", __FUNCTION__, e->guid);
 /*
   printf ("%s (%p):\n", __FUNCTION__, e);
   printf (" position-- new: %f, %f, %f; old: %f, %f, %f\n", idata->tar_pos.x, idata->tar_pos.y, idata->tar_pos.z, pdata->pos.x, pdata->pos.y, pdata->pos.z);
-  printf (" velocity-- new: %f, %f, %f; old: %f, %f, %f\n", idata->tar_velocity.x, idata->tar_velocity.y, idata->tar_velocity.z, idata->velocity.x, idata->velocity.y, idata->velocity.z);
-  printf (" force-- new: %f, %f, %f; old: %f, %f, %f\n", idata->tar_acceleration.x, idata->tar_acceleration.y, idata->tar_acceleration.z, idata->acceleration.x, idata->acceleration.y, idata->acceleration.z);
  */
+  printf (
+    " velocity:\n  new:  %5.2f, %5.2f, %5.2f; \n  old:  %5.2f, %5.2f, %5.2f\n  tar:  %5.2f, %5.2f, %5.2f\n  temp: %5.2f, %5.2f, %5.2f\n",
+    idata->tar_velocity.x + idata->extra_velocity.x,
+    idata->tar_velocity.y + idata->extra_velocity.y,
+    idata->tar_velocity.z + idata->extra_velocity.z,
+    idata->velocity.x, idata->velocity.y, idata->velocity.z,
+    idata->tar_velocity.x, idata->tar_velocity.y, idata->tar_velocity.z,
+    idata->extra_velocity.x, idata->extra_velocity.y, idata->extra_velocity.z
+  );
+/*
+  printf (" force-- new: %f, %f, %f; old: %f, %f, %f\n", idata->tar_acceleration.x, idata->tar_acceleration.y, idata->tar_acceleration.z, idata->acceleration.x, idata->acceleration.y, idata->acceleration.z);
+ //*/
 
-  //printf ("%s: updating position for #%d from %f,%f,%f to %f,%f%f\n", __FUNCTION__, e->guid, pdata->pos.x, pdata->pos.y, pdata->pos.z, idata->tar_pos.x, idata->tar_pos.y, idata->tar_pos.z);
   setPosition (e, idata->tar_pos);
   idata->velocity = idata->tar_velocity;
   idata->acceleration = idata->tar_acceleration;
 
-  idata->tar_velocity = idata->tar_acceleration = \
-    vectorCreate (0.0, 0.0, 0.0);
+  idata->tar_velocity = idata->tar_acceleration = idata->extra_velocity = vectorCreate (0.0, 0.0, 0.0);
   idata->tar_pos = pdata->pos;
 }
 
@@ -51,7 +64,9 @@ void integrate (Entity * e, float delta) {
   struct position_data * pdata = NULL;
   struct integrate_data * idata = NULL;
   collide_data * cdata = NULL;
-  VECTOR3 v;
+  VECTOR3
+    v,
+    w;
   if (p == NULL || i == NULL) {
     return;
   }
@@ -60,6 +75,7 @@ void integrate (Entity * e, float delta) {
   }
   pdata = p->comp_data;
   idata = i->comp_data;
+  //printf ("%s: entity #%d\n", __FUNCTION__, e->guid);
 
   if (cdata == NULL || cdata->onStableGround == FALSE) {
     // idk how to update acceleration, except by applying gravity.
@@ -67,9 +83,12 @@ void integrate (Entity * e, float delta) {
   }
 
   v = vectorMultiplyByScalar (&idata->tar_acceleration, delta);
-  idata->tar_velocity = vectorAdd (&idata->velocity, &v);
+  v = vectorAdd (&idata->velocity, &v);
+  idata->tar_velocity = v;
 
   v = vectorMultiplyByScalar (&idata->tar_velocity, delta);
+  w = vectorMultiplyByScalar (&idata->extra_velocity, delta);
+  v = vectorAdd (&v, &w);
   idata->tar_pos = vectorAdd (&pdata->pos, &v);
 
 }
@@ -97,6 +116,11 @@ int component_integrate (Object * obj, objMsg msg, void * a, void * b) {
       break;
   }
   switch (msg) {
+    case OM_SHUTDOWN:
+    case OM_DESTROY:
+      obj_destroy (obj);
+      return EXIT_SUCCESS;
+
     case OM_COMPONENT_INIT_DATA:
       cd = a;
       *cd = xph_alloc (sizeof (struct integrate_data), "struct integrate_data");
@@ -119,6 +143,7 @@ int component_integrate (Object * obj, objMsg msg, void * a, void * b) {
         vector_at (e, v, i++);
         integrate (e, physics->timestep);
       }
+      vector_destroy (v);
       return EXIT_SUCCESS;
 
     case OM_POSTUPDATE:
@@ -126,7 +151,7 @@ int component_integrate (Object * obj, objMsg msg, void * a, void * b) {
       i = 0;
       while (i < vector_size (v)) {
         vector_at (e, v, i++);
-        commitIntegration (e);
+        commitIntegration (e, physics->timestep);
       }
       return EXIT_SUCCESS;
 
