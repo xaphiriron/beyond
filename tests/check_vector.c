@@ -175,7 +175,7 @@ END_TEST
 */
 
 
-// there was a bug in which the supposedly "blank" data block we keep so we always have v->s bytes of zeros to return a "NULL" for got overwritten somehow, so that a vector_pop_back (...) != NULL test would never return false and keep looping forever. In cases where the pointer was actually used, however, it never got past a single iteration: since it was garbage data (e.g., not 0xdeadbeef) read as a pointer, it would inevitably segfault.
+// there was a bug in which the supposedly "blank" data block we keep so we always have v->s bytes of zeros to return a "NULL" for got overwritten somehow, so that a vector_pop_back (...) != NULL test would never return false and keep looping forever. In cases where the pointer was actually used, however, it never got past a single iteration: since it was garbage data (e.g., not 0xdeadbeef) read as a pointer, it would inevitably segfault when dereferenced.
 START_TEST (test_vector_loop_final) {
   Vector * v = vector_create (4, sizeof (void *));
   void
@@ -187,10 +187,112 @@ START_TEST (test_vector_loop_final) {
     i++;
   }
   while (vector_pop_back (m, v) != NULL) {
-    //printf ("popped %p value\n", m);
     --i;
   }
-  fail_unless (i == 0);
+  fail_unless (
+    i == 0,
+    "The number of items pushed onto an empty stack must equal the number of items which can be popped off. (Got %d %s than expected)", abs (i), (i > 0 ? "less" : "more")
+  );
+}
+END_TEST
+
+
+void nonsequential_setup (void) {
+/*
+  int i = 0;
+  char c = 0;
+*/
+  v = vector_create (11, 1);
+  vector_assign (v, 6, (char)'a');
+  vector_assign (v, 12, (char)'b');
+/*
+  while (i < v->a) {
+    vector_at (c, v, i);
+    printf ("#%d: %d/'%c'\n", i, c, c);
+    i++;
+  }
+*/
+}
+
+void nonsequential_teardown (void) {
+  vector_destroy (v);
+  v = NULL;
+}
+
+START_TEST (test_vector_nonsequential_size) {
+  vector_assign (v, 6, (char)'a');
+  vector_assign (v, 6, (char)'a');
+  fail_unless (
+    vector_size (v) == 2,
+    "Assigning a value to a vector index that is already in use should not increase the size of the vector."
+  );
+}
+END_TEST
+
+
+START_TEST (test_vector_nonsequential_assign) {
+  char c = 0;
+
+  vector_at (c, v, 6);
+  fail_unless (
+    c == 'a',
+    "It is permissible to assign indices in a non-sequential manner. (6, '%c')", c
+  );
+  vector_at (c, v, 12);
+  fail_unless (
+    c == 'b',
+    "It is permissible to assign indices in a non-sequential manner. (12, '%c')", c
+  );
+}
+END_TEST
+
+START_TEST (test_vector_nonsequential_push_back) {
+  char c = 0;
+
+  vector_push_back (v, (char)'c');
+  vector_at (c, v, 13);
+  fail_unless (
+    c == 'c',
+    "If the vector is pushed and has non-sequential indices, the value should be placed in the index one higher than the highest in-use index. (Expected 'c' at index 13, got '%c')", c
+  );
+}
+END_TEST
+
+START_TEST (test_vector_nonsequential_pop_back) {
+  char c = 0;
+
+  vector_pop_back (c, v);
+  fail_unless (
+    c == 'b',
+    "If the vector is popped and has non-sequential indices, the highest in-use index should be popped off the vector and returned."
+  );
+}
+END_TEST
+
+START_TEST (test_vector_nonsequential_front) {
+  char c = 0;
+
+  vector_front (c, v);
+  fail_unless (
+    c == 'a',
+    "If the vector's front is calculated and the vector has non-sequential indices, the value of the first in-use index should be returned."
+  );
+}
+END_TEST
+
+START_TEST (test_vector_nonsequential_erase) {
+  char c = 0;
+
+  vector_erase (v, 6);
+  vector_at (c, v, 12);
+  fail_unless (
+    c == 'b',
+    "If the vector has an index erased and is non-sequentially ordered, the following indices should not be made contiguous."
+  );
+  fail_unless (
+    vector_size (v) == 1,
+    "If a vector has an index erased, its size should go down by one."
+  );
 }
 END_TEST
 
@@ -200,7 +302,8 @@ Suite * make_vector_suite (void) {
     * tc_create = tcase_create ("Creation"),
     * tc_set = tcase_create ("Setting & Fetching"),
     * tc_clear = tcase_create ("Clear"),
-    * tc_loop = tcase_create ("Loops & NULL values");
+    * tc_loop = tcase_create ("Loops & NULL values"),
+    * tc_nonseq = tcase_create ("Non-sequential vectors");
   tcase_add_checked_fixture (tc_create, create_setup, create_teardown);
   tcase_add_test (tc_create, test_vector_create);
   tcase_add_test (tc_create, test_vector_size);
@@ -219,6 +322,15 @@ Suite * make_vector_suite (void) {
   suite_add_tcase (s, tc_clear);
   tcase_add_test (tc_loop, test_vector_loop_final);
   suite_add_tcase (s, tc_loop);
+
+  tcase_add_checked_fixture (tc_nonseq, nonsequential_setup, nonsequential_teardown);
+  tcase_add_test (tc_nonseq, test_vector_nonsequential_assign);
+  tcase_add_test (tc_nonseq, test_vector_nonsequential_size);
+  tcase_add_test (tc_nonseq, test_vector_nonsequential_push_back);
+  tcase_add_test (tc_nonseq, test_vector_nonsequential_pop_back);
+  tcase_add_test (tc_nonseq, test_vector_nonsequential_front);
+  tcase_add_test (tc_nonseq, test_vector_nonsequential_erase);
+  suite_add_tcase (s, tc_nonseq);
   return s;
 }
 

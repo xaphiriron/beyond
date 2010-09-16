@@ -1,28 +1,157 @@
 #include "cpv.h"
 
+#include "xph_memory.h"
 /*
 static void vector_debug_print_final (const Vector * v, const char * f);
 */
+static bool index_used (const Vector * v, int i);
+static void index_set_used (Vector * v, int i);
+static void index_set_free (Vector * v, int i);
+
+static bool index_used (const Vector * v, int i) {
+  int
+    k,
+    l;
+  if (v->order == VECTOR_SEQUENTIAL) {
+    return i < v->o;
+  }
+  assert (v->f != NULL);
+  k = i / CHAR_BIT;
+  l = i % CHAR_BIT;
+  return (v->f[k] & (0x01 << l))
+    ? TRUE
+    : FALSE;
+}
+
+static void index_set_used (Vector * v, int i) {
+  int
+    k, l,
+    m, n;
+  if (v->order == VECTOR_SEQUENTIAL && i > v->o) {
+    //printf ("%s: the vector is now non-sequential!\n", __FUNCTION__);
+    v->order = VECTOR_NONSEQUENTIAL;
+    v->f = calloc (1, v->a / CHAR_BIT + 1);
+    k = v->o / CHAR_BIT;
+    l = v->o & CHAR_BIT;
+    m = n = 0;
+    while (m < k && n < l) {
+      v->f[m] &= (0x01 << n);
+      if (n == 7) {
+        m++;
+      }
+      n = (n + 1) & 0x07;
+    }
+  } else if (v->order == VECTOR_SEQUENTIAL) {
+    return;
+  }
+  assert (v->f != NULL);
+  k = i / CHAR_BIT;
+  l = i % CHAR_BIT;
+  v->f[k] |= (0x01 << l);
+  assert (index_used (v, i));
+}
+
+static void index_set_free (Vector * v, int i) {
+  int
+    k, l,
+    m, n;
+  if (v->order == VECTOR_SEQUENTIAL && i != v->o) {
+    //printf ("%s: the vector is now non-sequential!\n", __FUNCTION__);
+    v->order = VECTOR_NONSEQUENTIAL;
+    v->f = calloc (1, v->a / CHAR_BIT + 1);
+    k = v->o / CHAR_BIT;
+    l = v->o & CHAR_BIT;
+    m = n = 0;
+    while (m < k && n < l) {
+      v->f[m] &= (0x01 << n);
+      if (n == 7) {
+        m++;
+      }
+      n = (n + 1) & 0x07;
+    }
+  } else if (v->order == VECTOR_SEQUENTIAL) {
+    return;
+  }
+  assert (v->f != NULL);
+  k = i / CHAR_BIT;
+  l = i % CHAR_BIT;
+  v->f[k] &= ~(0x01 << l);
+  assert (!index_used (v, i));
+}
+
+
+int vector_index_last (const Vector * v) {
+  int
+    k = v->a / CHAR_BIT,
+    l = 0;
+  if (v->order == VECTOR_SEQUENTIAL) {
+    return v->o ? v->o - 1 : -1;
+  }
+  while (k > 0) {
+    k--;
+    if (v->f[k]) {
+      l = CHAR_BIT;
+      while (--l > 0) {
+        if (v->f[k] & (0x01 << l)) {
+          printf ("final in-use index: %d\n", k * CHAR_BIT + l);
+          return k * CHAR_BIT + l;
+        }
+      }
+    }
+  }
+  return -1;
+}
+
+int vector_index_first (const Vector * v) {
+  int
+    k = 0,
+    l = 0;
+  if (v->order == VECTOR_SEQUENTIAL) {
+    return v->o ? 0 : -1;
+  }
+  while (k < v->a / CHAR_BIT + 1) {
+    if (v->f[k]) {
+      l = 0;
+      while (l < CHAR_BIT) {
+        if (v->f[k] & (0x01 << l)) {
+          printf ("first in-use index: %d\n", k * CHAR_BIT + l);
+          return k * CHAR_BIT + l;
+        }
+        l++;
+      }
+    }
+    k++;
+  }
+  return -1;
+}
 
 Vector * vector_create (int c, size_t size) {
-  Vector * v = malloc (sizeof (Vector));
+  Vector * v = xph_alloc (sizeof (Vector), "Vector");
   v->s = size;
   v->o = 0;
   v->a = c;
   v->l = calloc (c + 1, size);
+  v->order = VECTOR_SEQUENTIAL;
+  v->f = NULL;
   return v;
 }
 
 void vector_destroy (Vector * v) {
   if (v == NULL) {
-    // yell something?
     return;
   }
+  if (v->f != NULL) {
+    free (v->f);
+  }
   free (v->l);
-  free (v);
+  xph_free (v);
 }
 
 void vector_sort (Vector * v, int (*f)(const void *, const void *)) {
+  if (v->order == VECTOR_NONSEQUENTIAL) {
+    printf ("%s: cannot sort non-sequential vector\n", __FUNCTION__);
+    return;
+  }
   qsort (v->l, v->o, v->s, f);
 }
 
@@ -64,35 +193,28 @@ void _vector_remove (Vector * v, void * val, size_t s) {
 }
 
 void _vector_assign (Vector * v, int i, void * d, size_t s) {
-  void * l = NULL;
   if (s != v->s) {
-    // yell something and/or explode
     fprintf (stderr, "invalid vector assignment: vector stores units of size %d, but something of size %d was attempted to be placed inside.\n", v->s, s);
     exit(5);
   }
-//   vector_debug_print_final (v, __FUNCTION__);
-  //printf ("attempting to place something at offset %d (when a/o is %d/%d)\n", i, v->a, v->o);
   if (i < 0) {
     return;
   } else if (i >= v->a) {
     while (i >= v->a) {
-      //printf ("about to try resizing (to %d)\n", v->a * 2);
       _vector_resize (v, v->a * 2, NULL);
-      //printf ("done w/ resize\n");
     }
   }
-  l = v->l + i * v->s;
-  memcpy (l, d, v->s);
-  //printf ("%s: value of %d/%p is %p\n", __FUNCTION__, i, l, *(void **)l);
-  // v->o is the NUMBER OF ITEMS in the vector, not the offset of the highest in-use index; we don't actually care what i was in this context.
-  // FIXME: if i as an index in the vector is already in use, then we shouldn't increase v->o.
-  v->o++;
+  //printf ("%s: assigning to index %d\n", __FUNCTION__, i);
+  memcpy (v->l + i * v->s, d, v->s);
+  if (!index_used (v, i)) {
+    //printf ("%s: index %d unused; setting used\n", __FUNCTION__, i);
+    v->o++;
+  }
+  index_set_used (v, i);
   if (v->o > v->a) {
     printf ("vector offset (%d) > allocated memory (%d). this should not be possible and is very bad. (so bad we're going to blow up everything in the hope you notice. let's assume this will be taken out after beta)\n", v->o, v->a);
     exit(1);
   }
-  //printf ("done w/ %s; new size: %d/%d\n", __FUNCTION__, v->o, v->a);
-//   vector_debug_print_final (v, __FUNCTION__);
 }
 
 void * _vector_at (const Vector * v, int i, size_t s) {
@@ -126,34 +248,34 @@ bool vector_empty (const Vector * v) {
     : FALSE;
 }
 
-/* hey so this function (as well as a lot of other functions with the same
- * bug, namely a test against v->o to see if the index is out of bounds) is
- * totally not going to work right on any vector which is filled in a
- * non-sequential manner. Vaguely, what needs to be done is to alter the
- * struct so that it is possible to differentiate between "number of indices
- * filled" and "the indices which have values in them". Right now v->o is the
- * former and that means using it is not a good way to test what is the
- * highest in-use index in the vector.
- */
 void vector_erase (Vector * v, int i) {
   int j = i;
-  if (i < 0 || i >= v->o) {
+  if (i < 0 ||
+      (v->order == VECTOR_SEQUENTIAL && i >= v->o) ||
+      (v->order == VECTOR_NONSEQUENTIAL && index_used (v, i) == FALSE)) {
     return;
   }
-  while (j < v->o) {
-    memcpy (v->l + j * v->s, v->l + (j + 1) * v->s, v->s);
-    j++;
+  if (v->order == VECTOR_SEQUENTIAL) {
+    while (j < v->o) {
+      memcpy (v->l + j * v->s, v->l + (j + 1) * v->s, v->s);
+      j++;
+    }
+    memset (v->l + v->o * v->s, '\0', v->s);
+  } else {
+    memcpy (v->l + j * v->s, v->l + v->a * v->s, v->s);
+    index_set_free (v, i);
   }
-  memset (v->l + v->o * v->s, '\0', v->s);
   v->o--;
 }
 
 void _vector_resize (Vector * v, int n, void * val) {
-  int i = 0;
+  int
+    i = 0,
+    oa = v->a;
+  int j, k, mask = 0;
   void * l2 = NULL;
-//   vector_debug_print_final (v, __FUNCTION__);
+  char * f2 = NULL;
   if (n == v->a) {
-    //printf ("no point in resizing\n");
     return;
   }
   if (n < v->a) {
@@ -166,14 +288,16 @@ void _vector_resize (Vector * v, int n, void * val) {
     memset (v->l + v->a * v->s, '\0', v->s);
   } else {
     v->a = (v->a * 2 > n) ? v->a * 2 : n;
-    //printf ("growing vector to %d\n", v->a);
     l2 = realloc (v->l, (v->a + 1) * v->s);
     if (l2 == NULL) {
       fprintf (stderr, "out of memory. sorry, nothing to do but crash. hope you saved recently. :/\n");
       exit (1);
-    }
+    }/* else if (v->l != l2) {
+      free (v->l);
+    }*/
+    // if I try to if (v->l != l2) free (v->l) I get a segfault...?
     v->l = l2;
-    i = v->o;
+    i = vector_index_last (v) + 1;
     while (i <= v->a) {
       //printf ("overwriting memory at %p (+ %d)\n", v->l + i * v->s, i);
       if (val == NULL) {
@@ -182,8 +306,30 @@ void _vector_resize (Vector * v, int n, void * val) {
         memcpy (v->l + (i++ * v->s), val, v->s);
       }
     }
+    if (v->order == VECTOR_NONSEQUENTIAL) {
+      f2 = realloc (v->f, v->a / CHAR_BIT + 1);
+      if (f2 == NULL) {
+        fprintf (stderr, "out of memory. sorry, nothing to do but crash. hope you saved recently. :/\n");
+        exit (1);
+      }/* else if (f2 != v->f) {
+        free (v->f);
+      }*/
+      v->f = f2;
+      j = oa / CHAR_BIT;
+      k = oa % CHAR_BIT;
+      i = 0;
+      while (i <= k) {
+        mask |= 0x01 << i;
+        i++;
+      }
+      v->f[j] &= mask;
+      k = 0;
+      while (j < v->a / CHAR_BIT + 1) {
+        v->f[j] = 0;
+        j++;
+      }
+    }
   }
-//   vector_debug_print_final (v, __FUNCTION__);
 }
 
 int vector_size (const Vector * v) {
