@@ -153,6 +153,7 @@ int component_integrate (Object * obj, objMsg msg, void * a, void * b) {
         vector_at (e, v, i++);
         commitIntegration (e, physics->timestep);
       }
+      vector_destroy (v);
       return EXIT_SUCCESS;
 
 

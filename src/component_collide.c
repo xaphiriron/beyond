@@ -310,12 +310,14 @@ void collide_update () {
         }
       }
     }
+    vector_destroy (tiles);
   }
   while (vector_size (collisions) > 0) {
     vector_pop_back (x, collisions);
     collide_response (x);
     xph_free (x);
   }
+  vector_destroy (colliders);
   vector_destroy (collisions);
   clear_checked ();
 }

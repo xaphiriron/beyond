@@ -198,6 +198,7 @@ int component_walking (Object * o, objMsg msg, void * a, void * b) {
         vector_at (e, v, i++);
         walk_move (e);
       }
+      vector_destroy (v);
       return EXIT_FAILURE;
 
     case OM_POSTUPDATE:
