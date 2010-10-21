@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define new(type, name)		type * name = xph_alloc (sizeof (type), "type")
+#define new(TYPE, NAME)		TYPE * NAME = xph_alloc (sizeof (TYPE), #TYPE)
 
 #ifdef MEM_DEBUG
 
