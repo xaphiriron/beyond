@@ -2,37 +2,43 @@
 
 static Vector * Checked = NULL;
 
-void mark_checked (const Entity * e, const Entity * f) {
+void mark_checked (const Entity e, const Entity f) {
   struct check * c = NULL;
+  unsigned int eGuid, fGuid;
   if (Checked == NULL) {
     Checked = vector_create (8, sizeof (struct check *));
   }
   if (marked_checked (e, f)) {
     return;
   }
+  eGuid = entity_GUID (e);
+  fGuid = entity_GUID (f);
   c = xph_alloc (sizeof (struct check), "struct check");
-  if (e->guid < f->guid) {
-    c->a = e->guid;
-    c->b = f->guid;
+  if (eGuid < fGuid) {
+    c->a = eGuid;
+    c->b = fGuid;
   } else {
-    c->b = e->guid;
-    c->a = f->guid;
+    c->b = eGuid;
+    c->a = fGuid;
   }
   vector_push_back (Checked, c);
   vector_sort (Checked, check_sort);
 }
 
-bool marked_checked (const Entity * e, const Entity * f) {
+bool marked_checked (const Entity e, const Entity f) {
   struct check c;
+  unsigned int eGuid, fGuid;
   if (Checked == NULL) {
     return FALSE;
   }
-  if (e->guid < f->guid) {
-    c.a = e->guid;
-    c.b = f->guid;
+  eGuid = entity_GUID (e);
+  fGuid = entity_GUID (f);
+  if (eGuid < fGuid) {
+    c.a = eGuid;
+    c.b = fGuid;
   } else {
-    c.b = e->guid;
-    c.a = f->guid;
+    c.b = eGuid;
+    c.a = fGuid;
   }
   return
     (vector_search (Checked, &c, check_search) != NULL)
@@ -75,13 +81,12 @@ int check_search (const void * k, const void * d) {
 }
 
 
-
 // if we want to make holes in the world or the edges of the world act like solid tiles with infinite height and depth, we're going to have to pass something different in, since a null hex pointer doesn't give any information about the direction or location of the missing hex.
 // also, collide_intersection stores two entity pointers, and it's assumed that they're both objects which will rebound. hexes are not entities, and they are fixed immutably in place (at least with regard to physics interactions), so that also needs to be altered.
-collide_intersection * collide_hex (Entity * e, HEX * hex) {
+collide_intersection * collide_hex (Entity e, HEX * hex) {
   Component
-    * c = NULL,
-    * p = NULL;
+    c = NULL,
+    p = NULL;
   struct position_data
     * pdata = NULL;
   collide_data
@@ -104,8 +109,8 @@ collide_intersection * collide_hex (Entity * e, HEX * hex) {
   if (p == NULL || c == NULL) {
     return NULL;
   }
-  pdata = p->comp_data;
-  cdata = c->comp_data;
+  pdata = component_getData (p);
+  cdata = component_getData (c);
   if (cdata->onStableGround) {
     return NULL;
   }
@@ -116,14 +121,15 @@ collide_intersection * collide_hex (Entity * e, HEX * hex) {
       // Given the shape of the tiles, it's impossible for the sphere to collide with both the top and bottom of a tile (unless it's inside the tile, which is what we're trying to avoid in the first place), or collide with more than one of the six side quads. I think to be sure of a side intersection or lack thereof two sides have to be tested. Which side(s) to be tested can be determined by an atan2() call, passing the distance from the tile center. I have no clue how to do the actual side tests, even though they're flat quads aligned with the y axis. the tile bottom test is the exact same thing as the tile surface test, with I think a few signs inverted since the normal will be pointing down.
 
       distanceFromTileCenter = vectorSubtract (&pdata->pos, &hex->p);
-      distanceFromTileCenter.y = pdata->pos.y - hex->z;
       planeDistance = vectorDot (&distanceFromTileCenter, &hex->surfaceNormal);
-      //printf ("distance between plane %5.3f, %5.3f, %5.3f [at origin] and sphere center %5.3f, %5.3f, %5.3f: %f\n", hex->surfaceNormal.x, hex->surfaceNormal.y, hex->surfaceNormal.z, distanceFromTileCenter.x, distanceFromTileCenter.y, distanceFromTileCenter.z, planeDistance);
-      if (planeDistance >= -cdata->i.sph.radius && planeDistance <= cdata->i.sph.radius) {
+      printf ("distance between plane %.2f,%.2f,%.2f [at %d,%d] and sphere center %.2f,%.2f,%.2f: %f\n", hex->surfaceNormal.x, hex->surfaceNormal.y, hex->surfaceNormal.z, hex->x, hex->y, distanceFromTileCenter.x, distanceFromTileCenter.y, distanceFromTileCenter.z, planeDistance);
+      if (planeDistance >= -cdata->i.sph.radius &&
+          planeDistance <= cdata->i.sph.radius) {
         intersection = vectorMultiplyByScalar (&hex->surfaceNormal, -planeDistance);
         intersection = vectorAdd (&pdata->pos, &intersection);
         relIntersection = vectorSubtract (&hex->p, &intersection);
         // do a 2d test to see if relIntersection is inside the hxo values
+        printf ("entity #%d position: %.2f,%.2f,%.2f; center of tile at %d,%d: %.2f,%.2f,%.2f; relative distance to center: %.2f,%.2f,%.2f\n", entity_GUID (e), pdata->pos.x, pdata->pos.y, pdata->pos.z, hex->x, hex->y, hex->p.x, hex->p.y, hex->p.z, relIntersection.x, relIntersection.y, relIntersection.z);
         if (hex_point_inside (&relIntersection) == TRUE) {
           //printf ("OH MY GOD WE HAVE A TILE INTERSECTION! :DDDD\n");
           x = xph_alloc (sizeof (collide_intersection), "collide_intersection");
@@ -140,7 +146,7 @@ collide_intersection * collide_hex (Entity * e, HEX * hex) {
       //we want side to be a value [0..5] inclusive, but iirc from phantomnation this equation will actually fail. also, this being the correct side value depends on the sides being in the right order
       // to actually check if the sphere is hitting the side, we need to... do something. not just a check vs. the tile center, or the tile slope.
       // now do all that plane math with the base normal too :(
-      if (hex->dz == -FLT_MAX) {
+      if (hex->base == -FLT_MAX) {
         // no collision possible at center of the world
         return NULL;
       }
@@ -151,12 +157,12 @@ collide_intersection * collide_hex (Entity * e, HEX * hex) {
   return NULL;
 }
 
-collide_intersection * collide_entity (Entity * e, Entity * f) {
+collide_intersection * collide_entity (Entity e, Entity f) {
   Component
-    * c = NULL,
-    * d = NULL,
-    * p = NULL,
-    * q = NULL;
+    c = NULL,
+    d = NULL,
+    p = NULL,
+    q = NULL;
   struct position_data
     * pdata = NULL,
     * qdata = NULL;
@@ -174,10 +180,10 @@ collide_intersection * collide_entity (Entity * e, Entity * f) {
   if (p == NULL || q == NULL || c == NULL || d == NULL) {
     return NULL;
   }
-  pdata = p->comp_data;
-  qdata = q->comp_data;
-  cdata = c->comp_data;
-  ddata = d->comp_data;
+  pdata = component_getData (p);
+  qdata = component_getData (q);
+  cdata = component_getData (c);
+  ddata = component_getData (d);
   switch (cdata->i.type) {
     case COLLIDE_SPHERE:
       switch (ddata->i.type) {
@@ -235,62 +241,58 @@ collide_intersection * collide_spheres (float lx, float ly, float lz, float lr, 
   return x;
 }
 
-Vector * collide_footprint (Entity * e) {
-  WORLD * w = NULL;
-  Component * p = NULL;
+Vector * collide_footprint (Entity e) {
+  Component p = NULL;
   struct position_data * pdata = NULL;
   HEX * h = NULL;
-  Vector * v = NULL;
   p = entity_getAs (e, "position");
   if (p == NULL) {
-    fprintf (stderr, "%s: colliding entity #%d doesn't have a position\n", __FUNCTION__, e->guid);
+    fprintf (stderr, "%s: colliding entity #%d doesn't have a position\n", __FUNCTION__, entity_GUID (e));
     return NULL;
   }
-  pdata = p->comp_data;
+  pdata = component_getData (p);
   h = pdata->tileOccupying;
   if (h == NULL) {
-    fprintf (stderr, "%s: colliding entity #%d is outside the world\n", __FUNCTION__, e->guid);
+    fprintf (stderr, "%s: colliding entity #%d is outside the world\n", __FUNCTION__, entity_GUID (e));
     return NULL;
   }
   if (WorldObject == NULL) {
     fprintf (stderr, "%s: World doesn't exist.\n", __FUNCTION__);
     return NULL;
   }
-  w = obj_getClassData (WorldObject, "world");
-  v = map_adjacent_tiles (w->map, h->x, h->y);
-  vector_push_back (v, h);
-  return v;
+  return pdata->tileFootprint;
 }
 
 void collide_update () {
   Vector
     * colliders = NULL,
     * collisions = vector_create (2, sizeof (collide_intersection *)),
-    * tiles = NULL;
+    * footprint = NULL;
   collide_intersection * x = NULL;
   int
     i = 0,
     j = 0,
     k = 0;
   Entity
-    * e = NULL,
-    * f = NULL;
+    e = NULL,
+    f = NULL;
   HEX * t = NULL;
   colliders = entity_getEntitiesWithComponent (3, "position", "integrate", "collide");
 
   clear_checked ();
   while (vector_at (e, colliders, i++) != NULL) {
-    tiles = collide_footprint (e);
-    if (tiles == NULL) {
+    footprint = collide_footprint (e);
+    if (footprint == NULL) {
       fprintf (stderr, "%s: Entity %p located outside the world.\n", __FUNCTION__, e);
       continue;
     }
     j = 0;
-    while (j < vector_size (tiles)) {
-      vector_at (t, tiles, j++);
+    while (j < vector_size (footprint)) {
+      vector_at (t, footprint, j++);
       if (t == NULL) {
         continue;
       }
+      //printf ("%s (%d of %d): colliding with tile at %d,%d {%d %d %d}\n", __FUNCTION__, j, vector_size (footprint), t->x, t->y, t->r, t->k, t->i);
       x = collide_hex (e, t);
       if (x != NULL) {
         vector_push_back (collisions, x);
@@ -310,7 +312,6 @@ void collide_update () {
         }
       }
     }
-    vector_destroy (tiles);
   }
   while (vector_size (collisions) > 0) {
     vector_pop_back (x, collisions);
@@ -324,9 +325,9 @@ void collide_update () {
 
 void collide_response (collide_intersection * x) {
   Component
-    * p = NULL,
-    * i = NULL,
-    * c = NULL;
+    p = NULL,
+    i = NULL,
+    c = NULL;
   struct position_data * pdata;
   struct integrate_data * idata;
   collide_data * cdata;
@@ -343,8 +344,8 @@ void collide_response (collide_intersection * x) {
     if (c == NULL) {
       return;
     }
-    pdata = p->comp_data;
-    cdata = c->comp_data;
+    pdata = component_getData (p);
+    cdata = component_getData (c);
     cdata->onStableGround = TRUE;
     if (i != NULL) {
       //printf ("zeroing velocity and acceleration\n");
@@ -354,7 +355,7 @@ void collide_response (collide_intersection * x) {
       //  x->pointofcontact.z
       //);
       //setPosition (x->a, newPos);
-      idata = i->comp_data;
+      idata = component_getData (i);
       idata->velocity = vectorCreate (0, 0, 0);
       idata->acceleration = vectorCreate (0, 0, 0);
       idata->tar_velocity = idata->tar_acceleration = vectorCreate (0.0, 0.0, 0.0);
@@ -363,8 +364,8 @@ void collide_response (collide_intersection * x) {
 }
 
   // note the complete lack of any checking for validity or prior shape.
-void setCollideType (Entity * e, enum collide_types type) {
-  Component * c = NULL;
+void setCollideType (Entity e, enum collide_types type) {
+  Component c = NULL;
   collide_data * cdata = NULL;
   if (e == NULL) {
     return;
@@ -373,17 +374,17 @@ void setCollideType (Entity * e, enum collide_types type) {
   if (c == NULL) {
     return;
   }
-  cdata = c->comp_data;
+  cdata = component_getData (c);
   cdata->i.type = type;
 }
 
-void setCollideRadius (Entity * e, float r) {
-  Component * c = NULL;
+void setCollideRadius (Entity e, float r) {
+  Component c = NULL;
   collide_data * cdata = NULL;
   if (e == NULL || (c = entity_getAs (e, "collide")) == NULL) {
     return;
   }
-  cdata = c->comp_data;
+  cdata = component_getData (c);
   switch (cdata->i.type) {
     case COLLIDE_SPHERE:
       cdata->i.sph.radius = r;

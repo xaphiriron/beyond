@@ -18,23 +18,22 @@ void applyGravity (struct integrate_data * idata, float delta) {
   idata->tar_acceleration = vectorAdd (&idata->acceleration, &g);
 }
 
-void commitIntegration (Entity * e, float delta) {
+void commitIntegration (Entity e, float delta) {
   Component
-    * p = entity_getAs (e, "position"),
-    * i = entity_getAs (e, "integrate");
+    p = entity_getAs (e, "position"),
+    i = entity_getAs (e, "integrate");
   struct position_data * pdata = NULL;
   struct integrate_data * idata = NULL;
   if (p == NULL || i == NULL) {
     return;
   }
-  pdata = p->comp_data;
-  idata = i->comp_data;
+  pdata = component_getData (p);
+  idata = component_getData (i);
 
-  //printf ("%s: entity #%d\n", __FUNCTION__, e->guid);
+  //printf ("%s: entity #%d\n", __FUNCTION__, entity_GUID (e));
 /*
   printf ("%s (%p):\n", __FUNCTION__, e);
   printf (" position-- new: %f, %f, %f; old: %f, %f, %f\n", idata->tar_pos.x, idata->tar_pos.y, idata->tar_pos.z, pdata->pos.x, pdata->pos.y, pdata->pos.z);
- */
   printf (
     " velocity:\n  new:  %5.2f, %5.2f, %5.2f; \n  old:  %5.2f, %5.2f, %5.2f\n  tar:  %5.2f, %5.2f, %5.2f\n  temp: %5.2f, %5.2f, %5.2f\n",
     idata->tar_velocity.x + idata->extra_velocity.x,
@@ -44,7 +43,6 @@ void commitIntegration (Entity * e, float delta) {
     idata->tar_velocity.x, idata->tar_velocity.y, idata->tar_velocity.z,
     idata->extra_velocity.x, idata->extra_velocity.y, idata->extra_velocity.z
   );
-/*
   printf (" force-- new: %f, %f, %f; old: %f, %f, %f\n", idata->tar_acceleration.x, idata->tar_acceleration.y, idata->tar_acceleration.z, idata->acceleration.x, idata->acceleration.y, idata->acceleration.z);
  //*/
 
@@ -56,11 +54,11 @@ void commitIntegration (Entity * e, float delta) {
   idata->tar_pos = pdata->pos;
 }
 
-void integrate (Entity * e, float delta) {
+void integrate (Entity e, float delta) {
   Component
-    * p = entity_getAs (e, "position"),
-    * c = entity_getAs (e, "collide"),
-    * i = entity_getAs (e, "integrate");
+    p = entity_getAs (e, "position"),
+    c = entity_getAs (e, "collide"),
+    i = entity_getAs (e, "integrate");
   struct position_data * pdata = NULL;
   struct integrate_data * idata = NULL;
   collide_data * cdata = NULL;
@@ -70,12 +68,10 @@ void integrate (Entity * e, float delta) {
   if (p == NULL || i == NULL) {
     return;
   }
-  if (c != NULL) {
-    cdata = c->comp_data;
-  }
-  pdata = p->comp_data;
-  idata = i->comp_data;
-  //printf ("%s: entity #%d\n", __FUNCTION__, e->guid);
+  cdata = component_getData (c);
+  pdata = component_getData (p);
+  idata = component_getData (i);
+  //printf ("%s: entity #%d\n", __FUNCTION__, entity_GUID (e));
 
   if (cdata == NULL || cdata->onStableGround == FALSE) {
     // idk how to update acceleration, except by applying gravity.
@@ -99,7 +95,7 @@ void integrate (Entity * e, float delta) {
  */
 int component_integrate (Object * obj, objMsg msg, void * a, void * b) {
   const PHYSICS * physics = obj_getClassData (PhysicsObject, "physics");
-  Entity * e = NULL;
+  Entity e = NULL;
   Vector * v = NULL;
   int i = 0;
   struct integrate_data ** cd = NULL;

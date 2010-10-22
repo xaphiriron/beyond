@@ -57,8 +57,8 @@ typedef struct {
 // a is always set, b or h set depending on type
 typedef struct {
   Entity
-    * a,
-    * b;
+    a,
+    b;
   HEX * h;
   enum ent_or_hex {
     COLLIDE_HEX,
@@ -73,16 +73,16 @@ struct check {
   unsigned int a, b;
 };
 
-void mark_checked (const Entity * e, const Entity * f);
-bool marked_checked (const Entity * e, const Entity * f);
+void mark_checked (const Entity e, const Entity f);
+bool marked_checked (const Entity e, const Entity f);
 void clear_checked ();
 void destroy_checked ();
 int check_sort (const void * a, const void * b);
 int check_search (const void * k, const void * d);
 
 
-collide_intersection * collide_entity (Entity * e, Entity * f);
-collide_intersection * collide_hex (Entity * e, HEX * hex);
+collide_intersection * collide_entity (Entity e, Entity f);
+collide_intersection * collide_hex (Entity e, HEX * hex);
 
 collide_intersection * collide_spheres (float jx, float jy, float jz, float jr, float kx, float ky, float kz, float kr);
 /* data required to calculate sphere intersections:	(4)
@@ -105,12 +105,12 @@ collide_intersection * collide_spheres (float jx, float jy, float jz, float jr, 
  *  dimension of box sides (cdata->box.depth/bredth/height)	(3 floats)
  */
 
-Vector * collide_footprint (Entity * e);
+Vector * collide_footprint (Entity e);
 void collide_update ();
 void collide_response (collide_intersection * x);
 
-void setCollideType (Entity * e, enum collide_types type);
-void setCollideRadius (Entity * e, float r);
+void setCollideType (Entity e, enum collide_types type);
+void setCollideRadius (Entity e, float r);
 
 
 int component_collide (Object * obj, objMsg msg, void * a, void * b);

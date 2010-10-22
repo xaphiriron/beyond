@@ -15,7 +15,7 @@ struct camera_data {
  */
 };
 
-void updateCamera (Entity * e);
+void updateCamera (Entity e);
 int component_camera (Object * obj, objMsg msg, void * a, void * b);
 
 #endif /* XPH_COMPONENT_CAMERA_H */

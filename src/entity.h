@@ -5,56 +5,42 @@
 #include "cpv.h"
 #include "object.h"
 
-typedef struct entity {
-  unsigned int guid;
-
-  // this is a local variable to make fetching components from a specific entity faster. It stores the same data as a System->entities vector, which is to say Components (something todo: this is named "components" whereas the system vector is named "entities". this is confusing and dumb.)
-  Vector * components;
-} Entity;
-
-typedef struct sys_reg {
-  Object * system;
-  const char * comp_name;
-  Vector * entities;
-} System;
-
-typedef struct comp_map {
-  Entity * e;
-  System * reg;
-  void * comp_data;
-  unsigned int comp_guid;
-} Component;
+typedef struct entity * Entity;
+typedef struct ent_system * System;
+typedef struct ent_component * Component;
 
 struct comp_message {
   Component
-    * from,
-    * to;
+    from,
+    to;
   char * message;
 };
 
-
-Entity * entity_create ();
-void entity_destroy (Entity * e);
+Entity entity_create ();
+void entity_destroy (Entity e);
 bool entity_exists (unsigned int guid);
 
-Component * entity_getAs (Entity * e, const char * comp_name);
-
+unsigned int entity_GUID (const Entity e);
+Component entity_getAs (Entity e, const char * comp_name);
 
 bool entity_registerComponentAndSystem (objHandler func);
 Vector * entity_getEntitiesWithComponent (int n, ...);
-System * entity_getSystemByName (const char * comp_name);
+System entity_getSystemByName (const char * comp_name);
+
 void entity_destroySystem (const char * comp_name);
 void entity_destroyEverything ();
 
-bool component_instantiateOnEntity (const char * comp_name, Entity * e);
-bool component_removeFromEntity (const char * comp_name, Entity * e);
+void * component_getData (Component c);
+Entity component_entityAttached (Component c);
 
-bool component_messageEntity (Component * c, char * message, void * arg);
-bool component_messageSystem (Component * c, char * message, void * arg);
+bool component_instantiateOnEntity (const char * comp_name, Entity e);
+bool component_removeFromEntity (const char * comp_name, Entity e);
+bool component_messageEntity (Component c, char * message, void * arg);
+bool component_messageSystem (Component c, char * message, void * arg);
 
-void entitySubsystem_update (const char * comp_name);
-void entitySubsystem_postupdate (const char * comp_name);
-
-bool debugComponent_messageReceived (Component * c, char * message);
+bool entitySubsystem_store (const char * comp_name);
+bool entitySubsystem_unstore (const char * comp_name);
+bool entitySubsystem_runOnStored (objMsg);
+void entitySubsystem_clearStored ();
 
 #endif /* XPH_ENTITY_H */

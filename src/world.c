@@ -7,7 +7,7 @@ Object * WorldObject = NULL;
 WORLD * world_create () {
   WORLD * w = xph_alloc (sizeof (WORLD), "WORLD");
   HEX * h = NULL;
-  Entity * e = NULL;
+  Entity e = NULL;
   w->origin = vectorCreate (0.0, 0.0, 0.0);
   w->map = map_create (8);
   vector_assign (w->map->tiles, 0, hex_create (0, 0, 0, 0.0));
@@ -196,16 +196,19 @@ WORLD * world_create () {
   vector_assign (w->map->tiles, 108, h);
 
   e = entity_create ();
-  component_instantiateOnEntity ("position", e);
-  setPosition (e, vectorCreate (0.0, -60.0, 0.0));
+  if (component_instantiateOnEntity ("position", e)) {
+    setPosition (e, vectorCreate (0.0, -60.0, 0.0));
+  }
   component_instantiateOnEntity ("integrate", e);
   component_instantiateOnEntity ("camera", e);
-  component_instantiateOnEntity ("collide", e);
-  setCollideType (e, COLLIDE_SPHERE);
-  setCollideRadius (e, 30.0);
-  component_instantiateOnEntity ("input", e);
+  if (component_instantiateOnEntity ("collide", e)) {
+    setCollideType (e, COLLIDE_SPHERE);
+    setCollideRadius (e, 30.0);
+  }
+  if (component_instantiateOnEntity ("input", e)) {
+    input_addControlledEntity (e);
+  }
   component_instantiateOnEntity ("walking", e);
-  input_addControlledEntity (e);
   w->camera = e;
 
   return w;
@@ -218,26 +221,35 @@ void world_destroy (WORLD * w) {
 }
 
 void world_update () {
+  // components are stored when components are first registered by the system
+  // object. you can probably change this around at runtime, but it might not
+  // be the best idea.
+  entitySubsystem_runOnStored (OM_UPDATE);
+/*
   entitySubsystem_update ("position");
   entitySubsystem_update ("walking");
   entitySubsystem_update ("integrate");
   entitySubsystem_update ("camera");
   entitySubsystem_update ("collide");
   entitySubsystem_update ("input");
+*/
 }
 
 void world_postupdate () {
+  entitySubsystem_runOnStored (OM_POSTUPDATE);
+/*
   entitySubsystem_postupdate ("position");
   entitySubsystem_postupdate ("walking");
   entitySubsystem_postupdate ("integrate");
   entitySubsystem_postupdate ("camera");
   entitySubsystem_postupdate ("collide");
   entitySubsystem_postupdate ("input");
+*/
 }
 
 int world_handler (Object * o, objMsg msg, void * a, void * b) {
   WORLD * w = NULL;
-  Component * c = NULL;
+  Component c = NULL;
   struct camera_data * cdata = NULL;
   switch (msg) {
     case OM_CLSNAME:
@@ -294,7 +306,7 @@ int world_handler (Object * o, objMsg msg, void * a, void * b) {
       if (c == NULL) {
         glLoadIdentity ();
       } else {
-        cdata = c->comp_data;
+        cdata = component_getData (c);
         glLoadMatrixf (cdata->m);
 /*
         printf ("%6.3f %6.3f %6.3f %6.3f\n",

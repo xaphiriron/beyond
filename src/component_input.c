@@ -5,7 +5,6 @@
 #define BLOCKSIZE	IR_FINAL / CHAR_BIT + 1
 
 static char blockedInputCodes[BLOCKSIZE];
-static const int mask = 0x01;
 
 static struct input * Input = NULL;
 
@@ -19,7 +18,7 @@ bool blocked (enum input_responses i) {
   if (i > IR_FINAL) {
    return FALSE;
   }
-  return blockedInputCodes[o] && (mask << m) ? TRUE : FALSE;
+  return blockedInputCodes[o] & (0x01 << m) ? TRUE : FALSE;
 }
 
 void block (enum input_responses i) {
@@ -29,8 +28,19 @@ void block (enum input_responses i) {
   if (i > IR_FINAL) {
     return;
   }
-  blockedInputCodes[o] |= (mask << m);
+  blockedInputCodes[o] |= (0x01 << m);
 }
+
+void unblock (enum input_responses i) {
+  unsigned int
+    o = i / CHAR_BIT,
+    m = i % CHAR_BIT;
+  if (i > IR_FINAL) {
+    return;
+  }
+  blockedInputCodes[o] &= ~(0x01 << m);
+}
+
 
 void clearBlocks () {
   memset (blockedInputCodes, '\0', BLOCKSIZE);
@@ -196,26 +206,26 @@ void keycombo_destroy (struct keycombo * k) {
 }
 
 
-void input_addControlledEntity (Entity * e) {
+void input_addControlledEntity (Entity e) {
   assert (Input != NULL);
   if (in_vector (Input->controlledEntities, &e) == -1) {
     vector_push_back (Input->controlledEntities, e);
   }
 }
 
-void input_rmControlledEntity (Entity * e) {
+void input_rmControlledEntity (Entity e) {
   assert (Input != NULL);
   vector_remove (Input->controlledEntities, e);
 }
 
-void input_addFocusedEntity (Entity * e) {
+void input_addFocusedEntity (Entity e) {
   assert (Input != NULL);
   if (in_vector (Input->focusedEntities, &e) == -1) {
     vector_push_back (Input->focusedEntities, e);
   }
 }
 
-void input_rmFocusedEntity (Entity * e) {
+void input_rmFocusedEntity (Entity e) {
   assert (Input != NULL);
   vector_remove (Input->focusedEntities, e);
 }
@@ -224,8 +234,8 @@ void input_rmFocusedEntity (Entity * e) {
 
 void input_sendGameEventMessage (enum input_responses ir) {
   int i = 0;
-  Entity * e = NULL;
-  Component * c = NULL;
+  Entity e = NULL;
+  Component c = NULL;
   // DO INPUT EVENT ACTION
   switch (ir) {
     case IR_QUIT:
@@ -258,36 +268,41 @@ void input_sendGameEventMessage (enum input_responses ir) {
 void input_update (Object * d) {
   int
     i = 0,
-    priority = 0;
+    priority = 0,
+    fill = 0;
   struct keycombo * key = NULL;
-  struct inputmatch * inputmatch = NULL;
+  struct inputmatch
+    * inputmatch = NULL,
+    * conflict = NULL;
 
+  fill = vector_index_last (Input->eventsHeld) + 1;
   while (SDL_PollEvent (&Input->event)) {
     switch (Input->event.type) {
-      /* the purpose of the keysPressed array is so that if multiple conflicting keys are pressed (e.g., forward and backward) the key most recently held down will dominate. (the matter of how "conflicting keys" are detected is still up in the air)
+      /* the purpose of the keysPressed array is so that if multiple conflicting keys are pressed (e.g., forward and backward) the key most recently held down will dominate. (the matter of how "conflicting keys" are detected is still up in the air) it doesn't do that yet though.
        */
       case SDL_KEYDOWN:
         if (in_vector (Input->keysPressed, &Input->event.key.keysym.sym) == -1) {
-          printf ("adding key %d to keysPressed\n", Input->event.key.keysym.sym);
+          printf ("adding key %d to keysPressed (at index %d)\n", Input->event.key.keysym.sym, vector_index_last (Input->keysPressed) + 1);
           vector_push_back (Input->keysPressed, Input->event.key.keysym.sym);
         }
         break;
       case SDL_KEYUP:
-        printf ("removing key %d from keysPressed\n", Input->event.key.keysym.sym);
-        i = in_vector (Input->keysPressed, &Input->event.key.keysym.sym);
-        if (i != -1) {
-          vector_at (inputmatch, Input->eventsHeld, i);
-          if (inputmatch != NULL) {
-            printf ("held event: %d at index %d\n", inputmatch->input, i);
-            vector_remove (Input->eventsHeld, inputmatch);
-            input_sendGameEventMessage (~inputmatch->input);
-            inputmatch_destroy (inputmatch);
-            inputmatch = NULL;
-          } else {
-            printf ("no held event\n");
-          }
-          vector_remove (Input->keysPressed, Input->event.key.keysym.sym);
+        if ((i = in_vector (Input->keysPressed, &Input->event.key.keysym.sym)) == -1) {
+          continue;
         }
+        printf ("removing key %d from keysPressed (at index %d)\n", Input->event.key.keysym.sym, i);
+        vector_at (inputmatch, Input->eventsHeld, i);
+        if (inputmatch != NULL) {
+          printf ("held event: %d at index %d (%p)\n", inputmatch->input, i, inputmatch);
+          vector_remove (Input->eventsHeld, inputmatch);
+          input_sendGameEventMessage (~inputmatch->input);
+          //unblockConflicts (inputmatch->input);
+          inputmatch_destroy (inputmatch);
+          inputmatch = NULL;
+        } else {
+          printf ("no held event\n");
+        }
+        vector_remove (Input->keysPressed, Input->event.key.keysym.sym);
         i = 0;
         break;
       // if sdl sends an event when the window loses or gains focus, we should clear keysPressed on both
@@ -314,7 +329,7 @@ void input_update (Object * d) {
         continue;
       }
       if ((priority = keysPressed (key)) > 0) {
-        printf ("maybe we have ir #%d @ priority %d\n", i, priority);
+        //printf ("maybe we have ir #%d @ priority %d\n", i, priority);
         vector_push_back (Input->potentialResponses, inputmatch_create (i, priority));
       }
       i++;
@@ -326,11 +341,14 @@ void input_update (Object * d) {
         xph_free (inputmatch);
         continue;
       }
-      printf ("HAVE AN INPUT RESPONSE #%d\n", inputmatch->input);
+      printf ("HAVE AN INPUT RESPONSE #%d (%p)\n", inputmatch->input, inputmatch);
       input_sendGameEventMessage (inputmatch->input);
       blockConflicts (inputmatch->input);
       blockSubsets (inputmatch);
-      printf ("holding event %d at index %d\n", inputmatch->input, inputmatch->priority - 1);
+      printf ("holding event %d at index %d (%p)\n", inputmatch->input, inputmatch->priority - 1, inputmatch);
+      if (vector_at (conflict, Input->eventsHeld, inputmatch->priority - 1) != NULL) {
+        printf ("\033[33mINPUT EVENT PRIORITY CONFLICT (\033[1;32m%p\033[0;33m)\33[0m\n", conflict);
+      }
       vector_assign (Input->eventsHeld, inputmatch->priority - 1, inputmatch);
     }
 //*/
@@ -340,7 +358,7 @@ void input_update (Object * d) {
 
 
 int component_input (Object * o, objMsg msg, void * a, void * b) {
-  Component * t = NULL;
+  Component t = NULL;
   char * comp_msg = NULL;
   switch (msg) {
     case OM_CLSNAME:

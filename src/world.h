@@ -24,7 +24,7 @@ typedef struct world {
   MAP * map;
 
   // this is not how we should do things, but it's good enough for now.
-  Entity * camera;
+  Entity camera;
 } WORLD;
 
 WORLD * world_create ();

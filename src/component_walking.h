@@ -40,12 +40,12 @@ typedef struct walkmove_data {
 Walking * walking_create (float forward, float turn);
 void walking_destroy (Walking * w);
 
-void walking_begin_movement (Entity * e, enum walk_move w);
-void walking_begin_turn (Entity * e, enum walk_turn w);
-void walking_end_movement (Entity * e, enum walk_move w);
-void walking_end_turn (Entity * e, enum walk_turn w);
+void walking_begin_movement (Entity e, enum walk_move w);
+void walking_begin_turn (Entity e, enum walk_turn w);
+void walking_end_movement (Entity e, enum walk_move w);
+void walking_end_turn (Entity e, enum walk_turn w);
 
-void walk_move (Entity * e);
+void walk_move (Entity e);
 
 int component_walking (Object * o, objMsg msg, void * a, void * b);
 

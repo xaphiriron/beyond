@@ -65,6 +65,7 @@ struct inputmatch {
 
 bool blocked (enum input_responses i);
 void block (enum input_responses i);
+void unblock (enum input_responses i);
 void clearBlocks ();
 void blockConflicts (enum input_responses i);
 void blockSubsets (const struct inputmatch *);
@@ -89,11 +90,11 @@ void inputmatch_destroy (struct inputmatch *);
 struct keycombo * keycombo_create (int n, ...);
 void keycombo_destroy (struct keycombo * k);
 
-void input_addControlledEntity (Entity * e);
-void input_rmControlledEntity (Entity * e);
+void input_addControlledEntity (Entity e);
+void input_rmControlledEntity (Entity e);
 
-void input_addFocusedEntity (Entity * e);
-void input_rmFocusedEntity (Entity * e);
+void input_addFocusedEntity (Entity e);
+void input_rmFocusedEntity (Entity e);
 
 void input_sendGameEventMessage (enum input_responses);
 

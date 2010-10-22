@@ -45,8 +45,8 @@ int component_message_tracker_obj_func (Object * o, objMsg msg, void * a, void *
   struct comp_message * comp_msg = NULL;
   char * message = NULL;
   Component
-    * from = NULL,
-    * to = NULL/*,
+    from = NULL,
+    to = NULL/*,
     * debug = NULL*/;
   switch (msg) {
     case OM_CLSNAME:
@@ -94,4 +94,8 @@ int component_message_tracker_obj_func (Object * o, objMsg msg, void * a, void *
       return obj_pass ();
   }
   return EXIT_FAILURE;
+}
+
+bool debugComponent_messageReceived (Component c, char * message) {
+  return FALSE;
 }

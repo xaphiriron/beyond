@@ -32,12 +32,26 @@ int system_handler (Object * o, objMsg msg, void * a, void * b) {
       objClass_init (physics_handler, NULL, NULL, NULL);
       objClass_init (world_handler, NULL, NULL, NULL);
 
+/*
       entity_registerComponentAndSystem (component_position);
       entity_registerComponentAndSystem (component_integrate);
       entity_registerComponentAndSystem (component_camera);
       entity_registerComponentAndSystem (component_collide);
-      entity_registerComponentAndSystem (component_input);
       entity_registerComponentAndSystem (component_walking);
+*/
+      entity_registerComponentAndSystem (component_input);
+
+/*
+      // this order DOES matter.
+      entitySubsystem_store ("position");
+      entitySubsystem_store ("walking");
+      entitySubsystem_store ("integrate");
+*/
+      entitySubsystem_store ("camera");
+/*
+      entitySubsystem_store ("collide");
+*/
+      entitySubsystem_store ("input");
 
       obj_create ("video", SystemObject,
         NULL, NULL);

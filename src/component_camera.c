@@ -1,15 +1,15 @@
 #include "component_camera.h"
 
-void updateCamera (Entity * e) {
+void updateCamera (Entity e) {
   Component
-    * c = entity_getAs (e, "camera"),
-    * p = entity_getAs (e, "position");
+    c = entity_getAs (e, "camera"),
+    p = entity_getAs (e, "position");
   struct camera_data * cdata = NULL;
   struct position_data * pdata = NULL;
   if (c == NULL) {
     return;
   }
-  cdata = c->comp_data;
+  cdata = component_getData (c);
   //printf ("%s (%p)\n", __FUNCTION__, e);
   if (p == NULL) {
     //printf ("no position\n");
@@ -20,7 +20,7 @@ void updateCamera (Entity * e) {
       0.0;
     return;
   }
-  pdata = p->comp_data;
+  pdata = component_getData (p);
 
   cdata->m[0] = pdata->orient.side.x;
   cdata->m[1] = pdata->orient.up.x;
@@ -55,7 +55,7 @@ void updateCamera (Entity * e) {
 int component_camera (Object * obj, objMsg msg, void * a, void * b) {
   struct camera_data ** cd = NULL;
   Vector * v = NULL;
-  Entity * e = NULL;
+  Entity e = NULL;
   int i = 0;
   switch (msg) {
     case OM_CLSNAME:

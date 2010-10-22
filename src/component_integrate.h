@@ -24,8 +24,8 @@ struct integrate_data {
 void addExtraVelocity (struct integrate_data * idata, VECTOR3 * vel);
 void applyForce (struct integrate_data * idata, VECTOR3 * force, float delta);
 void applyGravity (struct integrate_data * idata, float delta);
-void commitIntegration (Entity * e, float delta);
-void integrate (Entity * e, float delta);
+void commitIntegration (Entity e, float delta);
+void integrate (Entity e, float delta);
 
 int component_integrate (Object * obj, objMsg msg, void * a, void * b);
 

@@ -1,10 +1,33 @@
 #include "entity.h"
 
+struct entity {
+  unsigned int guid;
+
+  // this is a local variable to make fetching components from a specific entity faster. It stores the same data as a System->entities vector, which is to say Components (something todo: this is named "components" whereas the system vector is named "entities". this is confusing and dumb.)
+  Vector * components;
+};
+
+struct ent_system {
+  Object * system;
+  const char * comp_name;
+  Vector * entities;
+};
+
+struct ent_component {
+  Entity e;
+  System reg;
+  void * comp_data;
+  unsigned int comp_guid;
+};
+
 static unsigned int EntityGUIDs = 0;
-static Vector * DestroyedEntities = NULL;
+static Vector * DestroyedEntities = NULL;	// stores guids
+static Vector * ExistantEntities = NULL;	// stores struct entity *
 
 static unsigned int ComponentGUIDs = 0;
 static Vector * SystemRegistry = NULL;
+
+static Vector * SubsystemComponentStore = NULL;
 
 static int comp_sort (const void * a, const void * b);
 static int comp_search (const void * k, const void * d);
@@ -13,21 +36,21 @@ static int sys_search (const void * k, const void * d);
 
 static int comp_sort (const void * a, const void * b) {
   return
-    (*(const Component **)a)->e->guid -
-    (*(const Component **)b)->e->guid;
+    (*(const struct ent_component **)a)->e->guid -
+    (*(const struct ent_component **)b)->e->guid;
 }
 
 static int comp_search (const void * k, const void * d) {
   return
-    ((const Entity *)k)->guid -
-    (*(const Component **)d)->e->guid;
+    ((const struct entity *)k)->guid -
+    (*(const struct ent_component **)d)->e->guid;
 }
 
 static int sys_sort (const void * a, const void * b) {
   return
     strcmp (
-      (*(const System **)a)->comp_name,
-      (*(const System **)b)->comp_name
+      (*(const struct ent_system **)a)->comp_name,
+      (*(const struct ent_system **)b)->comp_name
     );
 }
 
@@ -35,14 +58,14 @@ static int sys_search (const void * k, const void * d) {
   return
     strcmp (
       k,
-      (*(const System **)d)->comp_name
+      (*(const struct ent_system **)d)->comp_name
     );
 }
 
 
 
-Entity * entity_create () {
-  Entity * e = xph_alloc (sizeof (Entity), "Entity");
+Entity entity_create () {
+  new (struct entity, e);
   if (DestroyedEntities != NULL && vector_size (DestroyedEntities) > 0) {
     e->guid = vector_pop_back (e->guid, DestroyedEntities);
   } else {
@@ -52,12 +75,16 @@ Entity * entity_create () {
     fprintf (stderr, "Entity GUIDs have wrapped around. Now anything is possible!\n");
     e->guid = ++EntityGUIDs;
   }
-  e->components = vector_create (2, sizeof (Component *));
+  e->components = vector_create (2, sizeof (Component));
+  if (ExistantEntities == NULL) {
+    ExistantEntities = vector_create (128, sizeof (Entity));
+  }
+  vector_push_back (ExistantEntities, e);
   return e;
 }
 
-void entity_destroy (Entity * e) {
-  Component * c = NULL;
+void entity_destroy (Entity e) {
+  struct ent_component * c = NULL;
   //printf ("destroying entity #%d; removing components:\n", e->guid);
   while (vector_size (e->components) > 0) {
     //printf ("%d component%s.\n", vector_size (e->components), (vector_size (e->components) == 1 ? "" : "s"));
@@ -81,8 +108,13 @@ bool entity_exists (unsigned int guid) {
   return TRUE;
 }
 
+unsigned int entity_GUID (const Entity e) {
+  return e->guid;
+}
+
+
 bool entity_registerComponentAndSystem (objHandler func) {
-  System * reg = xph_alloc (sizeof (System), "System");
+  new (struct ent_system, reg);
   ObjClass * oc = objClass_init (func, NULL, NULL, NULL);
   Object * sys = obj_create (oc->name, NULL, NULL, NULL);
   reg->system = sys;
@@ -104,13 +136,13 @@ Vector * entity_getEntitiesWithComponent (int n, ...) {
   Vector ** components = xph_alloc (sizeof (Vector *) * n, "vectors");
   const char ** comp_names = xph_alloc (sizeof (char *) * n, "names");
   Vector * final = vector_create (2, sizeof (Entity *));
-  System * sys = NULL;
+  System sys = NULL;
+  Component c = NULL;
   int
     m = n,
     j = 0,
     highestGUID = 0;
   bool NULLbreak = FALSE;
-  Component * c = NULL;
   va_list comps;
   va_start (comps, n);
   m = 0;
@@ -201,8 +233,8 @@ Vector * entity_getEntitiesWithComponent (int n, ...) {
   return final;
 }
 
-System * entity_getSystemByName (const char * comp_name) {
-  System * sys = NULL;
+System entity_getSystemByName (const char * comp_name) {
+  struct ent_system * sys = NULL;
   if (SystemRegistry == NULL) {
     fprintf (stderr, "%s: no components registered\n", __FUNCTION__);
     return NULL;
@@ -216,8 +248,8 @@ System * entity_getSystemByName (const char * comp_name) {
 }
 
 void entity_destroySystem (const char * comp_name) {
-  System * sys = entity_getSystemByName (comp_name);
-  Component * c = NULL;
+  System sys = entity_getSystemByName (comp_name);
+  Component c = NULL;
   if (sys == NULL) {
     return;
   }
@@ -232,9 +264,18 @@ void entity_destroySystem (const char * comp_name) {
   xph_free (sys);
 }
 
-// TODO: there's no way to get a list of existing entities, so there's no way to batch destroy them either.
 void entity_destroyEverything () {
-  System * sys = NULL;
+  System sys = NULL;
+  Entity e = NULL;
+  while (vector_pop_back (e, ExistantEntities) != NULL) {
+    entity_destroy (e);
+  }
+  vector_destroy (ExistantEntities);
+  ExistantEntities = NULL;
+  vector_destroy (DestroyedEntities);
+  DestroyedEntities = NULL;
+  vector_destroy (SubsystemComponentStore);
+  SubsystemComponentStore = NULL;
   if (SystemRegistry == NULL) {
     return;
   }
@@ -246,13 +287,12 @@ void entity_destroyEverything () {
   SystemRegistry = NULL;
 }
 
-bool component_instantiateOnEntity (const char * comp_name, Entity * e) {
-  System * sys = entity_getSystemByName (comp_name);
-  Component * instance = NULL;
+bool component_instantiateOnEntity (const char * comp_name, Entity e) {
+  System sys = entity_getSystemByName (comp_name);
   if (sys == NULL) {
     return FALSE;
   }
-  instance = xph_alloc (sizeof (struct comp_map), "struct comp_map");
+  new (struct ent_component, instance);
   instance->e = e;
   instance->reg = sys;
   instance->comp_guid = ++ComponentGUIDs;
@@ -265,9 +305,9 @@ bool component_instantiateOnEntity (const char * comp_name, Entity * e) {
   return TRUE;
 }
 
-bool component_removeFromEntity (const char * comp_name, Entity * e) {
-  System * sys = entity_getSystemByName (comp_name);
-  Component * comp = NULL;
+bool component_removeFromEntity (const char * comp_name, Entity e) {
+  System sys = entity_getSystemByName (comp_name);
+  Component comp = NULL;
   if (sys == NULL) {
     return FALSE;
   }
@@ -283,9 +323,9 @@ bool component_removeFromEntity (const char * comp_name, Entity * e) {
   return TRUE;
 }
 
-Component * entity_getAs (Entity * e, const char * comp_name) {
-  System * sys = entity_getSystemByName (comp_name);
-  Component * comp = NULL;
+Component entity_getAs (Entity e, const char * comp_name) {
+  System sys = entity_getSystemByName (comp_name);
+  Component comp = NULL;
   if (sys == NULL) {
     return NULL;
   }
@@ -297,9 +337,23 @@ Component * entity_getAs (Entity * e, const char * comp_name) {
   return comp;
 }
 
-bool component_messageEntity (Component * comp, char * message, void * arg) {
-  struct comp_message * msg = xph_alloc (sizeof (struct comp_message), "struct comp_message");
-  Component * t = NULL;
+void * component_getData (Component c) {
+  if (c == NULL) {
+    return NULL;
+  }
+  return c->comp_data;
+}
+
+Entity component_entityAttached (Component c) {
+  if (c == NULL) {
+    return NULL;
+  }
+  return c->e;
+}
+
+bool component_messageEntity (Component comp, char * message, void * arg) {
+  new (struct comp_message, msg);
+  Component t = NULL;
   int i = 0;
   msg->from = comp;
   msg->to = NULL;
@@ -315,7 +369,7 @@ bool component_messageEntity (Component * comp, char * message, void * arg) {
   return TRUE;
 }
 
-bool component_messageSystem (Component * comp, char * message, void * arg) {
+bool component_messageSystem (Component comp, char * message, void * arg) {
   new (struct comp_message, msg);
   msg->from = comp;
   msg->message = message;
@@ -325,7 +379,7 @@ bool component_messageSystem (Component * comp, char * message, void * arg) {
 }
 
 void entitySubsystem_update (const char * comp_name) {
-  System * sys = entity_getSystemByName (comp_name);
+  System sys = entity_getSystemByName (comp_name);
   if (sys == NULL) {
     printf ("%s: got invalid component name (\"%s\")\n", __FUNCTION__, comp_name);
     return;
@@ -334,7 +388,7 @@ void entitySubsystem_update (const char * comp_name) {
 }
 
 void entitySubsystem_postupdate (const char * comp_name) {
-  System * sys = entity_getSystemByName (comp_name);
+  System sys = entity_getSystemByName (comp_name);
   if (sys == NULL) {
     printf ("%s: got invalid component name (\"%s\")\n", __FUNCTION__, comp_name);
     return;
@@ -342,7 +396,56 @@ void entitySubsystem_postupdate (const char * comp_name) {
   obj_message (sys->system, OM_POSTUPDATE, NULL, NULL);
 }
 
-bool debugComponent_messageReceived (Component * c, char * message) {
-  return FALSE;
+bool entitySubsystem_store (const char * comp_name) {
+  System s = NULL;
+  if (SubsystemComponentStore == NULL) {
+    SubsystemComponentStore = vector_create (6, sizeof (System));
+  }
+  s = entity_getSystemByName (comp_name);
+  if (s == NULL) {
+    return FALSE;
+  }
+  if (in_vector (SubsystemComponentStore, s) >= 0) {
+    return TRUE;
+  }
+  vector_push_back (SubsystemComponentStore, s);
+  return TRUE;
 }
 
+bool entitySubsystem_unstore (const char * comp_name) {
+  System s = NULL;
+  if (SubsystemComponentStore == NULL) {
+    return FALSE;
+  }
+  s = entity_getSystemByName (comp_name);
+  if (s == NULL) {
+    return FALSE;
+  }
+  if (in_vector (SubsystemComponentStore, s) < 0) {
+    return TRUE; // already not in store
+  }
+  vector_remove (SubsystemComponentStore, s);
+  return TRUE;
+}
+
+bool entitySubsystem_runOnStored (objMsg msg) {
+  bool
+    r = TRUE,
+    t = TRUE;
+  System sys = NULL;
+  int i = 0;
+  if (SubsystemComponentStore == NULL) {
+    return FALSE;
+  }
+  while (vector_at (sys, SubsystemComponentStore, i++)) {
+    t = obj_message (sys->system, msg, NULL, NULL);
+    r = (r != TRUE) ? FALSE : t;
+  }
+  return r;
+}
+
+void entitySubsystem_clearStored () {
+  if (SubsystemComponentStore != NULL) {
+    vector_clear (SubsystemComponentStore);
+  }
+}

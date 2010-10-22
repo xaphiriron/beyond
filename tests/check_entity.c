@@ -1,10 +1,14 @@
 #include "check_entity.h"
 
 START_TEST (test_entity_create) {
-  Entity * e = NULL;
+  Entity e = NULL;
   e = entity_create ();
   fail_unless (
-    entity_exists (e->guid),
+    entity_GUID (e) > 0,
+    "An entity must be assigned a non-zero GUID upon creation."
+  );
+  fail_unless (
+    entity_exists (entity_GUID (e)),
     "An entity which has been created and not destroyed must be identified as existing."
   );
   entity_destroy (e);
@@ -12,8 +16,8 @@ START_TEST (test_entity_create) {
 END_TEST
 
 START_TEST (test_component_attach) {
-  Entity * e = entity_create ();
-  Component * cd = NULL;
+  Entity e = entity_create ();
+  Component cd = NULL;
   cd = entity_getAs (e, "COMPONENT_NAME");
   fail_unless (
     cd == NULL,
@@ -31,8 +35,8 @@ START_TEST (test_component_attach) {
 END_TEST
 
 START_TEST (test_component_detach) {
-  Entity * e = entity_create ();
-  Component * cd = NULL;
+  Entity e = entity_create ();
+  Component cd = NULL;
   entity_registerComponentAndSystem (component_name_obj_func);
   component_instantiateOnEntity ("COMPONENT_NAME", e);
   cd = entity_getAs (e, "COMPONENT_NAME");
@@ -45,9 +49,8 @@ START_TEST (test_component_detach) {
 END_TEST
 
 START_TEST (test_component_message_entity) {
-  Entity
-    * e = entity_create ();
-  Component * cd = NULL;
+  Entity e = entity_create ();
+  Component cd = NULL;
   entity_registerComponentAndSystem (component_name_obj_func);
   entity_registerComponentAndSystem (component_name_2_obj_func);
   component_instantiateOnEntity ("COMPONENT_NAME", e);
@@ -70,10 +73,10 @@ END_TEST
 
 START_TEST (test_system_component_message) {
   Entity
-    * e = entity_create (),
-    * f = entity_create (),
-    * g = entity_create ();
-  Component * cd = NULL;
+    e = entity_create (),
+    f = entity_create (),
+    g = entity_create ();
+  Component cd = NULL;
   entity_registerComponentAndSystem (component_name_obj_func);
   entity_registerComponentAndSystem (component_name_2_obj_func);
   component_instantiateOnEntity ("COMPONENT_NAME", e);
@@ -94,10 +97,10 @@ END_TEST
 
 START_TEST (test_system_system_message) {
   Entity
-    * e = entity_create (),
-    * f = entity_create (),
-    * g = entity_create ();
-  Component * cd = NULL;
+    e = entity_create (),
+    f = entity_create (),
+    g = entity_create ();
+  Component cd = NULL;
   entity_registerComponentAndSystem (component_name_obj_func);
   entity_registerComponentAndSystem (component_name_2_obj_func);
   component_instantiateOnEntity ("COMPONENT_NAME", e);
@@ -169,13 +172,13 @@ END_TEST
 
 START_TEST (test_manager_fetch_one) {
   Entity
-    * e = entity_create (),
-    * f = entity_create (),
-    * g = entity_create (),
-    * h = entity_create ();
+    e = entity_create (),
+    f = entity_create (),
+    g = entity_create (),
+    h = entity_create ();
   Entity
-    * p = NULL,
-    * q = NULL;
+    p = NULL,
+    q = NULL;
   Vector * v = NULL;
   entity_registerComponentAndSystem (component_name_obj_func);
   entity_registerComponentAndSystem (component_name_2_obj_func);
@@ -210,12 +213,12 @@ END_TEST
 
 START_TEST (test_manager_fetch_two) {
   Entity
-    * e = entity_create (),
-    * f = entity_create (),
-    * g = entity_create (),
-    * h = entity_create ();
+    e = entity_create (),
+    f = entity_create (),
+    g = entity_create (),
+    h = entity_create ();
   Entity
-    * p = NULL;
+    p = NULL;
   Vector * v = NULL;
   entity_registerComponentAndSystem (component_name_obj_func);
   entity_registerComponentAndSystem (component_name_2_obj_func);

@@ -13,10 +13,10 @@ void walking_destroy (Walking * w) {
   xph_free (w);
 }
 
-void walking_begin_movement (Entity * e, enum walk_move mtype) {
+void walking_begin_movement (Entity e, enum walk_move mtype) {
   Component
-    * p = NULL,
-    * w = NULL;
+    p = NULL,
+    w = NULL;
   struct position_data * pdata = NULL;
   Walking * wdata = NULL;
   VECTOR3 dir;
@@ -25,8 +25,8 @@ void walking_begin_movement (Entity * e, enum walk_move mtype) {
   if (p == NULL || w == NULL) {
     return;
   }
-  pdata = p->comp_data;
-  wdata = w->comp_data;
+  pdata = component_getData (p);
+  wdata = component_getData (w);
   printf (
     "%s: starting movement in %s direction (w/ mask %d)\n",
     __FUNCTION__,
@@ -66,10 +66,10 @@ void walking_begin_movement (Entity * e, enum walk_move mtype) {
   }
 }
 
-void walking_end_movement (Entity * e, enum walk_move mtype) {
+void walking_end_movement (Entity e, enum walk_move mtype) {
   Component
-    * w = NULL,
-    * p = NULL;
+    w = NULL,
+    p = NULL;
   Walking * wdata = NULL;
   struct position_data * pdata = NULL;
   VECTOR3 dir;
@@ -78,8 +78,8 @@ void walking_end_movement (Entity * e, enum walk_move mtype) {
   if (w == NULL || p == NULL) {
     return;
   }
-  wdata = w->comp_data;
-  pdata = p->comp_data;
+  wdata = component_getData (w);
+  pdata = component_getData (p);
   printf (
     "%s: stopping movement in %s direction (w/ mask %d)\n",
     __FUNCTION__,
@@ -119,19 +119,19 @@ void walking_end_movement (Entity * e, enum walk_move mtype) {
   wdata->dirsActive &= ~mtype;
 }
 
-void walking_begin_turn (Entity * e, enum walk_turn w) {
-  printf ("%s (e#%d, %d)\n", __FUNCTION__, e->guid, w);
+void walking_begin_turn (Entity e, enum walk_turn w) {
+  printf ("%s (e#%d, %d)\n", __FUNCTION__, entity_GUID (e), w);
 }
 
-void walking_end_turn (Entity * e, enum walk_turn w) {
+void walking_end_turn (Entity e, enum walk_turn w) {
 }
 
 
-void walk_move (Entity * e) {
+void walk_move (Entity e) {
   Component
-    * p = NULL,
-    * i = NULL,
-    * w = NULL;
+    p = NULL,
+    i = NULL,
+    w = NULL;
   struct position_data * pdata = NULL;
   struct integrate_data * idata = NULL;
   Walking * wdata = NULL;
@@ -141,14 +141,14 @@ void walk_move (Entity * e) {
   if ((i == NULL && p == NULL) || w == NULL) {
     return;
   }
-  pdata = p->comp_data;
-  wdata = w->comp_data;
+  pdata = component_getData (p);
+  wdata = component_getData (w);
   //printf ("%s: updating entity #%d (w/ %5.2f, %5.2f, %5.2f)\n", __FUNCTION__, e->guid, wdata->dir.x, wdata->dir.y, wdata->dir.z);
   if (wdata->dirsActive == WALK_MOVE_NONE) {
     return;
   }
   if (i != NULL) {
-    idata = i->comp_data;
+    idata = component_getData (i);
     addExtraVelocity (idata, &wdata->dir);
   }
 }
@@ -157,11 +157,13 @@ void walk_move (Entity * e) {
 int component_walking (Object * o, objMsg msg, void * a, void * b) {
   Walking ** wd;
   char * message = NULL;
-  Component * c = NULL;
+  Component c = NULL;
   enum input_responses ir = 0;
   int i = 0;
   Vector * v = NULL;
-  Entity * e = NULL;
+  Entity
+    e = NULL,
+    ce = NULL;
   switch (msg) {
     case OM_CLSNAME:
       strncpy (a, "walking", 32);
@@ -206,61 +208,62 @@ int component_walking (Object * o, objMsg msg, void * a, void * b) {
 
     case OM_COMPONENT_RECEIVE_MESSAGE:
       c = ((struct comp_message *)a)->to;
+      ce = component_entityAttached (c);
       message = ((struct comp_message *)a)->message;
       if (strcmp (message, "CONTROL_INPUT") == 0) {
         // CONTROL_INPUT second arg is input response index
         ir = (int)b;
         switch (ir) {
           case IR_AVATAR_MOVE_FORWARD:
-            walking_begin_movement (c->e, WALK_MOVE_FORWARD);
+            walking_begin_movement (ce, WALK_MOVE_FORWARD);
             break;
           case IR_AVATAR_MOVE_BACKWARD:
-            walking_begin_movement (c->e, WALK_MOVE_BACKWARD);
+            walking_begin_movement (ce, WALK_MOVE_BACKWARD);
             break;
           case IR_AVATAR_MOVE_LEFT:
-            walking_begin_movement (c->e, WALK_MOVE_LEFT);
+            walking_begin_movement (ce, WALK_MOVE_LEFT);
             break;
           case IR_AVATAR_MOVE_RIGHT:
-            walking_begin_movement (c->e, WALK_MOVE_RIGHT);
+            walking_begin_movement (ce, WALK_MOVE_RIGHT);
             break;
 
           case ~IR_AVATAR_MOVE_FORWARD:
-            walking_end_movement (c->e, WALK_MOVE_FORWARD);
+            walking_end_movement (ce, WALK_MOVE_FORWARD);
             break;
           case ~IR_AVATAR_MOVE_BACKWARD:
-            walking_end_movement (c->e, WALK_MOVE_BACKWARD);
+            walking_end_movement (ce, WALK_MOVE_BACKWARD);
             break;
           case ~IR_AVATAR_MOVE_LEFT:
-            walking_end_movement (c->e, WALK_MOVE_LEFT);
+            walking_end_movement (ce, WALK_MOVE_LEFT);
             break;
           case ~IR_AVATAR_MOVE_RIGHT:
-            walking_end_movement (c->e, WALK_MOVE_RIGHT);
+            walking_end_movement (ce, WALK_MOVE_RIGHT);
             break;
 
           case IR_AVATAR_PAN_UP:
-            walking_begin_turn (c->e, WALK_TURN_UP);
+            walking_begin_turn (ce, WALK_TURN_UP);
             break;
           case IR_AVATAR_PAN_DOWN:
-            walking_begin_turn (c->e, WALK_TURN_DOWN);
+            walking_begin_turn (ce, WALK_TURN_DOWN);
             break;
           case IR_AVATAR_PAN_LEFT:
-            walking_begin_turn (c->e, WALK_TURN_LEFT);
+            walking_begin_turn (ce, WALK_TURN_LEFT);
             break;
           case IR_AVATAR_PAN_RIGHT:
-            walking_begin_turn (c->e, WALK_TURN_RIGHT);
+            walking_begin_turn (ce, WALK_TURN_RIGHT);
             break;
 
           case ~IR_AVATAR_PAN_UP:
-            walking_end_turn (c->e, WALK_TURN_UP);
+            walking_end_turn (ce, WALK_TURN_UP);
             break;
           case ~IR_AVATAR_PAN_DOWN:
-            walking_end_turn (c->e, WALK_TURN_DOWN);
+            walking_end_turn (ce, WALK_TURN_DOWN);
             break;
           case ~IR_AVATAR_PAN_LEFT:
-            walking_end_turn (c->e, WALK_TURN_LEFT);
+            walking_end_turn (ce, WALK_TURN_LEFT);
             break;
           case ~IR_AVATAR_PAN_RIGHT:
-            walking_end_turn (c->e, WALK_TURN_RIGHT);
+            walking_end_turn (ce, WALK_TURN_RIGHT);
             break;
 
           default:
