@@ -246,6 +246,65 @@ START_TEST (test_vector_nonsequential_assign) {
 }
 END_TEST
 
+
+/* there was a bug in index_set_used that didn't properly convert a sequential
+ * vector into a nonsequential one, and also an issue in vector_index_last
+ * that meant it didn't properly find the 0th bit if it was set.
+ */
+START_TEST (test_vector_nonsequential_assign2) {
+  char c = 0;
+  int i = 0;
+  vector_destroy (v);
+  v = vector_create (1, 1);
+  fail_unless (vector_size (v) == 0);
+  // minimal conditions to trigger bug: items added to vector using out-of-order indices, basically. >:(
+  vector_assign (v, 1, (char)'b');
+  vector_assign (v, 0, (char)'a');
+  fail_unless (
+    vector_size (v) == 2,
+    "Vector size must remain accurate even when values are added out of order. (Vector has 2 indices; %d claimed)", vector_size (v)
+  );
+  fail_unless (
+    vector_index_last (v) == 1,
+    "last index was %d, expecting 1", vector_index_last (v)
+  );
+  while (vector_pop_back (c, v)) {
+    i++;
+  }
+  fail_unless (
+    i == 2,
+    "Popping values off the end of a vector must ultimately return ALL values, no matter the method of storage. (Vector had 2 entries; %d returned)", i
+  );
+}
+END_TEST
+
+
+START_TEST (test_vector_nonsequential_assign3) {
+  char c = 0;
+  int i = 0;
+  vector_destroy (v);
+  v = vector_create (1, 1);
+  vector_assign (v, 0, (char)'a');
+  vector_assign (v, 2, (char)'c');
+  vector_assign (v, 1, (char)'b');
+  fail_unless (
+    vector_size (v) == 3,
+    "Vector size must remain accurate even when values are added out of order. (Vector has 3 indices; %d claimed)", vector_size (v)
+  );
+  fail_unless (
+    vector_index_last (v) == 2,
+    "last index was %d, expecting 1", vector_index_last (v)
+  );
+  while (vector_pop_back (c, v)) {
+    i++;
+  }
+  fail_unless (
+    i == 3,
+    "Popping values off the end of a vector must ultimately return ALL values, no matter the method of storage. (Vector had 3 entries; %d returned)", i
+  );
+}
+END_TEST
+
 START_TEST (test_vector_nonsequential_push_back) {
   char c = 0;
 
@@ -325,6 +384,8 @@ Suite * make_vector_suite (void) {
 
   tcase_add_checked_fixture (tc_nonseq, nonsequential_setup, nonsequential_teardown);
   tcase_add_test (tc_nonseq, test_vector_nonsequential_assign);
+  tcase_add_test (tc_nonseq, test_vector_nonsequential_assign2);
+  tcase_add_test (tc_nonseq, test_vector_nonsequential_assign3);
   tcase_add_test (tc_nonseq, test_vector_nonsequential_size);
   tcase_add_test (tc_nonseq, test_vector_nonsequential_push_back);
   tcase_add_test (tc_nonseq, test_vector_nonsequential_pop_back);

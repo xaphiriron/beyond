@@ -23,9 +23,11 @@ typedef struct cp_vector {
 		// or not (bits of ->f flipped in use)
 } Vector;
 
-
 Vector * vector_create (int c, size_t size);
 
+//  vector_wipe: removes all entries in the vector, as vector_clear. if
+//  free_func is non-null, additionally calls free_func on each value in the
+//  vector.
 void vector_wipe (Vector * v, void free_func (void *));
 void vector_destroy (Vector * v);
 
@@ -35,14 +37,10 @@ void * vector_search (Vector * v, const void * k, int (*f)(const void *, const v
 int vector_index_last (const Vector * v);
 int vector_index_first (const Vector * v);
 
-/* let's just assume there's no good way to expand this into the kind of thing you can use in a loop and be done with it. :/
-#define		in_vector(v, i)		\
-		({typeof (i) _i = i;	\
-		_in_vector (v, &_i, sizeof (i));})
-*/
+// returns index of k (which may be 0), assuming it exists in vector. otherwise, returns -1.
 int in_vector (const Vector * v, const void * k);
 
-// remove value "val" from vector "v" if it exists
+// remove value "val" from vector "v" if it exists. if vector is sequential, it preserves item order on removal (and moves all indices past the removal point one lower). if vector already has gaps (from vector_erase), it removes index but does not alter any other indices.
 #define		vector_remove(v, i)	\
 		{typeof (i) _i = i;	\
 		_vector_remove (v, &_i, sizeof(i));}
