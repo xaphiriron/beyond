@@ -28,6 +28,8 @@ struct position_data {
 
 void position_set (Entity e, VECTOR3 pos, Entity mapEntity);
 bool position_move (Entity e, VECTOR3 move);
+
+
 // (rotation around world y axis, which is "up")
 bool position_rotateAroundGround (Entity e, float rotation);
 void position_updateOnEdgeTraversal (Entity e, struct ground_edge_traversal * t);

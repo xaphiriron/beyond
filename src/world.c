@@ -31,6 +31,13 @@ WORLD * world_create ()
 	{
 		ground_initSize (g, 3);
 		ground_fillFlat (g, 1.0);
+
+		ground_initSize (h, 3);
+		ground_fillFlat (h, 1.0);
+
+		ground_initSize (i, 3);
+		ground_fillFlat (i, 1.0);
+
 		hex = ground_getHexatCoord (g, 0, 0, 0);
 		hex_setSlope (hex, HEX_TOP, -1, -1, -1);
 		hex = ground_getHexatCoord (g, 1, 0, 0);
@@ -58,8 +65,6 @@ WORLD * world_create ()
 		hex = ground_getHexatCoord (g, 2, 5, 1);
 		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
 
-		ground_initSize (h, 3);
-		ground_fillFlat (h, 1.0);
 		hex = ground_getHexatCoord (h, 1, 0, 0);
 		hex_setSlope (hex, HEX_TOP, 2, 2, 2.5);
 		hex = ground_getHexatCoord (h, 1, 1, 0);
@@ -77,8 +82,6 @@ WORLD * world_create ()
 		hex = ground_getHexatCoord (h, 3, 5, 0);
 		hex_setSlope (hex, HEX_TOP, 2.5, 3.5, 3);
 
-		ground_initSize (i, 3);
-		ground_fillFlat (i, 1.0);
 		hex = ground_getHexatCoord (i, 1, 0, 0);
 		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
 		hex = ground_getHexatCoord (i, 1, 2, 0);
@@ -125,6 +128,7 @@ WORLD * world_create ()
 */
   }
   w->groundOrigin = groundG;
+  w->groundDistanceDraw = 3;
 
   camera = entity_create ();
   if (component_instantiateOnEntity ("position", camera)) {
@@ -139,7 +143,7 @@ WORLD * world_create ()
   }
   */
   if (component_instantiateOnEntity ("input", camera)) {
-    input_addControlledEntity (camera);
+    input_addEntity (camera, INPUT_CONTROLLED);
   }
   component_instantiateOnEntity ("walking", camera);
   w->camera = camera;
@@ -241,10 +245,10 @@ int world_handler (Object * o, objMsg msg, void * a, void * b) {
 		case OM_RENDER:
 			// DRAW THINGS
 			//draw_grid ();
-			ground_draw_fill (w->groundOrigin, 3);
+			ground_draw_fill (w->groundOrigin, w->groundDistanceDraw);
 			if (system_getState (s) == STATE_FIRSTPERSONVIEW)
 			{
-				//camera_drawCursor (w->camera);
+				camera_drawCursor (w->camera);
 			}
 			return EXIT_SUCCESS;
 

@@ -205,81 +205,98 @@ void keycombo_destroy (struct keycombo * k) {
   xph_free (k);
 }
 
-
-void input_addControlledEntity (Entity e) {
-  assert (Input != NULL);
-  if (in_vector (Input->controlledEntities, &e) == -1) {
-    vector_push_back (Input->controlledEntities, e);
-  }
+bool input_addEntity (Entity e, enum input_control_types t)
+{
+	assert (Input != NULL);
+	if (t == INPUT_CONTROLLED)
+	{
+		if (in_vector (Input->controlledEntities, &e) == -1)
+			vector_push_back (Input->controlledEntities, e);
+		return TRUE;
+	}
+	else if (t == INPUT_FOCUSED)
+	{
+		if (in_vector (Input->focusedEntities, &e) == -1)
+			vector_push_back (Input->focusedEntities, e);
+		return TRUE;
+	}
+	return FALSE;
 }
 
-void input_rmControlledEntity (Entity e) {
-  assert (Input != NULL);
-  vector_remove (Input->controlledEntities, e);
-}
-
-void input_addFocusedEntity (Entity e) {
-  assert (Input != NULL);
-  if (in_vector (Input->focusedEntities, &e) == -1) {
-    vector_push_back (Input->focusedEntities, e);
-  }
-}
-
-void input_rmFocusedEntity (Entity e) {
-  assert (Input != NULL);
-  vector_remove (Input->focusedEntities, e);
-}
-
-
-
-void input_sendGameEventMessage (enum input_responses ir) {
-  int i = 0;
-  Entity e = NULL;
-  Component c = NULL;
-  // DO INPUT EVENT ACTION
-  switch (ir) {
-    case IR_QUIT:
-      obj_message (SystemObject, OM_SHUTDOWN, NULL, NULL);
-      break;
-    default:
-      break;
-  }
-  // SEND MESSAGES OFF TO WORLD ENTITIES
-  i = 0;
-  while (vector_at (e, Input->controlledEntities, i++) != NULL) {
-    c = entity_getAs (e, "input");
-    if (c == NULL) {
-      continue;
-    }
-    component_messageEntity (c, "CONTROL_INPUT", (void *)ir);
-  }
-  i = 0;
-  while (vector_at (e, Input->focusedEntities, i++) != NULL) {
-    c = entity_getAs (e, "input");
-    if (c == NULL) {
-      continue;
-    }
-    component_messageEntity (c, "FOCUS_INPUT", (void *)ir);
-  }
+bool input_rmEntity (Entity e, enum input_control_types t)
+{
+	assert (Input != NULL);
+	if (t == INPUT_CONTROLLED)
+	{
+		vector_remove (Input->controlledEntities, e);
+		return TRUE;
+	}
+	else if (t == INPUT_FOCUSED)
+	{
+		vector_remove (Input->focusedEntities, e);
+		return TRUE;
+	}
+	return FALSE;
 }
 
 
+void input_sendGameEventMessage (const struct input_event * ie) {
+	int i = 0;
+	Entity e = NULL;
+	Component c = NULL;
+	// CATCH AND HANDLE EVENTS THAT HAVE SYSTEM-WIDE REPERCUSSIONS
+	switch (ie->ir)
+	{
+		case IR_QUIT:
+			obj_message (SystemObject, OM_SHUTDOWN, NULL, NULL);
+			break;
+		default:
+			break;
+	}
+	// SEND MESSAGES OFF TO WORLD ENTITIES
+	i = 0;
+	while (vector_at (e, Input->controlledEntities, i++) != NULL)
+	{
+		c = entity_getAs (e, "input");
+		if (c == NULL)
+			continue;
+		component_messageEntity (c, "CONTROL_INPUT", (void *)ie);
+	}
+	i = 0;
+	while (vector_at (e, Input->focusedEntities, i++) != NULL)
+	{
+		c = entity_getAs (e, "input");
+		if (c == NULL)
+			continue;
+		component_messageEntity (c, "FOCUS_INPUT", (void *)ie);
+	}
+}
 
-void input_update (Object * d) {
-  int
-    i = 0,
-    priority = 0,
-    fill = 0;
-  struct keycombo * key = NULL;
-  struct inputmatch
-    * inputmatch = NULL,
-    * conflict = NULL;
 
-  fill = vector_index_last (Input->eventsHeld) + 1;
-  while (SDL_PollEvent (&Input->event)) {
-    switch (Input->event.type) {
-      /* the purpose of the keysPressed array is so that if multiple conflicting keys are pressed (e.g., forward and backward) the key most recently held down will dominate. (the matter of how "conflicting keys" are detected is still up in the air) it doesn't do that yet though.
-       */
+
+void input_update (Object * d)
+{
+	int
+		i = 0,
+		priority = 0,
+		fill = 0;
+	struct keycombo
+		* key = NULL;
+	struct inputmatch
+		* inputmatch = NULL,
+		* conflict = NULL;
+	struct input_event
+		input_event;
+
+	fill = vector_index_last (Input->eventsHeld) + 1;
+	while (SDL_PollEvent (&Input->event))
+	{
+		input_event.ir = IR_NOTHING;
+		input_event.event = &Input->event;
+		switch (Input->event.type)
+		{
+			/* the purpose of the keysPressed array is so that if multiple conflicting keys are pressed (e.g., forward and backward) the key most recently held down will dominate. (the matter of how "conflicting keys" are detected is still up in the air) it doesn't do that yet though. */
+
       case SDL_KEYDOWN:
         if (in_vector (Input->keysPressed, &Input->event.key.keysym.sym) == -1) {
           //printf ("adding key %d to keysPressed (at index %d)\n", Input->event.key.keysym.sym, vector_index_last (Input->keysPressed) + 1);
@@ -295,7 +312,8 @@ void input_update (Object * d) {
         if (inputmatch != NULL) {
           //printf ("held event: %d at index %d (%p)\n", inputmatch->input, i, inputmatch);
           vector_remove (Input->eventsHeld, inputmatch);
-          input_sendGameEventMessage (~inputmatch->input);
+          input_event.ir = ~inputmatch->input;
+          input_sendGameEventMessage (&input_event);
           //unblockConflicts (inputmatch->input);
           inputmatch_destroy (inputmatch);
           inputmatch = NULL;
@@ -305,11 +323,18 @@ void input_update (Object * d) {
         vector_remove (Input->keysPressed, Input->event.key.keysym.sym);
         i = 0;
         break;
-      // if sdl sends an event when the window loses or gains focus, we should clear keysPressed on both
 
-      // take this out later:
-      case SDL_QUIT:
-        obj_message (SystemObject, OM_SHUTDOWN, NULL, NULL);
+      case SDL_ACTIVEEVENT:
+        if (Input->event.active.state & SDL_APPINPUTFOCUS) {
+          SDL_ShowCursor (Input->event.active.gain ? SDL_DISABLE : SDL_ENABLE);
+          while (!vector_empty (Input->eventsHeld)) {
+            vector_pop_back (inputmatch, Input->eventsHeld);
+            input_event.ir = ~inputmatch->input;
+            input_sendGameEventMessage (&input_event);
+            inputmatch_destroy (inputmatch);
+          }
+          vector_clear (Input->keysPressed);
+        }
         break;
 
       default:
@@ -321,6 +346,10 @@ void input_update (Object * d) {
     // this whole thing seems overly complicated. When a new key is pressed, what we want to do is check to see what, if any, system key triggers can be completed with the current keys pressed. We want to run only the ones which 1) don't conflict with other keys held down (e.g., holding down left or right should do only one action, not vibrate the avatar back and forth) 2) aren't triggered by subsets of other patterns (e.g, if there are responses for shift+left and left, pressing shift+left should only trigger the former, not the latter. Whatever system we choose for this has to additionally deal with the key commands being set to arbitrary keys and being up to three or four keys long.
     // honestly due to the small size of this (maybe a few hundred input responses, max; only four keys active at any one time) the efficiency of the algorithm probably doesn't matter. I'd like for the code to be /short/, though. ...shorter than this.
 /**/
+    if (Input->event.type != SDL_KEYUP && Input->event.type != SDL_KEYDOWN && (SDL_GetAppState () & (SDL_APPMOUSEFOCUS | SDL_APPINPUTFOCUS)) == (SDL_APPMOUSEFOCUS | SDL_APPINPUTFOCUS)) {
+      input_event.ir = IR_NOTHING;
+      input_sendGameEventMessage (&input_event);
+    }
     i = 0;
     while (i < Input->keymap->a) {
       vector_at (key, Input->keymap, i);
@@ -342,7 +371,8 @@ void input_update (Object * d) {
         continue;
       }
       //printf ("HAVE AN INPUT RESPONSE #%d (%p)\n", inputmatch->input, inputmatch);
-      input_sendGameEventMessage (inputmatch->input);
+      input_event.ir = inputmatch->input;
+      input_sendGameEventMessage (&input_event);
       blockConflicts (inputmatch->input);
       blockSubsets (inputmatch);
       //printf ("holding event %d at index %d (%p)\n", inputmatch->input, inputmatch->priority - 1, inputmatch);

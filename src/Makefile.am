@@ -4,9 +4,10 @@ AM_CPPFLAGS = -Wall -Werror -DMEM_DEBUG
 # AM_CPPFLAGS = -Wall -Werror -fprofile-generate -ftest-coverage
 # AM_LDFLAGS = -fprofile-generate -lgcov
 
-lib_LTLIBRARIES = libfcmp.la libvector.la libline.la
+lib_LTLIBRARIES = libfcmp.la libvector.la libquat.la libline.la
 libfcmp_la_SOURCES = fcmp.c fcmp.h
 libvector_la_SOURCES = vector.c vector.h
+libquat_la_SOURCES = quaternion.c quaternion.h
 libline_la_SOURCES = line.c line.h
 #libline_la_LIBADD = libvector.la
 
@@ -31,12 +32,14 @@ beyond_SOURCES =	\
   hex.c hex.h		\
   hex_draw.c hex_draw.h	\
   ground_draw.c ground_draw.h \
+  camera_draw.c camera_draw.h \
   world.c world.h	\
   system.c system.h	\
   beyond.c beyond.h
 beyond_LDADD =	\
   libline.la	\
   libvector.la	\
+  libquat.la	\
   libfcmp.la	\
   -lm -lGL -lSDL
 

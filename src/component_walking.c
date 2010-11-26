@@ -190,12 +190,71 @@ void walking_rotateAxes (Entity e, const float degree)
 	wdata->dir = new;
 }
 
+void walking_doControlInputResponse (Entity e, const struct input_event * ie)
+{
+	switch (ie->ir)
+	{
+		case IR_AVATAR_MOVE_FORWARD:
+			walking_begin_movement (e, WALK_MOVE_FORWARD);
+			break;
+		case IR_AVATAR_MOVE_BACKWARD:
+			walking_begin_movement (e, WALK_MOVE_BACKWARD);
+			break;
+		case IR_AVATAR_MOVE_LEFT:
+			walking_begin_movement (e, WALK_MOVE_LEFT);
+			break;
+		case IR_AVATAR_MOVE_RIGHT:
+			walking_begin_movement (e, WALK_MOVE_RIGHT);
+			break;
+
+		case ~IR_AVATAR_MOVE_FORWARD:
+			walking_end_movement (e, WALK_MOVE_FORWARD);
+			break;
+		case ~IR_AVATAR_MOVE_BACKWARD:
+			walking_end_movement (e, WALK_MOVE_BACKWARD);
+			break;
+		case ~IR_AVATAR_MOVE_LEFT:
+			walking_end_movement (e, WALK_MOVE_LEFT);
+			break;
+		case ~IR_AVATAR_MOVE_RIGHT:
+			walking_end_movement (e, WALK_MOVE_RIGHT);
+			break;
+
+		case IR_AVATAR_PAN_UP:
+			walking_begin_turn (e, WALK_TURN_UP);
+			break;
+		case IR_AVATAR_PAN_DOWN:
+			walking_begin_turn (e, WALK_TURN_DOWN);
+			break;
+		case IR_AVATAR_PAN_LEFT:
+			walking_begin_turn (e, WALK_TURN_LEFT);
+			break;
+		case IR_AVATAR_PAN_RIGHT:
+			walking_begin_turn (e, WALK_TURN_RIGHT);
+			break;
+
+		case ~IR_AVATAR_PAN_UP:
+			walking_end_turn (e, WALK_TURN_UP);
+			break;
+		case ~IR_AVATAR_PAN_DOWN:
+			walking_end_turn (e, WALK_TURN_DOWN);
+			break;
+		case ~IR_AVATAR_PAN_LEFT:
+			walking_end_turn (e, WALK_TURN_LEFT);
+			break;
+		case ~IR_AVATAR_PAN_RIGHT:
+			walking_end_turn (e, WALK_TURN_RIGHT);
+			break;
+
+		default:
+			break;
+	}
+}
 
 int component_walking (Object * o, objMsg msg, void * a, void * b) {
   walkingComponent * wd;
   char * message = NULL;
   Component c = NULL;
-  enum input_responses ir = 0;
   int i = 0;
   Vector * v = NULL;
   Entity
@@ -238,86 +297,31 @@ int component_walking (Object * o, objMsg msg, void * a, void * b) {
         walk_move (e);
       }
       vector_destroy (v);
-      return EXIT_FAILURE;
-
-    case OM_POSTUPDATE:
-      return EXIT_FAILURE;
-
-    case OM_COMPONENT_RECEIVE_MESSAGE:
-      c = ((struct comp_message *)a)->to;
-      ce = component_entityAttached (c);
-      message = ((struct comp_message *)a)->message;
-      if (strcmp (message, "CONTROL_INPUT") == 0) {
-        // CONTROL_INPUT second arg is input response index
-        ir = (int)b;
-        switch (ir) {
-          case IR_AVATAR_MOVE_FORWARD:
-            walking_begin_movement (ce, WALK_MOVE_FORWARD);
-            break;
-          case IR_AVATAR_MOVE_BACKWARD:
-            walking_begin_movement (ce, WALK_MOVE_BACKWARD);
-            break;
-          case IR_AVATAR_MOVE_LEFT:
-            walking_begin_movement (ce, WALK_MOVE_LEFT);
-            break;
-          case IR_AVATAR_MOVE_RIGHT:
-            walking_begin_movement (ce, WALK_MOVE_RIGHT);
-            break;
-
-          case ~IR_AVATAR_MOVE_FORWARD:
-            walking_end_movement (ce, WALK_MOVE_FORWARD);
-            break;
-          case ~IR_AVATAR_MOVE_BACKWARD:
-            walking_end_movement (ce, WALK_MOVE_BACKWARD);
-            break;
-          case ~IR_AVATAR_MOVE_LEFT:
-            walking_end_movement (ce, WALK_MOVE_LEFT);
-            break;
-          case ~IR_AVATAR_MOVE_RIGHT:
-            walking_end_movement (ce, WALK_MOVE_RIGHT);
-            break;
-
-          case IR_AVATAR_PAN_UP:
-            walking_begin_turn (ce, WALK_TURN_UP);
-            break;
-          case IR_AVATAR_PAN_DOWN:
-            walking_begin_turn (ce, WALK_TURN_DOWN);
-            break;
-          case IR_AVATAR_PAN_LEFT:
-            walking_begin_turn (ce, WALK_TURN_LEFT);
-            break;
-          case IR_AVATAR_PAN_RIGHT:
-            walking_begin_turn (ce, WALK_TURN_RIGHT);
-            break;
-
-          case ~IR_AVATAR_PAN_UP:
-            walking_end_turn (ce, WALK_TURN_UP);
-            break;
-          case ~IR_AVATAR_PAN_DOWN:
-            walking_end_turn (ce, WALK_TURN_DOWN);
-            break;
-          case ~IR_AVATAR_PAN_LEFT:
-            walking_end_turn (ce, WALK_TURN_LEFT);
-            break;
-          case ~IR_AVATAR_PAN_RIGHT:
-            walking_end_turn (ce, WALK_TURN_RIGHT);
-            break;
-
-          default:
-            return EXIT_FAILURE;
-        }
-      } else if (strcmp ("GROUND_EDGE_TRAVERSAL", message) == 0) {
-        if (((struct ground_edge_traversal *)b)->rotIndex != 0) {
-          walking_rotateAxes (ce, ((struct ground_edge_traversal *)b)->rotIndex * 60.0);
-        }
-      }
       return EXIT_SUCCESS;
 
-    case OM_SYSTEM_RECEIVE_MESSAGE:
-      message = b;
-      return EXIT_FAILURE;
+		case OM_POSTUPDATE:
+			return EXIT_FAILURE;
 
-    default:
-      return obj_pass ();
-  }
+		case OM_COMPONENT_RECEIVE_MESSAGE:
+			c = ((struct comp_message *)a)->to;
+			ce = component_entityAttached (c);
+			message = ((struct comp_message *)a)->message;
+			if (strcmp (message, "CONTROL_INPUT") == 0) {
+				walking_doControlInputResponse (ce, b);
+				return EXIT_SUCCESS;
+			} else if (strcmp ("GROUND_EDGE_TRAVERSAL", message) == 0) {
+				if (((struct ground_edge_traversal *)b)->rotIndex != 0) {
+					walking_rotateAxes (ce, ((struct ground_edge_traversal *)b)->rotIndex * 60.0);
+				}
+				return EXIT_SUCCESS;
+			}
+			return EXIT_FAILURE;
+
+		case OM_SYSTEM_RECEIVE_MESSAGE:
+			message = b;
+			return EXIT_FAILURE;
+
+		default:
+			return obj_pass ();
+	}
 }

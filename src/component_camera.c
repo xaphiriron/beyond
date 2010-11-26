@@ -8,8 +8,11 @@
  */
 struct camera_data
 {
-	float m[16];
+	float
+		sensitivity,
+		m[16];
 	CameraGroundLabel l;
+	QUAT viewQuat;
 };
 
 const float * camera_getMatrix (Entity e)
@@ -20,6 +23,102 @@ const float * camera_getMatrix (Entity e)
 		return NULL;
 	return cdata->m;
 }
+
+void camera_setAsActive (Entity e)
+{
+	cameraComponent
+		cdata = component_getData (entity_getAs (e, "camera"));
+	positionComponent
+		pdata = component_getData (entity_getAs (e, "position"));
+	Entity origin = NULL;
+	if (pdata == NULL || cdata == NULL)
+		return;
+	origin = position_getGroundEntity (pdata);
+	cameraCache_setGroundEntityAsOrigin (origin);
+	cdata->l = cameraCache_getOriginLabel ();
+	camera_update (e);
+}
+
+void camera_updateLabelsFromEdgeTraversal (Entity e, struct ground_edge_traversal * t)
+{
+	cameraComponent
+		cdata = component_getData (entity_getAs (e, "camera"));
+	int
+		x, y,
+		lo = 0;
+	short
+		r, k, i;
+	CameraGroundLabel
+		newLabel;
+	Entity
+		newOrigin;
+/*
+	VECTOR3
+		newOffset;
+*/
+	WORLD * w = NULL;
+	if (cdata == NULL)
+		return;
+	w = obj_getClassData (WorldObject, "world");
+	label_getXY (cdata->l, &x, &y);
+	x += XY[t->directionOfMovement][0];
+	y += XY[t->directionOfMovement][1];
+	hex_xy2rki (x, y, &r, &k, &i);
+	lo = hex_linearCoord (r, k, i);
+	vector_at (newLabel, OriginCache->cache, lo);
+	if (newLabel == NULL || (label_getCoordinateDistanceFromOrigin (newLabel) > (w->groundDistanceDraw / 3) && label_getCoordinateDistanceFromOrigin (newLabel) > 1))
+	{
+		if (newLabel == NULL)
+		{
+			fprintf (stderr, "%s (#%d, ...): Active camera has walked outside the visible world. This is going to be a bumpy update.\n", __FUNCTION__, entity_GUID (e));
+			newOrigin = label_getGroundReference (cdata->l);
+		}
+		else
+		{
+			newOrigin = label_getGroundReference (newLabel);
+			lo = 0;
+		}
+		cameraCache_setGroundEntityAsOrigin (newOrigin);
+		cameraCache_extend (w->groundDistanceDraw);
+		printf ("%s: resetting world origin to #%d (from #%d) \n", __FUNCTION__, entity_GUID (newOrigin), entity_GUID (w->groundOrigin));
+		w->groundOrigin = newOrigin;
+		if (newLabel == NULL)
+		{
+			x = XY[t->directionOfMovement][0];
+			y = XY[t->directionOfMovement][1];
+			hex_xy2rki (x, y, &r, &k, &i);
+			lo = hex_linearCoord (r, k, i);
+		}
+		vector_at (newLabel, OriginCache->cache, lo);
+	}
+	//printf ("%s: updated camera label\n", __FUNCTION__);
+	//label_getXY (newLabel, &x, &y);
+	//newOffset = label_getOriginOffset (newLabel);
+	//printf ("\t@ %d,%d %5.2f, %5.2f, %5.2f\n", x, y, newOffset.x, newOffset.y, newOffset.z);
+	cdata->l = newLabel;
+}
+
+void camera_rotateOnMouseInput (Entity e, const struct input_event * ie)
+{
+	cameraComponent
+		cdata = NULL;
+	QUAT
+		q;
+	if (ie->event->type != SDL_MOUSEMOTION)
+		return;
+	cdata = component_getData (entity_getAs (e, "camera"));
+	if (cdata == NULL)
+		return;
+	//printf ("aaaah mousemotion!  xrel: %d; yrel: %d\n", ie->event->motion.xrel, ie->event->motion.yrel);
+	q = quat_eulerToQuat (
+		ie->event->motion.yrel * cdata->sensitivity,
+		ie->event->motion.xrel * cdata->sensitivity,
+		0
+	);
+	cdata->viewQuat = quat_multiply (&q, &cdata->viewQuat);
+	//printf ("view quat: %7.2f, %7.2f, %7.2f, %7.2f\n", cdata->viewQuat.w, cdata->viewQuat.x, cdata->viewQuat.y, cdata->viewQuat.z);
+}
+
 
 void camera_update (Entity e)
 {
@@ -33,6 +132,8 @@ void camera_update (Entity e)
 		side,
 		forward,
 		up;
+	QUAT
+		r;
 	float
 		radians,
 		rMatrix[16] = {
@@ -73,21 +174,74 @@ void camera_update (Entity e)
 		forward = vectorMultiplyByMatrix (&forward, rMatrix);
 	}
 	//printf ("radians: %f; rot: %d\n", radians, ground_getLabelRotation (cdata->l));
+
+	r = cdata->viewQuat;
+
 	fullPos.x =
-		pdata->pos.x * side.x +
-		pdata->pos.y * side.y +
-		pdata->pos.z * side.z +
-		groundOffset.x;
+		pdata->pos.x + groundOffset.x;
 	fullPos.y =
-		pdata->pos.x * up.x +
-		pdata->pos.y * up.y +
-		pdata->pos.z * up.z +
-		groundOffset.y;
+		pdata->pos.y + groundOffset.y;
 	fullPos.z =
-		pdata->pos.x * forward.x +
-		pdata->pos.y * forward.y +
-		pdata->pos.z * forward.z +
-		groundOffset.z;
+		pdata->pos.z + groundOffset.z;
+
+/*
+ * if you're not up on your matrix math, what we do here is generate a
+ * rotation matrix from the view quaternion and then premultiply it by a
+ * translation matrix that holds the inverse of the full position as
+ * calculated above. since multiplying a translation matrix and a rotation
+ * matrix together is something of a special case, we do the calculation by
+ * hand instead of calling some sort of matrix multiplication function.
+ *  - xph 2010-11-25
+ */
+	cdata->m[0] =
+		1 -
+		2 * r.y * r.y -
+		2 * r.z * r.z;
+	cdata->m[1] =
+		2 * r.x * r.y +
+		2 * r.w * r.z;
+	cdata->m[2] =
+		2 * r.x * r.z -
+		2 * r.w * r.y;
+	cdata->m[3] = 0;
+	cdata->m[4] =
+		2 * r.x * r.y -
+		2 * r.w * r.z;
+	cdata->m[5] =
+		1 -
+		2 * r.x * r.x -
+		2 * r.z * r.z;
+	cdata->m[6] =
+		2 * r.y * r.z -
+		2 * r.w * r.x;
+	cdata->m[7] = 0;
+	cdata->m[8] =
+		2 * r.x * r.z +
+		2 * r.w * r.y;
+	cdata->m[9] =
+		2 * r.y * r.z -
+		2 * r.w * r.x;
+	cdata->m[10] =
+		1 -
+		2 * r.x * r.x -
+		2 * r.y * r.y;
+	cdata->m[11] = 0.0;
+
+	cdata->m[12] =
+		-fullPos.x * cdata->m[0] +
+		-fullPos.y * cdata->m[4] +
+		-fullPos.z * cdata->m[8];
+	cdata->m[13] =
+		-fullPos.x * cdata->m[1] +
+		-fullPos.y * cdata->m[5] +
+		-fullPos.z * cdata->m[9];
+	cdata->m[14] =
+		-fullPos.x * cdata->m[2] +
+		-fullPos.y * cdata->m[6] +
+		-fullPos.z * cdata->m[10];
+	cdata->m[15] = 1.0;
+
+/*
 	cdata->m[0] = side.x;
 	cdata->m[1] = up.x;
 	cdata->m[2] = forward.x;
@@ -104,6 +258,8 @@ void camera_update (Entity e)
 	cdata->m[13] = -fullPos.y;
 	cdata->m[14] = -fullPos.z;
 	cdata->m[15] = 1.0;
+ */
+
 /*
 	printf (
 		"\n%+7.2f %+7.2f %+7.2f %+7.2f\n%+7.2f %+7.2f %+7.2f %+7.2f\n%+7.2f %+7.2f %+7.2f %+7.2f\n%+7.2f %+7.2f %+7.2f %+7.2f\n",
@@ -116,64 +272,6 @@ void camera_update (Entity e)
 
 }
 
-void camera_updateLabelsFromEdgeTraversal (Entity e, struct ground_edge_traversal * t)
-{
-	cameraComponent
-		cdata = component_getData (entity_getAs (e, "camera"));
-	int
-		x, y,
-		lo = 0;
-	short
-		r, k, i;
-	CameraGroundLabel
-		newLabel;
-	Entity
-		newOrigin;
-/*
-	VECTOR3
-		newOffset;
-*/
-	WORLD * w = NULL;
-	if (cdata == NULL)
-		return;
-	label_getXY (cdata->l, &x, &y);
-	x += XY[t->directionOfMovement][0];
-	y += XY[t->directionOfMovement][1];
-	hex_xy2rki (x, y, &r, &k, &i);
-	lo = hex_linearCoord (r, k, i);
-	vector_at (newLabel, OriginCache->cache, lo);
-	if (newLabel == NULL)
-	{
-		fprintf (stderr, "%s (#%d, ...): Active camera has walked outside the visible world. This is going to be a bumpy update.\n", __FUNCTION__, entity_GUID (e));
-		newOrigin = label_getGroundReference (cdata->l);
-		cameraCache_setGroundEntityAsOrigin (newOrigin);
-		cameraCache_extend (2);
-		newLabel = cameraCache_getOriginLabel ();
-		w = obj_getClassData (WorldObject, "world");
-		printf ("%s: resetting world origin to #%d (from #%d) \n", __FUNCTION__, entity_GUID (newOrigin), entity_GUID (w->groundOrigin));
-		w->groundOrigin = newOrigin;
-	}
-	//printf ("%s: updated camera label\n", __FUNCTION__);
-	//label_getXY (newLabel, &x, &y);
-	//newOffset = label_getOriginOffset (newLabel);
-	//printf ("\t@ %d,%d %5.2f, %5.2f, %5.2f\n", x, y, newOffset.x, newOffset.y, newOffset.z);
-	cdata->l = newLabel;
-}
-
-void camera_setAsActive (Entity e)
-{
-	cameraComponent
-		cdata = component_getData (entity_getAs (e, "camera"));
-	positionComponent
-		pdata = component_getData (entity_getAs (e, "position"));
-	Entity origin = NULL;
-	if (pdata == NULL || cdata == NULL)
-		return;
-	origin = position_getGroundEntity (pdata);
-	cameraCache_setGroundEntityAsOrigin (origin);
-	cdata->l = cameraCache_getOriginLabel ();
-	camera_update (e);
-}
 
 int component_camera (Object * obj, objMsg msg, void * a, void * b) {
   struct camera_data ** cd = NULL;
@@ -208,6 +306,8 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b) {
     case OM_COMPONENT_INIT_DATA:
       cd = a;
       *cd = xph_alloc (sizeof (struct camera_data));
+      (*cd)->viewQuat = quat_create (1.0, 0.0, 0.0, 0.0);
+      (*cd)->sensitivity = 0.20;
       camera_setAsActive (b);
       return EXIT_SUCCESS;
 
@@ -231,9 +331,11 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b) {
 
     case OM_COMPONENT_RECEIVE_MESSAGE:
       message = ((struct comp_message *)a)->message;
+      e = component_entityAttached (((struct comp_message *)a)->to);
       if (strcmp (message, "GROUND_EDGE_TRAVERSAL") == 0) {
-        e = component_entityAttached (((struct comp_message *)a)->to);
         camera_updateLabelsFromEdgeTraversal (e, b);
+      } else if (strcmp (message, "CONTROL_INPUT") == 0) {
+        camera_rotateOnMouseInput (e, b);
       }
       return EXIT_FAILURE;
 

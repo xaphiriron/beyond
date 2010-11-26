@@ -10,8 +10,16 @@
 #include "xph_memory.h"
 #include "cpv.h"
 
+enum input_control_types
+{
+	INPUT_CONTROLLED = 1,
+	INPUT_FOCUSED,
+};
+
 enum input_responses {
-  IR_AVATAR_MOVE_FORWARD = 0,
+  IR_NOTHING = 0,
+
+  IR_AVATAR_MOVE_FORWARD,
   IR_AVATAR_MOVE_BACKWARD,
   IR_AVATAR_MOVE_LEFT,
   IR_AVATAR_MOVE_RIGHT,
@@ -34,6 +42,12 @@ enum input_responses {
   IR_QUIT,
 
   IR_FINAL
+};
+
+struct input_event
+{
+	enum input_responses ir;
+	SDL_Event * event;
 };
 
 struct input {
@@ -90,13 +104,10 @@ void inputmatch_destroy (struct inputmatch *);
 struct keycombo * keycombo_create (int n, ...);
 void keycombo_destroy (struct keycombo * k);
 
-void input_addControlledEntity (Entity e);
-void input_rmControlledEntity (Entity e);
+bool input_addEntity (Entity e, enum input_control_types t);
+bool input_rmEntity (Entity e, enum input_control_types t);
 
-void input_addFocusedEntity (Entity e);
-void input_rmFocusedEntity (Entity e);
-
-void input_sendGameEventMessage (enum input_responses);
+void input_sendGameEventMessage (const struct input_event * ie);
 
 void input_update ();
 

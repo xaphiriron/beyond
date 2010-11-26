@@ -247,6 +247,16 @@ int ground_getLabelRotation (const CameraGroundLabel l) {
   return l->rot;
 }
 
+int label_getCoordinateDistanceFromOrigin (const CameraGroundLabel l)
+{
+	if (l == NULL)
+		return -1;
+	return (l->x * l->y >= 0)
+		? abs (l->x + l->y)
+		: (abs (l->x) > abs (l->y))
+			? abs (l->x)
+			: abs (l->y);
+}
 
 
 /***

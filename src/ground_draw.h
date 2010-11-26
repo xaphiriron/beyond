@@ -40,6 +40,7 @@ Entity label_getGroundReference (const CameraGroundLabel l);
 Entity label_getOriginReference (const CameraGroundLabel l);
 VECTOR3 label_getOriginOffset (const CameraGroundLabel l);
 int ground_getLabelRotation (const CameraGroundLabel l);
+int label_getCoordinateDistanceFromOrigin (const CameraGroundLabel l);
 
 // ultimately this will require a camera entity reference to draw, since
 // ultimately i will be doing my own depth-sorting instead of relying on

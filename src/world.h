@@ -18,15 +18,17 @@
 #include "component_walking.h"
 
 #include "ground_draw.h"
+#include "camera_draw.h"
 #include "system.h"
 
 extern Object * WorldObject;
 
-typedef struct world {
-  //MAP * map;
-  Entity
-    groundOrigin,
-    camera;				// this is dumb, in the end we don't want a "camera" here. probably.
+typedef struct world
+{
+	Entity
+		groundOrigin,
+		camera;		// this is dumb, in the end we don't want a "camera" here. probably.
+	int groundDistanceDraw;
 } WORLD;
 
 WORLD * world_create ();
