@@ -39,7 +39,7 @@ float timeval_asFloat (const struct timeval * t) {
 
 
 CLOCK * clock_create () {
-  CLOCK * c = xph_alloc (sizeof (CLOCK), "CLOCK");
+  CLOCK * c = xph_alloc (sizeof (CLOCK));
   memset (c, '\0', sizeof (CLOCK));
   return c;
 }
@@ -54,7 +54,7 @@ void clock_update (CLOCK * c) {
 }
 
 TIMER * timer_create (CLOCK * c, float scale) {
-  TIMER * t = xph_alloc (sizeof (TIMER), "TIMER");
+  TIMER * t = xph_alloc (sizeof (TIMER));
   t->scale = scale;
   t->elapsed = 0.0;
   t->clock = c;

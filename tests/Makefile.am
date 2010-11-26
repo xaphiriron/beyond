@@ -8,12 +8,14 @@ TESTS = \
   check_check \
   check_vector \
   check_object \
-  check_entity
+  check_entity \
+  check_tiles
 check_PROGRAMS = \
   check_check \
   check_vector \
   check_object \
-  check_entity
+  check_entity \
+  check_tiles
 
 check_check_SOURCES = \
   check_check.c \
@@ -58,3 +60,13 @@ check_entity_SOURCES = \
   $(top_builddir)/src/entity.c
 check_entity_CFLAGS = @CHECK_CFLAGS@
 check_entity_LDADD = @CHECK_LIBS@
+
+check_tiles_SOURCES = \
+  check_tiles.c \
+  $(top_builddir)/src/hex.c \
+  $(top_builddir)/src/cpv.c
+check_tiles_CFLAGS = @CHECK_CFLAGS@
+check_tiles_LDADD = \
+  $(top_builddir)/src/libvector.la \
+  $(top_builddir)/src/libfcmp.la \
+  @CHECK_LIBS@

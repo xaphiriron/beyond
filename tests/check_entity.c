@@ -59,8 +59,9 @@ START_TEST (test_component_message_entity) {
   mark_point ();
   component_messageEntity (cd, "COMPONENT_MESSAGE_ENTITY_COMPONENTS", NULL);
   mark_point ();
-  entitySubsystem_update ("COMPONENT_NAME");
-  entitySubsystem_update ("COMPONENT_NAME_2");
+  entitySubsystem_store ("COMPONENT_NAME");
+  entitySubsystem_store ("COMPONENT_NAME_2");
+  entitySubsystem_runOnStored (OM_UPDATE);
   cd = entity_getAs (e, "COMPONENT_NAME_2");
   fail_unless (debugComponent_messageReceived (cd, "COMPONENT_MESSAGE_ENTITY_COMPONENTS"));
   entity_destroy (e);
@@ -84,7 +85,8 @@ START_TEST (test_system_component_message) {
   component_instantiateOnEntity ("COMPONENT_NAME_2", g);
   cd = entity_getAs (e, "COMPONENT_NAME");
   component_messageSystem (cd, "COMPONENT_MESSAGE_SYSTEM_COMPONENTS", NULL);
-  entitySubsystem_update ("COMPONENT_NAME");
+  entitySubsystem_store ("COMPONENT_NAME");
+  entitySubsystem_runOnStored (OM_UPDATE);
   cd = entity_getAs (f, "COMPONENT_NAME");
   fail_unless (debugComponent_messageReceived (cd, "COMPONENT_MESSAGE_SYSTEM_COMPONENTS") == TRUE);
   cd = entity_getAs (g, "COMPONENT_NAME");
@@ -108,7 +110,8 @@ START_TEST (test_system_system_message) {
   component_instantiateOnEntity ("COMPONENT_NAME_2", g);
   cd = entity_getAs (e, "COMPONENT_NAME");
   component_messageSystem (cd, "COMPONENT_MESSAGE_OTHER_SYSTEMS", NULL);
-  entitySubsystem_update ("COMPONENT_NAME");
+  entitySubsystem_store ("COMPONENT_NAME");
+  entitySubsystem_runOnStored (OM_UPDATE);
   cd = entity_getAs (g, "COMPONENT_NAME_2");
   fail_unless (debugComponent_messageReceived (cd, "COMPONENT_MESSAGE_OTHER_SYSTEMS") == TRUE);
   cd = entity_getAs (f, "COMPONENT_NAME");
@@ -192,10 +195,10 @@ START_TEST (test_manager_fetch_one) {
     "When getting a list of entities with a given component, every entity with the specified component should be returned, no matter its state or other components. (Received a vector with %d entr%s, when there should have been 2).",
     vector_size (v), (vector_size (v) == 1 ? "y" : "ies")
   );
-  if (!((vector_at (p, v, 0) == e && vector_at (q, v, 1) == f) ||
-    (vector_at (p, v, 0) == f && vector_at (q, v, 1) == e))) {
-    vector_at (p, v, 0);
-    vector_at (q, v, 1);
+  vector_at (p, v, 0);
+  vector_at (q, v, 1);
+  if (!((p == e && q == f) ||
+    (p == f && q == e))) {
     fail (
       "was expecting values %p and %p, in any order, but instead got %p and %p.",
       e, f, p, q

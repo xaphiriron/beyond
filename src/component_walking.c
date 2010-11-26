@@ -1,15 +1,25 @@
 #include "component_walking.h"
 
+struct walkmove_data {
+  float
+    moveSpd,
+    turnSpd;
+
+  int dirsActive;
+  VECTOR3 dir;
+};
+
 // the MOVE value is as follows: a value of 1 will result in the entity crossing tiles at a speed of one per second. 2 is two per second. etc.
-Walking * walking_create (float move, float turn) {
-  new (Walking, w);
-  w->moveSpd = fabs (move) * 60.0;
-  w->turnSpd = fabs (turn);
-  w->dirsActive = 0;
-  return w;
+walkingComponent walking_create (float move, float turn)
+{
+	walkingComponent w = xph_alloc (sizeof (struct walkmove_data));
+	w->moveSpd = fabs (move) * 60.0;
+	w->turnSpd = fabs (turn);
+	w->dirsActive = 0;
+	return w;
 }
 
-void walking_destroy (Walking * w) {
+void walking_destroy (walkingComponent w) {
   xph_free (w);
 }
 
@@ -18,7 +28,7 @@ void walking_begin_movement (Entity e, enum walk_move mtype) {
     p = NULL,
     w = NULL;
   struct position_data * pdata = NULL;
-  Walking * wdata = NULL;
+  walkingComponent wdata = NULL;
   VECTOR3 dir;
   p = entity_getAs (e, "position");
   w = entity_getAs (e, "walking");
@@ -41,16 +51,16 @@ void walking_begin_movement (Entity e, enum walk_move mtype) {
   );
   switch (mtype) {
     case WALK_MOVE_FORWARD:
-      dir = vectorMultiplyByScalar (&pdata->orient.forward, wdata->moveSpd);
+      dir = vectorMultiplyByScalar (&pdata->orient.forward, -wdata->moveSpd);
       break;
     case WALK_MOVE_BACKWARD:
-      dir = vectorMultiplyByScalar (&pdata->orient.forward, -wdata->moveSpd / 2.0);
+      dir = vectorMultiplyByScalar (&pdata->orient.forward, wdata->moveSpd);
       break;
     case WALK_MOVE_RIGHT:
-      dir = vectorMultiplyByScalar (&pdata->orient.side, -wdata->moveSpd / 2.0);
+      dir = vectorMultiplyByScalar (&pdata->orient.side, wdata->moveSpd);
       break;
     case WALK_MOVE_LEFT:
-      dir = vectorMultiplyByScalar (&pdata->orient.side, wdata->moveSpd / 2.0);
+      dir = vectorMultiplyByScalar (&pdata->orient.side, -wdata->moveSpd);
       break;
     default:
       dir = vectorCreate (0.0, 0.0, 0.0);
@@ -70,7 +80,7 @@ void walking_end_movement (Entity e, enum walk_move mtype) {
   Component
     w = NULL,
     p = NULL;
-  Walking * wdata = NULL;
+  walkingComponent wdata = NULL;
   struct position_data * pdata = NULL;
   VECTOR3 dir;
   w = entity_getAs (e, "walking");
@@ -94,16 +104,16 @@ void walking_end_movement (Entity e, enum walk_move mtype) {
   );
   switch (mtype) {
     case WALK_MOVE_FORWARD:
-      dir = vectorMultiplyByScalar (&pdata->orient.forward, wdata->moveSpd);
+      dir = vectorMultiplyByScalar (&pdata->orient.forward, -wdata->moveSpd);
       break;
     case WALK_MOVE_BACKWARD:
-      dir = vectorMultiplyByScalar (&pdata->orient.forward, -wdata->moveSpd / 2.0);
+      dir = vectorMultiplyByScalar (&pdata->orient.forward, wdata->moveSpd);
       break;
     case WALK_MOVE_RIGHT:
-      dir = vectorMultiplyByScalar (&pdata->orient.side, -wdata->moveSpd / 2.0);
+      dir = vectorMultiplyByScalar (&pdata->orient.side, wdata->moveSpd);
       break;
     case WALK_MOVE_LEFT:
-      dir = vectorMultiplyByScalar (&pdata->orient.side, wdata->moveSpd / 2.0);
+      dir = vectorMultiplyByScalar (&pdata->orient.side, -wdata->moveSpd);
       break;
     default:
       dir = vectorCreate (0.0, 0.0, 0.0);
@@ -134,7 +144,9 @@ void walk_move (Entity e) {
     w = NULL;
   struct position_data * pdata = NULL;
   struct integrate_data * idata = NULL;
-  Walking * wdata = NULL;
+  walkingComponent wdata = NULL;
+  const PHYSICS * physics = obj_getClassData (PhysicsObject, "physics");
+  VECTOR3 newpos;
   p = entity_getAs (e, "position");
   i = entity_getAs (e, "integrate");
   w = entity_getAs (e, "walking");
@@ -150,12 +162,37 @@ void walk_move (Entity e) {
   if (i != NULL) {
     idata = component_getData (i);
     addExtraVelocity (idata, &wdata->dir);
+  } else {
+    newpos = vectorMultiplyByScalar (&wdata->dir, physics->timestep);
+    position_move (e, newpos);
   }
+}
+
+void walking_rotateAxes (Entity e, const float degree)
+{
+	walkingComponent
+		wdata = component_getData (entity_getAs (e, "walking"));
+	VECTOR3
+		new;
+	float
+		rad = degree / 180.0 * M_PI,
+		m[16] =
+		{
+			cos (rad), 0, -sin (rad), 0,
+			0, 1, 0, 0,
+			sin (rad), 0, cos (rad), 0,
+			0, 0, 0, 1
+		};
+	printf ("%s (#%d, %5.2f)\n", __FUNCTION__, entity_GUID (e), degree);
+	if (wdata == NULL)
+		return;
+	new = vectorMultiplyByMatrix (&wdata->dir, m);
+	wdata->dir = new;
 }
 
 
 int component_walking (Object * o, objMsg msg, void * a, void * b) {
-  Walking ** wd;
+  walkingComponent * wd;
   char * message = NULL;
   Component c = NULL;
   enum input_responses ir = 0;
@@ -268,6 +305,10 @@ int component_walking (Object * o, objMsg msg, void * a, void * b) {
 
           default:
             return EXIT_FAILURE;
+        }
+      } else if (strcmp ("GROUND_EDGE_TRAVERSAL", message) == 0) {
+        if (((struct ground_edge_traversal *)b)->rotIndex != 0) {
+          walking_rotateAxes (ce, ((struct ground_edge_traversal *)b)->rotIndex * 60.0);
         }
       }
       return EXIT_SUCCESS;

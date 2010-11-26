@@ -3,7 +3,7 @@
 Object * PhysicsObject = NULL;
 
 PHYSICS * physics_create (ACCUMULATOR * acc) {
-  PHYSICS * p = xph_alloc (sizeof (PHYSICS), "PHYSICS");
+  PHYSICS * p = xph_alloc (sizeof (PHYSICS));
   p->acc = acc;
   p->timestep = p->acc->delta;
   return p;

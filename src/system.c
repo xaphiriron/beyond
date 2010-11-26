@@ -3,7 +3,7 @@
 Object * SystemObject = NULL;
 
 SYSTEM * system_create () {
-  SYSTEM * s = xph_alloc (sizeof (SYSTEM), "SYSTEM");
+  SYSTEM * s = xph_alloc (sizeof (SYSTEM));
   s->quit = FALSE;
   s->clock = clock_create ();
   s->timer_mult = 1.0;
@@ -15,6 +15,21 @@ void system_destroy (SYSTEM * s) {
   timer_destroyTimerRegistry ();
   clock_destroy (s->clock);
   xph_free (s);
+}
+
+enum system_states system_getState (const SYSTEM * s)
+{
+	if (s == NULL)
+		return 0;
+	return s->state;
+}
+
+bool system_setState (SYSTEM * s, enum system_states state)
+{
+	if (s == NULL)
+		return FALSE;
+	s->state = state;
+	return TRUE;
 }
 
 int system_handler (Object * o, objMsg msg, void * a, void * b) {
@@ -32,25 +47,22 @@ int system_handler (Object * o, objMsg msg, void * a, void * b) {
       objClass_init (physics_handler, NULL, NULL, NULL);
       objClass_init (world_handler, NULL, NULL, NULL);
 
-/*
       entity_registerComponentAndSystem (component_position);
-      entity_registerComponentAndSystem (component_integrate);
+      entity_registerComponentAndSystem (component_ground);
+//      entity_registerComponentAndSystem (component_integrate);
       entity_registerComponentAndSystem (component_camera);
-      entity_registerComponentAndSystem (component_collide);
+
+//      entity_registerComponentAndSystem (component_collide);
       entity_registerComponentAndSystem (component_walking);
-*/
       entity_registerComponentAndSystem (component_input);
 
-/*
-      // this order DOES matter.
+      // this order DOES matter, since this is the order they're updated later.
       entitySubsystem_store ("position");
+      entitySubsystem_store ("ground");
       entitySubsystem_store ("walking");
-      entitySubsystem_store ("integrate");
-*/
+//      entitySubsystem_store ("integrate");
       entitySubsystem_store ("camera");
-/*
-      entitySubsystem_store ("collide");
-*/
+//      entitySubsystem_store ("collide");
       entitySubsystem_store ("input");
 
       obj_create ("video", SystemObject,
@@ -106,6 +118,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b) {
       obj_message (VideoObject, OM_START, NULL, NULL);
       obj_message (PhysicsObject, OM_START, NULL, NULL);
       obj_message (WorldObject, OM_START, NULL, NULL);
+      system_setState (s, STATE_FIRSTPERSONVIEW);
       return EXIT_SUCCESS;
 
     case OM_UPDATE:

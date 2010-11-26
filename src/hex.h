@@ -1,74 +1,51 @@
 #ifndef XPH_HEX_H
 #define XPH_HEX_H
 
+#include <assert.h>
 #include <float.h>
-#include <SDL/SDL_opengl.h>
-#include "vector.h"
+
 #include "xph_memory.h"
+
+#include "vector.h"
 #include "cpv.h"
 
-/* todo: weigh the benefits and costs of making this a component, for various
- * values of "this"
- */
+extern const int H[6][2];
+extern const char XY[6][2];
 
-typedef struct tile {
-  short
-    r, k, i;		// polar coordinates from origin; used only to make a linear list from a hexagonal playfield
-  int
-    x, y;		// use these coordinates instead.
+typedef struct hex * Hex;
+
+struct hex {
   VECTOR3
-    p,
-    surfaceNormal,
+    topNormal,
     baseNormal;
   float
-    z, a, b,		// the plane of the surface of the hex
-    dz, da, db;		// the plane of the bottom of the hex
-
+    top, topA, topB,
+    base, baseA, baseB;
   Vector * entitiesOccupying;
-} HEX;
+  short
+    r, k, i,	// polar coordinates from center of ground map
+    x, y;	// cartesian coordinates from center (w/ non-orthographic axes)
+};
 
 
-typedef struct field {
-  Vector * tiles;
-  int size;
-  enum map_border {
-    EDGE_WALL,
-    EDGE_VOID
-  } edge;
-} MAP;
-
-enum hex_topbottom {
-  HEX_TOP,
-  HEX_BOTTOM
+enum hex_sides {
+  HEX_TOP = 1,
+  HEX_BASE
 };
 
 int hex (int n);
-int hex_coord_linear_offset (short r, short k, short i);
-void rki_to_xy (int r, int k, int i, int * xp, int * yp);
-void xy_to_rki (int x, int y, int * rp, int * kp, int * ip);
+int hex_linearCoord (short r, short k, short i);
+void hex_rki2xy (short r, short k, short i, short * xp, short * yp);
+void hex_xy2rki (short x, short y, short * rp, short * kp, short * ip);
+bool hex_wellformedRKI (short r, short k, short i);
 
-bool hex_point_inside (const VECTOR3 * v);
+VECTOR3 hex_linearTileDistance (int length, int dir);
+VECTOR3 hex_coordOffset (short r, short k, short i);
+bool hex_coordinateAtSpace (const VECTOR3 * space, int * xp, int * yp);
 
-HEX * hex_create (short r, short k, short i, float h);
-void hex_destroy (HEX * h);
+struct hex * hex_create (short r, short k, short i, float height);
+void hex_destroy (struct hex * h);
 
-bool valid_hex (const HEX * h);
-VECTOR3 hex_position_from_coord (short r, short k, short i);
-void hex_slope_from_plane (HEX * h, enum hex_topbottom t, float z, float a, float b);
-HEX ** hex_neighbors (const MAP * m, const HEX * h);
-
-void hex_draw (const HEX * h);
-void hex_draw_sides (const HEX * h, const HEX ** n);
-
-void hex_draw_fake (short r, short k, short i);
-
-
-MAP * map_create (int s);
-void map_destroy (MAP * m);
-
-void map_draw (const MAP * m);
-
-HEX * map_hex_at_point (MAP * m, float x, float y);
-Vector * map_adjacent_tiles (MAP * m, int x, int y);
+void hex_setSlope (struct hex * h, enum hex_sides side, float a, float b, float c);
 
 #endif /* XPH_HEX_H */

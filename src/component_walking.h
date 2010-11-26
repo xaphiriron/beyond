@@ -28,17 +28,10 @@ enum walk_turn {
   WALK_TURN_DOWN  = 0x08
 };
 
-typedef struct walkmove_data {
-  float
-    moveSpd,
-    turnSpd;
+typedef struct walkmove_data * walkingComponent;
 
-  int dirsActive;
-  VECTOR3 dir;
-} Walking;
-
-Walking * walking_create (float forward, float turn);
-void walking_destroy (Walking * w);
+walkingComponent walking_create (float forward, float turn);
+void walking_destroy (walkingComponent w);
 
 void walking_begin_movement (Entity e, enum walk_move w);
 void walking_begin_turn (Entity e, enum walk_turn w);
@@ -46,6 +39,8 @@ void walking_end_movement (Entity e, enum walk_move w);
 void walking_end_turn (Entity e, enum walk_turn w);
 
 void walk_move (Entity e);
+
+void walking_rotateAxes (Entity e, const float degree);
 
 int component_walking (Object * o, objMsg msg, void * a, void * b);
 

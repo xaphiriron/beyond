@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define new(TYPE, NAME)		TYPE * NAME = xph_alloc (sizeof (TYPE), #TYPE)
+#define new(TYPE, NAME)		TYPE * NAME = xph_alloc_name (sizeof (TYPE), #TYPE)
 
 #ifdef MEM_DEBUG
 
@@ -29,7 +29,9 @@ struct mlist {
   int o, l;
 };
 
-#define xph_alloc(a, b)		_xph_alloc(a, b)
+#define xph_alloc(a)		_xph_alloc(a, #a)
+#define xph_alloc_name(a, b)	_xph_alloc(a, b);
+//#define xph_alloc(a, b)		_xph_alloc(a, b)
 void * _xph_alloc (size_t size, char * exp);
 void * xph_realloc (void * d, size_t size);
 void xph_free (void * d);
@@ -39,7 +41,8 @@ struct mdata * xph_isallocated (void * d);
 int memory_sort (const void * a, const void * b);
 int memory_search (const void * key, const void * datum);
 #else /* MEM_DEBUG */
-#define xph_alloc(a, b)		malloc(a)
+#define xph_alloc(a)		malloc(a)
+#define xph_alloc_name(a, b)	malloc(a)
 #define xph_realloc(a, b)	realloc(a, b)
 #define xph_free(a)		free(a)
 #endif /* MEM_DEBUG */

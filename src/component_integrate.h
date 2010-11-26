@@ -15,6 +15,7 @@ struct integrate_data {
   float mass;
 
   VECTOR3
+    new_movement,
     tar_velocity,
     tar_acceleration,
     tar_pos,

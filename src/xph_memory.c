@@ -20,6 +20,7 @@ void * _xph_alloc (size_t size, char * exp) {
   strncpy (n->exp, exp, len);
   n->size = size;
   n->address = calloc (1, size);
+  //printf ("  ... \"%s\", %d word%s at %p\n", n->exp, n->size, (n->size == 1 ? "" : "s"), n->address);
   if (mlist->o >= mlist->l) {
     //printf ("resizing mlist\n");
     a = calloc (sizeof (struct mdata *), mlist->l * 2);
@@ -82,7 +83,7 @@ void xph_free (void * d) {
   assert (mlist != NULL);
   k = bsearch (d, mlist->a, mlist->o, sizeof (struct mdata *), memory_search);
   if (k == NULL) {
-    fprintf (stderr, "Attempted to free %p, which is not allocated.\n", d);
+    //fprintf (stderr, "Attempted to free %p, which is not allocated.\n", d);
     return;
   }
   free ((*k)->address);

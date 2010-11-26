@@ -46,37 +46,39 @@ void commitIntegration (Entity e, float delta) {
   printf (" force-- new: %f, %f, %f; old: %f, %f, %f\n", idata->tar_acceleration.x, idata->tar_acceleration.y, idata->tar_acceleration.z, idata->acceleration.x, idata->acceleration.y, idata->acceleration.z);
  //*/
 
-  setPosition (e, idata->tar_pos);
+  position_move (e, idata->new_movement);
   idata->velocity = idata->tar_velocity;
   idata->acceleration = idata->tar_acceleration;
 
   idata->tar_velocity = idata->tar_acceleration = idata->extra_velocity = vectorCreate (0.0, 0.0, 0.0);
-  idata->tar_pos = pdata->pos;
+  idata->new_movement = vectorCreate (0.0, 0.0, 0.0);
 }
 
 void integrate (Entity e, float delta) {
   Component
     p = entity_getAs (e, "position"),
-    c = entity_getAs (e, "collide"),
+    /*c = entity_getAs (e, "collide"),*/
     i = entity_getAs (e, "integrate");
   struct position_data * pdata = NULL;
   struct integrate_data * idata = NULL;
-  collide_data * cdata = NULL;
+  //collide_data * cdata = NULL;
   VECTOR3
     v,
     w;
   if (p == NULL || i == NULL) {
     return;
   }
-  cdata = component_getData (c);
+  //cdata = component_getData (c);
   pdata = component_getData (p);
   idata = component_getData (i);
   //printf ("%s: entity #%d\n", __FUNCTION__, entity_GUID (e));
 
+  /*
   if (cdata == NULL || cdata->onStableGround == FALSE) {
     // idk how to update acceleration, except by applying gravity.
     applyGravity (idata, delta);
   }
+  */
 
   v = vectorMultiplyByScalar (&idata->tar_acceleration, delta);
   v = vectorAdd (&idata->velocity, &v);
@@ -85,7 +87,8 @@ void integrate (Entity e, float delta) {
   v = vectorMultiplyByScalar (&idata->tar_velocity, delta);
   w = vectorMultiplyByScalar (&idata->extra_velocity, delta);
   v = vectorAdd (&v, &w);
-  idata->tar_pos = vectorAdd (&pdata->pos, &v);
+  idata->new_movement = v;
+  //idata->tar_pos = vectorAdd (&pdata->pos, &v);
 
 }
 
@@ -119,7 +122,7 @@ int component_integrate (Object * obj, objMsg msg, void * a, void * b) {
 
     case OM_COMPONENT_INIT_DATA:
       cd = a;
-      *cd = xph_alloc (sizeof (struct integrate_data), "struct integrate_data");
+      *cd = xph_alloc (sizeof (struct integrate_data));
       (*cd)->velocity = vectorCreate (0.0, 0.0, 0.0);
       (*cd)->acceleration = vectorCreate (0.0, 0.0, 0.0);
       (*cd)->mass = 1.0;

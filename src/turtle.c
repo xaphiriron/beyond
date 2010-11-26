@@ -31,7 +31,7 @@ TURTLE * turtle_create () {
 }
 
 TURTLE * turtle_createA (float x, float y, float z, float rot) {
-  TURTLE * t = xph_alloc (sizeof (TURTLE), "TURTLE");
+  TURTLE * t = xph_alloc (sizeof (TURTLE));
   t->heading = rot;
   t->position = vectorCreate (x, y, z);
   t->penDown = tDefault.penDown;
@@ -142,7 +142,7 @@ void turtle_penDown (TURTLE * t) {
 }
 
 void turtle_push (TURTLE * t) {
-  struct tloc * tloc = xph_alloc (sizeof (struct tloc), "tloc");
+  struct tloc * tloc = xph_alloc (sizeof (struct tloc));
   tloc->heading = t->heading;
   tloc->position = t->position;
   vector_push_back (t->locationStack, tloc);
@@ -386,13 +386,13 @@ void turtle_runCycle (char * c, TURTLE * t, const SYMBOLSET * set) {
 }
 
 SYMBOLSET * symbol_createSet () {
-  SYMBOLSET * s = xph_alloc (sizeof (SYMBOLSET), "SYMBOLSET");
+  SYMBOLSET * s = xph_alloc (sizeof (SYMBOLSET));
   s->symbols = vector_create (2, sizeof (SYMBOL *));
   return s;
 }
 
 SYMBOL * symbol_create (char l, enum symbol_commands type, float val) {
-  SYMBOL * s = xph_alloc (sizeof (SYMBOL), "SYMBOL");
+  SYMBOL * s = xph_alloc (sizeof (SYMBOL));
   s->l = l;
   s->type = type;
   s->val = val;
@@ -498,7 +498,7 @@ int symbol_cyclesToClose (char * s, const SYMBOLSET * set) {
         turn += sym->val;
         break;
       case SYM_STACKPUSH:
-        st = xph_alloc (sizeof (float), "float");
+        st = xph_alloc (sizeof (float));
         *st = turn;
         vector_push_back (rotationStack, st);
         break;
@@ -540,7 +540,7 @@ int symbol_search (const void * key, const void * datum) {
 
 
 LSYSTEM * lsystem_create () {
-  LSYSTEM * l = xph_alloc (sizeof (LSYSTEM), "LYSYSTEM");
+  LSYSTEM * l = xph_alloc (sizeof (LSYSTEM));
   l->p = vector_create (4, sizeof (PRODUCTION *));
   return l;
 }
@@ -555,7 +555,7 @@ void lsystem_destroy (LSYSTEM * l) {
 }
 
 PRODUCTION * production_create (const char l, const char * exp) {
-  PRODUCTION * p = xph_alloc (sizeof (PRODUCTION), "PRODUCTION");
+  PRODUCTION * p = xph_alloc (sizeof (PRODUCTION));
   p->l = l;
   p->exp = vector_create (2, sizeof (char *));
   production_addRule (p, exp);
@@ -572,7 +572,7 @@ void production_destroy (PRODUCTION * p) {
 }
 
 void production_addRule (PRODUCTION * p, const char * exp) {
-  char * pexp = xph_alloc (strlen (exp) + 1, "PRODUCTION->exp[]");
+  char * pexp = xph_alloc_name (strlen (exp) + 1, "PRODUCTION->exp[]");
   strcpy (pexp, exp);
   vector_push_back (p->exp, pexp);
 }
@@ -615,19 +615,19 @@ char * lsystem_getRandProduction (const LSYSTEM * l, const char s) {
     * r = NULL,
     * v = NULL;
   if (sp == NULL) {
-    r = xph_alloc (2, "LSYSTEM production");
+    r = xph_alloc_name (2, "LSYSTEM production");
     r[0] = s;
     r[1] = '\0';
     return r;
   }
   i = vector_size (sp->exp);
   if (i == 1) {
-    r = xph_alloc (strlen (vector_front (v, sp->exp)) + 1, "LSYSTEM production");
+    r = xph_alloc (strlen (vector_front (v, sp->exp)) + 1);
     strcpy (r, v);
     return r;
   }
   i = random () % i;
-  r = xph_alloc (strlen (vector_at (v, sp->exp, i)) + 1, "LSYSTEM production");
+  r = xph_alloc (strlen (vector_at (v, sp->exp, i)) + 1);
   strcpy (r, v);
   return r;
 }
@@ -640,7 +640,7 @@ char * lsystem_iterate (const char * seed, const LSYSTEM * l, int i) {
     o = 0,
     a = sl * 2;
   char
-    * base = xph_alloc (sl + 1, "LSYSTEM base"),
+    * base = xph_alloc_name (sl + 1, "LSYSTEM base"),
     * production = NULL,
     * expansion = NULL;
   strncpy (base, seed, sl + 1);
@@ -649,7 +649,7 @@ char * lsystem_iterate (const char * seed, const LSYSTEM * l, int i) {
   }
   while (i-- > 0) {
     //printf ("iterating over \"%s\", %d to go...\n", base, i);
-    expansion = xph_alloc (a, "LSYSTEM expansion");
+    expansion = xph_alloc_name (a, "LSYSTEM expansion");
     memset (expansion, '\0', a);
     j = 0;
     sl = strlen (base);

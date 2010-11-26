@@ -1,7 +1,7 @@
 #include "accumulator.h"
 
 ACCUMULATOR * accumulator_create (TIMER * t, float delta) {
-  ACCUMULATOR * a = xph_alloc (sizeof (ACCUMULATOR), "ACCUMULATOR");
+  ACCUMULATOR * a = xph_alloc (sizeof (ACCUMULATOR));
   a->timer = t;
   a->timerElapsedLastUpdate = timer_timeElapsed (t);
   a->delta = delta;

@@ -181,7 +181,7 @@ struct keycombo * keycombo_create (int n, ...) {
   va_list args;
   va_start (args, n);
   while (n > 0) {
-    u = xph_alloc (sizeof (struct keycombo), "struct keycombo");
+    u = xph_alloc (sizeof (struct keycombo));
     k = (SDLKey)va_arg (args, unsigned int);
     u->key = k;
     //printf ("(got %d/%d)\n", k, u->key);
@@ -282,7 +282,7 @@ void input_update (Object * d) {
        */
       case SDL_KEYDOWN:
         if (in_vector (Input->keysPressed, &Input->event.key.keysym.sym) == -1) {
-          printf ("adding key %d to keysPressed (at index %d)\n", Input->event.key.keysym.sym, vector_index_last (Input->keysPressed) + 1);
+          //printf ("adding key %d to keysPressed (at index %d)\n", Input->event.key.keysym.sym, vector_index_last (Input->keysPressed) + 1);
           vector_push_back (Input->keysPressed, Input->event.key.keysym.sym);
         }
         break;
@@ -290,17 +290,17 @@ void input_update (Object * d) {
         if ((i = in_vector (Input->keysPressed, &Input->event.key.keysym.sym)) == -1) {
           continue;
         }
-        printf ("removing key %d from keysPressed (at index %d)\n", Input->event.key.keysym.sym, i);
+        //printf ("removing key %d from keysPressed (at index %d)\n", Input->event.key.keysym.sym, i);
         vector_at (inputmatch, Input->eventsHeld, i);
         if (inputmatch != NULL) {
-          printf ("held event: %d at index %d (%p)\n", inputmatch->input, i, inputmatch);
+          //printf ("held event: %d at index %d (%p)\n", inputmatch->input, i, inputmatch);
           vector_remove (Input->eventsHeld, inputmatch);
           input_sendGameEventMessage (~inputmatch->input);
           //unblockConflicts (inputmatch->input);
           inputmatch_destroy (inputmatch);
           inputmatch = NULL;
         } else {
-          printf ("no held event\n");
+          //printf ("no held event\n");
         }
         vector_remove (Input->keysPressed, Input->event.key.keysym.sym);
         i = 0;
@@ -341,11 +341,11 @@ void input_update (Object * d) {
         xph_free (inputmatch);
         continue;
       }
-      printf ("HAVE AN INPUT RESPONSE #%d (%p)\n", inputmatch->input, inputmatch);
+      //printf ("HAVE AN INPUT RESPONSE #%d (%p)\n", inputmatch->input, inputmatch);
       input_sendGameEventMessage (inputmatch->input);
       blockConflicts (inputmatch->input);
       blockSubsets (inputmatch);
-      printf ("holding event %d at index %d (%p)\n", inputmatch->input, inputmatch->priority - 1, inputmatch);
+      //printf ("holding event %d at index %d (%p)\n", inputmatch->input, inputmatch->priority - 1, inputmatch);
       if (vector_at (conflict, Input->eventsHeld, inputmatch->priority - 1) != NULL) {
         printf ("\033[33mINPUT EVENT PRIORITY CONFLICT (\033[1;32m%p\033[0;33m)\33[0m\n", conflict);
       }

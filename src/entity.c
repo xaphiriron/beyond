@@ -132,9 +132,9 @@ bool entity_registerComponentAndSystem (objHandler func) {
 /* returns a vector, which must be destroyed. In the event of a non-existant component or an intersection with no members, an empty vector is returned.
  */
 Vector * entity_getEntitiesWithComponent (int n, ...) {
-  int * indices = xph_alloc (sizeof (int) * n, "indices");
-  Vector ** components = xph_alloc (sizeof (Vector *) * n, "vectors");
-  const char ** comp_names = xph_alloc (sizeof (char *) * n, "names");
+  int * indices = xph_alloc_name (sizeof (int) * n, "indices");
+  Vector ** components = xph_alloc_name (sizeof (Vector *) * n, "vectors");
+  const char ** comp_names = xph_alloc_name (sizeof (char *) * n, "names");
   Vector * final = vector_create (2, sizeof (Entity *));
   System sys = NULL;
   Component c = NULL;
@@ -241,7 +241,7 @@ System entity_getSystemByName (const char * comp_name) {
   }
   sys = vector_search (SystemRegistry, comp_name, sys_search);
   if (sys == NULL) {
-    fprintf (stderr, "%s: no component named \"%s\" registered\n", __FUNCTION__, comp_name);
+    //fprintf (stderr, "%s: no component named \"%s\" registered\n", __FUNCTION__, comp_name);
     return NULL;
   }
   return sys;
@@ -326,7 +326,7 @@ bool component_removeFromEntity (const char * comp_name, Entity e) {
 Component entity_getAs (Entity e, const char * comp_name) {
   System sys = entity_getSystemByName (comp_name);
   Component comp = NULL;
-  if (sys == NULL) {
+  if (e == NULL || sys == NULL) {
     return NULL;
   }
   comp = vector_search (sys->entities, e, comp_search);
@@ -351,22 +351,23 @@ Entity component_entityAttached (Component c) {
   return c->e;
 }
 
-bool component_messageEntity (Component comp, char * message, void * arg) {
-  new (struct comp_message, msg);
-  Component t = NULL;
-  int i = 0;
-  msg->from = comp;
-  msg->to = NULL;
-  msg->message = message;
-  while (vector_at (t, comp->e->components, i++) != NULL) {
-    if (t == comp) {
-      continue;
-    }
-    msg->to = t;
-    obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, msg, arg);
-  }
-  xph_free (msg);
-  return TRUE;
+bool component_messageEntity (Component comp, char * message, void * arg)
+{
+	struct comp_message * msg = xph_alloc (sizeof (struct comp_message));
+	Component t = NULL;
+	int i = 0;
+	msg->from = comp;
+	msg->to = NULL;
+	msg->message = message;
+	while (vector_at (t, comp->e->components, i++) != NULL)
+	{
+		// we're purposefully messaging the component back, in case it has a response to its own message. consequentally, it's important that no components decide to send off the same message in response to getting a message.
+		msg->to = t;
+		//printf ("%s: #%d: messaging component \"%s\"\n", __FUNCTION__, comp->e->guid, t->reg->comp_name);
+		obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, msg, arg);
+	}
+	xph_free (msg);
+	return TRUE;
 }
 
 bool component_messageSystem (Component comp, char * message, void * arg) {
@@ -376,24 +377,6 @@ bool component_messageSystem (Component comp, char * message, void * arg) {
   obj_message (comp->reg->system, OM_SYSTEM_RECEIVE_MESSAGE, msg, message);
   xph_free (msg);
   return TRUE;
-}
-
-void entitySubsystem_update (const char * comp_name) {
-  System sys = entity_getSystemByName (comp_name);
-  if (sys == NULL) {
-    printf ("%s: got invalid component name (\"%s\")\n", __FUNCTION__, comp_name);
-    return;
-  }
-  obj_message (sys->system, OM_UPDATE, NULL, NULL);
-}
-
-void entitySubsystem_postupdate (const char * comp_name) {
-  System sys = entity_getSystemByName (comp_name);
-  if (sys == NULL) {
-    printf ("%s: got invalid component name (\"%s\")\n", __FUNCTION__, comp_name);
-    return;
-  }
-  obj_message (sys->system, OM_POSTUPDATE, NULL, NULL);
 }
 
 bool entitySubsystem_store (const char * comp_name) {

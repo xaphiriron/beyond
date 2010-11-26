@@ -3,7 +3,7 @@
 Object * VideoObject = NULL;
 
 VIDEO * video_create () {
-  VIDEO * v = xph_alloc (sizeof (VIDEO), "VIDEO");
+  VIDEO * v = xph_alloc (sizeof (VIDEO));
   return v;
 }
 
@@ -29,7 +29,7 @@ void video_loadDefaultSettings (VIDEO * v) {
   v->orthographic = FALSE;
   v->doublebuffer = TRUE;
   v->resolution = 0.03;
-  v->title = xph_alloc (16, "video->title");
+  v->title = xph_alloc_name (16, "video->title");
   strncpy (v->title, "beyond 0.0.0.1", 16);
   v->icon = NULL;
   v->near = 10.0;
@@ -147,6 +147,14 @@ bool video_setScaling (VIDEO * v, float scale) {
   return TRUE;
 }
 
+float video_getZnear ()
+{
+	const VIDEO * v = obj_getClassData (VideoObject, "video");
+	if (v == NULL)
+		return 0.0;
+	return -v->near;
+}
+
 float video_getXResolution () {
   const VIDEO * v = NULL;
   if (VideoObject == NULL) {
@@ -165,6 +173,31 @@ float video_getYResolution () {
   return v->resolution * v->height;
 }
 
+bool video_getDimensions (unsigned int * width, unsigned int * height)
+{
+	const VIDEO * v = obj_getClassData (VideoObject, "video");
+	if (v == NULL || width == NULL || height == NULL)
+		return FALSE;
+	*width = v->width;
+	*height = v->height;
+	return TRUE;
+}
+
+inline float video_pixelYMap (int y)
+{
+	const VIDEO * v = obj_getClassData (VideoObject, "video");
+	if (v == NULL)
+		return 0.0;
+	return (v->height / 2.0 - y) * v->resolution;
+}
+
+inline float video_pixelXMap (int x)
+{
+	const VIDEO * v = obj_getClassData (VideoObject, "video");
+	if (v == NULL)
+		return 0.0;
+	return (x - v->width / 2.0) * v->resolution;
+}
 
 int video_handler (Object * o, objMsg msg, void * a, void * b) {
   VIDEO * v = NULL;

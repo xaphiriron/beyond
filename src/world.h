@@ -3,28 +3,30 @@
 
 #include <SDL/SDL_opengl.h>
 #include "xph_memory.h"
-#include "object.h"
 #include "vector.h"
 #include "hex.h"
 #include "physics.h"
 
+#include "object.h"
 #include "entity.h"
 
 #include "component_position.h"
+#include "component_ground.h"
 #include "component_integrate.h"
 #include "component_camera.h"
-#include "component_collide.h"
 #include "component_input.h"
 #include "component_walking.h"
+
+#include "ground_draw.h"
+#include "system.h"
 
 extern Object * WorldObject;
 
 typedef struct world {
-  VECTOR3 origin;
-  MAP * map;
-
-  // this is not how we should do things, but it's good enough for now.
-  Entity camera;
+  //MAP * map;
+  Entity
+    groundOrigin,
+    camera;				// this is dumb, in the end we don't want a "camera" here. probably.
 } WORLD;
 
 WORLD * world_create ();

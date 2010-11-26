@@ -2,255 +2,170 @@
 
 Object * WorldObject = NULL;
 
-// static void draw_grid ();
+WORLD * world_create ()
+{
+	WORLD
+		* w = xph_alloc (sizeof (WORLD));
+	Entity
+		groundG = NULL,
+		groundH = NULL,
+		groundI = NULL,
+		camera = NULL;
+	GroundMap
+		g = NULL,
+		h = NULL,
+		i = NULL;
+	Hex
+		hex = NULL;
 
-WORLD * world_create () {
-  WORLD * w = xph_alloc (sizeof (WORLD), "WORLD");
-  HEX * h = NULL;
-  Entity e = NULL;
-  w->origin = vectorCreate (0.0, 0.0, 0.0);
-  w->map = map_create (8);
-  vector_assign (w->map->tiles, 0, hex_create (0, 0, 0, 0.0));
-  h = hex_create (1, 5, 0, 4);
-  hex_slope_from_plane (h, HEX_TOP, .5, 1.0, .5);
-  vector_assign (w->map->tiles, 6, h);
-  h = hex_create (1, 4, 0, 4);
-  hex_slope_from_plane (h, HEX_TOP, .5, .5, .0);
-  vector_assign (w->map->tiles, 5, h);
-  h = hex_create (1, 3, 0, 4);
-  hex_slope_from_plane (h, HEX_TOP, .5, .0, .0);
-  vector_assign (w->map->tiles, 4, h);
-  h = hex_create (1, 2, 0, 4);
-  hex_slope_from_plane (h, HEX_TOP, .5, .0, .5);
-  vector_assign (w->map->tiles, 3, h);
-  h = hex_create (1, 1, 0, 4);
-  hex_slope_from_plane (h, HEX_TOP, .5, .5, 1.0);
-  vector_assign (w->map->tiles, 2, h);
-  h = hex_create (1, 0, 0, 4);
-  hex_slope_from_plane (h, HEX_TOP, .5, 1.0, 1.0);
-  vector_assign (w->map->tiles, 1, h);
-  h = hex_create (2, 5, 1, 8);
-  hex_slope_from_plane (h, HEX_TOP, 1.5, 1.5, 1.0);
-  vector_assign (w->map->tiles, 18, h);
-  vector_assign (w->map->tiles, 17, hex_create (2, 5, 0, 2.0));
-  h = hex_create (2, 4, 1, 8);
-  hex_slope_from_plane (h, HEX_TOP, 1.5, 2.0, 2.0);
-  vector_assign (w->map->tiles, 16, h);
-  vector_assign (w->map->tiles, 15, hex_create (2, 4, 0, 1.0));
-  h = hex_create (2, 3, 1, 8);
-  hex_slope_from_plane (h, HEX_TOP, 1.5, 1.0, 1.5);
-  vector_assign (w->map->tiles, 14, h);
-  vector_assign (w->map->tiles, 13, hex_create (2, 3, 0, 2.0));
-  h = hex_create (2, 2, 1, 8);
-  hex_slope_from_plane (h, HEX_TOP, 1.5, 1.5, 1.0);
-  vector_assign (w->map->tiles, 12, h);
-  vector_assign (w->map->tiles, 11, hex_create (2, 2, 0, 1.0));
-  h = hex_create (2, 1, 1, 8);
-  hex_slope_from_plane (h, HEX_TOP, 1.5, 2.0, 2.0);
-  vector_assign (w->map->tiles, 10, h);
-  vector_assign (w->map->tiles, 9, hex_create (2, 1, 0, 2.0));
-  h = hex_create (2, 0, 1, 8);
-  hex_slope_from_plane (h, HEX_TOP, 1.5, 1.0, 1.5);
-  vector_assign (w->map->tiles, 8, h);
-  vector_assign (w->map->tiles, 7, hex_create (2, 0, 0, 1.0));
-  vector_assign (w->map->tiles, 36, hex_create (3, 5, 2, 3.0));
-  vector_assign (w->map->tiles, 35, hex_create (3, 5, 1, 3.0));
-  h = hex_create (3, 5, 0, 12);
-  hex_slope_from_plane (h, HEX_TOP, 2.75, 3.0, 2.75);
-  vector_assign (w->map->tiles, 34, h);
-  vector_assign (w->map->tiles, 33, hex_create (3, 4, 2, 3.0));
-  vector_assign (w->map->tiles, 32, hex_create (3, 4, 1, 3.0));
-  h = hex_create (3, 4, 0, 12);
-  hex_slope_from_plane (h, HEX_TOP, 2.75, 2.75, 2.5);
-  vector_assign (w->map->tiles, 31, h);
-  vector_assign (w->map->tiles, 30, hex_create (3, 3, 2, 3.0));
-  vector_assign (w->map->tiles, 29, hex_create (3, 3, 1, 3.0));
-  h = hex_create (3, 3, 0, 12);
-  hex_slope_from_plane (h, HEX_TOP, 2.75, 2.5, 2.5);
-  vector_assign (w->map->tiles, 28, h);
-  vector_assign (w->map->tiles, 27, hex_create (3, 2, 2, 3.0));
-  vector_assign (w->map->tiles, 26, hex_create (3, 2, 1, 3.0));
-  h = hex_create (3, 2, 0, 12);
-  hex_slope_from_plane (h, HEX_TOP, 2.75, 2.5, 2.75);
-  vector_assign (w->map->tiles, 25, h);
-  vector_assign (w->map->tiles, 24, hex_create (3, 1, 2, 3.0));
-  vector_assign (w->map->tiles, 23, hex_create (3, 1, 1, 3.0));
-  h = hex_create (3, 1, 0, 12);
-  hex_slope_from_plane (h, HEX_TOP, 2.75, 2.75, 3.0);
-  vector_assign (w->map->tiles, 22, h);
-  vector_assign (w->map->tiles, 21, hex_create (3, 0, 2, 3.0));
-  vector_assign (w->map->tiles, 20, hex_create (3, 0, 1, 3.0));
-  h = hex_create (3, 0, 0, 12);
-  hex_slope_from_plane (h, HEX_TOP, 2.75, 3.0, 3.0);
-  vector_assign (w->map->tiles, 19, h);
+	groundG = entity_create ();
+	groundH = entity_create ();
+	groundI = entity_create ();
+	component_instantiateOnEntity ("ground", groundG);
+	component_instantiateOnEntity ("ground", groundH);
+	component_instantiateOnEntity ("ground", groundI);
+	g = component_getData (entity_getAs (groundG, "ground"));
+	h = component_getData (entity_getAs (groundH, "ground"));
+	i = component_getData (entity_getAs (groundI, "ground"));
+	if (g != NULL && h != NULL && i != NULL)
+	{
+		ground_initSize (g, 3);
+		ground_fillFlat (g, 1.0);
+		hex = ground_getHexatCoord (g, 0, 0, 0);
+		hex_setSlope (hex, HEX_TOP, -1, -1, -1);
+		hex = ground_getHexatCoord (g, 1, 0, 0);
+		hex_setSlope (hex, HEX_TOP, 0, 0, 0);
+		hex = ground_getHexatCoord (g, 1, 1, 0);
+		hex_setSlope (hex, HEX_TOP, 0, 0, 0);
+		hex = ground_getHexatCoord (g, 1, 2, 0);
+		hex_setSlope (hex, HEX_TOP, 0, 0, 0);
+		hex = ground_getHexatCoord (g, 1, 3, 0);
+		hex_setSlope (hex, HEX_TOP, 0, 0, 0);
+		hex = ground_getHexatCoord (g, 1, 4, 0);
+		hex_setSlope (hex, HEX_TOP, 0, 0, 0);
+		hex = ground_getHexatCoord (g, 1, 5, 0);
+		hex_setSlope (hex, HEX_TOP, 0, 0, 0);
+		hex = ground_getHexatCoord (g, 2, 0, 1);
+		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+		hex = ground_getHexatCoord (g, 2, 1, 1);
+		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+		hex = ground_getHexatCoord (g, 2, 2, 1);
+		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+		hex = ground_getHexatCoord (g, 2, 3, 1);
+		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+		hex = ground_getHexatCoord (g, 2, 4, 1);
+		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+		hex = ground_getHexatCoord (g, 2, 5, 1);
+		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
 
-  vector_assign (w->map->tiles, 37, hex_create (4, 0, 0, 3.0));
-  vector_assign (w->map->tiles, 38, hex_create (4, 0, 1, 3.0));
-  vector_assign (w->map->tiles, 39, hex_create (4, 0, 2, 4.0));
-  vector_assign (w->map->tiles, 40, hex_create (4, 0, 3, 3.0));
-  vector_assign (w->map->tiles, 41, hex_create (4, 1, 0, 3.0));
-  vector_assign (w->map->tiles, 42, hex_create (4, 1, 1, 3.0));
-  vector_assign (w->map->tiles, 43, hex_create (4, 1, 2, 4.0));
-  vector_assign (w->map->tiles, 44, hex_create (4, 1, 3, 3.0));
-  vector_assign (w->map->tiles, 45, hex_create (4, 2, 0, 3.0));
-  vector_assign (w->map->tiles, 46, hex_create (4, 2, 1, 3.0));
-  vector_assign (w->map->tiles, 47, hex_create (4, 2, 2, 4.0));
-  vector_assign (w->map->tiles, 48, hex_create (4, 2, 3, 3.0));
-  vector_assign (w->map->tiles, 49, hex_create (4, 3, 0, 3.0));
-  vector_assign (w->map->tiles, 50, hex_create (4, 3, 1, 3.0));
-  vector_assign (w->map->tiles, 51, hex_create (4, 3, 2, 4.0));
-  vector_assign (w->map->tiles, 52, hex_create (4, 3, 3, 3.0));
-  vector_assign (w->map->tiles, 53, hex_create (4, 4, 0, 3.0));
-  vector_assign (w->map->tiles, 54, hex_create (4, 4, 1, 3.0));
-  vector_assign (w->map->tiles, 55, hex_create (4, 4, 2, 4.0));
-  vector_assign (w->map->tiles, 56, hex_create (4, 4, 3, 3.0));
-  vector_assign (w->map->tiles, 57, hex_create (4, 5, 0, 3.0));
-  vector_assign (w->map->tiles, 58, hex_create (4, 5, 1, 3.0));
-  vector_assign (w->map->tiles, 59, hex_create (4, 5, 2, 4.0));
-  vector_assign (w->map->tiles, 60, hex_create (4, 5, 3, 3.0));
+		ground_initSize (h, 3);
+		ground_fillFlat (h, 1.0);
+		hex = ground_getHexatCoord (h, 1, 0, 0);
+		hex_setSlope (hex, HEX_TOP, 2, 2, 2.5);
+		hex = ground_getHexatCoord (h, 1, 1, 0);
+		hex_setSlope (hex, HEX_TOP, 2, 2.5, 2);
+		hex = ground_getHexatCoord (h, 2, 0, 1);
+		hex_setSlope (hex, HEX_TOP, 2.5, 2, 2);
+		hex = ground_getHexatCoord (h, 1, 3, 0);
+		hex_setSlope (hex, HEX_TOP, 2, 2, 2.5);
+		hex = ground_getHexatCoord (h, 1, 4, 0);
+		hex_setSlope (hex, HEX_TOP, 2, 2.5, 2);
+		hex = ground_getHexatCoord (h, 2, 3, 1);
+		hex_setSlope (hex, HEX_TOP, 2.5, 2, 2);
+		hex = ground_getHexatCoord (h, 3, 2, 0);
+		hex_setSlope (hex, HEX_TOP, 3, 3.5, 2.5);
+		hex = ground_getHexatCoord (h, 3, 5, 0);
+		hex_setSlope (hex, HEX_TOP, 2.5, 3.5, 3);
 
-  vector_assign (w->map->tiles, 61, hex_create (5, 0, 0, 3.0));
-  vector_assign (w->map->tiles, 62, hex_create (5, 0, 1, 3.0));
-  vector_assign (w->map->tiles, 63, hex_create (5, 0, 2, 3.0));
-  vector_assign (w->map->tiles, 64, hex_create (5, 0, 3, 3.0));
-  vector_assign (w->map->tiles, 65, hex_create (5, 0, 4, 3.0));
-  vector_assign (w->map->tiles, 66, hex_create (5, 1, 0, 3.0));
-  vector_assign (w->map->tiles, 67, hex_create (5, 1, 1, 3.0));
-  vector_assign (w->map->tiles, 68, hex_create (5, 1, 2, 3.0));
-  vector_assign (w->map->tiles, 69, hex_create (5, 1, 3, 3.0));
-  vector_assign (w->map->tiles, 70, hex_create (5, 1, 4, 3.0));
-  vector_assign (w->map->tiles, 71, hex_create (5, 2, 0, 3.0));
-  vector_assign (w->map->tiles, 72, hex_create (5, 2, 1, 3.0));
-  vector_assign (w->map->tiles, 73, hex_create (5, 2, 2, 3.0));
-  vector_assign (w->map->tiles, 74, hex_create (5, 2, 3, 3.0));
-  vector_assign (w->map->tiles, 75, hex_create (5, 2, 4, 3.0));
-  vector_assign (w->map->tiles, 76, hex_create (5, 3, 0, 3.0));
-  vector_assign (w->map->tiles, 77, hex_create (5, 3, 1, 3.0));
-  vector_assign (w->map->tiles, 78, hex_create (5, 3, 2, 3.0));
-  vector_assign (w->map->tiles, 79, hex_create (5, 3, 3, 3.0));
-  vector_assign (w->map->tiles, 80, hex_create (5, 3, 4, 3.0));
-  vector_assign (w->map->tiles, 81, hex_create (5, 4, 0, 3.0));
-  vector_assign (w->map->tiles, 82, hex_create (5, 4, 1, 3.0));
-  vector_assign (w->map->tiles, 83, hex_create (5, 4, 2, 3.0));
-  vector_assign (w->map->tiles, 84, hex_create (5, 4, 3, 3.0));
-  vector_assign (w->map->tiles, 85, hex_create (5, 4, 4, 3.0));
-  vector_assign (w->map->tiles, 86, hex_create (5, 5, 0, 3.0));
-  vector_assign (w->map->tiles, 87, hex_create (5, 5, 1, 3.0));
-  vector_assign (w->map->tiles, 88, hex_create (5, 5, 2, 3.0));
-  vector_assign (w->map->tiles, 89, hex_create (5, 5, 3, 3.0));
-  vector_assign (w->map->tiles, 90, hex_create (5, 5, 4, 3.0));
+		ground_initSize (i, 3);
+		ground_fillFlat (i, 1.0);
+		hex = ground_getHexatCoord (i, 1, 0, 0);
+		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+		hex = ground_getHexatCoord (i, 1, 2, 0);
+		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+		hex = ground_getHexatCoord (i, 1, 4, 0);
+		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+		hex = ground_getHexatCoord (i, 2, 1, 0);
+		hex_setSlope (hex, HEX_TOP, 3, 3, 3);
+		hex = ground_getHexatCoord (i, 2, 3, 0);
+		hex_setSlope (hex, HEX_TOP, 3, 3, 3);
+		hex = ground_getHexatCoord (i, 2, 5, 0);
+		hex_setSlope (hex, HEX_TOP, 3, 3, 3);
 
-  h = hex_create (6, 0, 0, 16);
-  hex_slope_from_plane (h, HEX_TOP, 3.75, 4.25, 4.25);
-  vector_assign (w->map->tiles, 91, h);
-  h = hex_create (6, 0, 1, 16);
-  hex_slope_from_plane (h, HEX_TOP, 3.5, 3.75, 4.0);
-  vector_assign (w->map->tiles, 92, h);
-  h = hex_create (6, 0, 2, 16);
-  hex_slope_from_plane (h, HEX_TOP, 3.5, 3.75, 4.0);
-  vector_assign (w->map->tiles, 93, h);
-  h = hex_create (6, 0, 3, 16);
-  hex_slope_from_plane (h, HEX_TOP, 3.5, 3.75, 4.0);
-  vector_assign (w->map->tiles, 94, h);
-  h = hex_create (6, 0, 4, 16);
-  hex_slope_from_plane (h, HEX_TOP, 3.5, 3.75, 4.0);
-  vector_assign (w->map->tiles, 95, h);
-  h = hex_create (6, 0, 5, 16);
-  hex_slope_from_plane (h, HEX_TOP, 3.5, 3.75, 4.0);
-  vector_assign (w->map->tiles, 96, h);
-  h = hex_create (6, 1, 0, 16);
-  hex_slope_from_plane (h, HEX_TOP, 3.75, 3.75, 4.25);
-  vector_assign (w->map->tiles, 97, h);
-  h = hex_create (6, 1, 1, 16);
-  hex_slope_from_plane (h, HEX_TOP, 3.5, 3.25, 3.75);
-  vector_assign (w->map->tiles, 98, h);
-  h = hex_create (6, 1, 2, 16);
-  hex_slope_from_plane (h, HEX_TOP, 3.5, 3.25, 3.75);
-  vector_assign (w->map->tiles, 99, h);
-  h = hex_create (6, 1, 3, 16);
-  hex_slope_from_plane (h, HEX_TOP, 3.5, 3.25, 3.75);
-  vector_assign (w->map->tiles, 100, h);
-  h = hex_create (6, 1, 4, 16);
-  hex_slope_from_plane (h, HEX_TOP, 3.5, 3.25, 3.75);
-  vector_assign (w->map->tiles, 101, h);
-  h = hex_create (6, 1, 5, 16);
-  hex_slope_from_plane (h, HEX_TOP, 3.5, 3.25, 3.75);
-  vector_assign (w->map->tiles, 102, h);
-  h = hex_create (6, 2, 0, 16);
-  hex_slope_from_plane (h, HEX_TOP, 3.75, 3.25, 3.75);
-  vector_assign (w->map->tiles, 103, h);
-  h = hex_create (6, 2, 1, 16);
-  hex_slope_from_plane (h, HEX_TOP, 3.5, 3.0, 3.25);
-  vector_assign (w->map->tiles, 104, h);
-  h = hex_create (6, 2, 2, 16);
-  hex_slope_from_plane (h, HEX_TOP, 3.5, 3.0, 3.25);
-  vector_assign (w->map->tiles, 105, h);
-  h = hex_create (6, 2, 3, 16);
-  hex_slope_from_plane (h, HEX_TOP, 3.5, 3.0, 3.25);
-  vector_assign (w->map->tiles, 106, h);
-  h = hex_create (6, 2, 4, 16);
-  hex_slope_from_plane (h, HEX_TOP, 3.5, 3.0, 3.25);
-  vector_assign (w->map->tiles, 107, h);
-  h = hex_create (6, 2, 5, 16);
-  hex_slope_from_plane (h, HEX_TOP, 3.5, 3.0, 3.25);
-  vector_assign (w->map->tiles, 108, h);
+		ground_link (groundG, groundH, 0, 0);
+		ground_link (groundG, groundH, 2, 0);
+		ground_link (groundG, groundH, 4, 0);
+		ground_link (groundH, groundI, 2, 0);
+		ground_link (groundH, groundI, 4, 0);
+		ground_link (groundH, groundI, 0, 0);
+		ground_link (groundI, groundG, 0, 0);
+		ground_link (groundI, groundG, 2, 0);
+		ground_link (groundI, groundG, 4, 0);
 
-  e = entity_create ();
-  if (component_instantiateOnEntity ("position", e)) {
-    setPosition (e, vectorCreate (0.0, -60.0, 0.0));
+/*
+    h = ground_getHexatCoord (g, 1, 1, 0);
+    hex_setSlope (h, HEX_TOP, 2, 2, 2);
+    h = ground_getHexatCoord (g, 1, 4, 0);
+    hex_setSlope (h, HEX_TOP, 2, 2, 2);
+    h = ground_getHexatCoord (g, 3, 4, 0);
+    hex_setSlope (h, HEX_TOP, 2, 2, 2);
+
+    h = ground_getHexatCoord (g, 5, 1, 0);
+    hex_setSlope (h, HEX_TOP, 2, 3, 3);
+    h = ground_getHexatCoord (g, 5, 3, 0);
+    hex_setSlope (h, HEX_TOP, 3, 2, 3);
+    h = ground_getHexatCoord (g, 5, 5, 0);
+    hex_setSlope (h, HEX_TOP, 3, 3, 2);
+    h = NULL;
+*/
+/*
+    ground_link (ground, ground, 0, 4);
+    ground_link (ground, ground, 3, 2);
+    ground_link (ground, ground, 4, 4);
+*/
   }
-  component_instantiateOnEntity ("integrate", e);
-  component_instantiateOnEntity ("camera", e);
+  w->groundOrigin = groundG;
+
+  camera = entity_create ();
+  if (component_instantiateOnEntity ("position", camera)) {
+    position_set (camera, vectorCreate (0.0, 90.0, 0.0), groundG);
+  }
+  component_instantiateOnEntity ("integrate", camera);
+  component_instantiateOnEntity ("camera", camera);
+  /*
   if (component_instantiateOnEntity ("collide", e)) {
     setCollideType (e, COLLIDE_SPHERE);
     setCollideRadius (e, 30.0);
   }
-  if (component_instantiateOnEntity ("input", e)) {
-    input_addControlledEntity (e);
+  */
+  if (component_instantiateOnEntity ("input", camera)) {
+    input_addControlledEntity (camera);
   }
-  component_instantiateOnEntity ("walking", e);
-  w->camera = e;
+  component_instantiateOnEntity ("walking", camera);
+  w->camera = camera;
 
   return w;
 }
 
 void world_destroy (WORLD * w) {
-//   camera_destroy (w->c);
-  map_destroy (w->map);
   xph_free (w);
 }
 
 void world_update () {
-  // components are stored when components are first registered by the system
-  // object. you can probably change this around at runtime, but it might not
-  // be the best idea.
+  // components are stored when first registered by the system object. you can
+  // probably change this around at runtime, but it might not be a great idea.
   entitySubsystem_runOnStored (OM_UPDATE);
-/*
-  entitySubsystem_update ("position");
-  entitySubsystem_update ("walking");
-  entitySubsystem_update ("integrate");
-  entitySubsystem_update ("camera");
-  entitySubsystem_update ("collide");
-  entitySubsystem_update ("input");
-*/
 }
 
 void world_postupdate () {
   entitySubsystem_runOnStored (OM_POSTUPDATE);
-/*
-  entitySubsystem_postupdate ("position");
-  entitySubsystem_postupdate ("walking");
-  entitySubsystem_postupdate ("integrate");
-  entitySubsystem_postupdate ("camera");
-  entitySubsystem_postupdate ("collide");
-  entitySubsystem_postupdate ("input");
-*/
 }
 
 int world_handler (Object * o, objMsg msg, void * a, void * b) {
   WORLD * w = NULL;
-  Component c = NULL;
-  struct camera_data * cdata = NULL;
+  SYSTEM * s = obj_getClassData (SystemObject, "SYSTEM");
+  //struct camera_data * cdata = NULL;
+  const float * matrix = NULL;
   switch (msg) {
     case OM_CLSNAME:
       strncpy (a, "world", 32);
@@ -300,14 +215,14 @@ int world_handler (Object * o, objMsg msg, void * a, void * b) {
 
     case OM_PRERENDER:
       // called after video:prerender and before this:render
-      c = entity_getAs (w->camera, "camera");
+      matrix = camera_getMatrix (w->camera);
+      //cdata = component_getData (entity_getAs (w->camera, "camera"));
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
       glPushMatrix ();
-      if (c == NULL) {
+      if (matrix == NULL) {
         glLoadIdentity ();
       } else {
-        cdata = component_getData (c);
-        glLoadMatrixf (cdata->m);
+        glLoadMatrixf (matrix);
 /*
         printf ("%6.3f %6.3f %6.3f %6.3f\n",
                 cdata->m[0], cdata->m[1], cdata->m[2], cdata->m[3]);
@@ -323,45 +238,23 @@ int world_handler (Object * o, objMsg msg, void * a, void * b) {
 
       return EXIT_SUCCESS;
 
-    case OM_RENDER:
-      // DRAW THINGS
-      //draw_grid ();
-      map_draw (w->map);
-      return EXIT_SUCCESS;
+		case OM_RENDER:
+			// DRAW THINGS
+			//draw_grid ();
+			ground_draw_fill (w->groundOrigin, 3);
+			if (system_getState (s) == STATE_FIRSTPERSONVIEW)
+			{
+				//camera_drawCursor (w->camera);
+			}
+			return EXIT_SUCCESS;
 
-    case OM_POSTRENDER:
-      // called after this:render. do we really need this?
-      glPopMatrix ();
-      return EXIT_SUCCESS;
+		case OM_POSTRENDER:
+			// called after this:render. do we really need this?
+			glPopMatrix ();
+			return EXIT_SUCCESS;
 
-    default:
-      return obj_pass ();
-  }
-  return EXIT_FAILURE;
+		default:
+			return obj_pass ();
+	}
+	return EXIT_FAILURE;
 }
-
-/*
-static void draw_grid () {
-  int
-    x = 0,
-    y = 0;
-  int
-    d = 150 + 1,
-    s = 100,
-    c = (d / 2.0) * s;
-  glColor3f (0.8, 0.8, 0.1);
-  while(x < d) {
-    y = 0;
-    glBegin(GL_QUAD_STRIP);
-    glVertex3f (c - x * s, 0, c - y * s);
-    glVertex3f (c - (x + 1) * s, 0, c - y * s);
-    while(y < d) {
-      glVertex3f (c - x * s, 0, c - (y + 1) * s);
-      glVertex3f (c - (x + 1) * s, 0, c - (y + 1) * s);
-      y++;
-    }
-    glEnd();
-    x++;
-  }
-}
-*/

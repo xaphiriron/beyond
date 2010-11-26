@@ -67,10 +67,10 @@ ObjClass * objClass_init (objHandler h, const char * pn, void * a, void * b) {
   memset (classname, '\0', 32);
   h (NULL, OM_CLSNAME, &classname, NULL);
   snprintf (memstr, 64, "ObjClass:%s", classname);
-  c = xph_alloc (sizeof (ObjClass), memstr);
+  c = xph_alloc_name (sizeof (ObjClass), memstr);
   strncpy (c->name, classname, 32);
 #else /* MEM_DEBUG */
-  c = xph_alloc (sizeof (ObjClass), "...");
+  c = xph_alloc (sizeof (ObjClass));
   memset (c->name, '\0', 32);
   h (NULL, OM_CLSNAME, &c->name, NULL);
 #endif /* MEM_DEBUG */
@@ -317,10 +317,10 @@ Object * obj_create (const char * n, Object * p, void * a, void * b) {
 #ifdef MEM_DEBUG
   c->handler (NULL, OM_CLSNAME, &classname, NULL);
   snprintf (memstr, 64, "OBJECT:%s", classname);
-  o = xph_alloc (sizeof (Object), memstr);
+  o = xph_alloc_name (sizeof (Object), memstr);
   o->class = c;
 #else /* MEM_DEBUG */
-  o = xph_alloc (sizeof (Object), "...");
+  o = xph_alloc (sizeof (Object));
   o->class = c;
 #endif /* MEM_DEBUG */
   o->objData = vector_create (1, sizeof (struct objData *));
@@ -598,7 +598,7 @@ int obj_siblingCount (const Object * o) {
 
 
 bool obj_addClassData (Object * o, const char * c, void * d) {
-  struct objData * od = xph_alloc (sizeof (struct objData), "struct objData");
+  struct objData * od = xph_alloc (sizeof (struct objData));
   od->ref = objClass_get (c);
   od->data = d;
   if (od->ref == NULL) {
@@ -749,10 +749,10 @@ static void obj_recordMessagePost (Vector * v, Object * o) {
 
 
 static void obj_pushMessageCallstack (void * o, const char * func, objMsg msg, void * a, void * b) {
-  struct objCall * n = xph_alloc (sizeof (struct objCall), "struct objCall");
+  struct objCall * n = xph_alloc (sizeof (struct objCall));
   int len = strlen (func);
   n->objectOrClass = o;
-  n->function = xph_alloc (len + 1, "struct objCall->function");
+  n->function = xph_alloc_name (len + 1, "struct objCall->function");
   strncpy (n->function, func, len + 1);
   n->msg = msg;
   n->a = a;

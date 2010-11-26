@@ -42,8 +42,18 @@ void video_regenerateDisplay (VIDEO *);
 
 bool video_setResolution (VIDEO * v, float x, float y);
 bool video_setScaling (VIDEO * v, float scale);
+float video_getZnear ();
 float video_getXResolution ();
 float video_getYResolution ();
+bool video_getDimensions (unsigned int * width, unsigned int * height);
+
+/**
+ * 0,0 pixel coordinate is assumed to be at the top left of the display and
+ * the opengl viewmatrix is assumed to be the identity (this inverts the y
+ * axis relative to opengl)
+ */
+inline float video_pixelYMap (int y);
+inline float video_pixelXMap (int x);
 
 int video_handler (Object * e, objMsg msg, void * a, void * b);
 

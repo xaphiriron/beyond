@@ -23,12 +23,14 @@ beyond_SOURCES =	\
   physics.c physics.h	\
   entity.c entity.h	\
   component_position.c component_position.h	\
+  component_ground.c component_ground.h		\
   component_integrate.c component_integrate.h	\
   component_camera.c component_camera.h		\
-  component_collide.c component_collide.h	\
   component_input.c component_input.h		\
   component_walking.c component_walking.h	\
   hex.c hex.h		\
+  hex_draw.c hex_draw.h	\
+  ground_draw.c ground_draw.h \
   world.c world.h	\
   system.c system.h	\
   beyond.c beyond.h

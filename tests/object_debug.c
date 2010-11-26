@@ -4,7 +4,7 @@ static struct object_debug * ObjectDebugDefaults = NULL;
 static int MessageOrder = 0;
 
 struct object_debug * object_debug_create (int init, char * name) {
-  struct object_debug * o = xph_alloc (sizeof (struct object_debug), "struct object_debug");
+  struct object_debug * o = xph_alloc (sizeof (struct object_debug));
   int l = 0 ;
   if (init != 0) {
     o->initialized = init;
@@ -13,10 +13,10 @@ struct object_debug * object_debug_create (int init, char * name) {
   }
   if (name != NULL) {
     l = strlen (name);
-    o->name = xph_alloc (l + 1, "struct object_debug->name");
+    o->name = xph_alloc_name (l + 1, "struct object_debug->name");
     strncpy (o->name, name, l + 1);
   } else {
-    o->name = xph_alloc (8, "struct object_debug->name");
+    o->name = xph_alloc_name (8, "struct object_debug->name");
     strncpy (o->name, "default", 8);
   }
   o->messaged = 0;

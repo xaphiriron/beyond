@@ -17,7 +17,7 @@ bool point_addNoDup (POINTS v, float x, float y) {
     }
   }
   if (dup == FALSE) {
-    t = xph_alloc (sizeof (VECTOR3), "VECTOR3");
+    t = xph_alloc (sizeof (VECTOR3));
     *t = p;
     vector_push_back ((Vector *)v, t);
     //printf ("%s: DONE; POINT ADDED\n", __FUNCTION__);
