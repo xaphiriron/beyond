@@ -187,7 +187,7 @@ void * vector_search (Vector * v, const void * k, int (*f)(const void *, const v
 int in_vector (const Vector * v, const void * k) {
   int
     i = 0,
-    s = vector_size (v);
+    s = vector_index_last (v) + 1;
   //printf ("offset: %d; size: %d\n", v->o, s);
   while (i < s) {
     //printf ("%s: memcmp between i:%d and %p is %d\n", __FUNCTION__, i, k, memcmp (v->l + i * v->s, k, v->s));
