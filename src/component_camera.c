@@ -9,10 +9,8 @@
 struct camera_data
 {
 	float
-		sensitivity,
 		m[16];
 	CameraGroundLabel l;
-	QUAT viewQuat;
 };
 
 const float * camera_getMatrix (Entity e)
@@ -80,7 +78,7 @@ void camera_updateLabelsFromEdgeTraversal (Entity e, struct ground_edge_traversa
 		}
 		cameraCache_setGroundEntityAsOrigin (newOrigin);
 		cameraCache_extend (w->groundDistanceDraw);
-		printf ("%s: resetting world origin to #%d (from #%d) \n", __FUNCTION__, entity_GUID (newOrigin), entity_GUID (w->groundOrigin));
+		//printf ("%s: resetting world origin to #%d (from #%d) \n", __FUNCTION__, entity_GUID (newOrigin), entity_GUID (w->groundOrigin));
 		w->groundOrigin = newOrigin;
 		if (newLabel == NULL)
 		{
@@ -98,28 +96,6 @@ void camera_updateLabelsFromEdgeTraversal (Entity e, struct ground_edge_traversa
 	cdata->l = newLabel;
 }
 
-void camera_rotateOnMouseInput (Entity e, const struct input_event * ie)
-{
-	cameraComponent
-		cdata = NULL;
-	QUAT
-		q;
-	if (ie->event->type != SDL_MOUSEMOTION)
-		return;
-	cdata = component_getData (entity_getAs (e, "camera"));
-	if (cdata == NULL)
-		return;
-	//printf ("aaaah mousemotion!  xrel: %d; yrel: %d\n", ie->event->motion.xrel, ie->event->motion.yrel);
-	q = quat_eulerToQuat (
-		ie->event->motion.yrel * cdata->sensitivity,
-		ie->event->motion.xrel * cdata->sensitivity,
-		0
-	);
-	cdata->viewQuat = quat_multiply (&q, &cdata->viewQuat);
-	//printf ("view quat: %7.2f, %7.2f, %7.2f, %7.2f\n", cdata->viewQuat.w, cdata->viewQuat.x, cdata->viewQuat.y, cdata->viewQuat.z);
-}
-
-
 void camera_update (Entity e)
 {
 	cameraComponent
@@ -132,8 +108,6 @@ void camera_update (Entity e)
 		side,
 		forward,
 		up;
-	QUAT
-		r;
 	float
 		radians,
 		rMatrix[16] = {
@@ -159,9 +133,9 @@ void camera_update (Entity e)
 	}
 	groundOffset = label_getOriginOffset (cdata->l);
 	radians = -(ground_getLabelRotation (cdata->l) * 60.0) / 180.0 * M_PI;
-	side = pdata->orient.side;
-	up = pdata->orient.up;
-	forward = pdata->orient.forward;
+	side = pdata->view.side;
+	up = pdata->view.up;
+	forward = pdata->view.forward;
 	if (!fcmp (radians, 0.0))
 	{
 		//printf ("%s: camera object on rotated ground. rotating axes BACK by %5.2f\n", __FUNCTION__, -ground_getLabelRotation (cdata->l) * 60.0);
@@ -175,8 +149,6 @@ void camera_update (Entity e)
 	}
 	//printf ("radians: %f; rot: %d\n", radians, ground_getLabelRotation (cdata->l));
 
-	r = cdata->viewQuat;
-
 	fullPos.x =
 		pdata->pos.x + groundOffset.x;
 	fullPos.y =
@@ -186,45 +158,26 @@ void camera_update (Entity e)
 
 /*
  * if you're not up on your matrix math, what we do here is generate a
- * rotation matrix from the view quaternion and then premultiply it by a
- * translation matrix that holds the inverse of the full position as
- * calculated above. since multiplying a translation matrix and a rotation
- * matrix together is something of a special case, we do the calculation by
- * hand instead of calling some sort of matrix multiplication function.
+ * rotation matrix from the view axes and then premultiply it by a translation
+ * matrix that holds the inverse of the full position as calculated above.
+ * since multiplying a translation matrix and a rotation matrix together is
+ * something of a special case, we do the calculation by hand instead of
+ * calling some sort of matrix multiplication function.
  *  - xph 2010-11-25
  */
-	cdata->m[0] =
-		1 -
-		2 * r.y * r.y -
-		2 * r.z * r.z;
-	cdata->m[1] =
-		2 * r.x * r.y +
-		2 * r.w * r.z;
-	cdata->m[2] =
-		2 * r.x * r.z -
-		2 * r.w * r.y;
+	if (pdata->dirty)
+		position_updateAxesFromOrientation (e);
+	cdata->m[0] = pdata->view.side.x;
+	cdata->m[1] = pdata->view.up.x;
+	cdata->m[2] = pdata->view.forward.x;
 	cdata->m[3] = 0;
-	cdata->m[4] =
-		2 * r.x * r.y -
-		2 * r.w * r.z;
-	cdata->m[5] =
-		1 -
-		2 * r.x * r.x -
-		2 * r.z * r.z;
-	cdata->m[6] =
-		2 * r.y * r.z -
-		2 * r.w * r.x;
+	cdata->m[4] = pdata->view.side.y;
+	cdata->m[5] = pdata->view.up.y;
+	cdata->m[6] = pdata->view.forward.y;
 	cdata->m[7] = 0;
-	cdata->m[8] =
-		2 * r.x * r.z +
-		2 * r.w * r.y;
-	cdata->m[9] =
-		2 * r.y * r.z -
-		2 * r.w * r.x;
-	cdata->m[10] =
-		1 -
-		2 * r.x * r.x -
-		2 * r.y * r.y;
+	cdata->m[8] = pdata->view.side.z;
+	cdata->m[9] = pdata->view.up.z;
+	cdata->m[10] = pdata->view.forward.z;
 	cdata->m[11] = 0.0;
 
 	cdata->m[12] =
@@ -306,8 +259,6 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b) {
     case OM_COMPONENT_INIT_DATA:
       cd = a;
       *cd = xph_alloc (sizeof (struct camera_data));
-      (*cd)->viewQuat = quat_create (1.0, 0.0, 0.0, 0.0);
-      (*cd)->sensitivity = 0.20;
       camera_setAsActive (b);
       return EXIT_SUCCESS;
 
@@ -334,8 +285,6 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b) {
       e = component_entityAttached (((struct comp_message *)a)->to);
       if (strcmp (message, "GROUND_EDGE_TRAVERSAL") == 0) {
         camera_updateLabelsFromEdgeTraversal (e, b);
-      } else if (strcmp (message, "CONTROL_INPUT") == 0) {
-        camera_rotateOnMouseInput (e, b);
       }
       return EXIT_FAILURE;
 

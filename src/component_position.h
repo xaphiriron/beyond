@@ -6,29 +6,43 @@
 #include "world.h"
 #include "object.h"
 #include "entity.h"
+#include "quaternion.h"
 
 typedef struct position_data * positionComponent;
 
 #include "component_ground.h"
+#include "component_input.h"
 
-typedef struct axes {
-  VECTOR3
-    forward,
-    side,
-    up;
+typedef struct axes
+{
+	VECTOR3
+		forward,
+		side,
+		up;
 } AXES;
 
 struct position_data {
-  AXES
-    orient;
-  VECTOR3 pos;		// distance from the center of the given map
-  Entity mapEntity;
+	AXES
+		view,
+		move;
+	QUAT
+		orientation;
+	VECTOR3
+		pos;		// distance from the center of the given map
+	float
+		sensitivity;
+	Entity
+		mapEntity;
+	bool
+		dirty;		// view axes don't match the orientation quaternion
 };
 
 
 void position_set (Entity e, VECTOR3 pos, Entity mapEntity);
 bool position_move (Entity e, VECTOR3 move);
 
+void position_updateAxesFromOrientation (Entity e);
+void position_rotateOnMouseInput (Entity e, const struct input_event * ie);
 
 // (rotation around world y axis, which is "up")
 bool position_rotateAroundGround (Entity e, float rotation);

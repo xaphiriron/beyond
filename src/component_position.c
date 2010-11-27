@@ -104,6 +104,81 @@ bool position_move (Entity e, VECTOR3 move)
 	return TRUE;
 }
 
+void position_updateAxesFromOrientation (Entity e)
+{
+	positionComponent
+		pdata = component_getData (entity_getAs (e, "position"));
+	QUAT
+		r;
+	if (pdata == NULL || pdata->dirty == FALSE)
+		return;
+	r = pdata->orientation;
+	// these values constitute a 3x3 rotation matrix. opengl offsets are commented on each value. see the camera component for how these are used to create the cameraview matrix.
+	pdata->view.side.x =		// [0]
+		1 -
+		2 * r.y * r.y -
+		2 * r.z * r.z;
+	pdata->view.side.y =		// [4]
+		2 * r.x * r.y -
+		2 * r.w * r.z;
+	pdata->view.side.z =		// [8]
+		2 * r.x * r.z +
+		2 * r.w * r.y;
+	pdata->view.up.x =			// [1]
+		2 * r.x * r.y +
+		2 * r.w * r.z;
+	pdata->view.up.y =			// [5]
+		1 -
+		2 * r.x * r.x -
+		2 * r.z * r.z;
+	pdata->view.up.z =			// [9]
+		2 * r.y * r.z -
+		2 * r.w * r.x;
+	pdata->view.forward.x =		// [2]
+		2 * r.x * r.z -
+		2 * r.w * r.y;
+	pdata->view.forward.y =		// [6]
+		2 * r.y * r.z -
+		2 * r.w * r.x;
+	pdata->view.forward.z =		// [10]
+		1 -
+		2 * r.x * r.x -
+		2 * r.y * r.y;
+	pdata->move.forward = vectorCross (&pdata->view.side, &pdata->move.up);
+	pdata->move.forward = vectorNormalize (&pdata->move.forward);
+	pdata->move.side = vectorCross (&pdata->move.up, &pdata->view.forward);
+	pdata->move.side = vectorNormalize (&pdata->move.side);
+	pdata->move.up = vectorCreate (0, 1, 0);
+	pdata->dirty = FALSE;
+}
+
+void position_rotateOnMouseInput (Entity e, const struct input_event * ie)
+{
+	positionComponent
+		pdata = NULL;
+	QUAT
+		q;
+	int
+		sq;
+	if (ie->event->type != SDL_MOUSEMOTION)
+		return;
+	pdata = component_getData (entity_getAs (e, "position"));
+	if (pdata == NULL)
+		return;
+	sq = ie->event->motion.xrel * ie->event->motion.xrel + ie->event->motion.yrel * ie->event->motion.yrel;
+	if (sq > 200)
+		return;
+	//printf ("aaaah mousemotion!  xrel: %d; yrel: %d\n", ie->event->motion.xrel, ie->event->motion.yrel);
+	q = quat_eulerToQuat (
+		ie->event->motion.yrel * pdata->sensitivity,
+		ie->event->motion.xrel * pdata->sensitivity,
+		0
+	);
+	pdata->orientation = quat_multiply (&q, &pdata->orientation);
+	pdata->dirty = TRUE;
+	//printf ("view quat: %7.2f, %7.2f, %7.2f, %7.2f\n", cdata->viewQuat.w, cdata->viewQuat.x, cdata->viewQuat.y, cdata->viewQuat.z);
+}
+
 bool position_rotateAroundGround (Entity e, float rotation)
 {
 	positionComponent pdata = component_getData (entity_getAs (e, "position"));
@@ -122,15 +197,16 @@ bool position_rotateAroundGround (Entity e, float rotation)
 	{
 		return FALSE;
 	}
-	printf ("%s (#%d, %5.2f)\n", __FUNCTION__, entity_GUID (e), rotation);
+	// THESE CALCULATIONS WERE WRITTEN BEFORE THE ORIENTATION QUATERNION EXISTED. THIS FUNCTION WILL NOT WORK UNLESS IT IS UPDATED TO ROTATE THE ORIENTATION QUATERNION. DO NOT USE IT.
+	//printf ("%s (#%d, %5.2f)\n", __FUNCTION__, entity_GUID (e), rotation);
 	new = vectorMultiplyByMatrix (&pdata->pos, m);
 	pdata->pos = new;
-	new = vectorMultiplyByMatrix (&pdata->orient.forward, m);
-	pdata->orient.forward = new;
-	new = vectorMultiplyByMatrix (&pdata->orient.side, m);
-	pdata->orient.side = new;
-	new = vectorMultiplyByMatrix (&pdata->orient.up, m);
-	pdata->orient.up = new;
+	new = vectorMultiplyByMatrix (&pdata->view.forward, m);
+	pdata->view.forward = new;
+	new = vectorMultiplyByMatrix (&pdata->view.side, m);
+	pdata->view.side = new;
+	new = vectorMultiplyByMatrix (&pdata->view.up, m);
+	pdata->view.up = new;
 	return TRUE;
 }
 
@@ -143,8 +219,8 @@ void position_updateOnEdgeTraversal (Entity e, struct ground_edge_traversal * t)
 	VECTOR3
 		groundOrigin = ground_distanceBetweenAdjacentGrounds (ground_getMapSize (newGround), t->directionOfMovement),
 		newPosition = vectorSubtract (&pdata->pos, &groundOrigin);
-	printf ("%s (#%d, ...): updated position to %5.2f, %5.2f, %5.2f from the local origin\n", __FUNCTION__, entity_GUID (e), newPosition.x, newPosition.y, newPosition.z);
-	printf ("\tbased off of the new ground (%5.2f, %5.2f, %5.2f) @ %d\n", groundOrigin.x, groundOrigin.y, groundOrigin.z, t->directionOfMovement);
+	//printf ("%s (#%d, ...): updated position to %5.2f, %5.2f, %5.2f from the local origin\n", __FUNCTION__, entity_GUID (e), newPosition.x, newPosition.y, newPosition.z);
+	//printf ("\tbased off of the new ground (%5.2f, %5.2f, %5.2f) @ %d\n", groundOrigin.x, groundOrigin.y, groundOrigin.z, t->directionOfMovement);
 	position_set (e, newPosition, t->newGroundEntity);
 	if (t->rotIndex != 0)
 	{
@@ -193,9 +269,14 @@ int component_position (Object * obj, objMsg msg, void * a, void * b) {
       *cd = xph_alloc (sizeof (struct position_data));
       (*cd)->pos = vectorCreate (0.0, 0.0, 0.0);
       (*cd)->mapEntity = NULL;
-      (*cd)->orient.side = vectorCreate (1.0, 0.0, 0.0);
-      (*cd)->orient.up = vectorCreate (0.0, 1.0, 0.0);
-      (*cd)->orient.forward = vectorCreate (0.0, 0.0, 1.0);
+      (*cd)->view.side = vectorCreate (1.0, 0.0, 0.0);
+      (*cd)->move.side = vectorCreate (1.0, 0.0, 0.0);
+      (*cd)->view.up = vectorCreate (0.0, 1.0, 0.0);
+      (*cd)->move.up = vectorCreate (0.0, 1.0, 0.0);
+      (*cd)->view.forward = vectorCreate (0.0, 0.0, 1.0);
+      (*cd)->move.forward = vectorCreate (0.0, 0.0, 1.0);
+      (*cd)->orientation = quat_create (1.0, 0.0, 0.0, 0.0);
+      (*cd)->sensitivity = 0.20;
       //(*cd)->tileOccupying = NULL;
       //(*cd)->tileFootprint = NULL;
       return EXIT_SUCCESS;
@@ -221,6 +302,10 @@ int component_position (Object * obj, objMsg msg, void * a, void * b) {
 				position_updateOnEdgeTraversal (e, b);
 				return EXIT_SUCCESS;
 			}
+			else if (strcmp (message, "CONTROL_INPUT") == 0)
+			{
+				position_rotateOnMouseInput (e, b);
+      		}
 			return EXIT_FAILURE;
 
 		default:
