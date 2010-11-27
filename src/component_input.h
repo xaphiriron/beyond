@@ -50,39 +50,13 @@ struct input_event
 	SDL_Event * event;
 };
 
-struct input {
-  Vector
-    * keysPressed,	// all keys currently held down, with most recently-pushed on top
-    * eventsHeld;	// the input events triggered by keys which have been pressed but haven't been released yet
-  SDL_Event event;
-  Uint8 * keystate;
+typedef struct input * INPUT;
 
-  Vector		// which keys are mapped to which in-game commands;
-    * keymap;		// e.g., keymap[IR_QUIT] = (struct keycombo *)keys,
-			// which is tested by keysPressed (keymap[IR_QUIT])
-
-  Vector
-    * potentialResponses,
-    * controlledEntities,
-    * focusedEntities;
-};
-
-struct keycombo {
+struct input_keys {
   SDLKey key;
-  struct keycombo * next;
+  struct input_keys * next;
 };
 
-struct inputmatch {
-  enum input_responses input;
-  int priority;
-};
-
-bool blocked (enum input_responses i);
-void block (enum input_responses i);
-void unblock (enum input_responses i);
-void clearBlocks ();
-void blockConflicts (enum input_responses i);
-void blockSubsets (const struct inputmatch *);
 
 /* returns a value 0-n+1, where n is the number of entries in Input->keysPressed.
  * 0 means at least one of the keys in the keycombo was not pressed; any other
@@ -92,17 +66,15 @@ void blockSubsets (const struct inputmatch *);
  * if there are two conflicting keycombos with the same priority, the longer
  * one wins)
  */
-int keysPressed (const struct keycombo *);
+int keysPressed (const struct input_keys *);
+bool input_controlActive (const enum input_responses ir);
 
 
 struct input * input_create ();
 void input_destroy (struct input *);
 
-struct inputmatch * inputmatch_create (enum input_responses i, int priority);
-void inputmatch_destroy (struct inputmatch *);
-
-struct keycombo * keycombo_create (int n, ...);
-void keycombo_destroy (struct keycombo * k);
+struct input_keys * keys_create (int n, ...);
+void keys_destroy (struct input_keys * k);
 
 bool input_addEntity (Entity e, enum input_control_types t);
 bool input_rmEntity (Entity e, enum input_control_types t);
