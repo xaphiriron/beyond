@@ -6,7 +6,6 @@ struct walkmove_data {
     turnSpd;
 
   int dirsActive;
-  VECTOR3 dir;
 };
 
 // the MOVE value is as follows: a value of 1 will result in the entity crossing tiles at a speed of one per second. 2 is two per second. etc.
@@ -24,109 +23,19 @@ void walking_destroy (walkingComponent w) {
 }
 
 void walking_begin_movement (Entity e, enum walk_move mtype) {
-  Component
-    p = NULL,
-    w = NULL;
-  struct position_data * pdata = NULL;
-  walkingComponent wdata = NULL;
-  VECTOR3 dir;
-  p = entity_getAs (e, "position");
-  w = entity_getAs (e, "walking");
-  if (p == NULL || w == NULL) {
-    return;
-  }
-  pdata = component_getData (p);
-  wdata = component_getData (w);
-  printf (
-    "%s: starting movement in %s direction (w/ mask %d)\n",
-    __FUNCTION__,
-    mtype == WALK_MOVE_FORWARD ?
-      "FORWARD" :
-      mtype == WALK_MOVE_BACKWARD ?
-        "BACKWARD" :
-        mtype == WALK_MOVE_LEFT ?
-          "LEFT" :
-          "RIGHT",
-    wdata->dirsActive
-  );
-  switch (mtype) {
-    case WALK_MOVE_FORWARD:
-      dir = vectorMultiplyByScalar (&pdata->orient.forward, -wdata->moveSpd);
-      break;
-    case WALK_MOVE_BACKWARD:
-      dir = vectorMultiplyByScalar (&pdata->orient.forward, wdata->moveSpd);
-      break;
-    case WALK_MOVE_RIGHT:
-      dir = vectorMultiplyByScalar (&pdata->orient.side, wdata->moveSpd);
-      break;
-    case WALK_MOVE_LEFT:
-      dir = vectorMultiplyByScalar (&pdata->orient.side, -wdata->moveSpd);
-      break;
-    default:
-      dir = vectorCreate (0.0, 0.0, 0.0);
-      break;
-  }
-  wdata->dirsActive |= mtype;
-  if (wdata->dirsActive == mtype) {
-    wdata->dir = dir;
-  } else {
-    wdata->dir = vectorMultiplyByScalar (&wdata->dir, .7);
-    dir = vectorMultiplyByScalar (&dir, .7);
-    wdata->dir = vectorAdd (&wdata->dir, &dir);
-  }
+	walkingComponent
+		wdata = component_getData (entity_getAs (e, "walking"));
+	if (wdata == NULL || wdata->dirsActive & mtype)
+		return;
+	wdata->dirsActive |= mtype;
 }
 
 void walking_end_movement (Entity e, enum walk_move mtype) {
-  Component
-    w = NULL,
-    p = NULL;
-  walkingComponent wdata = NULL;
-  struct position_data * pdata = NULL;
-  VECTOR3 dir;
-  w = entity_getAs (e, "walking");
-  p = entity_getAs (e, "position");
-  if (w == NULL || p == NULL) {
-    return;
-  }
-  wdata = component_getData (w);
-  pdata = component_getData (p);
-  printf (
-    "%s: stopping movement in %s direction (w/ mask %d)\n",
-    __FUNCTION__,
-    mtype == WALK_MOVE_FORWARD ?
-      "FORWARD" :
-      mtype == WALK_MOVE_BACKWARD ?
-        "BACKWARD" :
-        mtype == WALK_MOVE_LEFT ?
-          "LEFT" :
-          "RIGHT",
-    wdata->dirsActive
-  );
-  switch (mtype) {
-    case WALK_MOVE_FORWARD:
-      dir = vectorMultiplyByScalar (&pdata->orient.forward, -wdata->moveSpd);
-      break;
-    case WALK_MOVE_BACKWARD:
-      dir = vectorMultiplyByScalar (&pdata->orient.forward, wdata->moveSpd);
-      break;
-    case WALK_MOVE_RIGHT:
-      dir = vectorMultiplyByScalar (&pdata->orient.side, wdata->moveSpd);
-      break;
-    case WALK_MOVE_LEFT:
-      dir = vectorMultiplyByScalar (&pdata->orient.side, -wdata->moveSpd);
-      break;
-    default:
-      dir = vectorCreate (0.0, 0.0, 0.0);
-      break;
-  }
-  if (wdata->dirsActive == mtype || wdata->dirsActive == WALK_MOVE_NONE) {
-    wdata->dir = vectorCreate (0.0, 0.0, 0.0);
-  } else {
-    dir = vectorMultiplyByScalar (&dir, -.7);
-    wdata->dir = vectorAdd (&wdata->dir, &dir);
-    vectorMultiplyByScalar (&wdata->dir, 1.4);
-  }
-  wdata->dirsActive &= ~mtype;
+	walkingComponent
+		wdata = component_getData (entity_getAs (e, "walking"));
+	if (wdata == NULL || !(wdata->dirsActive & mtype))
+		return;
+	wdata->dirsActive &= ~mtype;
 }
 
 void walking_begin_turn (Entity e, enum walk_turn w) {
@@ -146,7 +55,12 @@ void walk_move (Entity e) {
   struct integrate_data * idata = NULL;
   walkingComponent wdata = NULL;
   const PHYSICS * physics = obj_getClassData (PhysicsObject, "physics");
-  VECTOR3 newpos;
+  VECTOR3
+	newpos,
+	move,
+	moveDirs = vectorCreate (0, 0, 0);
+  int
+    dirs = 0;
   p = entity_getAs (e, "position");
   i = entity_getAs (e, "integrate");
   w = entity_getAs (e, "walking");
@@ -159,35 +73,36 @@ void walk_move (Entity e) {
   if (wdata->dirsActive == WALK_MOVE_NONE) {
     return;
   }
+  if (wdata->dirsActive & WALK_MOVE_LEFT) {
+    move = vectorMultiplyByScalar (&pdata->move.side, -wdata->moveSpd);
+    moveDirs = vectorAdd (&moveDirs, &move);
+    dirs++;
+  } else if (wdata->dirsActive & WALK_MOVE_RIGHT) {
+    move = vectorMultiplyByScalar (&pdata->move.side, wdata->moveSpd);
+    moveDirs = vectorAdd (&moveDirs, &move);
+    dirs++;
+  }
+
+  if (wdata->dirsActive & WALK_MOVE_FORWARD) {
+    move = vectorMultiplyByScalar (&pdata->move.forward, -wdata->moveSpd);
+    moveDirs = vectorAdd (&moveDirs, &move);
+    dirs++;
+  } else if (wdata->dirsActive & WALK_MOVE_BACKWARD) {
+    move = vectorMultiplyByScalar (&pdata->move.forward, wdata->moveSpd);
+    moveDirs = vectorAdd (&moveDirs, &move);
+    dirs++;
+  }
+  if (dirs >= 2) {
+    moveDirs = vectorMultiplyByScalar (&moveDirs, .7);
+  }
+
   if (i != NULL) {
     idata = component_getData (i);
-    addExtraVelocity (idata, &wdata->dir);
+    addExtraVelocity (idata, &moveDirs);
   } else {
-    newpos = vectorMultiplyByScalar (&wdata->dir, physics->timestep);
+    newpos = vectorMultiplyByScalar (&moveDirs, physics->timestep);
     position_move (e, newpos);
   }
-}
-
-void walking_rotateAxes (Entity e, const float degree)
-{
-	walkingComponent
-		wdata = component_getData (entity_getAs (e, "walking"));
-	VECTOR3
-		new;
-	float
-		rad = degree / 180.0 * M_PI,
-		m[16] =
-		{
-			cos (rad), 0, -sin (rad), 0,
-			0, 1, 0, 0,
-			sin (rad), 0, cos (rad), 0,
-			0, 0, 0, 1
-		};
-	printf ("%s (#%d, %5.2f)\n", __FUNCTION__, entity_GUID (e), degree);
-	if (wdata == NULL)
-		return;
-	new = vectorMultiplyByMatrix (&wdata->dir, m);
-	wdata->dir = new;
 }
 
 void walking_doControlInputResponse (Entity e, const struct input_event * ie)
@@ -310,9 +225,6 @@ int component_walking (Object * o, objMsg msg, void * a, void * b) {
 				walking_doControlInputResponse (ce, b);
 				return EXIT_SUCCESS;
 			} else if (strcmp ("GROUND_EDGE_TRAVERSAL", message) == 0) {
-				if (((struct ground_edge_traversal *)b)->rotIndex != 0) {
-					walking_rotateAxes (ce, ((struct ground_edge_traversal *)b)->rotIndex * 60.0);
-				}
 				return EXIT_SUCCESS;
 			}
 			return EXIT_FAILURE;

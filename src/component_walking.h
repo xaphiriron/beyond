@@ -40,8 +40,6 @@ void walking_end_turn (Entity e, enum walk_turn w);
 
 void walk_move (Entity e);
 
-void walking_rotateAxes (Entity e, const float degree);
-
 int component_walking (Object * o, objMsg msg, void * a, void * b);
 
 #endif
