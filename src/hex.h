@@ -15,16 +15,21 @@ extern const char XY[6][2];
 typedef struct hex * Hex;
 
 struct hex {
-  VECTOR3
-    topNormal,
-    baseNormal;
-  float
-    top, topA, topB,
-    base, baseA, baseB;
-  Dynarr entitiesOccupying;
-  short
-    r, k, i,	// polar coordinates from center of ground map
-    x, y;	// cartesian coordinates from center (w/ non-orthographic axes)
+	struct hex
+		* neighbors[6];
+	VECTOR3
+		topNormal,
+		baseNormal;
+	float
+		top, topA, topB,
+		base, baseA, baseB,
+		edgeDepth[12];
+	Dynarr
+		entitiesOccupying;
+	short
+		neighborRot[6],
+		r, k, i,	// polar coordinates from center of ground
+		x, y;		// cartesian coordinates from center of ground
 };
 
 
@@ -47,5 +52,6 @@ struct hex * hex_create (short r, short k, short i, float height);
 void hex_destroy (struct hex * h);
 
 void hex_setSlope (struct hex * h, enum hex_sides side, float a, float b, float c);
+void hex_bakeEdges (struct hex * h);
 
 #endif /* XPH_HEX_H */

@@ -92,6 +92,7 @@ struct input * input_create ()
 
 	// fill out the control map here or elsewhere (probably elsewhere in the config/defaults function), but it needs to be populated with the actual key data before any SDL events are checked.
 	dynarr_assign (i->controlMap, IR_QUIT, keys_create (1, SDLK_ESCAPE));
+	dynarr_assign (i->controlMap, IR_VIEW_WIREFRAME_SWITCH, keys_create (1, SDLK_w));
 	dynarr_assign (i->controlMap, IR_AVATAR_MOVE_LEFT, keys_create (1, SDLK_LEFT));
 	dynarr_assign (i->controlMap, IR_AVATAR_MOVE_RIGHT, keys_create (1, SDLK_RIGHT));
 	dynarr_assign (i->controlMap, IR_AVATAR_MOVE_FORWARD, keys_create (1, SDLK_UP));
@@ -185,14 +186,29 @@ bool input_rmEntity (Entity e, enum input_control_types t)
 
 
 void input_sendGameEventMessage (const struct input_event * ie) {
-	int i = 0;
-	Entity e = NULL;
-	Component c = NULL;
+	int
+		i = 0;
+	Entity
+		e = NULL;
+	Component
+		c = NULL;
+	struct comp_message
+		* msg = NULL;
 	// CATCH AND HANDLE EVENTS THAT HAVE SYSTEM-WIDE REPERCUSSIONS
 	switch (ie->ir)
 	{
 		case IR_QUIT:
 			obj_message (SystemObject, OM_SHUTDOWN, NULL, NULL);
+			break;
+		case IR_VIEW_WIREFRAME_SWITCH:
+			msg = xph_alloc (sizeof (struct comp_message));
+			msg->from = NULL;
+			msg->message = xph_alloc (17);
+			strcpy (msg->message, "WIREFRAME_SWITCH");
+			obj_message (WorldObject, OM_SYSTEM_RECEIVE_MESSAGE, msg, msg->message);
+			xph_free (msg->message);
+			xph_free (msg);
+			msg = NULL;
 			break;
 		default:
 			break;

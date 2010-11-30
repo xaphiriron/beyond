@@ -46,7 +46,7 @@ int label_getCoordinateDistanceFromOrigin (const CameraGroundLabel l);
 // ultimately i will be doing my own depth-sorting instead of relying on
 // opengl to do it for me. right now, however, (and pending finalization
 // of the camera code) it's all automatic and inefficient. - xax 10-2010
-void ground_draw (Entity g, CameraGroundLabel l);
-void ground_draw_fill (Entity origin, int stepsOutward);
+void ground_draw (Entity g, Entity camera, CameraGroundLabel l);
+void ground_draw_fill (Entity origin, Entity camera, int stepsOutward);
 
 #endif /* XPH_GROUND_DRAW_H */

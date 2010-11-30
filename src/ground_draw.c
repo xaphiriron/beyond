@@ -209,9 +209,9 @@ VECTOR3 label_distanceFromOrigin (int size, short x, short y) {
   if (size < 0 || (x == 0 && y == 0)) {
     return r;
   }
-  x_dist = ground_distanceBetweenAdjacentGrounds (size, 4);
+  x_dist = ground_distanceBetweenAdjacentGrounds (size, 0);
   x_dist = vectorMultiplyByScalar (&x_dist, x);
-  y_dist = ground_distanceBetweenAdjacentGrounds (size, 5);
+  y_dist = ground_distanceBetweenAdjacentGrounds (size, 1);
   y_dist = vectorMultiplyByScalar (&y_dist, y);
   r = vectorAdd (&x_dist, &y_dist);
   return r;
@@ -267,7 +267,7 @@ int label_getCoordinateDistanceFromOrigin (const CameraGroundLabel l)
  * DRAWING FUNCTIONS (WHICH CALL draw_hex, ULTIMATELY)
  */
 
-void ground_draw (Entity g_entity, CameraGroundLabel g_label) {
+void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
   GroundMap
     g = NULL;
   int
@@ -295,13 +295,13 @@ void ground_draw (Entity g_entity, CameraGroundLabel g_label) {
   while (i < tilesPerGround) {
     h = ground_getHexAtOffset (g, i);
     if (h != NULL) {
-      hex_draw (h, g_label);
+      hex_draw (h, camera, g_label);
     }
     i++;
   }
 }
 
-void ground_draw_fill (Entity origin, int stepsOutward) {
+void ground_draw_fill (Entity origin, Entity camera, int stepsOutward) {
   CameraGroundLabel
     label = NULL;
   GroundMap
@@ -330,7 +330,7 @@ void ground_draw_fill (Entity origin, int stepsOutward) {
     label = *(CameraGroundLabel *)dynarr_at (OriginCache->cache, i);
     //printf ("   %p, %p\n", label, label->this);
     if (label != NULL) {
-      ground_draw (label->this, label);
+      ground_draw (label->this, camera, label);
     }
     i++;
   }

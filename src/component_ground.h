@@ -35,6 +35,7 @@ VECTOR3 ground_distanceBetweenAdjacentGrounds (int size, int direction);
 GroundLoc ground_calculateLocationDistance (const GroundMap g, int edgesPassed, ...);
 short ground_getMapSize (const GroundMap g);
 struct hex * ground_getHexAtOffset (GroundMap g, int o);
+short ground_getTileAdjacencyIndex (const Entity groundEntity, short r, short k, short i);
 
 /***
  *  given an entity with a ground component and a position from the
@@ -45,6 +46,7 @@ struct hex * ground_getHexAtOffset (GroundMap g, int o);
  */
 bool ground_bridgeConnections (const Entity groundEntity, Entity e);
 
+void ground_bakeTiles (Entity g_entity);
 struct hex * ground_getHexatCoord (GroundMap g, short r, short k, short i);
 
 void ground_initSize (GroundMap g, int size);

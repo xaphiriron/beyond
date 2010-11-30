@@ -22,6 +22,41 @@ const float * camera_getMatrix (Entity e)
 	return cdata->m;
 }
 
+float camera_getHeading (Entity e)
+{
+	cameraComponent
+		cdata = component_getData (entity_getAs (e, "camera"));
+	if (cdata == NULL)
+		return 0.0;
+	if (fcmp (cdata->m[1], 1.0) || fcmp (cdata->m[1], -1.0))
+		return atan2 (cdata->m[8], cdata->m[10]);
+	return atan2 (-cdata->m[2], cdata->m[0]);
+}
+
+float camera_getPitch (Entity e)
+{
+	cameraComponent
+		cdata = component_getData (entity_getAs (e, "camera"));
+	if (cdata == NULL)
+		return 0.0;
+	if (fcmp (cdata->m[1], 1.0))
+		return M_PI_2;
+	else if (fcmp (cdata->m[1], -1.0))
+		return -M_PI_2;
+	return asin (cdata->m[1]);
+}
+
+float camera_getRoll (Entity e)
+{
+	cameraComponent
+		cdata = component_getData (entity_getAs (e, "camera"));
+	if (cdata == NULL)
+		return 0.0;
+	if (fcmp (cdata->m[1], 1.0) || fcmp (cdata->m[1], -1.0))
+		return 0.0;
+	return atan2 (-cdata->m[9], cdata->m[5]);
+}
+
 void camera_setAsActive (Entity e)
 {
 	cameraComponent

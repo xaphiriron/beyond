@@ -39,7 +39,7 @@ WORLD * world_create ()
 		ground_fillFlat (i, 1.0);
 
 		hex = ground_getHexatCoord (g, 0, 0, 0);
-		hex_setSlope (hex, HEX_TOP, -1, -1, -1);
+		hex_setSlope (hex, HEX_TOP, 0, 0, 0);
 		hex = ground_getHexatCoord (g, 1, 0, 0);
 		hex_setSlope (hex, HEX_TOP, 0, 0, 0);
 		hex = ground_getHexatCoord (g, 1, 1, 0);
@@ -64,6 +64,12 @@ WORLD * world_create ()
 		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
 		hex = ground_getHexatCoord (g, 2, 5, 1);
 		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+		hex = ground_getHexatCoord (g, 3, 0, 0);
+		hex_setSlope (hex, HEX_TOP, 3, 3, 3);
+		hex = ground_getHexatCoord (g, 3, 2, 0);
+		hex_setSlope (hex, HEX_TOP, 3, 3, 3);
+		hex = ground_getHexatCoord (g, 3, 4, 0);
+		hex_setSlope (hex, HEX_TOP, 3, 3, 3);
 
 		hex = ground_getHexatCoord (h, 1, 0, 0);
 		hex_setSlope (hex, HEX_TOP, 2, 2, 2.5);
@@ -94,6 +100,18 @@ WORLD * world_create ()
 		hex_setSlope (hex, HEX_TOP, 3, 3, 3);
 		hex = ground_getHexatCoord (i, 2, 5, 0);
 		hex_setSlope (hex, HEX_TOP, 3, 3, 3);
+		hex = ground_getHexatCoord (i, 3, 0, 0);
+		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+		hex = ground_getHexatCoord (i, 3, 1, 0);
+		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+		hex = ground_getHexatCoord (i, 3, 2, 0);
+		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+		hex = ground_getHexatCoord (i, 3, 3, 0);
+		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+		hex = ground_getHexatCoord (i, 3, 4, 0);
+		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+		hex = ground_getHexatCoord (i, 3, 5, 0);
+		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
 
 		ground_link (groundG, groundH, 0, 0);
 		ground_link (groundG, groundH, 2, 0);
@@ -126,9 +144,12 @@ WORLD * world_create ()
     ground_link (ground, ground, 3, 2);
     ground_link (ground, ground, 4, 4);
 */
-  }
+		ground_bakeTiles (groundG);
+		ground_bakeTiles (groundH);
+		ground_bakeTiles (groundI);
+	}
   w->groundOrigin = groundG;
-  w->groundDistanceDraw = 3;
+  w->groundDistanceDraw = 7;
 
   camera = entity_create ();
   if (component_instantiateOnEntity ("position", camera)) {
@@ -170,6 +191,7 @@ int world_handler (Object * o, objMsg msg, void * a, void * b) {
   SYSTEM * s = obj_getClassData (SystemObject, "SYSTEM");
   //struct camera_data * cdata = NULL;
   const float * matrix = NULL;
+  char * message = NULL;
   switch (msg) {
     case OM_CLSNAME:
       strncpy (a, "world", 32);
@@ -245,7 +267,11 @@ int world_handler (Object * o, objMsg msg, void * a, void * b) {
 		case OM_RENDER:
 			// DRAW THINGS
 			//draw_grid ();
-			ground_draw_fill (w->groundOrigin, w->groundDistanceDraw);
+			if (w->renderWireframe)
+				glPolygonMode (GL_FRONT, GL_LINE);
+			ground_draw_fill (w->groundOrigin, w->camera, w->groundDistanceDraw);
+			if (w->renderWireframe)
+				glPolygonMode (GL_FRONT, GL_FILL);
 			if (system_getState (s) == STATE_FIRSTPERSONVIEW)
 			{
 				camera_drawCursor (w->camera);
@@ -256,6 +282,15 @@ int world_handler (Object * o, objMsg msg, void * a, void * b) {
 			// called after this:render. do we really need this?
 			glPopMatrix ();
 			return EXIT_SUCCESS;
+
+		case OM_SYSTEM_RECEIVE_MESSAGE:
+			message = b;
+			if (strcmp (message, "WIREFRAME_SWITCH") == 0)
+			{
+				w->renderWireframe ^= 1;
+				return EXIT_SUCCESS;
+			}
+			return EXIT_FAILURE;
 
 		default:
 			return obj_pass ();

@@ -1,36 +1,50 @@
 #include "hex.h"
 
 /***
- * the mapping between world coordinates and xy coordinates isn't
- * arbitrary. the world-space-to-xy-coordinates calculation in
- * hex_coordinateAtSpace requires a specific mapping.
- * also, note that if this is changed, the function
- * label_distanceFromOrigin (int size, short x, short y) in
- * ground_draw.c must be updated with the indices of the {1,0} and {0,1}
- * values. or else things will break.
- * FURTHERMORE, ground_bridgeConnections in component_ground.c depends on
- * the grounds being offset clockwise (as opposed to offset counter-clockwise),
- * and this is distinct from the labels here proceeding in a clockwise
- * direction.
+ * Here are the things that depend on these arrays being in this exact order:
+ * label_distanceFromOrigin in ground_draw.c uses the XY array to calculating
+ * spacing distance. It requires the indices of the {1,0} and {0,1} entries on
+ * the array, for use as X and Y axes.
+ * hex_draw in hex_draw.c uses the H array to draw hexes. More importantly, it
+ * calculates the camera heading to do some basic hex edge culling, and those
+ * calculations will fail if the order of H is changed at all.
+ * hex_coordinateAtSpace requires a specific mapping between the H and the XY
+ * values. Quite literally the only mapping that will work is one one you
+ * (hopefully) see below. If you re-order one array for any reason, you MUST
+ * maintain the ordering of the other array.
+ *
+ * Furthermore, ground_getGroundOverCoordinate in component_ground.c depends
+ * on the grounds themselves having a certain linkage spin (clockwise).
+ * "Linkage spin" is defined as the way the grounds themselves are drawn; e.g.,
+ * if you are standing at the center of a ground and proceed straight along
+ * the edges of the corner hexes, when you hit the edge of the ground you will
+ * either end up on the rightmost column of the ground to your left (clockwise)
+ * or the leftmost column of the ground to your right (counter-clockwise).
+ * This is an important property of the grounds and I have no clue where it is
+ * calculated. But if it changes, ground_bridgeConnections will break when
+ * walking across grounds over the corner hexes;
+ *
+ * What I am trying to say here is don't change any of these values unless you
+ * are very sure of what you are doing.
  */
 
 const int H [6][2] =
 {
+	{ 15, 26},
+	{-15, 26},
 	{-30,  0},
 	{-15,-26},
 	{ 15,-26},
 	{ 30,  0},
-	{ 15, 26},
-	{-15, 26}
-};
+ };
 const char XY [6][2] =
 {
+	{1,0},
+	{0,1},
 	{-1,1},
 	{-1,0},
 	{0,-1},
 	{1,-1},
-	{1,0},
-	{0,1},
 };
 
 int hex (int n)
@@ -241,6 +255,9 @@ struct hex * hex_create (short r, short k, short i, float height) {
   hex_setSlope (h, HEX_TOP, height, height, height);
   hex_setSlope (h, HEX_BASE, -1.0, -1.0, -1.0);
   h->entitiesOccupying = NULL;
+  memset (h->neighbors, '\0', sizeof (struct hex *) * 6);
+  memset (h->neighborRot, '\0', sizeof (short) * 6);
+  memset (h->edgeDepth, '\0', sizeof (float) * 12);
 
   return h;
 }
@@ -274,4 +291,39 @@ void hex_setSlope (struct hex * h, enum hex_sides side, float height, float a, f
     h->baseNormal = vectorCross (&av, &bv);
     h->baseNormal = vectorNormalize (&h->baseNormal);
   }
+}
+
+void hex_bakeEdges (struct hex * h)
+{
+	struct hex
+		* adj;
+	int
+		i = 0,
+		rot;
+	float
+		ra, rb,
+		corners[6];
+	if (h == NULL)
+		return;
+	while (i < 6)
+	{
+		adj = h->neighbors[(i + 1) % 6];
+		rot = h->neighborRot[(i + 1) % 6];
+		if (adj == NULL)
+		{
+			i++;
+			continue;
+		}
+		ra = adj->top - adj->topA;
+		rb = adj->top - adj->topB;
+		corners[0] = adj->topA;
+		corners[1] = adj->topB;
+		corners[3] = adj->top + ra;
+		corners[4] = adj->top + rb;
+		corners[2] = adj->top + ra + (adj->top - corners[4]);
+		corners[5] = adj->top + rb + (adj->top - corners[3]);
+		h->edgeDepth[i * 2] = corners[(i + rot + 4) % 6];
+		h->edgeDepth[i * 2 + 1] = corners[(i + rot + 3) % 6];
+		i++;
+	}
 }

@@ -8,7 +8,7 @@ void hex_setDrawColor (float red, float green, float blue) {
   rgb[2] = blue;
 }
 
-void hex_draw (const Hex hex, const CameraGroundLabel label) {
+void hex_draw (const Hex hex, const Entity camera, const CameraGroundLabel label) {
   float
     ra = hex->top - hex->topA,
     rb = hex->top - hex->topB,
@@ -23,7 +23,10 @@ void hex_draw (const Hex hex, const CameraGroundLabel label) {
     rot = ground_getLabelRotation (label),
     i = 0,
     j = 1,
-    absRot = (hex->k + rot) % 6;
+    edge,
+    absRot = (hex->k + rot) % 6,
+	// that's 30 degrees in radians there
+    cameraRot = (int)(((camera_getHeading (camera) + 0.52359877559829882) / (M_PI * 2) + 0.5) * 6) % 6;
   bool
     light = FALSE;
   VECTOR3
@@ -32,7 +35,7 @@ void hex_draw (const Hex hex, const CameraGroundLabel label) {
     pos = vectorAdd (&labelOffset, &hexOffset);
   //printf ("\tlabel offset: %5.2f, %5.2f, %5.2f\n", labelOffset.x, labelOffset.y, labelOffset.z);
   //printf ("\thex offset:  %5.2f, %5.2f, %5.2f\n", hexOffset.x, hexOffset.y, hexOffset.z);
-  if ((absRot + hex->i) % 2) {
+  if ((absRot + hex->i) % 2 ^ !(hex->r % 2)) {
     light = TRUE;
   }
   if (light == TRUE) {
@@ -64,14 +67,26 @@ void hex_draw (const Hex hex, const CameraGroundLabel label) {
     glColor3f (rgb[0] * 0.9, rgb[1] * 0.9, rgb[2] * 0.9);
   }
   while (i < 6) {
+    if (i == cameraRot/* || i - cameraRot == -1 || i - cameraRot == 1*/)
+	{
+		i++;
+		j = (i + 1) % 6;
+		continue;
+	}
+	edge = (i + rot) % 6;
+	if (hex->edgeDepth[edge * 2] >= corners[edge] && hex->edgeDepth[edge * 2 + 1] >= corners[(j + rot) % 6])
+	{
+		i++;
+		j = (i + 1) % 6;
+		continue;
+	}
     glBegin (GL_TRIANGLE_STRIP);
-    glVertex3f (pos.x + H[i][0], pos.y + corners[(i + rot) % 6], pos.z + H[i][1]);
+    glVertex3f (pos.x + H[i][0], pos.y + corners[edge], pos.z + H[i][1]);
     glVertex3f (pos.x + H[j][0], pos.y + corners[(j + rot) % 6], pos.z + H[j][1]);
-    glVertex3f (pos.x + H[i][0], pos.y - hex->top, pos.z + H[i][1]);
-    glVertex3f (pos.x + H[j][0], pos.y - hex->top, pos.z + H[j][1]);
+    glVertex3f (pos.x + H[i][0], pos.y + hex->edgeDepth[edge * 2], pos.z + H[i][1]);
+    glVertex3f (pos.x + H[j][0], pos.y + hex->edgeDepth[edge * 2 + 1], pos.z + H[j][1]);
     glEnd ();
     i++;
-    j = (j + 1) % 6;
+    j = (i + 1) % 6;
   }
 }
-

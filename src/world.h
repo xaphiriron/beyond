@@ -28,7 +28,11 @@ typedef struct world
 	Entity
 		groundOrigin,
 		camera;		// this is dumb, in the end we don't want a "camera" here. probably.
-	int groundDistanceDraw;
+	int
+		groundDistanceDraw;
+	bool
+		renderWireframe;
+
 } WORLD;
 
 WORLD * world_create ();

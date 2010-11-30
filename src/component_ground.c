@@ -170,6 +170,21 @@ struct hex * ground_getHexAtOffset (GroundMap g, int o)
 	return *(struct hex **)dynarr_at (g->tiles, o);
 }
 
+short ground_getTileAdjacencyIndex (const Entity groundEntity, short r, short k, short i)
+{
+	GroundMap
+		map = component_getData (entity_getAs (groundEntity, "ground"));
+	int
+		dir;
+	if (r <= map->size)
+		return -1;
+	// these lines are what depend on the order of the linkage spin. if it's counter-clockwise then we don't need an extra ifcheck (i think). sadly, i can't figure out where inside the sprawling geometry of hex.c linkage is determined.
+	dir = k;
+	if (i != 0)
+		dir = (dir + 1) % 6;
+	return dir;
+}
+
 bool ground_bridgeConnections (const Entity groundEntity, Entity e)
 {
 	int
@@ -199,20 +214,13 @@ bool ground_bridgeConnections (const Entity groundEntity, Entity e)
 	}
 	hex_coordinateAtSpace (&pdata->pos, &x, &y);
 	hex_xy2rki (x, y, &r, &k, &i);
-	if (r <= g->size)
+	dir = ground_getTileAdjacencyIndex (groundEntity, r, k, i);
+	if (dir < 0)
 	{
 		return TRUE;
 	}
-	dir = k;
-	if (i != 0)
-		dir = (dir + 1) % 6;
-
-	//printf ("%s: over hex {%d %d %d}, moving off ground in direction %d\n", __FUNCTION__, r, k, i, dir);
-
 	if (g->edges[dir] == NULL || (adjacent = component_getData (entity_getAs (g->edges[dir]->next, "ground"))) == NULL)
-	{
 		return FALSE;
-	}
 	//printf ("%s: adjacent ground in %d dir; origin at offset %5.2f, %5.2f, %5.2f\n", __FUNCTION__, dir, newOrigin.x, newOrigin.y, newOrigin.z);
 	trav = xph_alloc (sizeof (struct ground_edge_traversal));
 	trav->oldGroundEntity = groundEntity;
@@ -222,6 +230,73 @@ bool ground_bridgeConnections (const Entity groundEntity, Entity e)
 	component_messageEntity (p, "GROUND_EDGE_TRAVERSAL", trav);
 	xph_free (trav);
 	return TRUE;
+}
+
+void ground_bakeTiles (Entity g_entity)
+{
+	GroundMap
+		map = component_getData (entity_getAs (g_entity, "ground")),
+		adj_map;
+	DynIterator
+		it;
+	int
+		index,
+		edge,
+		adjIndex,
+		dir;
+	int
+		x, y;
+	short
+		r, k, i;
+	Hex
+		hex;
+	VECTOR3
+		adjPos,
+		groundPos;
+	if (map == NULL)
+		return;
+	it = dynIterator_create (map->tiles);
+	while (!dynIterator_done (it))
+	{
+		index = dynIterator_nextIndex (it);
+		hex = *(Hex *)dynarr_at (map->tiles, index);
+		edge = 0;
+		while (edge < 6)
+		{
+			x = hex->x + XY[edge][0];
+			y = hex->y + XY[edge][1];
+			hex_xy2rki (x, y, &r, &k, &i);
+			dir = ground_getTileAdjacencyIndex (g_entity, r, k, i);
+			if (dir < 0)
+			{
+				adjIndex = hex_linearCoord (r, k, i);
+				hex->neighbors[edge] = *(Hex *)dynarr_at (map->tiles, adjIndex);
+				hex->neighborRot[edge] = 0;
+				edge++;
+				continue;
+			}
+			// hex at the edge of the ground. aah.
+			if (map->edges[dir] == NULL || (adj_map = component_getData (entity_getAs (map->edges[dir]->next, "ground"))) == NULL)
+			{
+				edge++;
+				continue;
+			}
+			hex->neighborRot[edge] = map->edges[dir]->rotation;
+			// this gets a little too in-depth into vector calculations. i'm not really sure what to do about that. the same values can be calculated more simply if i had the x,y offset of the adjacent ground's center instead of a vector
+			groundPos = ground_distanceBetweenAdjacentGrounds (map->size, dir);
+			adjPos = hex_coordOffset (r, k, i);
+			adjPos = vectorSubtract (&adjPos, &groundPos);
+			hex_coordinateAtSpace (&adjPos, &x, &y);
+			hex_xy2rki (x, y, &r, &k, &i);
+			k = (k + map->edges[dir]->rotation) % 6;
+			adjIndex = hex_linearCoord (r, k, i);
+			//printf ("from %d, %d {%d %d %d} in %d-ward direction leads to %d %d {%d %d %d}\n", hex->x, hex->y, hex->r, hex->k, hex->i, dir, x, y, r, k, i);
+			hex->neighbors[edge] = *(Hex *)dynarr_at (adj_map->tiles, adjIndex);
+			edge++;
+		}
+		hex_bakeEdges (hex);
+	}
+	dynIterator_destroy (it);
 }
 
 struct hex * ground_getHexatCoord (GroundMap g, short r, short k, short i) {

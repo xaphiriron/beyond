@@ -39,6 +39,8 @@ enum input_responses {
 
   IR_CAMERA_MODE_SWITCH,
 
+  IR_VIEW_WIREFRAME_SWITCH,
+
   IR_QUIT,
 
   IR_FINAL
