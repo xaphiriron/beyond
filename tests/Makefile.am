@@ -1,18 +1,18 @@
 ## Process this file with automake to produce Makefile.in
 
-AM_CPPFLAGS = -Wall -Werror
+AM_CPPFLAGS = -Wall -Werror -fstrict-aliasing -O3
 # AM_CPPFLAGS = -Wall -Werror -fprofile-generate -ftest-coverage
 # AM_LDFLAGS = -fprofile-generate -lgcov
 
 TESTS = \
   check_check \
-  check_vector \
+  check_dynarr \
   check_object \
   check_entity \
   check_tiles
 check_PROGRAMS = \
   check_check \
-  check_vector \
+  check_dynarr \
   check_object \
   check_entity \
   check_tiles
@@ -26,7 +26,7 @@ check_check_SOURCES = \
   check_time.c \
   $(top_builddir)/src/turtle.c \
   $(top_builddir)/src/point.c \
-  $(top_builddir)/src/cpv.c \
+  $(top_builddir)/src/dynarr.c \
   $(top_builddir)/src/object.c \
   $(top_builddir)/src/timer.c \
   $(top_builddir)/src/video.c
@@ -38,24 +38,24 @@ check_check_LDADD = \
   -lm -lGL -lSDL \
   @CHECK_LIBS@
 
-check_vector_SOURCES = \
-  check_vector.c \
-  $(top_builddir)/src/cpv.c
-check_vector_CFLAGS = @CHECK_CFLAGS@
-check_vector_LDADD = @CHECK_LIBS@
+check_dynarr_SOURCES = \
+  check_dynarr.c \
+  $(top_builddir)/src/dynarr.c
+check_dynarr_CFLAGS = @CHECK_CFLAGS@
+check_dynarr_LDADD = @CHECK_LIBS@
 
 check_object_SOURCES = \
   check_object.c \
   object_debug.c \
   $(top_builddir)/src/object.c \
-  $(top_builddir)/src/cpv.c
+  $(top_builddir)/src/dynarr.c
 check_object_CFLAGS = @CHECK_CFLAGS@
 check_object_LDADD = @CHECK_LIBS@
 
 check_entity_SOURCES = \
   check_entity.c \
   component_debug.c \
-  $(top_builddir)/src/cpv.c \
+  $(top_builddir)/src/dynarr.c \
   $(top_builddir)/src/object.c \
   $(top_builddir)/src/entity.c
 check_entity_CFLAGS = @CHECK_CFLAGS@
@@ -64,7 +64,7 @@ check_entity_LDADD = @CHECK_LIBS@
 check_tiles_SOURCES = \
   check_tiles.c \
   $(top_builddir)/src/hex.c \
-  $(top_builddir)/src/cpv.c
+  $(top_builddir)/src/dynarr.c
 check_tiles_CFLAGS = @CHECK_CFLAGS@
 check_tiles_LDADD = \
   $(top_builddir)/src/libvector.la \

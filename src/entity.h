@@ -2,7 +2,7 @@
 #define XPH_ENTITY_H
 
 #include <stdarg.h>
-#include "cpv.h"
+#include "dynarr.h"
 #include "object.h"
 
 typedef struct entity * Entity;
@@ -24,7 +24,7 @@ unsigned int entity_GUID (const Entity e);
 Component entity_getAs (Entity e, const char * comp_name);
 
 bool entity_registerComponentAndSystem (objHandler func);
-Vector * entity_getEntitiesWithComponent (int n, ...);
+Dynarr entity_getEntitiesWithComponent (int n, ...);
 System entity_getSystemByName (const char * comp_name);
 
 void entity_destroySystem (const char * comp_name);

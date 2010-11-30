@@ -182,7 +182,7 @@ START_TEST (test_manager_fetch_one) {
   Entity
     p = NULL,
     q = NULL;
-  Vector * v = NULL;
+  Dynarr v = NULL;
   entity_registerComponentAndSystem (component_name_obj_func);
   entity_registerComponentAndSystem (component_name_2_obj_func);
   component_instantiateOnEntity ("COMPONENT_NAME", e);
@@ -191,12 +191,12 @@ START_TEST (test_manager_fetch_one) {
   component_instantiateOnEntity ("COMPONENT_NAME_2", g);
   v = entity_getEntitiesWithComponent (1, "COMPONENT_NAME");
   fail_unless (
-    vector_size (v) == 2,
+    dynarr_size (v) == 2,
     "When getting a list of entities with a given component, every entity with the specified component should be returned, no matter its state or other components. (Received a vector with %d entr%s, when there should have been 2).",
-    vector_size (v), (vector_size (v) == 1 ? "y" : "ies")
+    dynarr_size (v), (dynarr_size (v) == 1 ? "y" : "ies")
   );
-  vector_at (p, v, 0);
-  vector_at (q, v, 1);
+  p = *(Entity *)dynarr_at (v, 0);
+  q = *(Entity *)dynarr_at (v, 1);
   if (!((p == e && q == f) ||
     (p == f && q == e))) {
     fail (
@@ -205,7 +205,7 @@ START_TEST (test_manager_fetch_one) {
     );
   }
   mark_point ();
-  vector_destroy (v);
+  dynarr_destroy (v);
   entity_destroy (e);
   entity_destroy (f);
   entity_destroy (g);
@@ -220,9 +220,7 @@ START_TEST (test_manager_fetch_two) {
     f = entity_create (),
     g = entity_create (),
     h = entity_create ();
-  Entity
-    p = NULL;
-  Vector * v = NULL;
+  Dynarr v = NULL;
   entity_registerComponentAndSystem (component_name_obj_func);
   entity_registerComponentAndSystem (component_name_2_obj_func);
   component_instantiateOnEntity ("COMPONENT_NAME", e);
@@ -231,9 +229,9 @@ START_TEST (test_manager_fetch_two) {
   component_instantiateOnEntity ("COMPONENT_NAME_2", g);
   v = entity_getEntitiesWithComponent (2, "COMPONENT_NAME", "COMPONENT_NAME_2");
   fail_unless (
-    vector_at (p, v, 0) == f && vector_size (v) == 1
+    *(Entity *)dynarr_at (v, 0) == f && dynarr_size (v) == 1
   );
-  vector_destroy (v);
+  dynarr_destroy (v);
   entity_destroy (e);
   entity_destroy (f);
   entity_destroy (g);

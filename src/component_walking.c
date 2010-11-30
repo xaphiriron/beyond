@@ -171,7 +171,7 @@ int component_walking (Object * o, objMsg msg, void * a, void * b) {
   char * message = NULL;
   Component c = NULL;
   int i = 0;
-  Vector * v = NULL;
+  Dynarr v = NULL;
   Entity
     e = NULL,
     ce = NULL;
@@ -207,11 +207,11 @@ int component_walking (Object * o, objMsg msg, void * a, void * b) {
     case OM_UPDATE:
       v = entity_getEntitiesWithComponent (2, "walking", "position");
       i = 0;
-      while (i < vector_size (v)) {
-        vector_at (e, v, i++);
+      while (i < dynarr_size (v)) {
+        e = *(Entity *)dynarr_at (v, i++);
         walk_move (e);
       }
-      vector_destroy (v);
+      dynarr_destroy (v);
       return EXIT_SUCCESS;
 
 		case OM_POSTUPDATE:

@@ -8,7 +8,7 @@
 #include "object.h"
 
 #include "xph_memory.h"
-#include "cpv.h"
+#include "dynarr.h"
 
 enum input_control_types
 {

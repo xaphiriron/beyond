@@ -4,9 +4,9 @@
 #include "bool.h"
 #include "xph_memory.h"
 #include "vector.h"
-#include "cpv.h"
+#include "dynarr.h"
 
-typedef Vector * POINTS;
+typedef Dynarr POINTS;
 
 bool point_addNoDup (POINTS pts, float x, float y);
 bool point_findMinMax (const POINTS pts, float * xminp, float * xmaxp, float * yminp, float * ymaxp);

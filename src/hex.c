@@ -247,7 +247,7 @@ struct hex * hex_create (short r, short k, short i, float height) {
 
 void hex_destroy (struct hex * h) {
   if (h->entitiesOccupying != NULL) {
-    vector_destroy (h->entitiesOccupying);
+    dynarr_destroy (h->entitiesOccupying);
   }
   xph_free (h);
 }

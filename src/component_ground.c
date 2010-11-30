@@ -7,7 +7,7 @@ struct ground_edge {
 
 struct ground_comp {
   struct ground_edge * edges[6];
-  Vector * tiles;
+  Dynarr tiles;
   int size;
   enum border_type {
     BORDER_VOID,	// a non-connected edge is a bottomless pit
@@ -167,9 +167,7 @@ short ground_getMapSize (const GroundMap g)
 
 struct hex * ground_getHexAtOffset (GroundMap g, int o)
 {
-	struct hex * h = NULL;
-	vector_at (h, g->tiles, o);
-	return h;
+	return *(struct hex **)dynarr_at (g->tiles, o);
 }
 
 bool ground_bridgeConnections (const Entity groundEntity, Entity e)
@@ -188,7 +186,7 @@ bool ground_bridgeConnections (const Entity groundEntity, Entity e)
 		adjacent = NULL;
 	struct ground_edge_traversal
 		* trav = NULL;
-	printf ("%s: called\n", __FUNCTION__);
+	//printf ("%s: called\n", __FUNCTION__);
 	if (pdata == NULL)
 	{
 		fprintf (stderr, "%s (#%d, #%d): invalid entity[2] (no position data)\n", __FUNCTION__, entity_GUID (groundEntity), entity_GUID (e));
@@ -205,12 +203,11 @@ bool ground_bridgeConnections (const Entity groundEntity, Entity e)
 	{
 		return TRUE;
 	}
-	// FIXME: I'm pretty sure the stuttering bug when moving over grounds is caused by k not the right value to use in all these cases
 	dir = k;
 	if (i != 0)
 		dir = (dir + 1) % 6;
 
-	printf ("%s: over hex {%d %d %d}, moving off ground in direction %d\n", __FUNCTION__, r, k, i, dir);
+	//printf ("%s: over hex {%d %d %d}, moving off ground in direction %d\n", __FUNCTION__, r, k, i, dir);
 
 	if (g->edges[dir] == NULL || (adjacent = component_getData (entity_getAs (g->edges[dir]->next, "ground"))) == NULL)
 	{
@@ -228,12 +225,10 @@ bool ground_bridgeConnections (const Entity groundEntity, Entity e)
 }
 
 struct hex * ground_getHexatCoord (GroundMap g, short r, short k, short i) {
-  Hex h = NULL;
   if (!ground_isInitialized (g) || !ground_isValidRKI (g, r, k, i)) {
-    return h;
+    return NULL;
   }
-  vector_at (h, g->tiles, hex_linearCoord (r, k, i));
-  return h;
+  return *(struct hex **)dynarr_at (g->tiles, hex_linearCoord (r, k, i));
 }
 
 /***
@@ -268,7 +263,7 @@ static void ground_destroy (GroundMap g) {
   }
   i = 0;
   while (i < s) {
-    vector_at (h, g->tiles, i++);
+    h = *(struct hex **)dynarr_at (g->tiles, i++);
     if (h == NULL) {
       if (missing < 0) {
         missing = i - 1;
@@ -291,7 +286,7 @@ static void ground_destroy (GroundMap g) {
       printf ("\033[1;31m%s (%p): missing hex on offsets %d through %d.\033[0m\n", __FUNCTION__, g, missing, i - 2);
     }
   }
-  vector_destroy (g->tiles);
+  dynarr_destroy (g->tiles);
   xph_free (g);
 }
 
@@ -305,7 +300,7 @@ void ground_initSize (GroundMap g, int size) {
     return;
   }
   g->size = size;
-  g->tiles = vector_create (hex (size) + 1, sizeof (struct tile *));
+  g->tiles = dynarr_create (hex (size) + 1, sizeof (struct tile *));
 }
 
 void ground_fillFlat (GroundMap g, float height) {
@@ -313,18 +308,18 @@ void ground_fillFlat (GroundMap g, float height) {
     o = 0,
     r = 0, k = 0, i = 0;
   struct hex * h = NULL;
-  vector_assign (g->tiles, o, hex_create (r, k, i, height));
+  dynarr_assign (g->tiles, o, hex_create (r, k, i, height));
   o++;
   while (r <= g->size) {
     k = 0;
     while (k < 6) {
       i = 0;
       while (i < r) {
-        vector_at (h, g->tiles, o);
+        h = *(struct hex **)dynarr_at (g->tiles, o);
         if (h != NULL) {
           hex_destroy (h);
         }
-        vector_assign (g->tiles, o, hex_create (r, k, i, height));
+        dynarr_assign (g->tiles, o, hex_create (r, k, i, height));
         i++;
         o++;
       }

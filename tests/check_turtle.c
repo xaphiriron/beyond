@@ -298,6 +298,7 @@ START_TEST (test_lsystem_iterate) {
   fail_unless (
     strcmp (e, "F") == 0,
     "Iterating <= 0 times should return a copy of the original string");
+  xph_free (e);
   e = lsystem_iterate ("F", l, 3);
   fail_unless (
     strcmp (e, "FFFFFFFF") == 0);

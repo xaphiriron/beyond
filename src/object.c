@@ -1,6 +1,6 @@
 #include "object.h"
 
-static Vector * ObjectClasses = NULL;
+static Dynarr ObjectClasses = NULL;
 static void objClass_initVector ();
 static void objClass_addToVector (ObjClass * c);
 static void objClass_rmFromVector (ObjClass * c);
@@ -15,15 +15,15 @@ static unsigned int ObjectGUID = 0;
 
 static bool ObjectHaltMessaging = FALSE;
 static bool ObjectSkipChildren = FALSE;
-static Vector * ObjectMessageCallstack = NULL;
+static Dynarr ObjectMessageCallstack = NULL;
 
-static void obj_recordMessageChildren (Vector * v, Object * o);
-static void obj_recordMessageSiblings (Vector * v, Object * o);
-static void obj_recordMessageParents (Vector * v, Object * o);
+static void obj_recordMessageChildren (Dynarr v, Object * o);
+static void obj_recordMessageSiblings (Dynarr v, Object * o);
+static void obj_recordMessageParents (Dynarr v, Object * o);
 
-static void obj_recordMessagePre (Vector * v, Object * o);
-static void obj_recordMessageIn (Vector * v, Object * o);
-static void obj_recordMessagePost (Vector * v, Object * o);
+static void obj_recordMessagePre (Dynarr v, Object * o);
+static void obj_recordMessageIn (Dynarr v, Object * o);
+static void obj_recordMessagePost (Dynarr v, Object * o);
 
 static void obj_pushMessageCallstack (void * o, const char * func, objMsg msg, void * a, void * b);
 static void obj_setCallType (enum object_calls t);
@@ -34,23 +34,23 @@ static int obj_messageBACKEND (Object * o, const char * func, objMsg msg, void *
 void objects_destroyEverything () {
   ObjClass * c = NULL;
   struct objCall * m = NULL;
-  while (vector_pop_back (c, ObjectClasses) != NULL) {
+  while ((c = *(ObjClass **)dynarr_pop (ObjectClasses)) != NULL) {
     if (c->instances != 0) {
       fprintf (stderr, "%s: destroying class \"%s\", which has %d instance%s. expect this to crash everything.\n", __FUNCTION__, c->name, c->instances, (c->instances == 1 ? "" : "s"));
     }
     objClass_destroyP (c);
   }
-  vector_destroy (ObjectClasses);
+  dynarr_destroy (ObjectClasses);
   ObjectClasses = NULL;
   if (ObjectMessageCallstack != NULL) {
-    if (vector_size (ObjectMessageCallstack) != 0) {
+    if (!dynarr_isEmpty (ObjectMessageCallstack)) {
       fprintf (stderr, "%s: destroying the object message callstack even through it has entries in it. Wow, is this a bad idea.\n", __FUNCTION__);
-      while (vector_pop_back (m, ObjectMessageCallstack) != NULL) {
+      while ((m = *(struct objCall **)dynarr_pop (ObjectMessageCallstack)) != NULL) {
         xph_free (m->function);
         xph_free (m);
       }
     }
-    vector_destroy (ObjectMessageCallstack);
+    dynarr_destroy (ObjectMessageCallstack);
     ObjectMessageCallstack = NULL;
   }
 }
@@ -108,7 +108,7 @@ ObjClass * objClass_get (const char * n) {
   if (n == NULL) {
     return NULL;
   }
-  c = vector_search (ObjectClasses, n, objClass_search);
+  c = *(ObjClass **)dynarr_search (ObjectClasses, objClass_search, n);
   //printf ("...%s(%p)\n", __FUNCTION__, c);
   return c;
 }
@@ -263,7 +263,7 @@ static void objClass_initVector () {
   if (ObjectClasses != NULL) {
     return;
   }
-  ObjectClasses = vector_create (6, sizeof (ObjClass *));
+  ObjectClasses = dynarr_create (6, sizeof (ObjClass *));
 }
 
 static void objClass_addToVector (ObjClass * c) {
@@ -271,24 +271,29 @@ static void objClass_addToVector (ObjClass * c) {
     objClass_initVector ();
   }
   //printf ("adding class %p (%s) to vector\n", c, c->name);
-  vector_push_back (ObjectClasses, c);
-  vector_sort (ObjectClasses, objClass_sort);
+  dynarr_push (ObjectClasses, c);
+  dynarr_sort (ObjectClasses, objClass_sort);
 }
 
 static void objClass_rmFromVector (ObjClass * c) {
+  int index;
   if (ObjectClasses == NULL) {
     objClass_initVector ();
     return;
   }
-  vector_remove (ObjectClasses, c);
+  index = in_dynarr (ObjectClasses, c);
+  if (index >= 0) {
+    dynarr_unset (ObjectClasses, index);
+    dynarr_condense (ObjectClasses);
+  }
 }
 
 // I do not trust how this apparently works upon pointers. My understanding of qsort/bsearch was that if you iterated over, say, int i[10] it would send &i[0], &i[1], ... &i[9], so that you would be working with const int * in these functions. Since the object classes are stored as ObjClass * in the vector to begin with, this should pass in a memory address inside the vector list, i.e., v->l + n, which is a pointer to that ObjClass *, i.e., ObjClass **. The fact that it only seems to require one deference is suspicious.
 // (as it turns out I was right to be suspicious, but note left intact to explain just why these are pointers to pointers)
 static int objClass_search (const void * k, const void * d) {
   //printf ("%s: got vals %p and %p\n", __FUNCTION__, k, d);
-  //printf ("%s: names: \"%s\" and \"%s\"\n", __FUNCTION__, (const char *)k, (*(const ObjClass **)d)->name);
-  return strcmp (k, (*(const ObjClass **)d)->name);
+  //printf ("%s: names: \"%s\" and \"%s\"\n", __FUNCTION__, *(const char **)k, (*(const ObjClass **)d)->name);
+  return strcmp (*(const char **)k, (*(const ObjClass **)d)->name);
 }
 
 static int objClass_sort (const void * a, const void * b) {
@@ -304,7 +309,7 @@ Object * obj_create (const char * n, Object * p, void * a, void * b) {
   ObjClass
     * c = objClass_get (n),
     * t = NULL;
-  Vector * v = NULL;
+  Dynarr v = NULL;
 #ifdef MEM_DEBUG
   char
     classname[32],
@@ -323,7 +328,7 @@ Object * obj_create (const char * n, Object * p, void * a, void * b) {
   o = xph_alloc (sizeof (Object));
   o->class = c;
 #endif /* MEM_DEBUG */
-  o->objData = vector_create (1, sizeof (struct objData *));
+  o->objData = dynarr_create (1, sizeof (struct objData *));
   o->guid = ++ObjectGUID;
   if (o->guid == 0) {
     fprintf (stderr, "entity GUIDs have overflowed at entity %p. Now, anything is possible! Expect everything to come crashing down in about a tick or two\n", o);
@@ -335,17 +340,17 @@ Object * obj_create (const char * n, Object * p, void * a, void * b) {
   if (p != NULL) {
     obj_addChild (p, o);
   }
-  v = vector_create (2, sizeof (ObjClass *));
+  v = dynarr_create (2, sizeof (ObjClass *));
   t = c;
   while (t != NULL) {
     t->instances++;
-    vector_push_back (v, t);
+    dynarr_push (v, t);
     t = t->parent;
   }
-  while (vector_pop_back (t, v) != NULL) {
+  while ((t = *(ObjClass **)dynarr_pop (v)) != NULL) {
     t->handler (o, OM_CREATE, a, b);
   }
-  vector_destroy (v);
+  dynarr_destroy (v);
   //printf ("...%s()\n", __FUNCTION__);
   return o;
 }
@@ -367,12 +372,12 @@ void obj_destroy (Object * o) {
     c->instances--;
     c = c->parent;
   }
-  while (vector_size (o->objData) > 0) {
-    vector_pop_back (od, o->objData);
+  while (!dynarr_isEmpty (o->objData)) {
+    od = *(struct objData **)dynarr_pop (o->objData);
     fprintf (stderr, "%s (%p): un-destroyed \"%s\" class data (%p) at %p (this is going to cause a memory leak)\n", __FUNCTION__, o, od->ref->name, od->ref, od->data);
     xph_free (od);
   }
-  vector_destroy (o->objData);
+  dynarr_destroy (o->objData);
   o->objData = NULL;
   t = o->firstChild;
   while (t != NULL) {
@@ -468,10 +473,12 @@ void obj_chparent (Object * p, Object * c) {
 }
 
 static int objData_search (const void * k, const void * d) {
-  return strcmp (k, (*(const struct objData **)d)->ref->name);
+  //printf ("%s: names: \"%s\" and \"%s\"\n", __FUNCTION__, *(char **)k, (*(const struct objData **)d)->ref->name);
+  return strcmp (*(char **)k, (*(const struct objData **)d)->ref->name);
 }
 
 static int objData_sort (const void * a, const void * b) {
+  //printf ("%s: names: \"%s\" and \"%s\"\n", __FUNCTION__, (*(const struct objData **)a)->ref->name, (*(const struct objData **)b)->ref->name);
   return
     strcmp (
       (*(const struct objData **)a)->ref->name,
@@ -605,8 +612,8 @@ bool obj_addClassData (Object * o, const char * c, void * d) {
     fprintf (stderr, "%s: Can't set data for non-existant class \"%s\".", __FUNCTION__, c);
     return FALSE;
   }
-  vector_push_back (o->objData, od);
-  vector_sort (o->objData, objData_sort);
+  dynarr_push (o->objData, od);
+  dynarr_sort (o->objData, objData_sort);
   return TRUE;
 }
 
@@ -615,7 +622,7 @@ void * obj_getClassData (Object * o, const char * c) {
   if (o == NULL || c == NULL) {
     return NULL;
   }
-  od = vector_search (o->objData, c, objData_search);
+  od = *(struct objData **)dynarr_search (o->objData, objData_search, c);
   if (od == NULL) {
     return NULL;
   }
@@ -623,11 +630,16 @@ void * obj_getClassData (Object * o, const char * c) {
 }
 
 bool obj_rmClassData (Object * o, const char * c) {
-  struct objData * od = vector_search (o->objData, c, objData_search);
+  struct objData * od = *(struct objData **)dynarr_search (o->objData, objData_search, c);
+  int index;
   if (od == NULL) {
     return FALSE;
   }
-  vector_remove (o->objData, od);
+  index = in_dynarr (o->objData, od);
+  if (index >= 0) {
+    dynarr_unset (o->objData, index);
+    dynarr_condense (o->objData);
+  }
   xph_free (od);
   return TRUE;
 }
@@ -647,7 +659,7 @@ int obj_message (Object * o, objMsg msg, void * a, void * b) {
     return 0;
   }
   if (ObjectMessageCallstack == NULL) {
-    ObjectMessageCallstack = vector_create (4, sizeof (struct objCall *));
+    ObjectMessageCallstack = dynarr_create (4, sizeof (struct objCall *));
   }
   obj_pushMessageCallstack (o, __FUNCTION__, msg, a, b);
   r = o->class->handler (o, msg, a, b);
@@ -680,19 +692,19 @@ int obj_messagePost (Object * o, objMsg msg, void * a, void * b) {
 }
 
 
-static void obj_recordMessageChildren (Vector * v, Object * o) {
+static void obj_recordMessageChildren (Dynarr v, Object * o) {
   Object * t = NULL;
   if (o == NULL) {
     return;
   }
   t = o->firstChild;
   while (t != NULL) {
-    vector_push_back (v, t);
+    dynarr_push (v, t);
     t = t->nextSibling;
   }
 }
 
-static void obj_recordMessageSiblings (Vector * v, Object * o) {
+static void obj_recordMessageSiblings (Dynarr v, Object * o) {
   Object * t = NULL;
   if (o == NULL || o->parent == NULL) {
     return;
@@ -700,51 +712,51 @@ static void obj_recordMessageSiblings (Vector * v, Object * o) {
   t = o->parent->firstChild;
   while (t != NULL) {
     if (t != o) {
-      vector_push_back (v, t);
+      dynarr_push (v, t);
     }
     t = t->nextSibling;
   }
 }
 
-static void obj_recordMessageParents (Vector * v, Object * o) {
+static void obj_recordMessageParents (Dynarr v, Object * o) {
   Object * t = NULL;
   if (o == NULL) {
     return;
   }
   t = o->parent;
   while (t != NULL) {
-    vector_push_back (v, t);
+    dynarr_push (v, t);
     t = t->parent;
   }
 }
 
 // TODO: this is not LISP, recursion is not the way to go here. (this goes for
 //  all of the record functions below here)
-static void obj_recordMessagePre (Vector * v, Object * o) {
+static void obj_recordMessagePre (Dynarr v, Object * o) {
   if (o == NULL) {
     return;
   }
-  vector_push_back (v, o);
+  dynarr_push (v, o);
   obj_recordMessagePre (v, o->firstChild);
   obj_recordMessagePre (v, o->nextSibling);
 }
 
-static void obj_recordMessageIn (Vector * v, Object * o) {
+static void obj_recordMessageIn (Dynarr v, Object * o) {
   if (o == NULL) {
     return;
   }
   obj_recordMessageIn (v, o->firstChild);
-  vector_push_back (v, o);
+  dynarr_push (v, o);
   obj_recordMessageIn (v, o->nextSibling);
 }
 
-static void obj_recordMessagePost (Vector * v, Object * o) {
+static void obj_recordMessagePost (Dynarr v, Object * o) {
   if (o == NULL) {
     return;
   }
   obj_recordMessagePost (v, o->nextSibling);
   obj_recordMessagePost (v, o->firstChild);
-  vector_push_back (v, o);
+  dynarr_push (v, o);
 }
 
 
@@ -759,25 +771,25 @@ static void obj_pushMessageCallstack (void * o, const char * func, objMsg msg, v
   n->b = b;
   n->stage = OC_INHANDLER;
   if (ObjectMessageCallstack == NULL) {
-    ObjectMessageCallstack = vector_create (4, sizeof (struct objCall *));
+    ObjectMessageCallstack = dynarr_create (4, sizeof (struct objCall *));
   }
-  vector_push_back (ObjectMessageCallstack, n);
+  dynarr_push (ObjectMessageCallstack, n);
 }
 
 static void obj_setCallType (enum object_calls t) {
   struct objCall * c = NULL;
   if (ObjectMessageCallstack == NULL ||
-      vector_size (ObjectMessageCallstack) == 0) {
+      dynarr_isEmpty (ObjectMessageCallstack)) {
     // let's just pretend this never happened, okay?
     return;
   }
-  vector_back (c, ObjectMessageCallstack);
+  c = *(struct objCall **)dynarr_back (ObjectMessageCallstack);
   c->stage = t;
 }
 
 static void obj_popMessageCallstack (void * o) {
   struct objCall * c = NULL;
-  vector_pop_back (c, ObjectMessageCallstack);
+  c = *(struct objCall **)dynarr_pop (ObjectMessageCallstack);
   if (c->objectOrClass != o) {
     // FIXME: this is a random exit code. we don't even have to exit here, just set a THE OBJECT CALLSTACK HAS BEEN RUINED flag and hope for the best. ...I guess.
     exit (12);
@@ -787,9 +799,9 @@ static void obj_popMessageCallstack (void * o) {
 }
 
 static int obj_messageBACKEND (Object * o, const char * func, objMsg msg, void * a, void * b) {
-  Vector
-    * v = vector_create (4, sizeof (Object *)),
-    * p = NULL;
+  Dynarr
+    v = dynarr_create (4, sizeof (Object *)),
+    p = NULL;
   Object * t = NULL;
   int
     i = 0,
@@ -817,7 +829,7 @@ static int obj_messageBACKEND (Object * o, const char * func, objMsg msg, void *
   }
 
   //printf ("vector: %d indices filled, %d capacity\n", vector_size (v), vector_capacity (v));
-  while (vector_at (t, v, i++) != NULL) {
+  while ((t = *(Object **)dynarr_at (v, i++)) != NULL) {
     //printf ("got #%d (of %d/%d), %p\n", i, vector_size (v), vector_capacity (v), t);
     //printf ("%s: messaging object %p (%d)\n", __FUNCTION__, t, i);
     r = obj_message (t, msg, a, b);
@@ -825,16 +837,16 @@ static int obj_messageBACKEND (Object * o, const char * func, objMsg msg, void *
     if (ObjectSkipChildren == TRUE) {
       //printf ("okay, object %p chose to skip children (at offset %d)\n", t, i);
       //printf ("omg we're in the skip children check\n");
-      p = vector_create (4, sizeof (Object *));
-      vector_push_back (p, t);
+      p = dynarr_create (4, sizeof (Object *));
+      dynarr_push (p, t);
       //printf ("got a vector with one entry: %p\n", t);
-      while (vector_at (t, v, i++) != NULL && in_vector (p, &t->parent) >= 0) {
+      while ((t = *(Object **)dynarr_at (v, i++)) != NULL && in_dynarr (p, t->parent) >= 0) {
         //printf ("continuing to loop (%d): current object is %p w/ parent %p\n", i, t, t->parent);
         //printf ("  %p is in the vector at offset %d\n", t->parent, in_vector (p, &t->parent));
-        vector_push_back (p, t);
+        dynarr_push (p, t);
       }
       //printf ("we're finished looping (on object %p w/ parent %p)\n", t, t == NULL ? NULL : t->parent);
-      vector_destroy (p);
+      dynarr_destroy (p);
       p = NULL;
       ObjectSkipChildren = FALSE;
     }
@@ -845,7 +857,7 @@ static int obj_messageBACKEND (Object * o, const char * func, objMsg msg, void *
   //printf ("%s: done.\n", __FUNCTION__);
   ObjectHaltMessaging = FALSE;
 
-  vector_destroy (v);
+  dynarr_destroy (v);
   return r;
 }
 
@@ -861,12 +873,12 @@ int obj_pass () {
     * try = NULL;
   if (
     ObjectMessageCallstack == NULL ||
-    (i = vector_size (ObjectMessageCallstack)) == 0) {
+    (i = dynarr_size (ObjectMessageCallstack)) == 0) {
     fprintf (stderr, "Don't call %s outside of an object handler >:(\n", __FUNCTION__);
     return -1;
   }
-  vector_at (lastCall, ObjectMessageCallstack, i - 1);
-  while ((vector_at (base, ObjectMessageCallstack, --i))->stage == OC_PASS) {
+  lastCall = *(struct objCall **)dynarr_at (ObjectMessageCallstack, i - 1);
+  while ((base = *(struct objCall **)dynarr_at (ObjectMessageCallstack, --i))->stage == OC_PASS) {
     if (i == 0) {
       fprintf (stderr, "%s: the callstack is in a bad state: all registered calls are pass invocations, which should be impossible (but apparently isn't). we're going to blow everything up in the hopes you notice this, sorry.\n", __FUNCTION__);
       exit (1);

@@ -2,7 +2,7 @@
 #define XPH_OBJECT_H
 
 #include "xph_memory.h"
-#include "cpv.h"
+#include "dynarr.h"
 
 typedef enum object_messages {
   OM_CLSNAME = 1,
@@ -34,7 +34,7 @@ typedef enum object_messages {
 
 typedef struct object {
   struct objClass * class;
-  Vector * objData;
+  Dynarr objData;
   unsigned int guid;
 
   struct object

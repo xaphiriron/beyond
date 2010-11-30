@@ -3,10 +3,11 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <math.h>
 #include "bool.h"
 #include "xph_memory.h"
 #include "vector.h"
-#include "cpv.h"
+#include "dynarr.h"
 #include "line.h"
 #include "point.h"
 
@@ -74,7 +75,7 @@ enum turtle_settings {
   TURTLE_POSITION
 };
 
-typedef Vector ** TLINES;
+typedef Dynarr * TLINES;
 
 struct tloc {
   float heading;
@@ -87,9 +88,9 @@ typedef struct turtle {
    position,
    headingVector;
   enum turtle_pen penDown;
-  Vector
-    * locationStack,
-    * lines;
+  Dynarr
+    locationStack,
+    lines;
   POINTS points;
 
   bool scaleCenterClean;
@@ -110,7 +111,7 @@ enum symbol_commands {
 };
 
 typedef struct symbolset {
-  Vector * symbols;
+  Dynarr symbols;
 } SYMBOLSET;
 
 typedef struct symbol {
@@ -120,12 +121,12 @@ typedef struct symbol {
 } SYMBOL;
 
 typedef struct lsystem {
-  Vector * p;
+  Dynarr p;
 } LSYSTEM;
 
 typedef struct production {
   char l;
-  Vector * exp;
+  Dynarr exp;
 } PRODUCTION;
 
 TURTLE * turtle_create ();

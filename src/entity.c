@@ -4,13 +4,13 @@ struct entity {
   unsigned int guid;
 
   // this is a local variable to make fetching components from a specific entity faster. It stores the same data as a System->entities vector, which is to say Components (something todo: this is named "components" whereas the system vector is named "entities". this is confusing and dumb.)
-  Vector * components;
+  Dynarr components;
 };
 
 struct ent_system {
   Object * system;
   const char * comp_name;
-  Vector * entities;
+  Dynarr entities;
 };
 
 struct ent_component {
@@ -21,13 +21,13 @@ struct ent_component {
 };
 
 static unsigned int EntityGUIDs = 0;
-static Vector * DestroyedEntities = NULL;	// stores guids
-static Vector * ExistantEntities = NULL;	// stores struct entity *
+static Dynarr DestroyedEntities = NULL;	// stores guids
+static Dynarr ExistantEntities = NULL;	// stores struct entity *
 
 static unsigned int ComponentGUIDs = 0;
-static Vector * SystemRegistry = NULL;
+static Dynarr SystemRegistry = NULL;
 
-static Vector * SubsystemComponentStore = NULL;
+static Dynarr SubsystemComponentStore = NULL;
 
 static int comp_sort (const void * a, const void * b);
 static int comp_search (const void * k, const void * d);
@@ -35,18 +35,21 @@ static int sys_sort (const void * a, const void * b);
 static int sys_search (const void * k, const void * d);
 
 static int comp_sort (const void * a, const void * b) {
+  //printf ("%s: got %d vs. %d\n", __FUNCTION__, (*(const struct ent_component **)a)->e->guid, (*(const struct ent_component **)b)->e->guid);
   return
     (*(const struct ent_component **)a)->e->guid -
     (*(const struct ent_component **)b)->e->guid;
 }
 
 static int comp_search (const void * k, const void * d) {
+  //printf ("%s: got %d vs. %d\n", __FUNCTION__, (*(const struct entity **)k)->guid, (*(const struct ent_component **)d)->e->guid);
   return
-    ((const struct entity *)k)->guid -
+    (*(const struct entity **)k)->guid -
     (*(const struct ent_component **)d)->e->guid;
 }
 
 static int sys_sort (const void * a, const void * b) {
+  //printf ("%s: got \"%s\" vs. \"%s\"\n", __FUNCTION__, (*(const struct ent_system **)a)->comp_name, (*(const struct ent_system **)b)->comp_name);
   return
     strcmp (
       (*(const struct ent_system **)a)->comp_name,
@@ -55,9 +58,10 @@ static int sys_sort (const void * a, const void * b) {
 }
 
 static int sys_search (const void * k, const void * d) {
+  //printf ("%s: got \"%s\" vs. \"%s\"\n", __FUNCTION__, *(char **)k, (*(const struct ent_system **)d)->comp_name);
   return
     strcmp (
-      k,
+      *(char **)k,
       (*(const struct ent_system **)d)->comp_name
     );
 }
@@ -65,9 +69,9 @@ static int sys_search (const void * k, const void * d) {
 
 
 Entity entity_create () {
-  new (struct entity, e);
-  if (DestroyedEntities != NULL && vector_size (DestroyedEntities) > 0) {
-    e->guid = vector_pop_back (e->guid, DestroyedEntities);
+  struct entity * e = xph_alloc (sizeof (struct entity));
+  if (DestroyedEntities != NULL && !dynarr_isEmpty (DestroyedEntities)) {
+    e->guid = *(unsigned int *)dynarr_pop (DestroyedEntities);
   } else {
     e->guid = ++EntityGUIDs;
   }
@@ -75,34 +79,34 @@ Entity entity_create () {
     fprintf (stderr, "Entity GUIDs have wrapped around. Now anything is possible!\n");
     e->guid = ++EntityGUIDs;
   }
-  e->components = vector_create (2, sizeof (Component));
+  e->components = dynarr_create (2, sizeof (Component));
   if (ExistantEntities == NULL) {
-    ExistantEntities = vector_create (128, sizeof (Entity));
+    ExistantEntities = dynarr_create (128, sizeof (Entity));
   }
-  vector_push_back (ExistantEntities, e);
+  dynarr_push (ExistantEntities, e);
   return e;
 }
 
 void entity_destroy (Entity e) {
   struct ent_component * c = NULL;
   //printf ("destroying entity #%d; removing components:\n", e->guid);
-  while (vector_size (e->components) > 0) {
+  while (!dynarr_isEmpty (e->components)) {
     //printf ("%d component%s.\n", vector_size (e->components), (vector_size (e->components) == 1 ? "" : "s"));
-    vector_front (c, e->components);
+    c = *(struct ent_component **)dynarr_front (e->components);
     component_removeFromEntity (c->reg->comp_name, e);
   }
-  vector_destroy (e->components);
+  dynarr_destroy (e->components);
   //printf ("adding #%d to the destroyed list, to be reused\n", e->guid);
   if (DestroyedEntities == NULL) {
-    DestroyedEntities = vector_create (32, sizeof (unsigned int));
+    DestroyedEntities = dynarr_create (32, sizeof (unsigned int));
   }
-  vector_push_back (DestroyedEntities, e->guid);
+  dynarr_push (DestroyedEntities, e->guid);
   //printf ("done\n");
   xph_free (e);
 }
 
 bool entity_exists (unsigned int guid) {
-  if (guid > EntityGUIDs || (DestroyedEntities != NULL && in_vector (DestroyedEntities, (void *)guid) >= 0)) {
+  if (guid > EntityGUIDs || (DestroyedEntities != NULL && in_dynarr (DestroyedEntities, (void *)guid) >= 0)) {
     return FALSE;
   }
   return TRUE;
@@ -119,23 +123,23 @@ bool entity_registerComponentAndSystem (objHandler func) {
   Object * sys = obj_create (oc->name, NULL, NULL, NULL);
   reg->system = sys;
   reg->comp_name = obj_getClassName (sys);
-  reg->entities = vector_create (4, sizeof (Component *));
+  reg->entities = dynarr_create (4, sizeof (Component *));
   if (SystemRegistry == NULL) {
-    SystemRegistry = vector_create (4, sizeof (System *));
+    SystemRegistry = dynarr_create (4, sizeof (System *));
   }
-  vector_push_back (SystemRegistry, reg);
-  vector_sort (SystemRegistry, sys_sort);
+  dynarr_push (SystemRegistry, reg);
+  dynarr_sort (SystemRegistry, sys_sort);
   return TRUE;
 }
 
 
 /* returns a vector, which must be destroyed. In the event of a non-existant component or an intersection with no members, an empty vector is returned.
  */
-Vector * entity_getEntitiesWithComponent (int n, ...) {
+Dynarr entity_getEntitiesWithComponent (int n, ...) {
   int * indices = xph_alloc_name (sizeof (int) * n, "indices");
-  Vector ** components = xph_alloc_name (sizeof (Vector *) * n, "vectors");
+  Dynarr* components = xph_alloc_name (sizeof (Dynarr) * n, "vectors");
   const char ** comp_names = xph_alloc_name (sizeof (char *) * n, "names");
-  Vector * final = vector_create (2, sizeof (Entity *));
+  Dynarr final = dynarr_create (2, sizeof (Entity *));
   System sys = NULL;
   Component c = NULL;
   int
@@ -163,7 +167,7 @@ Vector * entity_getEntitiesWithComponent (int n, ...) {
   }
 
   while (j < n) {
-    vector_front (c, components[j]);
+    c = *(Component *)dynarr_front (components[j]);
     if (c == NULL) {
       // it's impossible to have any intersection, since there are no entities with this component. Therefore, we can just return the empty vector.
       printf ("%s: intersection impossible; no entities have component \"%s\"\n", __FUNCTION__, comp_names[j]);
@@ -198,7 +202,7 @@ Vector * entity_getEntitiesWithComponent (int n, ...) {
     j = 0;
     while (j < n) {
       while (
-        vector_at (c, components[j], indices[j]) != NULL &&
+        (c = *(Component *)dynarr_at (components[j], indices[j])) != NULL &&
         c->e->guid < highestGUID) {
         //printf ("guid in list %d at index %d is %d, which is lower than the mark of %d\n", j, indices[j], c->e->guid, highestGUID);
         indices[j]++;
@@ -214,7 +218,7 @@ Vector * entity_getEntitiesWithComponent (int n, ...) {
     }
     j = 0;
     while (j < n) {
-      vector_at (c, components[j], indices[j]);
+      c = *(Component *)dynarr_at (components[j], indices[j]);
       if (c->e->guid > highestGUID) {
         highestGUID = c->e->guid;
         break;
@@ -222,7 +226,7 @@ Vector * entity_getEntitiesWithComponent (int n, ...) {
       j++;
     }
     if (j >= n) {
-      vector_push_back (final, c->e);
+      dynarr_push (final, c->e);
       highestGUID++;
     }
   }
@@ -239,7 +243,7 @@ System entity_getSystemByName (const char * comp_name) {
     fprintf (stderr, "%s: no components registered\n", __FUNCTION__);
     return NULL;
   }
-  sys = vector_search (SystemRegistry, comp_name, sys_search);
+  sys = *(struct ent_system **)dynarr_search (SystemRegistry, sys_search, comp_name);
   if (sys == NULL) {
     //fprintf (stderr, "%s: no component named \"%s\" registered\n", __FUNCTION__, comp_name);
     return NULL;
@@ -253,12 +257,12 @@ void entity_destroySystem (const char * comp_name) {
   if (sys == NULL) {
     return;
   }
-  while (vector_size (sys->entities) > 0) {
-    vector_front (c, sys->entities);
+  while (!dynarr_isEmpty (sys->entities)) {
+    c = *(Component *)dynarr_front (sys->entities);
     component_removeFromEntity (sys->comp_name, c->e);
   }
-  vector_remove (SystemRegistry, sys);
-  vector_destroy (sys->entities);
+  dynarr_remove_condense (SystemRegistry, sys);
+  dynarr_destroy (sys->entities);
   obj_message (sys->system, OM_DESTROY, NULL, NULL);
   objClass_destroy (sys->comp_name);
   xph_free (sys);
@@ -267,23 +271,23 @@ void entity_destroySystem (const char * comp_name) {
 void entity_destroyEverything () {
   System sys = NULL;
   Entity e = NULL;
-  while (vector_pop_back (e, ExistantEntities) != NULL) {
+  while ((e = *(Entity *)dynarr_pop (ExistantEntities)) != NULL) {
     entity_destroy (e);
   }
-  vector_destroy (ExistantEntities);
+  dynarr_destroy (ExistantEntities);
   ExistantEntities = NULL;
-  vector_destroy (DestroyedEntities);
+  dynarr_destroy (DestroyedEntities);
   DestroyedEntities = NULL;
-  vector_destroy (SubsystemComponentStore);
+  dynarr_destroy (SubsystemComponentStore);
   SubsystemComponentStore = NULL;
   if (SystemRegistry == NULL) {
     return;
   }
-  while (vector_size (SystemRegistry) > 0) {
-    vector_front (sys, SystemRegistry);
+  while (!dynarr_isEmpty (SystemRegistry)) {
+    sys = *(System *)dynarr_front (SystemRegistry);
     entity_destroySystem (sys->comp_name);
   }
-  vector_destroy (SystemRegistry);
+  dynarr_destroy (SystemRegistry);
   SystemRegistry = NULL;
 }
 
@@ -297,10 +301,10 @@ bool component_instantiateOnEntity (const char * comp_name, Entity e) {
   instance->reg = sys;
   instance->comp_guid = ++ComponentGUIDs;
   // we care less about enforcing uniqueness of component guids than we do about entities.
-  vector_push_back (sys->entities, instance);
-  vector_push_back (e->components, instance);
-  vector_sort (sys->entities, comp_sort);
-  vector_sort (e->components, comp_sort);
+  dynarr_push (sys->entities, instance);
+  dynarr_push (e->components, instance);
+  dynarr_sort (sys->entities, comp_sort);
+  dynarr_sort (e->components, comp_sort);
   obj_message (sys->system, OM_COMPONENT_INIT_DATA, &instance->comp_data, e);
   return TRUE;
 }
@@ -311,14 +315,14 @@ bool component_removeFromEntity (const char * comp_name, Entity e) {
   if (sys == NULL) {
     return FALSE;
   }
-  comp = vector_search (sys->entities, e, comp_search);
+  comp = *(Component *)dynarr_search (sys->entities, comp_search, e);
   if (comp == NULL) {
     fprintf (stderr, "%s: Entity #%d doesn't have a component \"%s\"\n", __FUNCTION__, e->guid, comp_name);
     return FALSE;
   }
   obj_message (sys->system, OM_COMPONENT_DESTROY_DATA, &comp->comp_data, e);
-  vector_remove (sys->entities, comp);
-  vector_remove (e->components, comp);
+  dynarr_remove_condense (sys->entities, comp);
+  dynarr_remove_condense (e->components, comp);
   xph_free (comp);
   return TRUE;
 }
@@ -329,7 +333,7 @@ Component entity_getAs (Entity e, const char * comp_name) {
   if (e == NULL || sys == NULL) {
     return NULL;
   }
-  comp = vector_search (sys->entities, e, comp_search);
+  comp = *(Component *)dynarr_search (sys->entities, comp_search, e);
   if (comp == NULL) {
     fprintf (stderr, "%s: Entity #%d doesn't have a component \"%s\"\n", __FUNCTION__, e->guid, comp_name);
     return NULL;
@@ -359,7 +363,7 @@ bool component_messageEntity (Component comp, char * message, void * arg)
 	msg->from = comp;
 	msg->to = NULL;
 	msg->message = message;
-	while (vector_at (t, comp->e->components, i++) != NULL)
+	while ((t = *(Component *)dynarr_at (comp->e->components, i++)) != NULL)
 	{
 		// we're purposefully messaging the component back, in case it has a response to its own message. consequentally, it's important that no components decide to send off the same message in response to getting a message.
 		msg->to = t;
@@ -382,16 +386,16 @@ bool component_messageSystem (Component comp, char * message, void * arg) {
 bool entitySubsystem_store (const char * comp_name) {
   System s = NULL;
   if (SubsystemComponentStore == NULL) {
-    SubsystemComponentStore = vector_create (6, sizeof (System));
+    SubsystemComponentStore = dynarr_create (6, sizeof (System));
   }
   s = entity_getSystemByName (comp_name);
   if (s == NULL) {
     return FALSE;
   }
-  if (in_vector (SubsystemComponentStore, s) >= 0) {
+  if (in_dynarr (SubsystemComponentStore, s) >= 0) {
     return TRUE;
   }
-  vector_push_back (SubsystemComponentStore, s);
+  dynarr_push (SubsystemComponentStore, s);
   return TRUE;
 }
 
@@ -404,10 +408,10 @@ bool entitySubsystem_unstore (const char * comp_name) {
   if (s == NULL) {
     return FALSE;
   }
-  if (in_vector (SubsystemComponentStore, s) < 0) {
+  if (in_dynarr (SubsystemComponentStore, s) < 0) {
     return TRUE; // already not in store
   }
-  vector_remove (SubsystemComponentStore, s);
+  dynarr_remove_condense (SubsystemComponentStore, s);
   return TRUE;
 }
 
@@ -420,7 +424,7 @@ bool entitySubsystem_runOnStored (objMsg msg) {
   if (SubsystemComponentStore == NULL) {
     return FALSE;
   }
-  while (vector_at (sys, SubsystemComponentStore, i++)) {
+  while ((sys = *(System *)dynarr_at (SubsystemComponentStore, i++)) != NULL) {
     t = obj_message (sys->system, msg, NULL, NULL);
     r = (r != TRUE) ? FALSE : t;
   }
@@ -429,6 +433,6 @@ bool entitySubsystem_runOnStored (objMsg msg) {
 
 void entitySubsystem_clearStored () {
   if (SubsystemComponentStore != NULL) {
-    vector_clear (SubsystemComponentStore);
+    dynarr_clear (SubsystemComponentStore);
   }
 }

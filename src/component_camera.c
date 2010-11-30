@@ -63,7 +63,7 @@ void camera_updateLabelsFromEdgeTraversal (Entity e, struct ground_edge_traversa
 	y += XY[t->directionOfMovement][1];
 	hex_xy2rki (x, y, &r, &k, &i);
 	lo = hex_linearCoord (r, k, i);
-	vector_at (newLabel, OriginCache->cache, lo);
+	newLabel = *(CameraGroundLabel *)dynarr_at (OriginCache->cache, lo);
 	if (newLabel == NULL || (label_getCoordinateDistanceFromOrigin (newLabel) > (w->groundDistanceDraw / 3) && label_getCoordinateDistanceFromOrigin (newLabel) > 1))
 	{
 		if (newLabel == NULL)
@@ -87,7 +87,7 @@ void camera_updateLabelsFromEdgeTraversal (Entity e, struct ground_edge_traversa
 			hex_xy2rki (x, y, &r, &k, &i);
 			lo = hex_linearCoord (r, k, i);
 		}
-		vector_at (newLabel, OriginCache->cache, lo);
+		newLabel = *(CameraGroundLabel *)dynarr_at (OriginCache->cache, lo);
 	}
 	//printf ("%s: updated camera label\n", __FUNCTION__);
 	//label_getXY (newLabel, &x, &y);
@@ -228,9 +228,11 @@ void camera_update (Entity e)
 
 int component_camera (Object * obj, objMsg msg, void * a, void * b) {
   struct camera_data ** cd = NULL;
-  Vector * v = NULL;
+	Dynarr
+		v = NULL;
+	DynIterator
+		it = NULL;
   Entity e = NULL;
-  int i = 0;
 	char
 		* message = NULL;
   switch (msg) {
@@ -270,11 +272,14 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b) {
 
     case OM_UPDATE:
       v = entity_getEntitiesWithComponent (1, "camera");
-      while (i < vector_size (v)) {
-        vector_at (e, v, i++);
+      it = dynIterator_create (v);
+      while (!dynIterator_done (it))
+      {
+        e = *(Entity *)dynIterator_next (it);
         camera_update (e);
       }
-      vector_destroy (v);
+      dynIterator_destroy (it);
+      dynarr_destroy (v);
       return EXIT_SUCCESS;
 
     case OM_POSTUPDATE:

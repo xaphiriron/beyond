@@ -9,24 +9,24 @@ struct input
 	Uint8
 		* keystate;
 
-	Vector
-		* keysPressed,		// (SDLKey) all keys currently pressed, in order of
+	Dynarr
+		keysPressed,		// (SDLKey) all keys currently pressed, in order of
 							// their press (i.e., the most recently pressed
 							// key at the highest index, the oldest pressed
 							// key at index 0)
-		* controlMap,		// (struct input_keys *) which keys are mapped to
+		controlMap,			// (struct input_keys *) which keys are mapped to
 							// which commands. test with input_controlActive
 							// ({CONTROL})
-		* activeEvents,		// (enum input_responses) commands which have been
+		activeEvents,		// (enum input_responses) commands which have been
 							// triggered by a keydown that haven't yet had
 							// their key come back up (e.g., holding down a
 							// key to move)
-		* overriddenEvents,	// (enum input_responses) commands which have been
+		overriddenEvents,	// (enum input_responses) commands which have been
 							// triggered, but have stopped due to a key
 							// collision (e.g., a command triggered by X when
 							// Shift+X is held down)
-		* controlledEntities,	// entities to message with CONTROL_INPUT
-		* focusedEntities;		// entities to message with FOCUS_INPUT
+		controlledEntities,	// entities to message with CONTROL_INPUT
+		focusedEntities;	// entities to message with FOCUS_INPUT
 };
 
 static INPUT Input = NULL;
@@ -47,8 +47,8 @@ int keysPressed (const struct input_keys * k) {
   }
   //printf (") vs ( ");
   t = k;
-  while (i < vector_size (Input->keysPressed)) {
-    vector_at (pressed, Input->keysPressed, i);
+  while (i < dynarr_size (Input->keysPressed)) {
+    pressed = *(SDLKey *)dynarr_at (Input->keysPressed, i);
     //printf ("%d ", pressed);
     while (t != NULL) {
       if (t->key == pressed) {
@@ -71,7 +71,7 @@ bool input_controlActive (const enum input_responses ir)
 		* k;
 	if (Input == NULL)
 		return FALSE;
-	vector_at (k, Input->controlMap, ir);
+	k = *(struct input_keys **)dynarr_at (Input->controlMap, ir);
 	if (k == NULL)
 		return FALSE;
 	return keysPressed (k) > 0
@@ -83,36 +83,36 @@ bool input_controlActive (const enum input_responses ir)
 struct input * input_create ()
 {
 	struct input * i = xph_alloc (sizeof (struct input));
-	i->keysPressed = vector_create (4, sizeof (SDLKey));
-	i->controlMap = vector_create (1, sizeof (struct input_keys *));
-	i->activeEvents = vector_create (4, sizeof (enum input_responses));
-	i->overriddenEvents = vector_create (4, sizeof (enum input_responses));
-	i->controlledEntities = vector_create (2, sizeof (Entity *));
-	i->focusedEntities = vector_create (2, sizeof (Entity *));
+	i->keysPressed = dynarr_create (4, sizeof (SDLKey));
+	i->controlMap = dynarr_create (1, sizeof (struct input_keys *));
+	i->activeEvents = dynarr_create (4, sizeof (enum input_responses));
+	i->overriddenEvents = dynarr_create (4, sizeof (enum input_responses));
+	i->controlledEntities = dynarr_create (2, sizeof (Entity *));
+	i->focusedEntities = dynarr_create (2, sizeof (Entity *));
 
 	// fill out the control map here or elsewhere (probably elsewhere in the config/defaults function), but it needs to be populated with the actual key data before any SDL events are checked.
-	vector_assign (i->controlMap, IR_QUIT, keys_create (1, SDLK_ESCAPE));
-	vector_assign (i->controlMap, IR_AVATAR_MOVE_LEFT, keys_create (1, SDLK_LEFT));
-	vector_assign (i->controlMap, IR_AVATAR_MOVE_RIGHT, keys_create (1, SDLK_RIGHT));
-	vector_assign (i->controlMap, IR_AVATAR_MOVE_FORWARD, keys_create (1, SDLK_UP));
-	vector_assign (i->controlMap, IR_AVATAR_MOVE_BACKWARD, keys_create (1, SDLK_DOWN));
+	dynarr_assign (i->controlMap, IR_QUIT, keys_create (1, SDLK_ESCAPE));
+	dynarr_assign (i->controlMap, IR_AVATAR_MOVE_LEFT, keys_create (1, SDLK_LEFT));
+	dynarr_assign (i->controlMap, IR_AVATAR_MOVE_RIGHT, keys_create (1, SDLK_RIGHT));
+	dynarr_assign (i->controlMap, IR_AVATAR_MOVE_FORWARD, keys_create (1, SDLK_UP));
+	dynarr_assign (i->controlMap, IR_AVATAR_MOVE_BACKWARD, keys_create (1, SDLK_DOWN));
 	return i;
 }
 
 void input_destroy (struct input * i)
 {
-	vector_wipe (i->keysPressed, xph_free);
-	vector_wipe (i->controlMap, (void (*)(void *))keys_destroy);
+	dynarr_wipe (i->keysPressed, xph_free);
+	dynarr_wipe (i->controlMap, (void (*)(void *))keys_destroy);
 /*
 	vector_wipe (i->activeEvents, (void (*)(void *))input_destroyEvent);
 	vector_wipe (i->overriddenEvents, (void (*)(void *))input_destroyEvent);
 */
-	vector_destroy (i->keysPressed);
-	vector_destroy (i->controlMap);
-	vector_destroy (i->activeEvents);
-	vector_destroy (i->overriddenEvents);
-	vector_destroy (i->controlledEntities);
-	vector_destroy (i->focusedEntities);
+	dynarr_destroy (i->keysPressed);
+	dynarr_destroy (i->controlMap);
+	dynarr_destroy (i->activeEvents);
+	dynarr_destroy (i->overriddenEvents);
+	dynarr_destroy (i->controlledEntities);
+	dynarr_destroy (i->focusedEntities);
 	xph_free (i);
 }
 
@@ -154,14 +154,14 @@ bool input_addEntity (Entity e, enum input_control_types t)
 	assert (Input != NULL);
 	if (t == INPUT_CONTROLLED)
 	{
-		if (in_vector (Input->controlledEntities, &e) == -1)
-			vector_push_back (Input->controlledEntities, e);
+		if (in_dynarr (Input->controlledEntities, e) == -1)
+			dynarr_push (Input->controlledEntities, e);
 		return TRUE;
 	}
 	else if (t == INPUT_FOCUSED)
 	{
-		if (in_vector (Input->focusedEntities, &e) == -1)
-			vector_push_back (Input->focusedEntities, e);
+		if (in_dynarr (Input->focusedEntities, e) == -1)
+			dynarr_push (Input->focusedEntities, e);
 		return TRUE;
 	}
 	return FALSE;
@@ -172,12 +172,12 @@ bool input_rmEntity (Entity e, enum input_control_types t)
 	assert (Input != NULL);
 	if (t == INPUT_CONTROLLED)
 	{
-		vector_remove (Input->controlledEntities, e);
+		dynarr_remove_condense (Input->controlledEntities, e);
 		return TRUE;
 	}
 	else if (t == INPUT_FOCUSED)
 	{
-		vector_remove (Input->focusedEntities, e);
+		dynarr_remove_condense (Input->focusedEntities, e);
 		return TRUE;
 	}
 	return FALSE;
@@ -199,7 +199,7 @@ void input_sendGameEventMessage (const struct input_event * ie) {
 	}
 	// SEND MESSAGES OFF TO WORLD ENTITIES
 	i = 0;
-	while (vector_at (e, Input->controlledEntities, i++) != NULL)
+	while ((e = *(Entity *)dynarr_at (Input->controlledEntities, i++)) != NULL)
 	{
 		c = entity_getAs (e, "input");
 		if (c == NULL)
@@ -207,7 +207,7 @@ void input_sendGameEventMessage (const struct input_event * ie) {
 		component_messageEntity (c, "CONTROL_INPUT", (void *)ie);
 	}
 	i = 0;
-	while (vector_at (e, Input->focusedEntities, i++) != NULL)
+	while ((e = *(Entity *)dynarr_at (Input->focusedEntities, i++)) != NULL)
 	{
 		c = entity_getAs (e, "input");
 		if (c == NULL)
@@ -228,8 +228,8 @@ void input_update (Object * d)
 		command = 0;
 	struct input_event
 		input_event;
-	struct input_keys
-		* keys;
+	DynIterator
+		it;
 	while (SDL_PollEvent (&Input->event))
 	{
 		input_event.ir = IR_NOTHING;
@@ -237,62 +237,59 @@ void input_update (Object * d)
 		switch (Input->event.type)
 		{
 			case SDL_KEYDOWN:
-				if (in_vector (Input->keysPressed, &Input->event.key.keysym.sym) >= 0)
+				if (in_dynarr (Input->keysPressed, Input->event.key.keysym.sym) >= 0)
 					continue;
-				vector_push_back (Input->keysPressed, Input->event.key.keysym.sym);
+				dynarr_push (Input->keysPressed, Input->event.key.keysym.sym);
 				command = 0;
-				activeFinal = vector_size (Input->activeEvents) - 1;
-				overriddenFinal = vector_size (Input->overriddenEvents) - 1;
-				// - inactive commands iterate to see if they've been activated
-				while (command <= vector_index_last (Input->controlMap))
+				activeFinal = dynarr_size (Input->activeEvents) - 1;
+				overriddenFinal = dynarr_size (Input->overriddenEvents) - 1;
+				it = dynIterator_create (Input->controlMap);
+				while (!dynIterator_done (it))
 				{
-					vector_at (keys, Input->controlMap, command);
-					if (keys == NULL)
-					{
-						command++;
-						continue;
-					}
-					if (input_controlActive (command) && in_vector (Input->activeEvents, &command) < 0)
+					command = dynIterator_nextIndex (it);
+					if (input_controlActive (command) && in_dynarr (Input->activeEvents, command) < 0)
 					{
 						//printf ("pushing %d onto activeevents\n", command);
-						vector_push_back (Input->activeEvents, command);
+						dynarr_push (Input->activeEvents, command);
 					}
-					command++;
 				}
+				dynIterator_destroy (it);
+				it = NULL;
 				// - active commands iterate to see if they've been overridden
 				
 				// - overridden commands send ~response messages
 				i = overriddenFinal;
-				while (++i < vector_size (Input->overriddenEvents))
+				while (++i < dynarr_size (Input->overriddenEvents))
 				{
-					vector_at (input_event.ir, Input->overriddenEvents, i);
+					input_event.ir = *(enum input_responses *)dynarr_at (Input->overriddenEvents, i);
 					input_event.ir = ~input_event.ir;
 					input_sendGameEventMessage (&input_event);
 				}
 				
 				// - activating commands send response messages
 				i = activeFinal;
-				while (++i < vector_size (Input->activeEvents))
+				while (++i < dynarr_size (Input->activeEvents))
 				{
-					vector_at (input_event.ir, Input->activeEvents, i);
+					input_event.ir = *(enum input_responses *)dynarr_at (Input->activeEvents, i);
 					//printf ("sending game message from keydown (%d)\n", input_event.ir);
 					input_sendGameEventMessage (&input_event);
 				}
 				break;
 			case SDL_KEYUP:
-				if (in_vector (Input->keysPressed, &Input->event.key.keysym.sym) < 0)
+				if (in_dynarr (Input->keysPressed, Input->event.key.keysym.sym) < 0)
 					continue;
-				vector_remove (Input->keysPressed, Input->event.key.keysym.sym);
+				dynarr_remove_condense (Input->keysPressed, Input->event.key.keysym.sym);
 				
 				// - active commands iterate to see if they've been deactivated
 				i = 0;
-				while (i < vector_size (Input->activeEvents))
+				while (i < dynarr_size (Input->activeEvents))
 				{
-					vector_at (command, Input->activeEvents, i);
+					command = *(enum input_responses *)dynarr_at (Input->activeEvents, i);
 					//printf ("keyup: is %d active?\n", command);
 					if (!input_controlActive (command))
 					{
-						vector_erase (Input->activeEvents, i);
+						dynarr_unset (Input->activeEvents, i);
+						dynarr_condense (Input->activeEvents);
 						// - deactivating commands send ~response messages
 						//printf ("sending game message from keyup (~%d)\n", command);
 						input_event.ir = ~command;
@@ -309,14 +306,16 @@ void input_update (Object * d)
 				if (Input->event.active.state & SDL_APPINPUTFOCUS)
 				{
 					SDL_ShowCursor (Input->event.active.gain ? SDL_DISABLE : SDL_ENABLE);
-					while (vector_pop_back (command, Input->activeEvents) != IR_NOTHING)
+					it = dynIterator_create (Input->activeEvents);
+					while (!dynIterator_done (it))
 					{
+						command = *(enum input_responses *)dynIterator_next (it);
 						input_event.ir = ~command;
 						input_sendGameEventMessage (&input_event);
 					}
-					vector_clear (Input->activeEvents);
-					vector_clear (Input->overriddenEvents);
-					vector_clear (Input->keysPressed);
+					dynarr_clear (Input->activeEvents);
+					dynarr_clear (Input->overriddenEvents);
+					dynarr_clear (Input->keysPressed);
 				}
 				break;
 			default:

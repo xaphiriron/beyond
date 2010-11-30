@@ -7,7 +7,7 @@
 #include "xph_memory.h"
 
 #include "vector.h"
-#include "cpv.h"
+#include "dynarr.h"
 
 extern const int H[6][2];
 extern const char XY[6][2];
@@ -21,7 +21,7 @@ struct hex {
   float
     top, topA, topB,
     base, baseA, baseB;
-  Vector * entitiesOccupying;
+  Dynarr entitiesOccupying;
   short
     r, k, i,	// polar coordinates from center of ground map
     x, y;	// cartesian coordinates from center (w/ non-orthographic axes)

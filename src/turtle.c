@@ -35,9 +35,9 @@ TURTLE * turtle_createA (float x, float y, float z, float rot) {
   t->heading = rot;
   t->position = vectorCreate (x, y, z);
   t->penDown = tDefault.penDown;
-  t->locationStack = vector_create (4, sizeof (struct tloc *));
-  t->lines = vector_create (4, sizeof (LINE *));
-  t->points = vector_create (4, sizeof (VECTOR3 *));
+  t->locationStack = dynarr_create (4, sizeof (struct tloc *));
+  t->lines = dynarr_create (4, sizeof (LINE *));
+  t->points = dynarr_create (4, sizeof (VECTOR3 *));
 
   t->scale = 0;
   t->center = vectorCreate (0, 0, 0);
@@ -55,19 +55,17 @@ static void tDefaults () {
 }
 
 void turtle_destroy (TURTLE * t) {
-  void * v = NULL;
-  while (vector_size (t->locationStack) > 0) {
-    xph_free (vector_pop_back (v, t->locationStack));
+  while (!dynarr_isEmpty (t->locationStack)) {
+    xph_free (*(struct tloc **)dynarr_pop (t->locationStack));
   }
-  v = NULL;
-  vector_destroy (t->locationStack);
-  while (vector_size (t->points) > 0) {
-    xph_free (vector_pop_back (v, t->locationStack));
+  dynarr_destroy (t->locationStack);
+  while (!dynarr_isEmpty (t->points)) {
+	// i have no clue what is stored in this. i think it stores more dynamic arrays and this line was originally copied from the one above and not updated. so, memory leak here.
+    xph_free (*(struct tloc **)dynarr_pop (t->points));
   }
-  v = NULL;
-  vector_destroy (t->points);
+  dynarr_destroy (t->points);
   turtle_clearLines (t);
-  vector_destroy (t->lines);
+  dynarr_destroy (t->lines);
   xph_free (t);
 }
 
@@ -109,8 +107,8 @@ void turtle_move (TURTLE * t, float mag) {
   LINE * l = NULL;
   //printf ("TURTLE MOVED FROM %.2f,%.2f TO %.2f,%.2f ON A REQUEST TO MOVE %f FORWARD\n", t->position.x, t->position.y, n.x, n.y, mag);
   if (turtle_getPenStatus (t) == TURTLE_PENDOWN) {
-    if (vector_size (t->lines) > 0) {
-      vector_back (l, t->lines);
+    if (!dynarr_isEmpty (t->lines)) {
+      l = *(LINE **)dynarr_back (t->lines);
       //printf ("got line %p\n", l);
       line_coordsAtT (l, 0, &j.x, &j.y);
       line_coordsAtT (l, 1, &k.x, &k.y);
@@ -121,15 +119,16 @@ void turtle_move (TURTLE * t, float mag) {
         //printf ("woo resizing line\n");
         line_resize (l, 0, line_tNearestCoords (l, n.x, n.y));
       } else {
-        vector_push_back (t->lines, line_createThroughPoints (&t->position, &n, LINE_SETENDPOINTS));
+        dynarr_push (t->lines, line_createThroughPoints (&t->position, &n, LINE_SETENDPOINTS));
       }
     } else {
-      //l = line_createThroughPoints (&t->position, &n, LINE_SETENDPOINTS);
+      l = line_createThroughPoints (&t->position, &n, LINE_SETENDPOINTS);
       //printf ("LINE DRAWN FROM %.2f,%.2f TO %.2f,%.2f (%.2f,%.2f)\n", l->x0, l->y0, l->x0 + l->f, l->y0 + l->g, l->f, l->g);
-      vector_push_back (t->lines, line_createThroughPoints (&t->position, &n, LINE_SETENDPOINTS));
+      dynarr_push (t->lines, l);
     }
     t->scaleCenterClean = FALSE;
   }
+  //printf ("DONE W/ %s\n", __FUNCTION__);
   t->position = n;
 }
 
@@ -145,12 +144,12 @@ void turtle_push (TURTLE * t) {
   struct tloc * tloc = xph_alloc (sizeof (struct tloc));
   tloc->heading = t->heading;
   tloc->position = t->position;
-  vector_push_back (t->locationStack, tloc);
+  dynarr_push (t->locationStack, tloc);
 }
 
 void turtle_pop (TURTLE * t) {
   struct tloc * tloc = NULL;
-  vector_pop_back (tloc, t->locationStack);
+  tloc = *(struct tloc **)dynarr_pop (t->locationStack);
   if (tloc == NULL) {
     return;
   }
@@ -234,14 +233,18 @@ const VECTOR3 * turtle_getCenter (TURTLE * t) {
 }
 
 void turtle_clearLines (TURTLE * t) {
-  void * v = NULL;
-  while (vector_size (t->lines) > 0) {
-    line_destroy (vector_pop_back (v, t->lines));
+	LINE
+		* l;
+  //printf ("%s (%p)...\n", __FUNCTION__, t);
+  while (!dynarr_isEmpty (t->lines)) {
+    l = *(struct line **)dynarr_pop (t->lines);
+    line_destroy (l);
   }
-  while (vector_size (t->points) > 0) {
-    xph_free (vector_pop_back (v, t->points));
+  while (!dynarr_isEmpty (t->points)) {
+    xph_free (*(char **)dynarr_pop (t->points));
   }
   t->scaleCenterClean = FALSE;
+  //printf ("...%s\n", __FUNCTION__);
 }
 
 void turtle_resetPosition (TURTLE * t) {
@@ -288,23 +291,22 @@ static void turtle_recalcScaleCenter (TURTLE * t, float xResolution, float yReso
 static void turtle_createPoints (TURTLE * t) {
   //printf ("WE'RE IN %s\n", __FUNCTION__);
   LINE * line = NULL;
-  POINTS points = vector_create (4, sizeof (VECTOR3 *));
+  POINTS points = dynarr_create (4, sizeof (VECTOR3 *));
   int i = 0;
   float
    x0, y0,
    x1, y1;
-  void * v = NULL;
   if (t->points != NULL) {
-    while (vector_size (t->points) > 0) {
-      xph_free (vector_pop_back (v, t->points));
+    while (!dynarr_isEmpty (t->points)) {
+      xph_free (*(char **)dynarr_pop (t->points));
     }
-    vector_destroy (t->points);
+    dynarr_destroy (t->points);
     t->points = NULL;
   }
-  while ((vector_at (line, t->lines, i++)) != NULL) {
+  while ((line = *(LINE **)dynarr_at (t->lines, i++)) != NULL) {
     line_coordsAtT (line, 0, &x0, &y0);
     line_coordsAtT (line, 1, &x1, &y1);
-    //printf ("LINE %d of %d: x0 %.2f, y0 %.2f, f %.2f, g %.2f MAPS TO: T0 %.2f,%.2f; T1 %.2f,%.2f\n", i, listItemCount (t->lines), line->x0, line->y0, line->f, line->g, x0, y0, x1, y1);
+    //printf ("LINE %d of %d: x0 %.2f, y0 %.2f, f %.2f, g %.2f MAPS TO: T0 %.2f,%.2f; T1 %.2f,%.2f\n", i, dynarr_size (t->lines), line->x0, line->y0, line->f, line->g, x0, y0, x1, y1);
     point_addNoDup (points, x0, y0);
     point_addNoDup (points, x1, y1);
   }
@@ -336,7 +338,7 @@ void turtle_setDefault (enum turtle_settings s, ...) {
 }
 
 int tline_count (const TLINES v) {
-  return vector_size (*v);
+  return dynarr_size (*v);
 }
 
 void turtle_runPath (char * p, TURTLE * t, const SYMBOLSET * s) {
@@ -387,7 +389,7 @@ void turtle_runCycle (char * c, TURTLE * t, const SYMBOLSET * set) {
 
 SYMBOLSET * symbol_createSet () {
   SYMBOLSET * s = xph_alloc (sizeof (SYMBOLSET));
-  s->symbols = vector_create (2, sizeof (SYMBOL *));
+  s->symbols = dynarr_create (2, sizeof (SYMBOL *));
   return s;
 }
 
@@ -404,11 +406,10 @@ void symbol_destroy (SYMBOL * s) {
 }
 
 void symbol_destroySet (SYMBOLSET * s) {
-  void * v = NULL;
-  while (vector_size (s->symbols) > 0) {
-    symbol_destroy (vector_pop_back (v, s->symbols));
+  while (!dynarr_isEmpty (s->symbols)) {
+    symbol_destroy (*(SYMBOL **)dynarr_pop (s->symbols));
   }
-  vector_destroy (s->symbols);
+  dynarr_destroy (s->symbols);
   xph_free (s);
 }
 
@@ -445,24 +446,24 @@ SYMBOL * symbol_addOperation (SYMBOLSET * set, char s, enum symbol_commands type
   }
   va_end (arg);
   if (!overwrite) {
-    vector_push_back (set->symbols, sym);
-    vector_sort (set->symbols, symbol_sort);
+    dynarr_push (set->symbols, sym);
+    dynarr_sort (set->symbols, symbol_sort);
   }
   return NULL;
 }
 
 bool symbol_isDefined (const SYMBOLSET * set, char s) {
-  return vector_search (set->symbols, &s, symbol_search) != NULL
+  return (*(SYMBOL **)dynarr_search (set->symbols, symbol_search, s)) != NULL
     ? TRUE
     : FALSE;
 }
 
 SYMBOL * symbol_getSymbol (const SYMBOLSET * set, char s) {
-  return vector_search (set->symbols, &s, symbol_search);
+  return *(SYMBOL **)dynarr_search (set->symbols, symbol_search, s);
 }
 
 int symbol_definedSymCount (const SYMBOLSET * set) {
-  return vector_size (set->symbols);
+  return dynarr_size (set->symbols);
 }
 
 int gcd (int m, int n) {
@@ -485,9 +486,8 @@ int symbol_cyclesToClose (char * s, const SYMBOLSET * set) {
   int
     i = 0,
     l = strlen (s);
-  Vector * rotationStack = vector_create (4, sizeof (float *));
+  Dynarr rotationStack = dynarr_create (4, sizeof (float *));
   SYMBOL * sym = NULL;
-  void * v = NULL;
   while (i < l) {
     sym = symbol_getSymbol (set, s[i++]);
     if (sym == NULL) {
@@ -500,11 +500,11 @@ int symbol_cyclesToClose (char * s, const SYMBOLSET * set) {
       case SYM_STACKPUSH:
         st = xph_alloc (sizeof (float));
         *st = turn;
-        vector_push_back (rotationStack, st);
+        dynarr_push (rotationStack, st);
         break;
       case SYM_STACKPOP:
-        if (vector_size (rotationStack) != 0) {
-          vector_pop_back (st, rotationStack);
+        if (!dynarr_isEmpty (rotationStack)) {
+          st = *(float **)dynarr_pop (rotationStack);
           turn = *st;
           xph_free (st);
         }
@@ -513,10 +513,10 @@ int symbol_cyclesToClose (char * s, const SYMBOLSET * set) {
         break;
     }
   }
-  while (vector_size (rotationStack) > 0) {
-    xph_free (vector_pop_back (v, rotationStack));
+  while (!dynarr_isEmpty (rotationStack)) {
+    xph_free (*(char **)dynarr_pop (rotationStack));
   }
-  vector_destroy (rotationStack);
+  dynarr_destroy (rotationStack);
   // this probably won't work if the total turning isn't an integer.
   //printf ("total turning: %f\n", turn);
   //printf ("fmod (%f, 360.0) = %f\n", turn, fmod (turn, 360.0));
@@ -534,77 +534,85 @@ int symbol_sort (const void * a, const void * b) {
   return (*(SYMBOL **)a)->l - (*(SYMBOL **)b)->l;
 }
 
-int symbol_search (const void * key, const void * datum) {
-  return *(char *)key - (*(SYMBOL **)datum)->l;
+int symbol_search (const void * keyp, const void * datum) {
+  char
+    key;
+  memcpy (&key, keyp, 1);
+  //printf ("%s: key: \'%c\' vs. datum: \'%c\'\n", __FUNCTION__, key, (*(SYMBOL **)datum)->l);
+  return key - (*(SYMBOL **)datum)->l;
 }
 
 
 LSYSTEM * lsystem_create () {
   LSYSTEM * l = xph_alloc (sizeof (LSYSTEM));
-  l->p = vector_create (4, sizeof (PRODUCTION *));
+  l->p = dynarr_create (4, sizeof (PRODUCTION *));
   return l;
 }
 
 void lsystem_destroy (LSYSTEM * l) {
-  void * v = NULL;
-  while (vector_size (l->p) > 0) {
-    production_destroy (vector_pop_back (v, l->p));
+  while (!dynarr_isEmpty (l->p)) {
+    production_destroy (*(PRODUCTION **)dynarr_pop (l->p));
   }
-  vector_destroy (l->p);
+  dynarr_destroy (l->p);
   xph_free (l);
 }
 
 PRODUCTION * production_create (const char l, const char * exp) {
   PRODUCTION * p = xph_alloc (sizeof (PRODUCTION));
   p->l = l;
-  p->exp = vector_create (2, sizeof (char *));
+  p->exp = dynarr_create (2, sizeof (char *));
   production_addRule (p, exp);
   return p;
 }
 
 void production_destroy (PRODUCTION * p) {
-  void * v = NULL;
-  while (vector_size (p->exp) > 0) {
-    xph_free (vector_pop_back (v, p->exp));
+  while (!dynarr_isEmpty (p->exp)) {
+    xph_free (*(char **)dynarr_pop (p->exp));
   }
-  vector_destroy (p->exp);
+  dynarr_destroy (p->exp);
   xph_free (p);
 }
 
 void production_addRule (PRODUCTION * p, const char * exp) {
   char * pexp = xph_alloc_name (strlen (exp) + 1, "PRODUCTION->exp[]");
   strcpy (pexp, exp);
-  vector_push_back (p->exp, pexp);
+  //printf ("adding rule \"%c\" -> \"%s\" (total of %d)\n", p->l, pexp, dynarr_size (p->exp) + 1);
+  dynarr_push (p->exp, pexp);
 }
 
 bool lsystem_isDefined (const LSYSTEM * l, const char s) {
-  return (vector_search (l->p, &s, production_search) == NULL)
+  return (*(char **)dynarr_search (l->p, production_search, s) == NULL)
     ? FALSE
     : TRUE;
 }
 
 PRODUCTION * lsystem_getProduction (const LSYSTEM * l, char s) {
-  return vector_search (l->p, &s, production_search);
+  return *(PRODUCTION **)dynarr_search (l->p, production_search, s);
 }
 
 int lsystem_addProduction (LSYSTEM * l, const char s, const char * p) {
   PRODUCTION * sp = lsystem_getProduction (l, s);
   if (sp == NULL) {
     sp = production_create (s, p);
-    vector_push_back (l->p, sp);
-    vector_sort (l->p, production_sort);
+    dynarr_push (l->p, sp);
+    dynarr_sort (l->p, production_sort);
   } else {
     production_addRule (sp, p);
   }
-  return vector_size (sp->exp);
+  return dynarr_size (sp->exp);
 }
 
 void lsystem_clearProductions (LSYSTEM * l, const char s) {
   PRODUCTION * sp = lsystem_getProduction (l, s);
+  int index;
   if (sp == NULL) {
     return;
   }
-  vector_remove (l->p, sp);
+  index = in_dynarr (l->p, sp);
+  if (index >= 0) {
+    dynarr_unset (l->p, index);
+    dynarr_condense (l->p);
+  }
   production_destroy (sp);
 }
 
@@ -614,21 +622,27 @@ char * lsystem_getRandProduction (const LSYSTEM * l, const char s) {
   char
     * r = NULL,
     * v = NULL;
+  //printf ("%s (%p, \'%c\')...\n", __FUNCTION__, l, s);
   if (sp == NULL) {
     r = xph_alloc_name (2, "LSYSTEM production");
     r[0] = s;
     r[1] = '\0';
     return r;
   }
-  i = vector_size (sp->exp);
+  i = dynarr_size (sp->exp);
   if (i == 1) {
-    r = xph_alloc (strlen (vector_front (v, sp->exp)) + 1);
+    v = *(char **)dynarr_front (sp->exp);
+    //printf ("got \"%s\" as the 0-th index of %p\n", v, sp->exp);
+    r = xph_alloc (strlen (v) + 1);
     strcpy (r, v);
     return r;
   }
-  i = random () % i;
-  r = xph_alloc (strlen (vector_at (v, sp->exp, i)) + 1);
+  i = rand () % i;
+  v = *(char **)dynarr_at (sp->exp, i);
+  //printf ("got \"%s\" as the %d-th index of %p\n", v, i, sp->exp);
+  r = xph_alloc (strlen (v) + 1);
   strcpy (r, v);
+  //printf ("...%s\n", __FUNCTION__);
   return r;
 }
 
@@ -643,8 +657,10 @@ char * lsystem_iterate (const char * seed, const LSYSTEM * l, int i) {
     * base = xph_alloc_name (sl + 1, "LSYSTEM base"),
     * production = NULL,
     * expansion = NULL;
+  //printf ("%s (\"%s\", %p, %d)...\n", __FUNCTION__, seed, l, i);
   strncpy (base, seed, sl + 1);
   if (i <= 0) {
+    //printf ("...%s (v. early)\n", __FUNCTION__);
     return base;
   }
   while (i-- > 0) {
@@ -668,13 +684,15 @@ char * lsystem_iterate (const char * seed, const LSYSTEM * l, int i) {
     }
     //printf ("full expansion: \"%s\"\n", expansion);
     if (strcmp (base, expansion) == 0) {
-      printf ("We're running in circles here. (\"%s\")\n", expansion);
+      //printf ("We're running in circles here. (\"%s\")\n", expansion);
       xph_free (base);
+      //printf ("...%s (early)\n", __FUNCTION__);
       return expansion;
     }
     xph_free (base);
     base = expansion;
   }
+  //printf ("...%s\n", __FUNCTION__);
   return expansion;
 }
 
@@ -682,6 +700,9 @@ int production_sort (const void * a, const void * b) {
   return (*(PRODUCTION **)a)->l - (*(PRODUCTION **)b)->l;
 }
 
-int production_search (const void * key, const void * datum) {
-  return *(char *)key - (*(PRODUCTION **)datum)->l;
+int production_search (const void * keyp, const void * datum) {
+  char
+    key;
+  memcpy (&key, keyp, 1);
+  return key - (*(PRODUCTION **)datum)->l;
 }

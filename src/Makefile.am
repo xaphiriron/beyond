@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-AM_CPPFLAGS = -Wall -Werror -DMEM_DEBUG
+AM_CPPFLAGS = -Wall -Werror -O3 -DMEM_DEBUG
 # AM_CPPFLAGS = -Wall -Werror -fprofile-generate -ftest-coverage
 # AM_LDFLAGS = -fprofile-generate -lgcov
 
@@ -16,7 +16,7 @@ bin_PROGRAMS = beyond
 #bin_PROGRAMS = beyond logo
 beyond_SOURCES =	\
   xph_memory.c xph_memory.h \
-  cpv.c cpv.h		\
+  dynarr.c dynarr.h \
   object.c object.h	\
   video.c video.h	\
   timer.c timer.h	\

@@ -99,8 +99,8 @@ void integrate (Entity e, float delta) {
 int component_integrate (Object * obj, objMsg msg, void * a, void * b) {
   const PHYSICS * physics = obj_getClassData (PhysicsObject, "physics");
   Entity e = NULL;
-  Vector * v = NULL;
-  int i = 0;
+  Dynarr v = NULL;
+  DynIterator it = NULL;
   struct integrate_data ** cd = NULL;
   switch (msg) {
     case OM_CLSNAME:
@@ -136,23 +136,25 @@ int component_integrate (Object * obj, objMsg msg, void * a, void * b) {
 
     case OM_UPDATE:
       v = entity_getEntitiesWithComponent (2, "position", "integrate");
+      it = dynIterator_create (v);
       //printf ("%s: iterating over %d entit%s that ha%s position/integrate components\n", __FUNCTION__, vector_size (v), (vector_size (v) == 1 ? "y" : "ies"), (vector_size (v) == 1 ? "s" : "ve"));
-      i = 0;
-      while (i < vector_size (v)) {
-        vector_at (e, v, i++);
+      while (!dynIterator_done (it)) {
+        e = *(Entity *)dynIterator_next (it);
         integrate (e, physics->timestep);
       }
-      vector_destroy (v);
+      dynIterator_destroy (it);
+      dynarr_destroy (v);
       return EXIT_SUCCESS;
 
     case OM_POSTUPDATE:
       v = entity_getEntitiesWithComponent (2, "position", "integrate");
-      i = 0;
-      while (i < vector_size (v)) {
-        vector_at (e, v, i++);
+      it = dynIterator_create (v);
+      while (!dynIterator_done (it)) {
+        e = *(Entity *)dynIterator_next (it);
         commitIntegration (e, physics->timestep);
       }
-      vector_destroy (v);
+      dynIterator_destroy (it);
+      dynarr_destroy (v);
       return EXIT_SUCCESS;
 
 

@@ -15,7 +15,7 @@ typedef struct camera_cache * CameraCache;
 
 struct camera_cache {
   Entity origin;	// which entity the cache has been constructed around
-  Vector * cache;	// has hex (extent) indices; contains CameraGroundLabels; values may be NULL (since a ground is not obligated to be connected in all directions)
+  Dynarr cache;	// has hex (extent) indices; contains CameraGroundLabels; values may be NULL (since a ground is not obligated to be connected in all directions)
   unsigned short extent; // how many steps outward the cache has been filled to
 };
 

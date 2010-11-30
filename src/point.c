@@ -10,7 +10,7 @@ bool point_addNoDup (POINTS v, float x, float y) {
   p.z = 0;
   p.x = x;
   p.y = y;
-  while ((vector_at (t, (Vector *)v, i++)) != NULL) {
+  while ((t = *(VECTOR3 **)dynarr_at (v, i++)) != NULL) {
     if (pointcmp (t, &p)) {
       dup = TRUE;
       break;
@@ -19,7 +19,7 @@ bool point_addNoDup (POINTS v, float x, float y) {
   if (dup == FALSE) {
     t = xph_alloc (sizeof (VECTOR3));
     *t = p;
-    vector_push_back ((Vector *)v, t);
+    dynarr_push (v, t);
     //printf ("%s: DONE; POINT ADDED\n", __FUNCTION__);
     return TRUE;
   }
@@ -36,13 +36,13 @@ bool point_findMinMax (const POINTS v, float * xminp, float * xmaxp, float * ymi
     ymax = 0;
   int i = 0;
   VECTOR3 * p = NULL;
-  if (vector_size ((Vector *)v) < 1) {
+  if (dynarr_size (v) < 1) {
     return FALSE;
   }
-  vector_at (p, (Vector *)v, i);
+  p = *(VECTOR3 **)dynarr_at (v, i);
   xmin = xmax = p->x;
   ymin = ymax = p->y;
-  while ((vector_at (p, (Vector *)v, i++)) != NULL) {
+  while ((p = *(VECTOR3 **)dynarr_at (v, i++)) != NULL) {
     //printf ("POINT #%d: %f, %f\n", i, p->x, p->y);
     if (p->x <= xmin) {
       xmin = p->x;
