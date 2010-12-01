@@ -8,14 +8,6 @@ struct ground_edge
 		rotation;	// valid only [0..5]
 };
 
-struct ground_occupant
-{
-	Entity
-		occupant;
-	short
-		r, k, i;
-};
-
 struct ground_comp
 {
 	struct ground_edge
@@ -267,16 +259,17 @@ bool ground_placeOnTile (Entity groundEntity, short r, short k, short i, Entity 
 		pdata = component_getData (entity_getAs (e, "position"));
 	GroundMap
 		map = component_getData (entity_getAs (groundEntity, "ground"));
-	Hex
-		h;
+	struct ground_occupant
+		* o;
 	if (pdata == NULL || map == NULL || map->size < r)
 		return FALSE;
 	position_set (e, hex_coordOffset (r, k, i), groundEntity);
-	h = ground_getHexatCoord (map, r, k, i);
-/*
-	if (h != NULL)
-		hex_addOccupant (h, e);
-*/
+	o = xph_alloc (sizeof (struct ground_occupant));
+	o->occupant = e;
+	o->r = r;
+	o->k = k;
+	o->i = i;
+	dynarr_push (map->occupants, o);
 	return TRUE;
 }
 
@@ -364,15 +357,14 @@ static GroundMap ground_create () {
   g->tiles = NULL;
   g->size = -1;
   g->border = BORDER_VOID;
+  g->occupants = dynarr_create (1, sizeof (struct ground_occupant *));
   return g;
 }
 
-static void ground_destroy (GroundMap g) {
-  int
-    i = 0,
-    s = hex (g->size),
-    missing = -1;
-  struct hex * h = NULL;
+static void ground_destroy (GroundMap g)
+{
+	int
+		i = 0;
   if (g->tiles == NULL) {
     xph_free (g);
     return;
@@ -384,33 +376,11 @@ static void ground_destroy (GroundMap g) {
     }
     i++;
   }
-  i = 0;
-  while (i < s) {
-    h = *(struct hex **)dynarr_at (g->tiles, i++);
-    if (h == NULL) {
-      if (missing < 0) {
-        missing = i - 1;
-      }
-      continue;
-    } else if (missing > 0) {
-      if (missing == i - 2) {
-        printf ("\033[31m%s (%p): missing hex on offset %d.\033[0m\n", __FUNCTION__, g, missing);
-      } else {
-        printf ("\033[1;31m%s (%p): missing hex on offsets %d through %d.\033[0m\n", __FUNCTION__, g, missing, i - 2);
-      }
-      missing = -1;
-    }
-    hex_destroy (h);
-  }
-  if (missing > 0) {
-    if (missing == i - 2) {
-      printf ("\033[31m%s (%p): missing hex on offset %d.\033[0m\n", __FUNCTION__, g, missing);
-    } else {
-      printf ("\033[1;31m%s (%p): missing hex on offsets %d through %d.\033[0m\n", __FUNCTION__, g, missing, i - 2);
-    }
-  }
-  dynarr_destroy (g->tiles);
-  xph_free (g);
+	dynarr_wipe (g->tiles, (void (*)(void *))hex_destroy);
+	dynarr_wipe (g->occupants, xph_free);
+	dynarr_destroy (g->tiles);
+	dynarr_destroy (g->occupants);
+	xph_free (g);
 }
 
 

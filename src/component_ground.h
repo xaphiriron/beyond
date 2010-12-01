@@ -28,6 +28,15 @@ typedef struct ground_comp * GroundMap;
 typedef struct ground_location * GroundLoc;
 */
 
+struct ground_occupant
+{
+	Entity
+		occupant;
+	short
+		r, k, i;
+};
+
+
 // link a<->b with the given direction and rotation (relative to a)
 bool ground_link (Entity a, Entity b, int direction, int rotation);
 Entity ground_getEdgeConnection (const GroundMap m, short i);
