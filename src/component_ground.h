@@ -24,15 +24,21 @@ struct ground_edge_traversal
 #include "component_position.h"
 
 typedef struct ground_comp * GroundMap;
+/*
 typedef struct ground_location * GroundLoc;
+*/
 
 // link a<->b with the given direction and rotation (relative to a)
 bool ground_link (Entity a, Entity b, int direction, int rotation);
 Entity ground_getEdgeConnection (const GroundMap m, short i);
 unsigned short ground_getEdgeRotation (const GroundMap m, short i);
 
+Dynarr ground_getOccupants (GroundMap m);
+
 VECTOR3 ground_distanceBetweenAdjacentGrounds (int size, int direction);
+/*
 GroundLoc ground_calculateLocationDistance (const GroundMap g, int edgesPassed, ...);
+*/
 short ground_getMapSize (const GroundMap g);
 struct hex * ground_getHexAtOffset (GroundMap g, int o);
 short ground_getTileAdjacencyIndex (const Entity groundEntity, short r, short k, short i);
@@ -45,6 +51,7 @@ short ground_getTileAdjacencyIndex (const Entity groundEntity, short r, short k,
  * or FALSE if there is no valid update possible (no adjacent ground)
  */
 bool ground_bridgeConnections (const Entity groundEntity, Entity e);
+bool ground_placeOnTile (Entity groundEntity, short r, short k, short i, Entity e);
 
 void ground_bakeTiles (Entity g_entity);
 struct hex * ground_getHexatCoord (GroundMap g, short r, short k, short i);

@@ -1,24 +1,46 @@
 #include "component_ground.h"
 
-struct ground_edge {
-  Entity next;			// (an entity with a ground component)
-  unsigned short rotation;	// valid only [0..5]
+struct ground_edge
+{
+	Entity
+		next;		// (an entity with a ground component)
+	unsigned short
+		rotation;	// valid only [0..5]
 };
 
-struct ground_comp {
-  struct ground_edge * edges[6];
-  Dynarr tiles;
-  int size;
-  enum border_type {
-    BORDER_VOID,	// a non-connected edge is a bottomless pit
-    BORDER_WALL		// a non-connected edge is an infinitely-tall wall
-  } border;
+struct ground_occupant
+{
+	Entity
+		occupant;
+	short
+		r, k, i;
 };
 
-struct ground_location {
-  VECTOR3 distance;
-  unsigned short rotation;
+struct ground_comp
+{
+	struct ground_edge
+		* edges[6];
+	Dynarr
+		tiles,
+		occupants;
+	int
+		size;
+	enum border_type
+	{					// THIS ISN'T USED YET.
+		BORDER_VOID,	// a non-connected edge is a bottomless pit
+		BORDER_WALL		// a non-connected edge is an infinitely-tall wall
+	} border;
 };
+
+/*
+struct ground_location
+{
+	VECTOR3
+		distance;
+	unsigned short
+		rotation;
+};
+*/
 
 static GroundMap ground_create ();
 static void ground_destroy (GroundMap g);
@@ -102,6 +124,11 @@ unsigned short ground_getEdgeRotation (const GroundMap m, short i)
 	return m->edges[i]->rotation;
 }
 
+Dynarr ground_getOccupants (GroundMap m)
+{
+	assert (m != NULL);
+	return m->occupants;
+}
 
 /***
  * WORLD GEOMETRY AND COORDINATE VALUES
@@ -128,6 +155,7 @@ VECTOR3 ground_distanceBetweenAdjacentGrounds (int size, int dir) {
   return r;
 }
 
+/*
 GroundLoc ground_calculateLocationDistance (const GroundMap g, int edgesPassed, ...) {
   GroundMap
     t = g,
@@ -159,6 +187,7 @@ GroundLoc ground_calculateLocationDistance (const GroundMap g, int edgesPassed, 
   va_end (edgeIndices);
   return l;
 }
+*/
 
 short ground_getMapSize (const GroundMap g)
 {
@@ -229,6 +258,25 @@ bool ground_bridgeConnections (const Entity groundEntity, Entity e)
 	trav->rotIndex = g->edges[dir]->rotation;
 	component_messageEntity (p, "GROUND_EDGE_TRAVERSAL", trav);
 	xph_free (trav);
+	return TRUE;
+}
+
+bool ground_placeOnTile (Entity groundEntity, short r, short k, short i, Entity e)
+{
+	positionComponent
+		pdata = component_getData (entity_getAs (e, "position"));
+	GroundMap
+		map = component_getData (entity_getAs (groundEntity, "ground"));
+	Hex
+		h;
+	if (pdata == NULL || map == NULL || map->size < r)
+		return FALSE;
+	position_set (e, hex_coordOffset (r, k, i), groundEntity);
+	h = ground_getHexatCoord (map, r, k, i);
+/*
+	if (h != NULL)
+		hex_addOccupant (h, e);
+*/
 	return TRUE;
 }
 

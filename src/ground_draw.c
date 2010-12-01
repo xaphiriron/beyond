@@ -275,6 +275,12 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
     i = 0;
   float
     red, green, blue;
+	DynIterator
+		it;
+	Dynarr
+		occupants;
+	Entity
+		occupant;
   struct hex * h = NULL;
   if (g_entity == NULL || g_label == NULL || g_label->this != g_entity) {
     fprintf (stderr, "%s (#%d, %p): nonexistant entity, invalid label, or label does not match ground.\n", __FUNCTION__, entity_GUID (g_entity), g_label);
@@ -299,6 +305,16 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
     }
     i++;
   }
+	occupants = ground_getOccupants (g);
+	if (dynarr_isEmpty (occupants))
+		return;
+	it = dynIterator_create (occupants);
+	while (!dynIterator_done (it))
+	{
+		occupant = *(Entity *)dynIterator_next (it);
+		entity_message (occupant, "RENDER", NULL);
+	}
+	dynIterator_destroy (it);
 }
 
 void ground_draw_fill (Entity origin, Entity camera, int stepsOutward) {

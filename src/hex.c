@@ -254,7 +254,6 @@ struct hex * hex_create (short r, short k, short i, float height) {
   hex_rki2xy (r, k, i, &h->x, &h->y);
   hex_setSlope (h, HEX_TOP, height, height, height);
   hex_setSlope (h, HEX_BASE, -1.0, -1.0, -1.0);
-  h->entitiesOccupying = NULL;
   memset (h->neighbors, '\0', sizeof (struct hex *) * 6);
   memset (h->neighborRot, '\0', sizeof (short) * 6);
   memset (h->edgeDepth, '\0', sizeof (float) * 12);
@@ -263,9 +262,6 @@ struct hex * hex_create (short r, short k, short i, float height) {
 }
 
 void hex_destroy (struct hex * h) {
-  if (h->entitiesOccupying != NULL) {
-    dynarr_destroy (h->entitiesOccupying);
-  }
   xph_free (h);
 }
 

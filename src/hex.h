@@ -7,7 +7,6 @@
 #include "xph_memory.h"
 
 #include "vector.h"
-#include "dynarr.h"
 
 extern const int H[6][2];
 extern const char XY[6][2];
@@ -24,8 +23,6 @@ struct hex {
 		top, topA, topB,
 		base, baseA, baseB,
 		edgeDepth[12];
-	Dynarr
-		entitiesOccupying;
 	short
 		neighborRot[6],
 		r, k, i,	// polar coordinates from center of ground
