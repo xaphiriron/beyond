@@ -158,20 +158,31 @@ void position_rotateOnMouseInput (Entity e, const struct input_event * ie)
 		pdata = NULL;
 	QUAT
 		q;
+	float
+		mag;
 	int
-		sq;
+		sq,
+		xrel,
+		yrel;
 	if (ie->event->type != SDL_MOUSEMOTION)
 		return;
 	pdata = component_getData (entity_getAs (e, "position"));
 	if (pdata == NULL)
 		return;
-	sq = ie->event->motion.xrel * ie->event->motion.xrel + ie->event->motion.yrel * ie->event->motion.yrel;
-	if (sq > 200)
+	xrel = ie->event->motion.xrel;
+	yrel = ie->event->motion.yrel;
+	sq = xrel * xrel + yrel * yrel;
+	if (sq > 2500)
+	{
+		mag = 50.0 / sqrt (sq);
+		xrel *= mag;
+		yrel *= mag;
 		return;
+	}
 	//printf ("aaaah mousemotion!  xrel: %d; yrel: %d\n", ie->event->motion.xrel, ie->event->motion.yrel);
 	q = quat_eulerToQuat (
-		ie->event->motion.yrel * pdata->sensitivity,
-		ie->event->motion.xrel * pdata->sensitivity,
+		yrel * pdata->sensitivity,
+		xrel * pdata->sensitivity,
 		0
 	);
 	pdata->orientation = quat_multiply (&q, &pdata->orientation);
@@ -179,6 +190,8 @@ void position_rotateOnMouseInput (Entity e, const struct input_event * ie)
 	//printf ("view quat: %7.2f, %7.2f, %7.2f, %7.2f\n", cdata->viewQuat.w, cdata->viewQuat.x, cdata->viewQuat.y, cdata->viewQuat.z);
 }
 
+
+// THESE CALCULATIONS WERE WRITTEN BEFORE THE ORIENTATION QUATERNION EXISTED. THIS FUNCTION WILL NOT WORK UNLESS IT IS UPDATED TO ROTATE THE ORIENTATION QUATERNION. DO NOT USE IT.
 bool position_rotateAroundGround (Entity e, float rotation)
 {
 	positionComponent pdata = component_getData (entity_getAs (e, "position"));
@@ -197,7 +210,6 @@ bool position_rotateAroundGround (Entity e, float rotation)
 	{
 		return FALSE;
 	}
-	// THESE CALCULATIONS WERE WRITTEN BEFORE THE ORIENTATION QUATERNION EXISTED. THIS FUNCTION WILL NOT WORK UNLESS IT IS UPDATED TO ROTATE THE ORIENTATION QUATERNION. DO NOT USE IT.
 	//printf ("%s (#%d, %5.2f)\n", __FUNCTION__, entity_GUID (e), rotation);
 	new = vectorMultiplyByMatrix (&pdata->pos, m);
 	pdata->pos = new;
