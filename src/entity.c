@@ -112,6 +112,32 @@ bool entity_exists (unsigned int guid) {
   return TRUE;
 }
 
+bool entity_message (Entity e, char * message, void * arg)
+{
+	Component
+		t;
+	struct comp_message
+		* msg;
+	DynIterator
+		it;
+	if (e == NULL)
+		return FALSE;
+	msg = xph_alloc (sizeof (struct comp_message));
+	msg->from = NULL;
+	msg->to = NULL;
+	msg->message = message;
+	it = dynIterator_create (e->components);
+	while (!dynIterator_done (it))
+	{
+		t = *(Component *)dynIterator_next (it);
+		msg->to = t;
+		obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, msg, arg);
+	}
+	dynIterator_destroy (it);
+	xph_free (msg);
+	return TRUE;
+}
+
 unsigned int entity_GUID (const Entity e) {
   return e->guid;
 }
@@ -170,7 +196,7 @@ Dynarr entity_getEntitiesWithComponent (int n, ...) {
     c = *(Component *)dynarr_front (components[j]);
     if (c == NULL) {
       // it's impossible to have any intersection, since there are no entities with this component. Therefore, we can just return the empty vector.
-      printf ("%s: intersection impossible; no entities have component \"%s\"\n", __FUNCTION__, comp_names[j]);
+      //printf ("%s: intersection impossible; no entities have component \"%s\"\n", __FUNCTION__, comp_names[j]);
       xph_free (comp_names);
       xph_free (components);
       xph_free (indices);

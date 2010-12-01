@@ -20,6 +20,8 @@ Entity entity_create ();
 void entity_destroy (Entity e);
 bool entity_exists (unsigned int guid);
 
+bool entity_message (Entity e, char * message, void * arg);
+
 unsigned int entity_GUID (const Entity e);
 Component entity_getAs (Entity e, const char * comp_name);
 
