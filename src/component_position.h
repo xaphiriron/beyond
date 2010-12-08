@@ -16,7 +16,7 @@ typedef struct position_data * positionComponent;
 typedef struct axes
 {
 	VECTOR3
-		forward,
+		front,
 		side,
 		up;
 } AXES;
@@ -48,7 +48,7 @@ void position_rotateOnMouseInput (Entity e, const struct input_event * ie);
 bool position_rotateAroundGround (Entity e, float rotation);
 void position_updateOnEdgeTraversal (Entity e, struct ground_edge_traversal * t);
 
-VECTOR3 position_getLocalOffset (const positionComponent p);
+VECTOR3 position_getLocalOffset (const Entity e);
 Entity position_getGroundEntity (const positionComponent p);
 
 int component_position (Object * obj, objMsg msg, void * a, void * b);

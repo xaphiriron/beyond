@@ -13,52 +13,6 @@ void position_set (Entity e, VECTOR3 pos, Entity mapEntity)
 	pdata->pos = pos;
 	pdata->mapEntity = mapEntity;
 }
-/*
-void setPosition (Entity e, VECTOR3 pos, GroundMap map) {
-  struct position_data * pdata = component_getData (entity_getAs (e, "position"));
-  if (pdata == NULL) {
-    return;
-  }
-  pdata->pos = pos;
-  pdata->mapLabel = map;
-
-*
-  prev = pdata->tileOccupying;
-  if (WorldObject != NULL) {
-    w = obj_getClassData (WorldObject, "world");
-    pdata->tileOccupying = map_hex_at_point (w->map, pos.x, pos.z);
-    /
-    if (pdata->tileOccupying != NULL) {
-      printf ("entity #%d: over tile coordinate %d,%d {%d %d %d}\n", e->guid, pdata->tileOccupying->x, pdata->tileOccupying->y, pdata->tileOccupying->r, pdata->tileOccupying->k, pdata->tileOccupying->i);
-    }
-    /
-  } else {
-    pdata->tileOccupying = NULL;
-  }
-  if (pdata->tileOccupying == NULL && prev != NULL) {
-    fprintf (stderr, "%s: Entity #%d fell out of the world somehow. Prior tile: %p, @ %d,%d\n", __FUNCTION__, entity_GUID (e), prev, prev->x, prev->y);
-    vector_destroy (pdata->tileFootprint);
-    pdata->tileFootprint = NULL;
-    if (cdata) {
-      cdata->onStableGround = FALSE;
-    }
-  }
-  if (pdata->tileOccupying != NULL && pdata->tileOccupying != prev) {
-    // we're assuming here that objects will be spherical enough so that a rotation around any axis won't change its footprint. this is not a reasonable assumption, and it means either 1) specifying a very large footprint for long, thin objects or 2) rewriting this to update footprint on rotation, not just translation.
-    // we're also assuming no object will be larger than two tiles around. again, not reasonable. fix later.
-    // (2010-09-27 - xph)
-    if (pdata->tileFootprint != NULL) {
-      vector_destroy (pdata->tileFootprint);
-    }
-    pdata->tileFootprint = map_adjacent_tiles (w->map, pdata->tileOccupying->x, pdata->tileOccupying->y);
-    vector_push_back (pdata->tileFootprint, pdata->tileOccupying);
-    if (cdata) {
-      cdata->onStableGround = FALSE;
-    }
-  }
-  *
-}
-*/
 
 bool position_move (Entity e, VECTOR3 move)
 {
@@ -134,21 +88,22 @@ void position_updateAxesFromOrientation (Entity e)
 	pdata->view.up.z =			// [9]
 		2 * r.y * r.z -
 		2 * r.w * r.x;
-	pdata->view.forward.x =		// [2]
+	pdata->view.front.x =		// [2]
 		2 * r.x * r.z -
 		2 * r.w * r.y;
-	pdata->view.forward.y =		// [6]
-		2 * r.y * r.z -
+	pdata->view.front.y =		// [6]
+		2 * r.y * r.z +
 		2 * r.w * r.x;
-	pdata->view.forward.z =		// [10]
+	pdata->view.front.z =		// [10]
 		1 -
 		2 * r.x * r.x -
 		2 * r.y * r.y;
-	pdata->move.forward = vectorCross (&pdata->view.side, &pdata->move.up);
-	pdata->move.forward = vectorNormalize (&pdata->move.forward);
-	pdata->move.side = vectorCross (&pdata->move.up, &pdata->view.forward);
+	pdata->move.front = vectorCross (&pdata->view.side, &pdata->move.up);
+	pdata->move.front = vectorNormalize (&pdata->move.front);
+	pdata->move.side = vectorCross (&pdata->move.up, &pdata->view.front);
 	pdata->move.side = vectorNormalize (&pdata->move.side);
 	pdata->move.up = vectorCreate (0, 1, 0);
+	pdata->orientation = quat_normalize (&pdata->orientation);
 	pdata->dirty = FALSE;
 }
 
@@ -159,7 +114,8 @@ void position_rotateOnMouseInput (Entity e, const struct input_event * ie)
 	QUAT
 		q;
 	float
-		mag;
+		mag,
+		newPitch;
 	int
 		sq,
 		xrel,
@@ -179,13 +135,32 @@ void position_rotateOnMouseInput (Entity e, const struct input_event * ie)
 		yrel *= mag;
 		return;
 	}
-	//printf ("aaaah mousemotion!  xrel: %d; yrel: %d\n", ie->event->motion.xrel, ie->event->motion.yrel);
+	//position_updateAxesFromOrientation (e);
+	// ^ we manually recalculate the one orientation axis value (front y component) we care about right here, instead of updating every single one
+	newPitch =
+		(pdata->orientation.y * pdata->orientation.z +
+		pdata->orientation.w * pdata->orientation.x) * 180.0;
+	newPitch += yrel * pdata->sensitivity;
+	//printf ("front: %7.3f, %7.3f, %7.3f\n", pdata->view.front.x, pdata->view.front.y, pdata->view.front.z);
+	//printf ("pitch: %7.3f\n", newPitch);
+	if (newPitch < 90.0 && newPitch > -90.0)
+	{
+		// pitch relative to the object's axes
+		q = quat_eulerToQuat (
+			yrel * pdata->sensitivity,
+			0,
+			0
+		);
+		pdata->orientation = quat_multiply (&q, &pdata->orientation);
+	}
+	// (roll would also be relative to the world axis, if it's ever added)
+	// heading relative to the world's axes
 	q = quat_eulerToQuat (
-		yrel * pdata->sensitivity,
+		0,
 		xrel * pdata->sensitivity,
 		0
 	);
-	pdata->orientation = quat_multiply (&q, &pdata->orientation);
+	pdata->orientation = quat_multiply (&pdata->orientation, &q);
 	pdata->dirty = TRUE;
 	//printf ("view quat: %7.2f, %7.2f, %7.2f, %7.2f\n", cdata->viewQuat.w, cdata->viewQuat.x, cdata->viewQuat.y, cdata->viewQuat.z);
 }
@@ -206,15 +181,24 @@ bool position_rotateAroundGround (Entity e, float rotation)
 			sin (rad), 0, cos (rad), 0,
 			0, 0, 0, 1
 		};
+/*
+	QUAT
+		q;
+*/
 	if (pdata == NULL)
 	{
 		return FALSE;
 	}
+/*
+	q = quat_eulerToQuat (0, rotation, 0);
+	pdata->orientation = quat_multiply (&pdata->orientation, &q);
+	^ this might be a fix for orientation that works with quaternions
+ */
 	//printf ("%s (#%d, %5.2f)\n", __FUNCTION__, entity_GUID (e), rotation);
 	new = vectorMultiplyByMatrix (&pdata->pos, m);
 	pdata->pos = new;
-	new = vectorMultiplyByMatrix (&pdata->view.forward, m);
-	pdata->view.forward = new;
+	new = vectorMultiplyByMatrix (&pdata->view.front, m);
+	pdata->view.front = new;
 	new = vectorMultiplyByMatrix (&pdata->view.side, m);
 	pdata->view.side = new;
 	new = vectorMultiplyByMatrix (&pdata->view.up, m);
@@ -240,9 +224,13 @@ void position_updateOnEdgeTraversal (Entity e, struct ground_edge_traversal * t)
 	}
 }
 
-VECTOR3 position_getLocalOffset (const positionComponent p)
+VECTOR3 position_getLocalOffset (const Entity e)
 {
-	return p->pos;
+	struct position_data
+		* pdata = component_getData (entity_getAs (e, "position"));
+	if (pdata == NULL)
+		return vectorCreate (0, 0, 0);
+	return pdata->pos;
 }
 
 Entity position_getGroundEntity (const positionComponent p)
@@ -285,8 +273,8 @@ int component_position (Object * obj, objMsg msg, void * a, void * b) {
       (*cd)->move.side = vectorCreate (1.0, 0.0, 0.0);
       (*cd)->view.up = vectorCreate (0.0, 1.0, 0.0);
       (*cd)->move.up = vectorCreate (0.0, 1.0, 0.0);
-      (*cd)->view.forward = vectorCreate (0.0, 0.0, 1.0);
-      (*cd)->move.forward = vectorCreate (0.0, 0.0, 1.0);
+      (*cd)->view.front = vectorCreate (0.0, 0.0, 1.0);
+      (*cd)->move.front = vectorCreate (0.0, 0.0, 1.0);
       (*cd)->orientation = quat_create (1.0, 0.0, 0.0, 0.0);
       (*cd)->sensitivity = 0.20;
       //(*cd)->tileOccupying = NULL;

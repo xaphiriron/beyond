@@ -170,7 +170,7 @@ void camera_update (Entity e)
 	radians = -(ground_getLabelRotation (cdata->l) * 60.0) / 180.0 * M_PI;
 	side = pdata->view.side;
 	up = pdata->view.up;
-	forward = pdata->view.forward;
+	forward = pdata->view.front;
 	if (!fcmp (radians, 0.0))
 	{
 		//printf ("%s: camera object on rotated ground. rotating axes BACK by %5.2f\n", __FUNCTION__, -ground_getLabelRotation (cdata->l) * 60.0);
@@ -204,15 +204,15 @@ void camera_update (Entity e)
 		position_updateAxesFromOrientation (e);
 	cdata->m[0] = pdata->view.side.x;
 	cdata->m[1] = pdata->view.up.x;
-	cdata->m[2] = pdata->view.forward.x;
+	cdata->m[2] = pdata->view.front.x;
 	cdata->m[3] = 0;
 	cdata->m[4] = pdata->view.side.y;
 	cdata->m[5] = pdata->view.up.y;
-	cdata->m[6] = pdata->view.forward.y;
+	cdata->m[6] = pdata->view.front.y;
 	cdata->m[7] = 0;
 	cdata->m[8] = pdata->view.side.z;
 	cdata->m[9] = pdata->view.up.z;
-	cdata->m[10] = pdata->view.forward.z;
+	cdata->m[10] = pdata->view.front.z;
 	cdata->m[11] = 0.0;
 
 	cdata->m[12] =

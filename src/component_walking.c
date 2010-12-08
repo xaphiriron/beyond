@@ -84,11 +84,11 @@ void walk_move (Entity e) {
   }
 
   if (wdata->dirsActive & WALK_MOVE_FORWARD) {
-    move = vectorMultiplyByScalar (&pdata->move.forward, -wdata->moveSpd);
+    move = vectorMultiplyByScalar (&pdata->move.front, -wdata->moveSpd);
     moveDirs = vectorAdd (&moveDirs, &move);
     dirs++;
   } else if (wdata->dirsActive & WALK_MOVE_BACKWARD) {
-    move = vectorMultiplyByScalar (&pdata->move.forward, wdata->moveSpd);
+    move = vectorMultiplyByScalar (&pdata->move.front, wdata->moveSpd);
     moveDirs = vectorAdd (&moveDirs, &move);
     dirs++;
   }
