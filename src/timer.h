@@ -35,15 +35,15 @@ void clock_destroy (CLOCK *);
 
 void clock_update (CLOCK *);
 
-TIMER * timer_create (CLOCK * c, float scale);
-void timer_destroy (TIMER *);
-void timer_update (TIMER *);
+TIMER * xtimer_create (CLOCK * c, float scale);
+void xtimer_destroy (TIMER *);
+void xtimer_update (TIMER *);
 
-float timer_timeElapsed (const TIMER * t);
-float timer_timeSinceLastUpdate (const TIMER * t);
+float xtimer_timeElapsed (const TIMER * t);
+float xtimer_timeSinceLastUpdate (const TIMER * t);
 
-void timer_updateAll ();
+void xtimer_updateAll ();
 
-void timer_destroyTimerRegistry ();
+void xtimer_destroyTimerRegistry ();
 
 #endif /* TIMER_H */

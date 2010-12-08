@@ -12,7 +12,7 @@ SYSTEM * system_create () {
 }
 
 void system_destroy (SYSTEM * s) {
-  timer_destroyTimerRegistry ();
+  xtimer_destroyTimerRegistry ();
   clock_destroy (s->clock);
   xph_free (s);
 }
@@ -68,7 +68,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b) {
       obj_create ("video", SystemObject,
         NULL, NULL);
       obj_create ("physics", SystemObject,
-        accumulator_create (timer_create (s->clock, 1.0), 0.03), NULL);
+        accumulator_create (xtimer_create (s->clock, 1.0), 0.03), NULL);
       obj_create ("world", SystemObject,
         NULL, NULL);
 
@@ -123,7 +123,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b) {
 
     case OM_UPDATE:
       clock_update (s->clock);
-      timer_updateAll ();
+      xtimer_updateAll ();
       obj_halt ();
       return EXIT_SUCCESS;
 
