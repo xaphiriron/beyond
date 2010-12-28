@@ -102,9 +102,9 @@ struct input * input_create ()
 
 void input_destroy (struct input * i)
 {
-	dynarr_wipe (i->keysPressed, xph_free);
 	dynarr_wipe (i->controlMap, (void (*)(void *))keys_destroy);
 /*
+	dynarr_wipe (i->keysPressed, xph_free);
 	vector_wipe (i->activeEvents, (void (*)(void *))input_destroyEvent);
 	vector_wipe (i->overriddenEvents, (void (*)(void *))input_destroyEvent);
 */
