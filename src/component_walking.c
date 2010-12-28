@@ -6,6 +6,7 @@ struct walkmove_data {
     turnSpd;
 
   int dirsActive;
+  bool automoveActive;
 };
 
 // the MOVE value is as follows: a value of 1 will result in the entity crossing tiles at a speed of one per second. 2 is two per second. etc.
@@ -15,6 +16,7 @@ walkingComponent walking_create (float move, float turn)
 	w->moveSpd = fabs (move) * 60.0;
 	w->turnSpd = fabs (turn);
 	w->dirsActive = 0;
+	w->automoveActive = FALSE;
 	return w;
 }
 
@@ -107,12 +109,29 @@ void walk_move (Entity e) {
 
 void walking_doControlInputResponse (Entity e, const struct input_event * ie)
 {
+	walkingComponent
+		wdata = component_getData (entity_getAs (e, "walking"));
+	if (wdata == NULL)
+		return;
 	switch (ie->ir)
 	{
+		case IR_AVATAR_AUTOMOVE:
+			if (wdata->automoveActive)
+				walking_end_movement (e, WALK_MOVE_FORWARD);
+			else
+				walking_begin_movement (e, WALK_MOVE_FORWARD);
+			wdata->automoveActive ^= 1;
+			break;
 		case IR_AVATAR_MOVE_FORWARD:
+			wdata->automoveActive = FALSE;
 			walking_begin_movement (e, WALK_MOVE_FORWARD);
 			break;
 		case IR_AVATAR_MOVE_BACKWARD:
+			if (wdata->automoveActive)
+			{
+				walking_end_movement (e, WALK_MOVE_FORWARD);
+				wdata->automoveActive = FALSE;
+			}
 			walking_begin_movement (e, WALK_MOVE_BACKWARD);
 			break;
 		case IR_AVATAR_MOVE_LEFT:

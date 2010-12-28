@@ -97,6 +97,7 @@ struct input * input_create ()
 	dynarr_assign (i->controlMap, IR_AVATAR_MOVE_RIGHT, keys_create (1, SDLK_RIGHT));
 	dynarr_assign (i->controlMap, IR_AVATAR_MOVE_FORWARD, keys_create (1, SDLK_UP));
 	dynarr_assign (i->controlMap, IR_AVATAR_MOVE_BACKWARD, keys_create (1, SDLK_DOWN));
+	dynarr_assign (i->controlMap, IR_AVATAR_AUTOMOVE, keys_create (1, SDLK_q));
 	return i;
 }
 
