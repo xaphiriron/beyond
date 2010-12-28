@@ -22,7 +22,7 @@ void camera_drawCursor (const Entity e)
 */
 	if (!video_getDimensions (&width, &height))
 		return;
-	zNear = video_getZnear ();
+	zNear = video_getZnear () - 0.001;
 	centerHeight = height / 2;
 	centerWidth = width / 2;
 	halfTexHeight = 4;//texture_pxHeight (t) / 2;
