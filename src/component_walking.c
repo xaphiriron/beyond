@@ -185,53 +185,68 @@ void walking_doControlInputResponse (Entity e, const struct input_event * ie)
 	}
 }
 
-int component_walking (Object * o, objMsg msg, void * a, void * b) {
-  walkingComponent * wd;
-  char * message = NULL;
-  Component c = NULL;
-  int i = 0;
-  Dynarr v = NULL;
-  Entity
-    e = NULL,
-    ce = NULL;
-  switch (msg) {
-    case OM_CLSNAME:
-      strncpy (a, "walking", 32);
-      return EXIT_SUCCESS;
-    case OM_CLSINIT:
-    case OM_CLSFREE:
-    case OM_CLSVARS:
-    case OM_CREATE:
-      return EXIT_FAILURE;
-    default:
-      break;
-  }
-  switch (msg) {
-    case OM_SHUTDOWN:
-    case OM_DESTROY:
-      obj_destroy (o);
-      return EXIT_SUCCESS;
-
-    case OM_COMPONENT_INIT_DATA:
-      wd = a;
-      *wd = walking_create (3.0, 2.0);
-      return EXIT_SUCCESS;
-
-    case OM_COMPONENT_DESTROY_DATA:
-      wd = a;
-      walking_destroy (*wd);
-      *wd = NULL;
-      return EXIT_SUCCESS;
-
-    case OM_UPDATE:
-      v = entity_getEntitiesWithComponent (2, "walking", "position");
-      i = 0;
-      while (i < dynarr_size (v)) {
-        e = *(Entity *)dynarr_at (v, i++);
-        walk_move (e);
-      }
-      dynarr_destroy (v);
-      return EXIT_SUCCESS;
+static Dynarr
+	comp_entdata = NULL;
+int component_walking (Object * o, objMsg msg, void * a, void * b)
+{
+	walkingComponent
+		* wd;
+	char
+		* message = NULL;
+	Component
+		c = NULL;
+	DynIterator
+		it = NULL;
+	Entity
+		e = NULL,
+		ce = NULL;
+	switch (msg)
+	{
+		case OM_CLSNAME:
+			strncpy (a, "walking", 32);
+			return EXIT_SUCCESS;
+		case OM_CLSINIT:
+			comp_entdata = dynarr_create (8, sizeof (Entity));
+			return EXIT_SUCCESS;
+		case OM_CLSFREE:
+			dynarr_destroy (comp_entdata);
+			comp_entdata = NULL;
+			return EXIT_SUCCESS;
+		case OM_CLSVARS:
+		case OM_CREATE:
+			return EXIT_FAILURE;
+		default:
+			break;
+	}
+	switch (msg)
+	{
+		case OM_SHUTDOWN:
+		case OM_DESTROY:
+			obj_destroy (o);
+			return EXIT_SUCCESS;
+		case OM_COMPONENT_INIT_DATA:
+			e = (Entity)b;
+			wd = a;
+			*wd = walking_create (3.0, 2.0);
+			dynarr_push (comp_entdata, e);
+			return EXIT_SUCCESS;
+		case OM_COMPONENT_DESTROY_DATA:
+			e = (Entity)b;
+			wd = a;
+			walking_destroy (*wd);
+			*wd = NULL;
+			dynarr_remove_condense (comp_entdata, e);
+			return EXIT_SUCCESS;
+		case OM_UPDATE:
+			it = dynIterator_create (comp_entdata);
+			while (!dynIterator_done (it))
+			{
+				e = *(Entity *)dynIterator_next (it);
+				walk_move (e);
+			}
+			dynIterator_destroy (it);
+			it = NULL;
+			return EXIT_SUCCESS;
 
 		case OM_POSTUPDATE:
 			return EXIT_FAILURE;
