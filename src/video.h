@@ -10,22 +10,23 @@
 extern Object * VideoObject;
 
 typedef struct video {
+  float
+    near,
+    far,
+    resolution;
+  char
+    * title,
+    * icon;
   unsigned int
     height,
     width;
   bool
     orthographic,
     doublebuffer;
-  float resolution;
-  char
-    * title,
-    * icon;
-  float
-    near,
-    far;
 
   unsigned int SDLmode;
   SDL_Surface * screen;
+
 } VIDEO;
 
 VIDEO * video_create ();
