@@ -14,8 +14,9 @@ libline_la_SOURCES = line.c line.h
 
 bin_PROGRAMS = beyond
 #bin_PROGRAMS = beyond logo
-beyond_SOURCES =	\
+beyond_SOURCES = \
   xph_memory.c xph_memory.h \
+  shapes.c shapes.h \
   dynarr.c dynarr.h \
   object.c object.h	\
   video.c video.h	\
@@ -29,6 +30,7 @@ beyond_SOURCES =	\
   component_camera.c component_camera.h		\
   component_input.c component_input.h		\
   component_walking.c component_walking.h	\
+  component_plant.c component_plant.h		\
   hex.c hex.h		\
   hex_draw.c hex_draw.h	\
   ground_draw.c ground_draw.h \

@@ -55,10 +55,12 @@ int system_handler (Object * o, objMsg msg, void * a, void * b) {
 //      entity_registerComponentAndSystem (component_collide);
       entity_registerComponentAndSystem (component_walking);
       entity_registerComponentAndSystem (component_input);
+      entity_registerComponentAndSystem (component_plant);
 
       // this order DOES matter, since this is the order they're updated later.
       entitySubsystem_store ("position");
       entitySubsystem_store ("ground");
+      entitySubsystem_store ("plant");
       entitySubsystem_store ("walking");
 //      entitySubsystem_store ("integrate");
       entitySubsystem_store ("camera");

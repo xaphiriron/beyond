@@ -10,7 +10,8 @@ WORLD * world_create ()
 		groundG = NULL,
 		groundH = NULL,
 		groundI = NULL,
-		camera = NULL;
+		camera = NULL,
+		plant = NULL;
 	GroundMap
 		g = NULL,
 		h = NULL,
@@ -27,101 +28,104 @@ WORLD * world_create ()
 	g = component_getData (entity_getAs (groundG, "ground"));
 	h = component_getData (entity_getAs (groundH, "ground"));
 	i = component_getData (entity_getAs (groundI, "ground"));
-	if (g != NULL && h != NULL && i != NULL)
+	if (g == NULL || h == NULL || i == NULL)
 	{
-		ground_initSize (g, 3);
-		ground_fillFlat (g, 1.0);
+		fprintf (stderr, "%s: starter ground entities turned out NULL for some reason. We're doomed; nothing to do but\n", __FUNCTION__);
+		exit (EXIT_FAILURE);
+	}
+	ground_initSize (g, 3);
+	ground_fillFlat (g, 1.0);
 
-		ground_initSize (h, 3);
-		ground_fillFlat (h, 1.0);
+	ground_initSize (h, 3);
+	ground_fillFlat (h, 1.0);
 
-		ground_initSize (i, 3);
-		ground_fillFlat (i, 1.0);
+	ground_initSize (i, 3);
+	ground_fillFlat (i, 1.0);
 
-		hex = ground_getHexatCoord (g, 0, 0, 0);
-		hex_setSlope (hex, HEX_TOP, 0, 0, 0);
-		hex = ground_getHexatCoord (g, 1, 0, 0);
-		hex_setSlope (hex, HEX_TOP, 0, 0, 0);
-		hex = ground_getHexatCoord (g, 1, 1, 0);
-		hex_setSlope (hex, HEX_TOP, 0, 0, 0);
-		hex = ground_getHexatCoord (g, 1, 2, 0);
-		hex_setSlope (hex, HEX_TOP, 0, 0, 0);
-		hex = ground_getHexatCoord (g, 1, 3, 0);
-		hex_setSlope (hex, HEX_TOP, 0, 0, 0);
-		hex = ground_getHexatCoord (g, 1, 4, 0);
-		hex_setSlope (hex, HEX_TOP, 0, 0, 0);
-		hex = ground_getHexatCoord (g, 1, 5, 0);
-		hex_setSlope (hex, HEX_TOP, 0, 0, 0);
-		hex = ground_getHexatCoord (g, 2, 0, 1);
-		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-		hex = ground_getHexatCoord (g, 2, 1, 1);
-		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-		hex = ground_getHexatCoord (g, 2, 2, 1);
-		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-		hex = ground_getHexatCoord (g, 2, 3, 1);
-		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-		hex = ground_getHexatCoord (g, 2, 4, 1);
-		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-		hex = ground_getHexatCoord (g, 2, 5, 1);
-		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-		hex = ground_getHexatCoord (g, 3, 0, 0);
-		hex_setSlope (hex, HEX_TOP, 3, 3, 3);
-		hex = ground_getHexatCoord (g, 3, 2, 0);
-		hex_setSlope (hex, HEX_TOP, 3, 3, 3);
-		hex = ground_getHexatCoord (g, 3, 4, 0);
-		hex_setSlope (hex, HEX_TOP, 3, 3, 3);
+	hex = ground_getHexatCoord (g, 0, 0, 0);
+	hex_setSlope (hex, HEX_TOP, 0, 0, 0);
+	hex = ground_getHexatCoord (g, 1, 0, 0);
+	hex_setSlope (hex, HEX_TOP, 0, 0, 0);
+	hex = ground_getHexatCoord (g, 1, 1, 0);
+	hex_setSlope (hex, HEX_TOP, 0, 0, 0);
+	hex = ground_getHexatCoord (g, 1, 2, 0);
+	hex_setSlope (hex, HEX_TOP, 0, 0, 0);
+	hex = ground_getHexatCoord (g, 1, 3, 0);
+	hex_setSlope (hex, HEX_TOP, 0, 0, 0);
+	hex = ground_getHexatCoord (g, 1, 4, 0);
+	hex_setSlope (hex, HEX_TOP, 0, 0, 0);
+	hex = ground_getHexatCoord (g, 1, 5, 0);
+	hex_setSlope (hex, HEX_TOP, 0, 0, 0);
+	hex = ground_getHexatCoord (g, 2, 0, 1);
+	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+	hex = ground_getHexatCoord (g, 2, 1, 1);
+	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+	hex = ground_getHexatCoord (g, 2, 2, 1);
+	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+	hex = ground_getHexatCoord (g, 2, 3, 1);
+	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+	hex = ground_getHexatCoord (g, 2, 4, 1);
+	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+	hex = ground_getHexatCoord (g, 2, 5, 1);
+	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+	hex = ground_getHexatCoord (g, 3, 0, 0);
+	hex_setSlope (hex, HEX_TOP, 3, 3, 3);
+	hex = ground_getHexatCoord (g, 3, 2, 0);
+	hex_setSlope (hex, HEX_TOP, 3, 3, 3);
+	hex = ground_getHexatCoord (g, 3, 4, 0);
+	hex_setSlope (hex, HEX_TOP, 3, 3, 3);
 
-		hex = ground_getHexatCoord (h, 1, 0, 0);
-		hex_setSlope (hex, HEX_TOP, 2, 2, 2.5);
-		hex = ground_getHexatCoord (h, 1, 1, 0);
-		hex_setSlope (hex, HEX_TOP, 2, 2.5, 2);
-		hex = ground_getHexatCoord (h, 2, 0, 1);
-		hex_setSlope (hex, HEX_TOP, 2.5, 2, 2);
-		hex = ground_getHexatCoord (h, 1, 3, 0);
-		hex_setSlope (hex, HEX_TOP, 2, 2, 2.5);
-		hex = ground_getHexatCoord (h, 1, 4, 0);
-		hex_setSlope (hex, HEX_TOP, 2, 2.5, 2);
-		hex = ground_getHexatCoord (h, 2, 3, 1);
-		hex_setSlope (hex, HEX_TOP, 2.5, 2, 2);
-		hex = ground_getHexatCoord (h, 3, 2, 0);
-		hex_setSlope (hex, HEX_TOP, 3, 3.5, 2.5);
-		hex = ground_getHexatCoord (h, 3, 5, 0);
-		hex_setSlope (hex, HEX_TOP, 2.5, 3.5, 3);
+	hex = ground_getHexatCoord (h, 1, 0, 0);
+	hex_setSlope (hex, HEX_TOP, 2, 2, 2.5);
+	hex = ground_getHexatCoord (h, 1, 1, 0);
+	hex_setSlope (hex, HEX_TOP, 2, 2.5, 2);
+	hex = ground_getHexatCoord (h, 2, 0, 1);
+	hex_setSlope (hex, HEX_TOP, 2.5, 2, 2);
+	hex = ground_getHexatCoord (h, 1, 3, 0);
+	hex_setSlope (hex, HEX_TOP, 2, 2, 2.5);
+	hex = ground_getHexatCoord (h, 1, 4, 0);
+	hex_setSlope (hex, HEX_TOP, 2, 2.5, 2);
+	hex = ground_getHexatCoord (h, 2, 3, 1);
+	hex_setSlope (hex, HEX_TOP, 2.5, 2, 2);
+	hex = ground_getHexatCoord (h, 3, 2, 0);
+	hex_setSlope (hex, HEX_TOP, 3, 3.5, 2.5);
+	hex = ground_getHexatCoord (h, 3, 5, 0);
+	hex_setSlope (hex, HEX_TOP, 2.5, 3.5, 3);
 
-		hex = ground_getHexatCoord (i, 1, 0, 0);
-		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-		hex = ground_getHexatCoord (i, 1, 2, 0);
-		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-		hex = ground_getHexatCoord (i, 1, 4, 0);
-		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-		hex = ground_getHexatCoord (i, 2, 1, 0);
-		hex_setSlope (hex, HEX_TOP, 3, 3, 3);
-		hex = ground_getHexatCoord (i, 2, 3, 0);
-		hex_setSlope (hex, HEX_TOP, 3, 3, 3);
-		hex = ground_getHexatCoord (i, 2, 5, 0);
-		hex_setSlope (hex, HEX_TOP, 3, 3, 3);
-		hex = ground_getHexatCoord (i, 3, 0, 0);
-		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-		hex = ground_getHexatCoord (i, 3, 1, 0);
-		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-		hex = ground_getHexatCoord (i, 3, 2, 0);
-		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-		hex = ground_getHexatCoord (i, 3, 3, 0);
-		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-		hex = ground_getHexatCoord (i, 3, 4, 0);
-		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-		hex = ground_getHexatCoord (i, 3, 5, 0);
-		hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+	hex = ground_getHexatCoord (i, 1, 0, 0);
+	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+	hex = ground_getHexatCoord (i, 1, 2, 0);
+	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+	hex = ground_getHexatCoord (i, 1, 4, 0);
+	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+	hex = ground_getHexatCoord (i, 2, 1, 0);
+	hex_setSlope (hex, HEX_TOP, 3, 3, 3);
+	hex = ground_getHexatCoord (i, 2, 3, 0);
+	hex_setSlope (hex, HEX_TOP, 3, 3, 3);
+	hex = ground_getHexatCoord (i, 2, 5, 0);
+	hex_setSlope (hex, HEX_TOP, 3, 3, 3);
+	hex = ground_getHexatCoord (i, 3, 0, 0);
+	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+	hex = ground_getHexatCoord (i, 3, 1, 0);
+	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+	hex = ground_getHexatCoord (i, 3, 2, 0);
+	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+	hex = ground_getHexatCoord (i, 3, 3, 0);
+	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+	hex = ground_getHexatCoord (i, 3, 4, 0);
+	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
+	hex = ground_getHexatCoord (i, 3, 5, 0);
+	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
 
-		ground_link (groundG, groundH, 0, 0);
-		ground_link (groundG, groundH, 2, 0);
-		ground_link (groundG, groundH, 4, 0);
-		ground_link (groundH, groundI, 2, 0);
-		ground_link (groundH, groundI, 4, 0);
-		ground_link (groundH, groundI, 0, 0);
-		ground_link (groundI, groundG, 0, 0);
-		ground_link (groundI, groundG, 2, 0);
-		ground_link (groundI, groundG, 4, 0);
+	ground_link (groundG, groundH, 0, 0);
+	ground_link (groundG, groundH, 2, 0);
+	ground_link (groundG, groundH, 4, 0);
+	ground_link (groundH, groundI, 2, 0);
+	ground_link (groundH, groundI, 4, 0);
+	ground_link (groundH, groundI, 0, 0);
+	ground_link (groundI, groundG, 0, 0);
+	ground_link (groundI, groundG, 2, 0);
+	ground_link (groundI, groundG, 4, 0);
 
 /*
     h = ground_getHexatCoord (g, 1, 1, 0);
@@ -144,30 +148,37 @@ WORLD * world_create ()
     ground_link (ground, ground, 3, 2);
     ground_link (ground, ground, 4, 4);
 */
-		ground_bakeTiles (groundG);
-		ground_bakeTiles (groundH);
-		ground_bakeTiles (groundI);
-	}
-  w->groundOrigin = groundG;
-  w->groundDistanceDraw = 7;
+	ground_bakeTiles (groundG);
+	ground_bakeTiles (groundH);
+	ground_bakeTiles (groundI);
 
-  camera = entity_create ();
-  if (component_instantiateOnEntity ("position", camera)) {
-    position_set (camera, vectorCreate (0.0, 90.0, 0.0), groundG);
-  }
-  component_instantiateOnEntity ("integrate", camera);
-  component_instantiateOnEntity ("camera", camera);
+	w->groundOrigin = groundG;
+	w->groundDistanceDraw = 6;
+
+	plant = entity_create ();
+	component_instantiateOnEntity ("position", plant);
+	plant_generateRandom (plant);
+	ground_placeOnTile (groundG, 0, 0, 0, plant);
+
+	camera = entity_create ();
+	if (component_instantiateOnEntity ("position", camera))
+	{
+		ground_placeOnTile (groundG, 3, 0, 0, camera);
+		position_move (camera, vectorCreate (0.0, 90.0, 0.0));
+	}
+	component_instantiateOnEntity ("integrate", camera);
+	component_instantiateOnEntity ("camera", camera);
   /*
   if (component_instantiateOnEntity ("collide", e)) {
     setCollideType (e, COLLIDE_SPHERE);
     setCollideRadius (e, 30.0);
   }
   */
-  if (component_instantiateOnEntity ("input", camera)) {
-    input_addEntity (camera, INPUT_CONTROLLED);
-  }
-  component_instantiateOnEntity ("walking", camera);
-  w->camera = camera;
+	if (component_instantiateOnEntity ("input", camera)) {
+		input_addEntity (camera, INPUT_CONTROLLED);
+	}
+	component_instantiateOnEntity ("walking", camera);
+	w->camera = camera;
 
   return w;
 }
