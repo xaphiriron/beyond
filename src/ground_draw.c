@@ -9,9 +9,10 @@ struct ground_origin_label {
     		// ground. note that "this" may not be unique if the ground
     		// edges wrap around.
   int		// location of this ground in a coordinate grid outward from
-    x, y;	// the origin ground. the coordinate grid is not rotated with
+    x, y,	// the origin ground. the coordinate grid is not rotated with
     		// ground rotations; it remains clamped to the rotation of the
     		// origin grid (which, due to relativity, is always 0)
+    rot;	// [0..5], rotation of this vs. the origin ground
 };
 
 CameraCache OriginCache = NULL;
@@ -51,7 +52,8 @@ void cameraCache_extend (int size) {
     cacheOffset = 0,
     i = 0,
     j = 0,
-    limit = 0;
+    limit = 0,
+    absDir = 0;
   short
     newX, newY, newR, newK, newI;
   //printf ("%s (%d)...\n", __FUNCTION__, size);
@@ -84,15 +86,16 @@ void cameraCache_extend (int size) {
       t = component_getData (entity_getAs (label->this, "ground"));
       j = 0;
       while (j < 6) {
-        adjEntity = ground_getEdgeConnection (t, j);
+        absDir = (j + label->rot) % 6;
+        adjEntity = ground_getEdgeConnection (t, absDir);
         if (adjEntity == NULL || (u = component_getData (entity_getAs (adjEntity, "ground"))) == NULL) {
           //printf ("%s: no edge or invalid edge connection on ground %p->%d\n", __FUNCTION__, t, absDir);
           // no or invalid edge connection
           j++;
           continue;
         }
-        newX = label->x + XY[j][0];
-        newY = label->y + XY[j][1];
+        newX = label->x + XY[absDir][0];
+        newY = label->y + XY[absDir][1];
         hex_xy2rki (newX, newY, &newR, &newK, &newI);
         cacheOffset = hex_linearCoord (newR, newK, newI);
         //printf ("over %d, %d {%d %d %d} w/ offset of %d\n", newX, newY, newR, newK, newI, cacheOffset);
@@ -115,7 +118,8 @@ void cameraCache_extend (int size) {
           origin,
           adjEntity,
           newX,
-          newY
+          newY,
+          (label->rot + ground_getEdgeRotation (t, absDir)) % 6
         );
         /*
         printf ("%s: new entry %p at offset %d (limit %d)\n", __FUNCTION__, newLabel, cacheOffset, limit);
@@ -159,7 +163,7 @@ void cameraCache_setGroundEntityAsOrigin (Entity g)
 	}
 	OriginCache->extent = 0;
 	OriginCache->origin = g;
-	label = ground_createLabel (g, g, 0, 0);
+	label = ground_createLabel (g, g, 0, 0, 0);
 	dynarr_assign (OriginCache->cache, 0, label);
 	label = NULL;
 }
@@ -177,7 +181,7 @@ CameraGroundLabel cameraCache_getOriginLabel ()
  * LABEL FUNCTIONS
  */
 
-CameraGroundLabel ground_createLabel (Entity origin, Entity this, int x, int y) {
+CameraGroundLabel ground_createLabel (Entity origin, Entity this, int x, int y, int rot) {
   CameraGroundLabel l = xph_alloc (sizeof (struct ground_origin_label));
   GroundMap m = component_getData (entity_getAs (this, "ground"));
   l->origin = origin;
@@ -186,6 +190,10 @@ CameraGroundLabel ground_createLabel (Entity origin, Entity this, int x, int y) 
   l->y = y;
   l->offset = label_distanceFromOrigin (ground_getMapSize (m), x, y);
   //printf ("%s: label x,y offset is %d, %d; distance vector is %f, %f, %f\n", __FUNCTION__, x, y, l->offset.x, l->offset.y, l->offset.z);
+  if (rot < 0 || rot >= 5) {
+    fprintf (stderr, "%s (... %d): invalid rotation value.\n", __FUNCTION__, rot);
+  }
+  l->rot = rot;
   return l;
 }
 
@@ -237,6 +245,10 @@ VECTOR3 label_getOriginOffset (const CameraGroundLabel l)
 	if (l == NULL)
 		return vectorCreate (0, 0, 0);
 	return l->offset;
+}
+
+int ground_getLabelRotation (const CameraGroundLabel l) {
+  return l->rot;
 }
 
 int label_getCoordinateDistanceFromOrigin (const CameraGroundLabel l)

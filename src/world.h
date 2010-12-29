@@ -16,6 +16,7 @@
 #include "component_camera.h"
 #include "component_input.h"
 #include "component_walking.h"
+#include "component_plant.h"
 
 #include "ground_draw.h"
 #include "camera_draw.h"
