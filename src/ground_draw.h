@@ -30,7 +30,7 @@ void cameraCache_setGroundEntityAsOrigin (Entity g);
 CameraGroundLabel cameraCache_getOriginLabel ();
 
 
-CameraGroundLabel ground_createLabel (Entity origin, Entity this, int x, int y, int rot);
+CameraGroundLabel ground_createLabel (Entity origin, Entity this, int x, int y);
 void ground_destroyLabel (CameraGroundLabel l);
 
 VECTOR3 label_distanceFromOrigin (int size, short x, short y);
@@ -39,7 +39,6 @@ bool label_getXY (const CameraGroundLabel l, int * xp, int * yp);
 Entity label_getGroundReference (const CameraGroundLabel l);
 Entity label_getOriginReference (const CameraGroundLabel l);
 VECTOR3 label_getOriginOffset (const CameraGroundLabel l);
-int ground_getLabelRotation (const CameraGroundLabel l);
 int label_getCoordinateDistanceFromOrigin (const CameraGroundLabel l);
 
 // ultimately this will require a camera entity reference to draw, since

@@ -17,7 +17,6 @@ struct ground_edge_traversal
 		oldGroundEntity,
 		newGroundEntity;
 	unsigned short
-		rotIndex,				// rotation relative to the old ground map
 		directionOfMovement;	// the direction moved from the old ground map
 };
 
@@ -37,10 +36,9 @@ struct ground_occupant
 };
 
 
-// link a<->b with the given direction and rotation (relative to a)
-bool ground_link (Entity a, Entity b, int direction, int rotation);
+// link a<->b with the given direction (relative to a)
+bool ground_link (Entity a, Entity b, int direction);
 Entity ground_getEdgeConnection (const GroundMap m, short i);
-unsigned short ground_getEdgeRotation (const GroundMap m, short i);
 
 Dynarr ground_getOccupants (GroundMap m);
 

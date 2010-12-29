@@ -1,17 +1,9 @@
 #include "component_ground.h"
 
-struct ground_edge
-{
-	Entity
-		next;		// (an entity with a ground component)
-	unsigned short
-		rotation;	// valid only [0..5]
-};
-
 struct ground_comp
 {
-	struct ground_edge
-		* edges[6];
+	Entity
+		edges[6];
 	Dynarr
 		tiles,
 		occupants;
@@ -41,10 +33,7 @@ static void ground_destroy (GroundMap g);
  * GROUND EDGE/LINKAGE
  */
 
-bool ground_link (Entity a_entity, Entity b_entity, int direction, int rotation) {
-  struct ground_edge
-    *ae = NULL,
-    *be = NULL;
+bool ground_link (Entity a_entity, Entity b_entity, int direction) {
   int
     a_dir = 0,
     b_dir = 0;
@@ -70,15 +59,8 @@ bool ground_link (Entity a_entity, Entity b_entity, int direction, int rotation)
   } else if (direction > 5) {
     direction = direction % 6;
   }
-  if (rotation < 0) {
-    rotation = 6 - ((rotation * -1) % 6);
-    if (rotation == 6)
-      rotation = 0;
-  } else if (rotation > 5) {
-    rotation = rotation % 6;
-  }
   a_dir = direction;
-  b_dir = (3 + direction + rotation) % 6;
+  b_dir = (3 + direction) % 6;
   if (a->edges[a_dir] != NULL || b->edges[b_dir] != NULL) {
     fprintf (stderr, "%s(%p, %p, ...): ground already linked in either direction (to %d/%p and %d/%p)\n", __FUNCTION__, a_entity, b_entity, a_dir, a->edges[a_dir], b_dir, b->edges[b_dir]);
     return FALSE;
@@ -91,14 +73,8 @@ bool ground_link (Entity a_entity, Entity b_entity, int direction, int rotation)
   // there needs to be a whole other section for checking to make sure this
   // connection or its degree of rotation doesn't cause the universe to twist
   // and furl.
-  ae = xph_alloc (sizeof (struct ground_edge));
-  be = xph_alloc (sizeof (struct ground_edge));
-  ae->next = b_entity;
-  be->next = a_entity;
-  ae->rotation = rotation;
-  be->rotation = (6 - rotation) % 6;
-  a->edges[a_dir] = ae;
-  b->edges[b_dir] = be;
+  a->edges[a_dir] = b_entity;
+  b->edges[b_dir] = a_entity;
   return TRUE;
 }
 
@@ -106,14 +82,7 @@ Entity ground_getEdgeConnection (const GroundMap m, short i)
 {
 	if (m == NULL || i < 0 || i >= 6 || m->edges[i] == NULL)
 		return NULL;
-	return m->edges[i]->next;
-}
-
-unsigned short ground_getEdgeRotation (const GroundMap m, short i)
-{
-	if (m == NULL || i < 0 || i >= 6 || m->edges[i] == NULL)
-		return 0;
-	return m->edges[i]->rotation;
+	return m->edges[i];
 }
 
 Dynarr ground_getOccupants (GroundMap m)
@@ -240,14 +209,13 @@ bool ground_bridgeConnections (const Entity groundEntity, Entity e)
 	{
 		return TRUE;
 	}
-	if (g->edges[dir] == NULL || (adjacent = component_getData (entity_getAs (g->edges[dir]->next, "ground"))) == NULL)
+	if (g->edges[dir] == NULL || (adjacent = component_getData (entity_getAs (g->edges[dir], "ground"))) == NULL)
 		return FALSE;
 	//printf ("%s: adjacent ground in %d dir; origin at offset %5.2f, %5.2f, %5.2f\n", __FUNCTION__, dir, newOrigin.x, newOrigin.y, newOrigin.z);
 	trav = xph_alloc (sizeof (struct ground_edge_traversal));
 	trav->oldGroundEntity = groundEntity;
-	trav->newGroundEntity = g->edges[dir]->next;
+	trav->newGroundEntity = g->edges[dir];
 	trav->directionOfMovement = dir;
-	trav->rotIndex = g->edges[dir]->rotation;
 	component_messageEntity (p, "GROUND_EDGE_TRAVERSAL", trav);
 	xph_free (trav);
 	return TRUE;
@@ -312,24 +280,22 @@ void ground_bakeTiles (Entity g_entity)
 			{
 				adjIndex = hex_linearCoord (r, k, i);
 				hex->neighbors[edge] = *(Hex *)dynarr_at (map->tiles, adjIndex);
-				hex->neighborRot[edge] = 0;
 				edge++;
 				continue;
 			}
 			// hex at the edge of the ground. aah.
-			if (map->edges[dir] == NULL || (adj_map = component_getData (entity_getAs (map->edges[dir]->next, "ground"))) == NULL)
+			if (map->edges[dir] == NULL || (adj_map = component_getData (entity_getAs (map->edges[dir], "ground"))) == NULL)
 			{
 				edge++;
 				continue;
 			}
-			hex->neighborRot[edge] = map->edges[dir]->rotation;
 			// this gets a little too in-depth into vector calculations. i'm not really sure what to do about that. the same values can be calculated more simply if i had the x,y offset of the adjacent ground's center instead of a vector
 			groundPos = ground_distanceBetweenAdjacentGrounds (map->size, dir);
 			adjPos = hex_coordOffset (r, k, i);
 			adjPos = vectorSubtract (&adjPos, &groundPos);
 			hex_coordinateAtSpace (&adjPos, &x, &y);
 			hex_xy2rki (x, y, &r, &k, &i);
-			k = (k + map->edges[dir]->rotation) % 6;
+			k = k % 6;
 			adjIndex = hex_linearCoord (r, k, i);
 			//printf ("from %d, %d {%d %d %d} in %d-ward direction leads to %d %d {%d %d %d}\n", hex->x, hex->y, hex->r, hex->k, hex->i, dir, x, y, r, k, i);
 			hex->neighbors[edge] = *(Hex *)dynarr_at (adj_map->tiles, adjIndex);
@@ -353,7 +319,7 @@ struct hex * ground_getHexatCoord (GroundMap g, short r, short k, short i) {
 
 static GroundMap ground_create () {
   new (struct ground_comp, g);
-  memset (g->edges, '\0', sizeof (struct ground_edge *) * 6);
+  memset (g->edges, '\0', sizeof (Entity) * 6);
   g->tiles = NULL;
   g->size = -1;
   g->border = BORDER_VOID;
@@ -365,17 +331,15 @@ static void ground_destroy (GroundMap g)
 {
 	int
 		i = 0;
-  if (g->tiles == NULL) {
-    xph_free (g);
-    return;
-  }
-  while (i < 6) {
-    if (g->edges[i] != NULL) {
-      xph_free (g->edges[i]);
-      g->edges[i] = NULL;
-    }
-    i++;
-  }
+	if (g->tiles == NULL)
+	{
+		xph_free (g);
+		return;
+	}
+	while (i < 6)
+	{
+		g->edges[i++] = NULL;
+	}
 	dynarr_wipe (g->tiles, (void (*)(void *))hex_destroy);
 	dynarr_wipe (g->occupants, xph_free);
 	dynarr_destroy (g->tiles);

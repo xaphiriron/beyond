@@ -24,7 +24,6 @@ struct hex {
 		base, baseA, baseB,
 		edgeDepth[12];
 	short
-		neighborRot[6],
 		r, k, i,	// polar coordinates from center of ground
 		x, y;		// cartesian coordinates from center of ground
 };

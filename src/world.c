@@ -117,15 +117,15 @@ WORLD * world_create ()
 	hex = ground_getHexatCoord (i, 3, 5, 0);
 	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
 
-	ground_link (groundG, groundH, 0, 0);
-	ground_link (groundG, groundH, 2, 0);
-	ground_link (groundG, groundH, 4, 0);
-	ground_link (groundH, groundI, 2, 0);
-	ground_link (groundH, groundI, 4, 0);
-	ground_link (groundH, groundI, 0, 0);
-	ground_link (groundI, groundG, 0, 0);
-	ground_link (groundI, groundG, 2, 0);
-	ground_link (groundI, groundG, 4, 0);
+	ground_link (groundG, groundH, 0);
+	ground_link (groundG, groundH, 2);
+	ground_link (groundG, groundH, 4);
+	ground_link (groundH, groundI, 2);
+	ground_link (groundH, groundI, 4);
+	ground_link (groundH, groundI, 0);
+	ground_link (groundI, groundG, 0);
+	ground_link (groundI, groundG, 2);
+	ground_link (groundI, groundG, 4);
 
 /*
     h = ground_getHexatCoord (g, 1, 1, 0);

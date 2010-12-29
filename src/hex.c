@@ -255,7 +255,6 @@ struct hex * hex_create (short r, short k, short i, float height) {
   hex_setSlope (h, HEX_TOP, height, height, height);
   hex_setSlope (h, HEX_BASE, -1.0, -1.0, -1.0);
   memset (h->neighbors, '\0', sizeof (struct hex *) * 6);
-  memset (h->neighborRot, '\0', sizeof (short) * 6);
   memset (h->edgeDepth, '\0', sizeof (float) * 12);
 
   return h;
@@ -294,8 +293,7 @@ void hex_bakeEdges (struct hex * h)
 	struct hex
 		* adj;
 	int
-		i = 0,
-		rot;
+		i = 0;
 	float
 		ra, rb,
 		corners[6];
@@ -304,7 +302,6 @@ void hex_bakeEdges (struct hex * h)
 	while (i < 6)
 	{
 		adj = h->neighbors[(i + 1) % 6];
-		rot = h->neighborRot[(i + 1) % 6];
 		if (adj == NULL)
 		{
 			i++;
@@ -318,8 +315,8 @@ void hex_bakeEdges (struct hex * h)
 		corners[4] = adj->top + rb;
 		corners[2] = adj->top + ra + (adj->top - corners[4]);
 		corners[5] = adj->top + rb + (adj->top - corners[3]);
-		h->edgeDepth[i * 2] = corners[(i + rot + 4) % 6];
-		h->edgeDepth[i * 2 + 1] = corners[(i + rot + 3) % 6];
+		h->edgeDepth[i * 2] = corners[(i + 4) % 6];
+		h->edgeDepth[i * 2 + 1] = corners[(i + 3) % 6];
 		i++;
 	}
 }

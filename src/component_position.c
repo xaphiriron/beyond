@@ -218,10 +218,6 @@ void position_updateOnEdgeTraversal (Entity e, struct ground_edge_traversal * t)
 	//printf ("%s (#%d, ...): updated position to %5.2f, %5.2f, %5.2f from the local origin\n", __FUNCTION__, entity_GUID (e), newPosition.x, newPosition.y, newPosition.z);
 	//printf ("\tbased off of the new ground (%5.2f, %5.2f, %5.2f) @ %d\n", groundOrigin.x, groundOrigin.y, groundOrigin.z, t->directionOfMovement);
 	position_set (e, newPosition, t->newGroundEntity);
-	if (t->rotIndex != 0)
-	{
-		position_rotateAroundGround (e, t->rotIndex * 60.0);
-	}
 }
 
 VECTOR3 position_getLocalOffset (const Entity e)
