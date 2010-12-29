@@ -143,14 +143,6 @@ void camera_update (Entity e)
 		side,
 		forward,
 		up;
-	float
-		radians,
-		rMatrix[16] = {
-			1, 0, 0, 0,
-			0, 1, 0, 0,
-			0, 0, 1, 0,
-			0, 0, 0, 1
-		};
 	if (cdata == NULL || cdata->l == NULL)
 	{
 		fprintf (stderr, "%s (#%d): entity has no camera data (%p) or camera data has no label (%p)\n", __FUNCTION__, entity_GUID (e), cdata, cdata == NULL ? NULL : cdata->l);
@@ -167,22 +159,9 @@ void camera_update (Entity e)
 		return;
 	}
 	groundOffset = label_getOriginOffset (cdata->l);
-	radians = -(ground_getLabelRotation (cdata->l) * 60.0) / 180.0 * M_PI;
 	side = pdata->view.side;
 	up = pdata->view.up;
 	forward = pdata->view.front;
-	if (!fcmp (radians, 0.0))
-	{
-		//printf ("%s: camera object on rotated ground. rotating axes BACK by %5.2f\n", __FUNCTION__, -ground_getLabelRotation (cdata->l) * 60.0);
-		rMatrix[0] = cos (radians);
-		rMatrix[2] = -sin (radians);
-		rMatrix[8] = sin (radians);
-		rMatrix[10] = cos (radians);
-		side = vectorMultiplyByMatrix (&side, rMatrix);
-		up = vectorMultiplyByMatrix (&up, rMatrix);
-		forward = vectorMultiplyByMatrix (&forward, rMatrix);
-	}
-	//printf ("radians: %f; rot: %d\n", radians, ground_getLabelRotation (cdata->l));
 
 	fullPos.x =
 		pdata->pos.x + groundOffset.x;
