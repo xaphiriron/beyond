@@ -760,7 +760,10 @@ static void obj_recordMessagePost (Dynarr v, Object * o) {
 }
 
 
+
+// IMPORTANT: THESE FUNCTIONS ARE COMMENTED OUT TO AVOID A BUNCH OF USELESS MEMORY THRESHING. IF THE CALLSTACK -- OR obj_pass() -- IS EVER ACTUALLY USED, THESE ARE VERY IMPORTANT. BUT SINCE THEY ARE NOT RIGHT NOW AND PROBABLY NEVER WILL BE, THEY DO NOTHING.
 static void obj_pushMessageCallstack (void * o, const char * func, objMsg msg, void * a, void * b) {
+/*
   struct objCall * n = xph_alloc (sizeof (struct objCall));
   int len = strlen (func);
   n->objectOrClass = o;
@@ -773,10 +776,17 @@ static void obj_pushMessageCallstack (void * o, const char * func, objMsg msg, v
   if (ObjectMessageCallstack == NULL) {
     ObjectMessageCallstack = dynarr_create (4, sizeof (struct objCall *));
   }
+	if (dynarr_size (ObjectMessageCallstack) >= 32)
+	{
+		fprintf (stderr, "Callstack hit 32 entries. I'm going to guess this is an infinite recursion that I should put a stop to.");
+		abort ();
+	}
   dynarr_push (ObjectMessageCallstack, n);
+*/
 }
 
 static void obj_setCallType (enum object_calls t) {
+/*
   struct objCall * c = NULL;
   if (ObjectMessageCallstack == NULL ||
       dynarr_isEmpty (ObjectMessageCallstack)) {
@@ -785,9 +795,11 @@ static void obj_setCallType (enum object_calls t) {
   }
   c = *(struct objCall **)dynarr_back (ObjectMessageCallstack);
   c->stage = t;
+*/
 }
 
 static void obj_popMessageCallstack (void * o) {
+/*
   struct objCall * c = NULL;
   c = *(struct objCall **)dynarr_pop (ObjectMessageCallstack);
   if (c->objectOrClass != o) {
@@ -796,6 +808,7 @@ static void obj_popMessageCallstack (void * o) {
   }
   xph_free (c->function);
   xph_free (c);
+*/
 }
 
 static int obj_messageBACKEND (Object * o, const char * func, objMsg msg, void * a, void * b) {
@@ -874,7 +887,7 @@ int obj_pass () {
   if (
     ObjectMessageCallstack == NULL ||
     (i = dynarr_size (ObjectMessageCallstack)) == 0) {
-    fprintf (stderr, "Don't call %s outside of an object handler >:(\n", __FUNCTION__);
+    //fprintf (stderr, "Don't call %s outside of an object handler >:(\n", __FUNCTION__);
     return -1;
   }
   lastCall = *(struct objCall **)dynarr_at (ObjectMessageCallstack, i - 1);
