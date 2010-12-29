@@ -63,6 +63,7 @@ static int dynarr_index_first (const Dynarr da)
 	int
 		j = 0,
 		k;
+	assert (da != NULL);
 	while (j <= da->capacity / CHAR_BIT)
 	{
 		if (!da->indicesUsed[j])
@@ -85,8 +86,10 @@ static int dynarr_index_first (const Dynarr da)
 static int dynarr_index_final (const Dynarr da)
 {
 	int
-		j = da->capacity / CHAR_BIT,
+		j,
 		k;
+	assert (da != NULL);
+	j = da->capacity / CHAR_BIT;
 	while (j >= 0)
 	{
 		if (!da->indicesUsed[j])
@@ -385,7 +388,8 @@ int dynarr_capacity (const Dynarr da)
 
 bool dynarr_isEmpty (const Dynarr da)
 {
-	assert (da != NULL);
+	if (da == NULL)
+		return TRUE;
 	return da->used == 0
 		? TRUE
 		: FALSE;
@@ -477,5 +481,6 @@ void dynIterator_reset (DynIterator it)
 
 bool dynIterator_done (const DynIterator it)
 {
-	return (it->indices != NULL || it->da->used == 0) && it->checkedIndex >= it->finalIndex;
+	assert (it != NULL);
+	return (it->indices != NULL || dynarr_size (it->da) == 0) && it->checkedIndex >= it->finalIndex;
 }
