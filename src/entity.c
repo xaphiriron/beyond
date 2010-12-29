@@ -117,24 +117,24 @@ bool entity_message (Entity e, char * message, void * arg)
 	Component
 		t;
 	struct comp_message
-		* msg;
+		msg;
 	DynIterator
 		it;
+	//printf ("%s (#%d, \"%s\", %p)\n", __FUNCTION__, entity_GUID (e), message, arg);
 	if (e == NULL)
 		return FALSE;
-	msg = xph_alloc (sizeof (struct comp_message));
-	msg->from = NULL;
-	msg->to = NULL;
-	msg->message = message;
+	//msg = xph_alloc (sizeof (struct comp_message));
+	msg.from = NULL;
+	msg.to = NULL;
+	msg.message = message;
 	it = dynIterator_create (e->components);
 	while (!dynIterator_done (it))
 	{
 		t = *(Component *)dynIterator_next (it);
-		msg->to = t;
-		obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, msg, arg);
+		msg.to = t;
+		obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, &msg, arg);
 	}
 	dynIterator_destroy (it);
-	xph_free (msg);
 	return TRUE;
 }
 
@@ -287,8 +287,8 @@ void entity_destroySystem (const char * comp_name) {
     c = *(Component *)dynarr_front (sys->entities);
     component_removeFromEntity (sys->comp_name, c->e);
   }
-  dynarr_remove_condense (SystemRegistry, sys);
   dynarr_destroy (sys->entities);
+  dynarr_remove_condense (SystemRegistry, sys);
   obj_message (sys->system, OM_DESTROY, NULL, NULL);
   objClass_destroy (sys->comp_name);
   xph_free (sys);
@@ -383,20 +383,22 @@ Entity component_entityAttached (Component c) {
 
 bool component_messageEntity (Component comp, char * message, void * arg)
 {
-	struct comp_message * msg = xph_alloc (sizeof (struct comp_message));
-	Component t = NULL;
-	int i = 0;
-	msg->from = comp;
-	msg->to = NULL;
-	msg->message = message;
+	struct comp_message
+		msg;
+	Component
+		t = NULL;
+	int
+		i = 0;
+	msg.from = comp;
+	msg.to = NULL;
+	msg.message = message;
 	while ((t = *(Component *)dynarr_at (comp->e->components, i++)) != NULL)
 	{
 		// we're purposefully messaging the component back, in case it has a response to its own message. consequentally, it's important that no components decide to send off the same message in response to getting a message.
-		msg->to = t;
+		msg.to = t;
 		//printf ("%s: #%d: messaging component \"%s\"\n", __FUNCTION__, comp->e->guid, t->reg->comp_name);
-		obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, msg, arg);
+		obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, &msg, arg);
 	}
-	xph_free (msg);
 	return TRUE;
 }
 
