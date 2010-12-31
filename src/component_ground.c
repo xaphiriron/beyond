@@ -106,7 +106,8 @@ VECTOR3 ground_distanceBetweenAdjacentGrounds (int size, int dir) {
   if (dir < 0 || dir >= 6) {
     return r;
   }
-  dir_x = (dir + 5) % 6;
+  // this is the line that determines linkage. if it's (dir + 5) instead, then the linkages will be clockwise. this is not advised.
+  dir_x = (dir + 1) % 6;
   //t = hex_linearTileDistance (size * 2 - 2, dir);
   //u = vectorMultiplyByScalar (&u, 0.5);
   t = hex_linearTileDistance (size + 1, dir);
@@ -115,40 +116,6 @@ VECTOR3 ground_distanceBetweenAdjacentGrounds (int size, int dir) {
   //printf ("%s (%d, %d): return value is %5.2f, %5.2f, %5.2f\n", __FUNCTION__, size, dir, r.x, r.y, r.z);
   return r;
 }
-
-/*
-GroundLoc ground_calculateLocationDistance (const GroundMap g, int edgesPassed, ...) {
-  GroundMap
-    t = g,
-    u = NULL;
-  GroundLoc l = NULL;
-  int
-    e = 0,
-    p = edgesPassed;
-  va_list edgeIndices;
-  VECTOR3 distance;
-  if (g == NULL) {
-    return NULL;
-  }
-  l = xph_alloc (sizeof (struct ground_location));
-  va_start (edgeIndices, edgesPassed);
-  while (p > 0) {
-    e = va_arg (edgeIndices, int);
-    u = component_getData (entity_getAs (t->edges[e]->next, "ground"));
-    if (u == NULL) {
-      fprintf (stderr, "%s (%p, %d, ...): path leads to missing ground\n", __FUNCTION__, g, edgesPassed);
-      xph_free (l);
-      return NULL;
-    }
-    l->rotation += t->edges[e]->rotation;
-    distance = ground_distanceBetweenAdjacentGrounds (u->size, e);
-    l->distance = vectorAdd (&l->distance, &distance);
-    --p;
-  }
-  va_end (edgeIndices);
-  return l;
-}
-*/
 
 short ground_getMapSize (const GroundMap g)
 {
@@ -168,10 +135,11 @@ short ground_getTileAdjacencyIndex (const Entity groundEntity, short r, short k,
 		dir;
 	if (r <= map->size)
 		return -1;
-	// these lines are what depend on the order of the linkage spin. if it's counter-clockwise then we don't need an extra ifcheck (i think). sadly, i can't figure out where inside the sprawling geometry of hex.c linkage is determined.
 	dir = k;
+/* these lines depend on the order of the linkage spin. if for some reason you want to set the linkage to be clockwise, you'll need this uncommented:
 	if (i != 0)
 		dir = (dir + 1) % 6;
+*/
 	return dir;
 }
 
