@@ -52,8 +52,10 @@ void cameraCache_extend (int size) {
     i = 0,
     j = 0,
     limit = 0;
-  short
-    newX, newY, newR, newK, newI;
+	signed int
+		newX, newY;
+	unsigned int
+		newR, newK, newI;
   //printf ("%s (%d)...\n", __FUNCTION__, size);
   if (OriginCache == NULL || OriginCache->cache == NULL || dynarr_isEmpty (OriginCache->cache)) {
     // augh
@@ -70,10 +72,10 @@ void cameraCache_extend (int size) {
   while (OriginCache->extent < size) {
     limit = (OriginCache->extent <= 0)
       ? 1
-      : hex (OriginCache->extent);
+      : hex (OriginCache->extent + 1);
     i = (OriginCache->extent <= 0)
       ? 0
-      : hex (OriginCache->extent - 1);
+      : hex (OriginCache->extent);
     //printf ("%s: iterating from %d to %d\n", __FUNCTION__, i, limit);
     while (i < limit) {
       label = *(CameraGroundLabel *)dynarr_at (OriginCache->cache, i++);
@@ -201,9 +203,9 @@ VECTOR3 label_distanceFromOrigin (int size, short x, short y) {
   if (size < 0 || (x == 0 && y == 0)) {
     return r;
   }
-  x_dist = ground_distanceBetweenAdjacentGrounds (size, 0);
+  x_dist = hexGround_centerDistanceSpace (size, 0);
   x_dist = vectorMultiplyByScalar (&x_dist, x);
-  y_dist = ground_distanceBetweenAdjacentGrounds (size, 1);
+  y_dist = hexGround_centerDistanceSpace (size, 1);
   y_dist = vectorMultiplyByScalar (&y_dist, y);
   r = vectorAdd (&x_dist, &y_dist);
   return r;
@@ -284,7 +286,7 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
   blue = (g_label->y + OriginCache->extent) / (float)(OriginCache->extent * 2);
   green = (red + blue) / 2.0;
   hex_setDrawColor (red, green, blue);
-  tilesPerGround = hex (ground_getMapSize (g));
+  tilesPerGround = hex (ground_getMapSize (g) + 1);
   i = 0;
   while (i < tilesPerGround) {
     h = ground_getHexAtOffset (g, i);
@@ -329,7 +331,7 @@ void ground_draw_fill (Entity origin, Entity camera, int stepsOutward) {
     cameraCache_extend (stepsOutward);
   }
   i = 0;
-  limit = hex (stepsOutward);
+  limit = hex (stepsOutward + 1);
   while (i < limit) {
     //printf ("...[5.%d] (%d)\n", i, vector_size (OriginCache->cache));
     label = *(CameraGroundLabel *)dynarr_at (OriginCache->cache, i);

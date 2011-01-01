@@ -33,15 +33,18 @@ WORLD * world_create ()
 		fprintf (stderr, "%s: starter ground entities turned out NULL for some reason. We're doomed; nothing to do but\n", __FUNCTION__);
 		exit (EXIT_FAILURE);
 	}
-	ground_initSize (g, 3);
+	//printf ("initializing ground entities:\n");
+	ground_initSize (g, 12);
 	ground_fillFlat (g, 1.0);
 
-	ground_initSize (h, 3);
+	ground_initSize (h, 12);
 	ground_fillFlat (h, 1.0);
 
-	ground_initSize (i, 3);
+	ground_initSize (i, 12);
 	ground_fillFlat (i, 1.0);
 
+	//printf ("sloping tiles:\n");
+/*
 	hex = ground_getHexatCoord (g, 0, 0, 0);
 	hex_setSlope (hex, HEX_TOP, 0, 0, 0);
 	hex = ground_getHexatCoord (g, 1, 0, 0);

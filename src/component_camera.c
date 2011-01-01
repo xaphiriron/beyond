@@ -76,10 +76,10 @@ void camera_updateLabelsFromEdgeTraversal (Entity e, struct ground_edge_traversa
 {
 	cameraComponent
 		cdata = component_getData (entity_getAs (e, "camera"));
-	int
+	signed int
 		x, y,
 		lo = 0;
-	short
+	unsigned int
 		r, k, i;
 	CameraGroundLabel
 		newLabel;

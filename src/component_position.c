@@ -24,9 +24,9 @@ bool position_move (Entity e, VECTOR3 move)
 		oldPos,
 		movedPos,
 		hexCenter;
-	int
+	signed int
 		x, y;
-	short
+	unsigned int
 		r, k, i,
 		groundSize = 0;
 	if (pos == NULL)
@@ -38,9 +38,9 @@ bool position_move (Entity e, VECTOR3 move)
 		return FALSE;
 	groundSize = ground_getMapSize (map);
 	movedPos = vectorAdd (&pos->pos, &move);
-	hex_coordinateAtSpace (&movedPos, &x, &y);
+	hex_space2coord (&movedPos, &x, &y);
 	hex_xy2rki (x, y, &r, &k, &i);
-	hexCenter = hex_coordOffset (r, k, i);
+	hexCenter = hex_coord2space (r, k, i);
 	//printf ("%s: over tile {%d %d %d} (%d, %d) @ %5.2f, %5.2f, %5.2f; real pos (locally): %5.2f, %5.2f, %5.2f\n", __FUNCTION__, r, k, i, x, y, hexCenter.x, hexCenter.y, hexCenter.z, pos->pos.x, pos->pos.y, pos->pos.z);
 	oldPos = pos->pos;
 	pos->pos = movedPos;
@@ -213,7 +213,7 @@ void position_updateOnEdgeTraversal (Entity e, struct ground_edge_traversal * t)
 	GroundMap
 		newGround = component_getData (entity_getAs (t->newGroundEntity, "ground"));
 	VECTOR3
-		groundOrigin = ground_distanceBetweenAdjacentGrounds (ground_getMapSize (newGround), t->directionOfMovement),
+		groundOrigin = hexGround_centerDistanceSpace (ground_getMapSize (newGround), t->directionOfMovement),
 		newPosition = vectorSubtract (&pdata->pos, &groundOrigin);
 	//printf ("%s (#%d, ...): updated position to %5.2f, %5.2f, %5.2f from the local origin\n", __FUNCTION__, entity_GUID (e), newPosition.x, newPosition.y, newPosition.z);
 	//printf ("\tbased off of the new ground (%5.2f, %5.2f, %5.2f) @ %d\n", groundOrigin.x, groundOrigin.y, groundOrigin.z, t->directionOfMovement);

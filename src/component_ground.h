@@ -8,6 +8,7 @@
 #include "entity.h"
 
 #include "hex.h"
+#include "hex_utility.h"
 
 // the argument in a "GROUND_EDGE_TRAVERSAL" entity message is a pointer to
 // this struct.
@@ -42,7 +43,6 @@ Entity ground_getEdgeConnection (const GroundMap m, short i);
 
 Dynarr ground_getOccupants (GroundMap m);
 
-VECTOR3 ground_distanceBetweenAdjacentGrounds (int size, int direction);
 /*
 GroundLoc ground_calculateLocationDistance (const GroundMap g, int edgesPassed, ...);
 */

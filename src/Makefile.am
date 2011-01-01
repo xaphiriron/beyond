@@ -31,8 +31,9 @@ beyond_SOURCES = \
   component_input.c component_input.h		\
   component_walking.c component_walking.h	\
   component_plant.c component_plant.h		\
-  hex.c hex.h		\
-  hex_draw.c hex_draw.h	\
+  hex_utility.h hex_utility.c \
+  hex.c hex.h \
+  hex_draw.c hex_draw.h \
   ground_draw.c ground_draw.h \
   camera_draw.c camera_draw.h \
   world.c world.h	\

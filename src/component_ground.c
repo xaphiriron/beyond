@@ -9,11 +9,6 @@ struct ground_comp
 		occupants;
 	int
 		size;
-	enum border_type
-	{					// THIS ISN'T USED YET.
-		BORDER_VOID,	// a non-connected edge is a bottomless pit
-		BORDER_WALL		// a non-connected edge is an infinitely-tall wall
-	} border;
 };
 
 /*
@@ -95,28 +90,6 @@ Dynarr ground_getOccupants (GroundMap m)
  * WORLD GEOMETRY AND COORDINATE VALUES
  */
 
-VECTOR3 ground_distanceBetweenAdjacentGrounds (int size, int dir) {
-  VECTOR3
-    r = vectorCreate (0.0, 0.0, 0.0),
-    t, u;
-  int dir_x = 0;
-  if (size < 0) {
-    return r;
-  }
-  if (dir < 0 || dir >= 6) {
-    return r;
-  }
-  // this is the line that determines linkage. if it's (dir + 5) instead, then the linkages will be clockwise. this is not advised.
-  dir_x = (dir + 1) % 6;
-  //t = hex_linearTileDistance (size * 2 - 2, dir);
-  //u = vectorMultiplyByScalar (&u, 0.5);
-  t = hex_linearTileDistance (size + 1, dir);
-  u = hex_linearTileDistance (size, dir_x);
-  r = vectorAdd (&t, &u);
-  //printf ("%s (%d, %d): return value is %5.2f, %5.2f, %5.2f\n", __FUNCTION__, size, dir, r.x, r.y, r.z);
-  return r;
-}
-
 short ground_getMapSize (const GroundMap g)
 {
 	return g->size;
@@ -145,10 +118,11 @@ short ground_getTileAdjacencyIndex (const Entity groundEntity, short r, short k,
 
 bool ground_bridgeConnections (const Entity groundEntity, Entity e)
 {
-	int
+	signed int
 		x, y;
+	unsigned int
+		r, k, i;
 	short
-		r, k, i,
 		dir;
 	Component
 		p = entity_getAs (e, "position");
@@ -170,7 +144,7 @@ bool ground_bridgeConnections (const Entity groundEntity, Entity e)
 		fprintf (stderr, "%s (#%d, #%d): invalid entity[1] (no ground data)\n", __FUNCTION__, entity_GUID (groundEntity), entity_GUID (e));
 		return FALSE;
 	}
-	hex_coordinateAtSpace (&pdata->pos, &x, &y);
+	hex_space2coord (&pdata->pos, &x, &y);
 	hex_xy2rki (x, y, &r, &k, &i);
 	dir = ground_getTileAdjacencyIndex (groundEntity, r, k, i);
 	if (dir < 0)
@@ -199,7 +173,7 @@ bool ground_placeOnTile (Entity groundEntity, short r, short k, short i, Entity 
 		* o;
 	if (pdata == NULL || map == NULL || map->size < r)
 		return FALSE;
-	position_set (e, hex_coordOffset (r, k, i), groundEntity);
+	position_set (e, hex_coord2space (r, k, i), groundEntity);
 	o = xph_alloc (sizeof (struct ground_occupant));
 	o->occupant = e;
 	o->r = r;
@@ -221,15 +195,14 @@ void ground_bakeTiles (Entity g_entity)
 		edge,
 		adjIndex,
 		dir;
-	int
-		x, y;
-	short
+	signed int
+		x, y,
+		ox, oy;
+	unsigned int
 		r, k, i;
 	Hex
 		hex;
-	VECTOR3
-		adjPos,
-		groundPos;
+	//printf ("%s (#%d): start\n", __FUNCTION__, entity_GUID (g_entity));
 	if (map == NULL)
 		return;
 	it = dynIterator_create (map->tiles);
@@ -237,17 +210,20 @@ void ground_bakeTiles (Entity g_entity)
 	{
 		index = dynIterator_nextIndex (it);
 		hex = *(Hex *)dynarr_at (map->tiles, index);
+		//printf ("iterating over the %d-th index (with hex %p {%d %d %d})\n", index, hex, hex->r, hex->k, hex->i);
 		edge = 0;
 		while (edge < 6)
 		{
 			x = hex->x + XY[edge][0];
 			y = hex->y + XY[edge][1];
 			hex_xy2rki (x, y, &r, &k, &i);
+			//printf ("\tedge %d: %d, %d {%d %d %d}\n", edge, x, y, r, k, i);
 			dir = ground_getTileAdjacencyIndex (g_entity, r, k, i);
 			if (dir < 0)
 			{
 				adjIndex = hex_linearCoord (r, k, i);
 				hex->neighbors[edge] = *(Hex *)dynarr_at (map->tiles, adjIndex);
+				//printf ("set %d-th edge of %p to %p\n", edge, hex, hex->neighbors[edge]);
 				edge++;
 				continue;
 			}
@@ -257,21 +233,20 @@ void ground_bakeTiles (Entity g_entity)
 				edge++;
 				continue;
 			}
-			// this gets a little too in-depth into vector calculations. i'm not really sure what to do about that. the same values can be calculated more simply if i had the x,y offset of the adjacent ground's center instead of a vector
-			groundPos = ground_distanceBetweenAdjacentGrounds (map->size, dir);
-			adjPos = hex_coordOffset (r, k, i);
-			adjPos = vectorSubtract (&adjPos, &groundPos);
-			hex_coordinateAtSpace (&adjPos, &x, &y);
+			hexGround_centerDistanceCoord (map->size, dir, &ox, &oy);
+			x = x - ox;
+			y = y - oy;
 			hex_xy2rki (x, y, &r, &k, &i);
-			k = k % 6;
 			adjIndex = hex_linearCoord (r, k, i);
 			//printf ("from %d, %d {%d %d %d} in %d-ward direction leads to %d %d {%d %d %d}\n", hex->x, hex->y, hex->r, hex->k, hex->i, dir, x, y, r, k, i);
 			hex->neighbors[edge] = *(Hex *)dynarr_at (adj_map->tiles, adjIndex);
+			//printf ("set %d-th edge of %p to %p (cross-ground)\n", edge, hex, hex->neighbors[edge]);
 			edge++;
 		}
 		hex_bakeEdges (hex);
 	}
 	dynIterator_destroy (it);
+	//printf ("%s (#%d): done!\n", __FUNCTION__, entity_GUID (g_entity));
 }
 
 struct hex * ground_getHexatCoord (GroundMap g, short r, short k, short i) {
@@ -290,7 +265,6 @@ static GroundMap ground_create () {
   memset (g->edges, '\0', sizeof (Entity) * 6);
   g->tiles = NULL;
   g->size = -1;
-  g->border = BORDER_VOID;
   g->occupants = dynarr_create (1, sizeof (struct ground_occupant *));
   return g;
 }
@@ -345,6 +319,7 @@ void ground_fillFlat (GroundMap g, float height) {
           hex_destroy (h);
         }
         dynarr_assign (g->tiles, o, hex_create (r, k, i, height));
+        //printf ("created {%d %d %d} (%d)\n", r, k, i, hex_linearCoord (r, k, i));
         i++;
         o++;
       }
@@ -352,6 +327,7 @@ void ground_fillFlat (GroundMap g, float height) {
     }
     r++;
   }
+  //printf ("tile list: %d items long\n", dynarr_size (g->tiles));
 }
 
 bool ground_isInitialized (const GroundMap g) {

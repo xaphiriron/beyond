@@ -7,6 +7,7 @@
 #include "object.h"
 #include "entity.h"
 #include "quaternion.h"
+#include "hex_utility.h"
 
 typedef struct position_data * positionComponent;
 
