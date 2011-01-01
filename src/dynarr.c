@@ -154,7 +154,7 @@ Dynarr dynarr_create (int indices, size_t size)
 	da = malloc (sizeof (struct dynarr));
 	if (da == NULL)
 		exit (ENOMEM);
-	da->items = calloc (indices, size);
+	da->items = calloc (indices + 1, size);
 	if (da->items == NULL)
 		exit (ENOMEM);
 	da->indicesUsed = malloc (ind);
@@ -316,16 +316,20 @@ char * dynarr_search (const Dynarr da, int (*search) (const void *, const void *
 	va_list
 		ap;
 	char
-		* datum,
+		* key,
 		* match;
 	if (da->used != dynarr_index_final (da) + 1)
+	{
 		return dynarr_at (da, -1);
+	}
 	va_start (ap, search);
-	datum = va_arg (ap, char *);
+	key = va_arg (ap, char *);
 	va_end (ap);
-	match = bsearch (&datum, da->items, da->used, da->size, search);
+	match = bsearch (&key, da->items, da->used, da->size, search);
 	if (match == NULL)
+	{
 		return dynarr_at (da, -1);
+	}
 	return match;
 }
 
