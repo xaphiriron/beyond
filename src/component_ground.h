@@ -10,6 +10,8 @@
 #include "hex.h"
 #include "hex_utility.h"
 
+#include "world_position.h"
+
 // the argument in a "GROUND_EDGE_TRAVERSAL" entity message is a pointer to
 // this struct.
 struct ground_edge_traversal
@@ -36,19 +38,14 @@ struct ground_occupant
 		r, k, i;
 };
 
-
-// link a<->b with the given direction (relative to a)
-bool ground_link (Entity a, Entity b, int direction);
-Entity ground_getEdgeConnection (const GroundMap m, short i);
-
 Dynarr ground_getOccupants (GroundMap m);
 
-/*
-GroundLoc ground_calculateLocationDistance (const GroundMap g, int edgesPassed, ...);
-*/
 short ground_getMapSize (const GroundMap g);
+const worldPosition ground_getWorldPos (const GroundMap g);
 struct hex * ground_getHexAtOffset (GroundMap g, int o);
 short ground_getTileAdjacencyIndex (const Entity groundEntity, short r, short k, short i);
+
+void ground_setWorldPos (GroundMap g, worldPosition wp);
 
 /***
  *  given an entity with a ground component and a position from the

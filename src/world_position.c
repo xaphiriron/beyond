@@ -149,7 +149,8 @@ int wp_compare (const worldPosition a, const worldPosition b)
 	unsigned int
 		aa = 0, bb = 0,
 		shift;
-	shift = sizeof (int) * CHAR_BIT;
+	shift = sizeof (int) * CHAR_BIT - 1;
+
 /*
 	printf ("got %p:\n", a);
 	wp_print (a);
@@ -167,7 +168,7 @@ int wp_compare (const worldPosition a, const worldPosition b)
 	shift -= 12;
 	if (shift < 0)
 		assert (0 && "ints not long enough :(");
-	shift = sizeof (int) * CHAR_BIT;
+	shift = sizeof (int) * CHAR_BIT - 1;
 	bb |= GET_BITS (b->bits, WORLD_POLE_BITS, WORLD_POLE_SHIFT) << (shift - (WORLD_POLE_BITS - 1));
 	shift -= WORLD_POLE_BITS;
 	bb |= GET_BITS (b->bits, WORLD_CORNER_BITS, WORLD_CORNER_SHIFT) << (shift - (WORLD_CORNER_BITS - 1));
@@ -178,7 +179,6 @@ int wp_compare (const worldPosition a, const worldPosition b)
 	shift -= 12;
 	//printf ("a hash: %d\nb hash: %d\n", aa, bb);
 	return aa - bb;
-	//return 1;
 }
 
 void wp_print (const worldPosition pos)

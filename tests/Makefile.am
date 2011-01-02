@@ -9,13 +9,15 @@ TESTS = \
   check_dynarr \
   check_object \
   check_entity \
-  check_tiles
+  check_tiles \
+  check_worldpos
 check_PROGRAMS = \
   check_check \
   check_dynarr \
   check_object \
   check_entity \
-  check_tiles
+  check_tiles \
+  check_worldpos
 
 check_check_SOURCES = \
   check_check.c \
@@ -64,9 +66,20 @@ check_entity_LDADD = @CHECK_LIBS@
 check_tiles_SOURCES = \
   check_tiles.c \
   $(top_builddir)/src/hex.c \
+  $(top_builddir)/src/hex_utility.c \
   $(top_builddir)/src/dynarr.c
 check_tiles_CFLAGS = @CHECK_CFLAGS@
 check_tiles_LDADD = \
+  $(top_builddir)/src/libvector.la \
+  $(top_builddir)/src/libfcmp.la \
+  @CHECK_LIBS@
+
+check_worldpos_SOURCES = \
+  check_worldpos.c \
+  $(top_builddir)/src/world_position.c \
+  $(top_builddir)/src/hex_utility.c
+check_worldpos_CFLAGS = @CHECK_CFLAGS@
+check_worldpos_LDADD =  \
   $(top_builddir)/src/libvector.la \
   $(top_builddir)/src/libfcmp.la \
   @CHECK_LIBS@

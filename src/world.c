@@ -2,171 +2,74 @@
 
 Object * WorldObject = NULL;
 
+static int world_entwp_search (const void * key, const void * datum);
+static int world_entwp_sort (const void * a, const void * b);
+
 WORLD * world_create ()
 {
 	WORLD
 		* w = xph_alloc (sizeof (WORLD));
+
+	//printf ("%s: started\n", __FUNCTION__);
+	w->poleRadius = 3;
+	w->groundRadius = 2;
+
+	w->groundDistanceDraw = 6;
+	w->loadedGrounds = dynarr_create (hex (w->groundDistanceDraw + 1), sizeof (Entity));
+	
+
+	return w;
+}
+
+void world_destroy (WORLD * w)
+{
+	DynIterator
+		it;
 	Entity
-		groundG = NULL,
-		groundH = NULL,
-		groundI = NULL,
+		map;
+	if (!dynarr_isEmpty (w->loadedGrounds))
+	{
+		it = dynIterator_create (w->loadedGrounds);
+		while (!dynIterator_done (it))
+		{
+			map = *(Entity *)dynIterator_next (it);
+/*
+			entity_destroy (map);
+*/
+		}
+	}
+	dynarr_destroy (w->loadedGrounds);
+	xph_free (w);
+}
+
+void world_init ()
+{
+	WORLD
+		* w = obj_getClassData (WorldObject, "world");
+	Entity
+		poleA = NULL,
 		camera = NULL,
 		plant = NULL;
-	GroundMap
-		g = NULL,
-		h = NULL,
-		i = NULL;
-	Hex
-		hex = NULL;
+	worldPosition
+		wp;
 
-	groundG = entity_create ();
-	groundH = entity_create ();
-	groundI = entity_create ();
-	component_instantiateOnEntity ("ground", groundG);
-	component_instantiateOnEntity ("ground", groundH);
-	component_instantiateOnEntity ("ground", groundI);
-	g = component_getData (entity_getAs (groundG, "ground"));
-	h = component_getData (entity_getAs (groundH, "ground"));
-	i = component_getData (entity_getAs (groundI, "ground"));
-	if (g == NULL || h == NULL || i == NULL)
-	{
-		fprintf (stderr, "%s: starter ground entities turned out NULL for some reason. We're doomed; nothing to do but\n", __FUNCTION__);
-		exit (EXIT_FAILURE);
-	}
-	//printf ("initializing ground entities:\n");
-	ground_initSize (g, 12);
-	ground_fillFlat (g, 1.0);
+	//printf ("creating ground entities:\n");
+	wp = wp_create ('a', 0, 0, 0);
+	poleA = world_loadGroundAt (wp);
+	w->groundOrigin = poleA;
+	wp_destroy (wp);
 
-	ground_initSize (h, 12);
-	ground_fillFlat (h, 1.0);
-
-	ground_initSize (i, 12);
-	ground_fillFlat (i, 1.0);
-
-	//printf ("sloping tiles:\n");
-/*
-	hex = ground_getHexatCoord (g, 0, 0, 0);
-	hex_setSlope (hex, HEX_TOP, 0, 0, 0);
-	hex = ground_getHexatCoord (g, 1, 0, 0);
-	hex_setSlope (hex, HEX_TOP, 0, 0, 0);
-	hex = ground_getHexatCoord (g, 1, 1, 0);
-	hex_setSlope (hex, HEX_TOP, 0, 0, 0);
-	hex = ground_getHexatCoord (g, 1, 2, 0);
-	hex_setSlope (hex, HEX_TOP, 0, 0, 0);
-	hex = ground_getHexatCoord (g, 1, 3, 0);
-	hex_setSlope (hex, HEX_TOP, 0, 0, 0);
-	hex = ground_getHexatCoord (g, 1, 4, 0);
-	hex_setSlope (hex, HEX_TOP, 0, 0, 0);
-	hex = ground_getHexatCoord (g, 1, 5, 0);
-	hex_setSlope (hex, HEX_TOP, 0, 0, 0);
-	hex = ground_getHexatCoord (g, 2, 0, 1);
-	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-	hex = ground_getHexatCoord (g, 2, 1, 1);
-	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-	hex = ground_getHexatCoord (g, 2, 2, 1);
-	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-	hex = ground_getHexatCoord (g, 2, 3, 1);
-	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-	hex = ground_getHexatCoord (g, 2, 4, 1);
-	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-	hex = ground_getHexatCoord (g, 2, 5, 1);
-	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-	hex = ground_getHexatCoord (g, 3, 0, 0);
-	hex_setSlope (hex, HEX_TOP, 3, 3, 3);
-	hex = ground_getHexatCoord (g, 3, 2, 0);
-	hex_setSlope (hex, HEX_TOP, 3, 3, 3);
-	hex = ground_getHexatCoord (g, 3, 4, 0);
-	hex_setSlope (hex, HEX_TOP, 3, 3, 3);
-
-	hex = ground_getHexatCoord (h, 1, 0, 0);
-	hex_setSlope (hex, HEX_TOP, 2, 2, 2.5);
-	hex = ground_getHexatCoord (h, 1, 1, 0);
-	hex_setSlope (hex, HEX_TOP, 2, 2.5, 2);
-	hex = ground_getHexatCoord (h, 2, 0, 1);
-	hex_setSlope (hex, HEX_TOP, 2.5, 2, 2);
-	hex = ground_getHexatCoord (h, 1, 3, 0);
-	hex_setSlope (hex, HEX_TOP, 2, 2, 2.5);
-	hex = ground_getHexatCoord (h, 1, 4, 0);
-	hex_setSlope (hex, HEX_TOP, 2, 2.5, 2);
-	hex = ground_getHexatCoord (h, 2, 3, 1);
-	hex_setSlope (hex, HEX_TOP, 2.5, 2, 2);
-	hex = ground_getHexatCoord (h, 3, 2, 0);
-	hex_setSlope (hex, HEX_TOP, 3, 3.5, 2.5);
-	hex = ground_getHexatCoord (h, 3, 5, 0);
-	hex_setSlope (hex, HEX_TOP, 2.5, 3.5, 3);
-
-	hex = ground_getHexatCoord (i, 1, 0, 0);
-	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-	hex = ground_getHexatCoord (i, 1, 2, 0);
-	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-	hex = ground_getHexatCoord (i, 1, 4, 0);
-	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-	hex = ground_getHexatCoord (i, 2, 1, 0);
-	hex_setSlope (hex, HEX_TOP, 3, 3, 3);
-	hex = ground_getHexatCoord (i, 2, 3, 0);
-	hex_setSlope (hex, HEX_TOP, 3, 3, 3);
-	hex = ground_getHexatCoord (i, 2, 5, 0);
-	hex_setSlope (hex, HEX_TOP, 3, 3, 3);
-	hex = ground_getHexatCoord (i, 3, 0, 0);
-	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-	hex = ground_getHexatCoord (i, 3, 1, 0);
-	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-	hex = ground_getHexatCoord (i, 3, 2, 0);
-	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-	hex = ground_getHexatCoord (i, 3, 3, 0);
-	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-	hex = ground_getHexatCoord (i, 3, 4, 0);
-	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-	hex = ground_getHexatCoord (i, 3, 5, 0);
-	hex_setSlope (hex, HEX_TOP, 2, 2, 2);
-
-	ground_link (groundG, groundH, 0);
-	ground_link (groundG, groundH, 2);
-	ground_link (groundG, groundH, 4);
-	ground_link (groundH, groundI, 2);
-	ground_link (groundH, groundI, 4);
-	ground_link (groundH, groundI, 0);
-	ground_link (groundI, groundG, 0);
-	ground_link (groundI, groundG, 2);
-	ground_link (groundI, groundG, 4);
-
-/*
-    h = ground_getHexatCoord (g, 1, 1, 0);
-    hex_setSlope (h, HEX_TOP, 2, 2, 2);
-    h = ground_getHexatCoord (g, 1, 4, 0);
-    hex_setSlope (h, HEX_TOP, 2, 2, 2);
-    h = ground_getHexatCoord (g, 3, 4, 0);
-    hex_setSlope (h, HEX_TOP, 2, 2, 2);
-
-    h = ground_getHexatCoord (g, 5, 1, 0);
-    hex_setSlope (h, HEX_TOP, 2, 3, 3);
-    h = ground_getHexatCoord (g, 5, 3, 0);
-    hex_setSlope (h, HEX_TOP, 3, 2, 3);
-    h = ground_getHexatCoord (g, 5, 5, 0);
-    hex_setSlope (h, HEX_TOP, 3, 3, 2);
-    h = NULL;
-*/
-/*
-    ground_link (ground, ground, 0, 4);
-    ground_link (ground, ground, 3, 2);
-    ground_link (ground, ground, 4, 4);
-*/
-	ground_bakeTiles (groundG);
-	ground_bakeTiles (groundH);
-	ground_bakeTiles (groundI);
-
-	w->groundOrigin = groundG;
-	w->groundDistanceDraw = 6;
-
+	//printf ("placing plant:\n");
 	plant = entity_create ();
 	component_instantiateOnEntity ("position", plant);
 	plant_generateRandom (plant);
-	ground_placeOnTile (groundG, 0, 0, 0, plant);
+	ground_placeOnTile (poleA, 0, 0, 0, plant);
 
+	//printf ("placing camera:\n");
 	camera = entity_create ();
 	if (component_instantiateOnEntity ("position", camera))
 	{
-		ground_placeOnTile (groundG, 3, 0, 0, camera);
+		ground_placeOnTile (poleA, 0, 0, 0, camera);
 		position_move (camera, vectorCreate (0.0, 90.0, 0.0));
 	}
 	component_instantiateOnEntity ("integrate", camera);
@@ -183,11 +86,7 @@ WORLD * world_create ()
 	component_instantiateOnEntity ("walking", camera);
 	w->camera = camera;
 
-  return w;
-}
-
-void world_destroy (WORLD * w) {
-  xph_free (w);
+	//printf ("%s: done!\n", __FUNCTION__);
 }
 
 void world_update () {
@@ -198,6 +97,84 @@ void world_update () {
 
 void world_postupdate () {
   entitySubsystem_runOnStored (OM_POSTUPDATE);
+}
+
+
+
+unsigned int world_getLoadedGroundCount ()
+{
+	WORLD
+		* w = obj_getClassData (WorldObject, "world");
+	return dynarr_size (w->loadedGrounds);
+}
+
+unsigned int world_getPoleRadius ()
+{
+	WORLD
+		* w = obj_getClassData (WorldObject, "world");
+	return w->poleRadius;
+}
+
+Entity world_loadGroundAt (const worldPosition wp)
+{
+	WORLD
+		* w = obj_getClassData (WorldObject, "world");
+	Entity
+		m = *(Entity *)dynarr_search (w->loadedGrounds, world_entwp_search, wp);
+	GroundMap
+		g;
+	worldPosition
+		mp;
+	unsigned int
+		r, k, i;
+	if (m)
+		return m;
+
+	// this is where the whole "generate ground from scratch or load existant chunk from save" decision has to be made. since we don't have saves, the decision is simple right now!
+	m = entity_create ();
+	component_instantiateOnEntity ("ground", m);
+	g = component_getData (entity_getAs (m, "ground"));
+	wp_getCoords (wp, &r, &k, &i);
+	printf ("CREATING NEW GROUND AT '%c'{%d %d %d}\n", wp_getPole (wp), r, k, i);
+	if (r > w->poleRadius)
+		assert (0 && "ground requested with an invalid radius");
+	mp = wp_create (wp_getPole (wp), r, k, i);
+	ground_initSize (g, w->groundRadius);
+	ground_fillFlat (g, ((w->poleRadius - r) / (float)w->poleRadius) * 4.0);
+	ground_setWorldPos (g, mp);
+	ground_bakeTiles (m);
+	// ADD TO LOADED GROUNDS
+	dynarr_push (w->loadedGrounds, m);
+	dynarr_sort (w->loadedGrounds, world_entwp_sort);
+	return m;
+}
+
+
+static int world_entwp_search (const void * key, const void * datum)
+{
+	const worldPosition
+		d = ground_getWorldPos (component_getData (entity_getAs (*(Entity *)datum, "ground")));
+/*
+	printf ("KEY (%p):\n", *(void **)key);
+	wp_print (*(const worldPosition *)key);
+	printf ("DATUM (%p):\n", d);
+	wp_print (d);
+*/
+	return wp_compare (*(const worldPosition *)key, d);
+}
+
+static int world_entwp_sort (const void * a, const void * b)
+{
+	const worldPosition
+		aa = ground_getWorldPos (component_getData (entity_getAs (*(Entity *)a, "ground"))),
+		bb = ground_getWorldPos (component_getData (entity_getAs (*(Entity *)b, "ground")));
+/*
+	printf ("A (%p):\n", a);
+	wp_print (aa);
+	printf ("B (%p):\n", b);
+	wp_print (bb);
+*/
+	return wp_compare (aa, bb);
 }
 
 int world_handler (Object * o, objMsg msg, void * a, void * b) {
@@ -222,10 +199,14 @@ int world_handler (Object * o, objMsg msg, void * a, void * b) {
         return EXIT_FAILURE;
       }
 
+      //printf ("CREATING WORLD DATA...\n");
       w = world_create ();
       obj_addClassData (o, "world", w);
       WorldObject = o;
 
+      world_init ();
+
+      //printf ("CREATED WORLD DATA\n");
       return EXIT_SUCCESS;
 
     default:

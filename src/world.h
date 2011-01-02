@@ -26,9 +26,23 @@ extern Object * WorldObject;
 
 typedef struct world
 {
+	unsigned int
+		poleRadius,
+		groundRadius;
+
+	// the hypothetical max size of this array is hex (poleRadius)
+	Dynarr
+		loadedGrounds;
+
+/*
+	(other data that has to do with map generation or storage should go here, but nothing else. most specifically, this is not the place for video options or references to the player-controlled entities)
+*/
+
 	Entity
 		groundOrigin,
 		camera;		// this is dumb, in the end we don't want a "camera" here. probably.
+
+// these are video options and shouldn't be in the world object:
 	int
 		groundDistanceDraw;
 	bool
@@ -38,6 +52,13 @@ typedef struct world
 
 WORLD * world_create ();
 void world_destroy (WORLD *);
+
+void world_update ();
+void world_postupdate ();
+
+unsigned int world_getLoadedGroundCount ();
+unsigned int world_getPoleRadius ();
+Entity world_loadGroundAt (const worldPosition wp);
 
 /*
 void integrate (WORLD * w, float delta);

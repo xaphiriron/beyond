@@ -24,6 +24,7 @@ beyond_SOURCES = \
   accumulator.c accumulator.h \
   physics.c physics.h	\
   entity.c entity.h	\
+  world_position.c world_position.h \
   component_position.c component_position.h	\
   component_ground.c component_ground.h		\
   component_integrate.c component_integrate.h	\

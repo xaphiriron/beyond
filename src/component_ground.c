@@ -2,8 +2,8 @@
 
 struct ground_comp
 {
-	Entity
-		edges[6];
+	worldPosition
+		wp;
 	Dynarr
 		tiles,
 		occupants;
@@ -11,74 +11,9 @@ struct ground_comp
 		size;
 };
 
-/*
-struct ground_location
-{
-	VECTOR3
-		distance;
-	unsigned short
-		rotation;
-};
-*/
-
 static GroundMap ground_create ();
 static void ground_destroy (GroundMap g);
 
-/***
- * GROUND EDGE/LINKAGE
- */
-
-bool ground_link (Entity a_entity, Entity b_entity, int direction) {
-  int
-    a_dir = 0,
-    b_dir = 0;
-  GroundMap a, b;
-  if (a_entity == NULL || b_entity == NULL) {
-    fprintf (stderr, "%s (%p, %p, ...): NULL entity.\n", __FUNCTION__, a_entity, b_entity);
-    return FALSE;
-  }
-  a = component_getData (entity_getAs (a_entity, "ground"));
-  b = component_getData (entity_getAs (b_entity, "ground"));
-  if (a == NULL || b == NULL) {
-    fprintf (stderr, "%s (%p, %p, ...): NULL ground. (%p, %p)\n", __FUNCTION__, a_entity, b_entity, a, b);
-    return FALSE;
-  } else if (a->size != b->size) {
-    fprintf (stderr, "%s (%p, %p, ...): size mismatch (%d to %d)\n", __FUNCTION__, a_entity, b_entity, a->size, b->size);
-    return FALSE;
-  }
-  // c's mod operator doesn't work right on negative numbers
-  if (direction < 0) {
-    direction = 6 - ((direction * -1) % 6);
-    if (direction == 6)
-      direction = 0;
-  } else if (direction > 5) {
-    direction = direction % 6;
-  }
-  a_dir = direction;
-  b_dir = (3 + direction) % 6;
-  if (a->edges[a_dir] != NULL || b->edges[b_dir] != NULL) {
-    fprintf (stderr, "%s(%p, %p, ...): ground already linked in either direction (to %d/%p and %d/%p)\n", __FUNCTION__, a_entity, b_entity, a_dir, a->edges[a_dir], b_dir, b->edges[b_dir]);
-    return FALSE;
-  }
-  if (a_dir == b_dir && a == b) {
-    // if rotation == 3, the two grounds will be facing each other, and their *_dir values will be equal. this causes the universe to have infinite curvature (an edge is meeting itself) and is disallowed. also, it would create a memory leak because we still try to set up be. mostly it's because of the infinite curvature thing.
-    fprintf (stderr, "%s(%p, %p, ...): with given rotation values a face would warp around to touch itself. this is impermissible.\n", __FUNCTION__, a_entity, b_entity);
-    return FALSE;
-  }
-  // there needs to be a whole other section for checking to make sure this
-  // connection or its degree of rotation doesn't cause the universe to twist
-  // and furl.
-  a->edges[a_dir] = b_entity;
-  b->edges[b_dir] = a_entity;
-  return TRUE;
-}
-
-Entity ground_getEdgeConnection (const GroundMap m, short i)
-{
-	if (m == NULL || i < 0 || i >= 6 || m->edges[i] == NULL)
-		return NULL;
-	return m->edges[i];
-}
 
 Dynarr ground_getOccupants (GroundMap m)
 {
@@ -93,6 +28,11 @@ Dynarr ground_getOccupants (GroundMap m)
 short ground_getMapSize (const GroundMap g)
 {
 	return g->size;
+}
+
+const worldPosition ground_getWorldPos (const GroundMap g)
+{
+	return g->wp;
 }
 
 struct hex * ground_getHexAtOffset (GroundMap g, int o)
@@ -116,21 +56,28 @@ short ground_getTileAdjacencyIndex (const Entity groundEntity, short r, short k,
 	return dir;
 }
 
+
+void ground_setWorldPos (GroundMap g, worldPosition wp)
+{
+	g->wp = wp;
+}
+
 bool ground_bridgeConnections (const Entity groundEntity, Entity e)
 {
 	signed int
 		x, y;
 	unsigned int
 		r, k, i;
-	short
-		dir;
 	Component
 		p = entity_getAs (e, "position");
 	positionComponent
 		pdata = component_getData (p);
 	GroundMap
-		g = component_getData (entity_getAs (groundEntity, "ground")),
-		adjacent = NULL;
+		g = component_getData (entity_getAs (groundEntity, "ground"));
+	worldPosition
+		newp;
+	Entity
+		adj;
 	struct ground_edge_traversal
 		* trav = NULL;
 	//printf ("%s: called\n", __FUNCTION__);
@@ -146,21 +93,20 @@ bool ground_bridgeConnections (const Entity groundEntity, Entity e)
 	}
 	hex_space2coord (&pdata->pos, &x, &y);
 	hex_xy2rki (x, y, &r, &k, &i);
-	dir = ground_getTileAdjacencyIndex (groundEntity, r, k, i);
-	if (dir < 0)
-	{
+	if (r <= g->size)
 		return TRUE;
-	}
-	if (g->edges[dir] == NULL || (adjacent = component_getData (entity_getAs (g->edges[dir], "ground"))) == NULL)
-		return FALSE;
-	//printf ("%s: adjacent ground in %d dir; origin at offset %5.2f, %5.2f, %5.2f\n", __FUNCTION__, dir, newOrigin.x, newOrigin.y, newOrigin.z);
+	newp = wp_fromRelativeOffset (g->wp, world_getPoleRadius (), 1, k, 0);
+	adj = world_loadGroundAt (newp);
+	wp_destroy (newp);
+	newp = NULL;
 	trav = xph_alloc (sizeof (struct ground_edge_traversal));
 	trav->oldGroundEntity = groundEntity;
-	trav->newGroundEntity = g->edges[dir];
-	trav->directionOfMovement = dir;
+	trav->newGroundEntity = adj;
+	trav->directionOfMovement = k;
 	component_messageEntity (p, "GROUND_EDGE_TRAVERSAL", trav);
 	xph_free (trav);
 	return TRUE;
+
 }
 
 bool ground_placeOnTile (Entity groundEntity, short r, short k, short i, Entity e)
@@ -186,8 +132,7 @@ bool ground_placeOnTile (Entity groundEntity, short r, short k, short i, Entity 
 void ground_bakeTiles (Entity g_entity)
 {
 	GroundMap
-		map = component_getData (entity_getAs (g_entity, "ground")),
-		adj_map;
+		map = component_getData (entity_getAs (g_entity, "ground"));
 	DynIterator
 		it;
 	int
@@ -196,8 +141,7 @@ void ground_bakeTiles (Entity g_entity)
 		adjIndex,
 		dir;
 	signed int
-		x, y,
-		ox, oy;
+		x, y;
 	unsigned int
 		r, k, i;
 	Hex
@@ -228,20 +172,13 @@ void ground_bakeTiles (Entity g_entity)
 				continue;
 			}
 			// hex at the edge of the ground. aah.
-			if (map->edges[dir] == NULL || (adj_map = component_getData (entity_getAs (map->edges[dir], "ground"))) == NULL)
-			{
-				edge++;
-				continue;
-			}
-			hexGround_centerDistanceCoord (map->size, dir, &ox, &oy);
-			x = x - ox;
-			y = y - oy;
-			hex_xy2rki (x, y, &r, &k, &i);
-			adjIndex = hex_linearCoord (r, k, i);
-			//printf ("from %d, %d {%d %d %d} in %d-ward direction leads to %d %d {%d %d %d}\n", hex->x, hex->y, hex->r, hex->k, hex->i, dir, x, y, r, k, i);
-			hex->neighbors[edge] = *(Hex *)dynarr_at (adj_map->tiles, adjIndex);
-			//printf ("set %d-th edge of %p to %p (cross-ground)\n", edge, hex, hex->neighbors[edge]);
+			/***
+			 * we're just going to ignore this for now -- the proper thing to
+			 * do is ask if the adjacent ground is loaded (but not require that
+			 * it be) and if so, hook up its neighbors.
+			 */
 			edge++;
+			continue;
 		}
 		hex_bakeEdges (hex);
 	}
@@ -262,7 +199,6 @@ struct hex * ground_getHexatCoord (GroundMap g, short r, short k, short i) {
 
 static GroundMap ground_create () {
   new (struct ground_comp, g);
-  memset (g->edges, '\0', sizeof (Entity) * 6);
   g->tiles = NULL;
   g->size = -1;
   g->occupants = dynarr_create (1, sizeof (struct ground_occupant *));
@@ -271,16 +207,11 @@ static GroundMap ground_create () {
 
 static void ground_destroy (GroundMap g)
 {
-	int
-		i = 0;
+	wp_destroy (g->wp);
 	if (g->tiles == NULL)
 	{
 		xph_free (g);
 		return;
-	}
-	while (i < 6)
-	{
-		g->edges[i++] = NULL;
 	}
 	dynarr_wipe (g->tiles, (void (*)(void *))hex_destroy);
 	dynarr_wipe (g->occupants, xph_free);

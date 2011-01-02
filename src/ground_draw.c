@@ -37,102 +37,65 @@ void cameraCache_destroy (CameraCache cache) {
 }
 
 
-void cameraCache_extend (int size) {
-  Entity
-    origin = NULL,
-    adjEntity = NULL;
-  CameraGroundLabel
-    label = NULL,
-    newLabel = NULL;
-  GroundMap
-    t = NULL,
-    u = NULL;
-  int
-    cacheOffset = 0,
-    i = 0,
-    j = 0,
-    limit = 0;
+void cameraCache_extend (int size)
+{
+	Entity
+		origin = NULL,
+		adjEntity = NULL;
+	CameraGroundLabel
+		label = NULL,
+		newLabel = NULL;
+	int
+		cacheOffset;
+	worldPosition
+		originPos,
+		wp;
 	signed int
 		newX, newY;
 	unsigned int
+		r, k, i,
 		newR, newK, newI;
-  //printf ("%s (%d)...\n", __FUNCTION__, size);
-  if (OriginCache == NULL || OriginCache->cache == NULL || dynarr_isEmpty (OriginCache->cache)) {
-    // augh
-    fprintf (stderr, "%s: label cache nonexistant or empty.\n", __FUNCTION__);
-    return;
-  }
-  label = *(CameraGroundLabel *)dynarr_at (OriginCache->cache, 0);
-  if (label == NULL || label->origin != label->this) {
-    fprintf (stderr, "%s: label cache is invalid or has no base entry.\n", __FUNCTION__);
-    return;
-  }
-  origin = label->origin;
-  label = NULL;
-  while (OriginCache->extent < size) {
-    limit = (OriginCache->extent <= 0)
-      ? 1
-      : hex (OriginCache->extent + 1);
-    i = (OriginCache->extent <= 0)
-      ? 0
-      : hex (OriginCache->extent);
-    //printf ("%s: iterating from %d to %d\n", __FUNCTION__, i, limit);
-    while (i < limit) {
-      label = *(CameraGroundLabel *)dynarr_at (OriginCache->cache, i++);
-      if (label == NULL || label->this == NULL) {
-        //printf ("%s: no label at offset %d; continuing\n", __FUNCTION__, i - 1);
-        continue;
-      }
-      t = component_getData (entity_getAs (label->this, "ground"));
-      j = 0;
-      while (j < 6) {
-        adjEntity = ground_getEdgeConnection (t, j);
-        if (adjEntity == NULL || (u = component_getData (entity_getAs (adjEntity, "ground"))) == NULL) {
-          //printf ("%s: no edge or invalid edge connection on ground %p->%d\n", __FUNCTION__, t, absDir);
-          // no or invalid edge connection
-          j++;
-          continue;
-        }
-        newX = label->x + XY[j][0];
-        newY = label->y + XY[j][1];
-        hex_xy2rki (newX, newY, &newR, &newK, &newI);
-        cacheOffset = hex_linearCoord (newR, newK, newI);
-        //printf ("over %d, %d {%d %d %d} w/ offset of %d\n", newX, newY, newR, newK, newI, cacheOffset);
-        if (cacheOffset < limit) {
-          // the ground (u) is within the bounds of the currently-calculated
-          // cache, and so a new label doesn't need to be generated. however,
-          // if the world is inconsistantly linked it's possible for two
-          // different grounds to be located at the same x,y coordinates. here
-          // is where it would be a reasonable place to test for that.
-          //printf ("  ...inside limit\n");
-          j++;
-          continue;
-        }
-        if (*(CameraGroundLabel *)dynarr_at (OriginCache->cache, cacheOffset) != NULL) {
-          //printf ("  ...label exists\n");
-          j++;
-          continue;
-        }
-        newLabel = ground_createLabel (
-          origin,
-          adjEntity,
-          newX,
-          newY
-        );
-        /*
-        printf ("%s: new entry %p at offset %d (limit %d)\n", __FUNCTION__, newLabel, cacheOffset, limit);
-        printf ("\t@ %d,%d, {%d %d %d} %5.2f, %5.2f, %5.2f\n", newX, newY, newR, newK, newI, newLabel->offset.x, newLabel->offset.y, newLabel->offset.z);
-        printf ("\t  dir %d: %d, %d\n", absDir, XY[absDir][0], XY[absDir][1]);
-        //*/
-        dynarr_assign (OriginCache->cache, cacheOffset, newLabel);
-        //printf ("\t  cache size: %d\n", vector_size (OriginCache->cache));
-        j++;
-      }
-    }
-    OriginCache->extent++;
-  }
-  //printf ("%s: finished with a new extent of %d; %d entr%s in the cache.\n", __FUNCTION__, OriginCache->extent, vector_size (OriginCache->cache), (vector_size (OriginCache->cache) == 1 ? "y" : "ies"));
-  //printf ("...%s\n", __FUNCTION__);
+	//printf ("%s (%d)...\n", __FUNCTION__, size);
+	if (OriginCache == NULL || OriginCache->cache == NULL || dynarr_isEmpty (OriginCache->cache))
+	{
+		// augh
+		fprintf (stderr, "%s: label cache nonexistant or empty.\n", __FUNCTION__);
+		return;
+	}
+	label = *(CameraGroundLabel *)dynarr_at (OriginCache->cache, 0);
+	if (label == NULL || label->origin != label->this)
+	{
+		fprintf (stderr, "%s: label cache is invalid or has no base entry.\n", __FUNCTION__);
+		return;
+	}
+	origin = label->origin;
+	originPos = ground_getWorldPos (component_getData (entity_getAs (origin, "ground")));
+	label = NULL;
+	while (OriginCache->extent < size)
+	{
+		r = OriginCache->extent + 1;
+		k = 0;
+		while (k < 6)
+		{
+			i = 0;
+			while (i < r)
+			{
+				wp = wp_fromRelativeOffset (originPos, world_getPoleRadius (), r, k, i);
+				wp_getCoords (wp, &newR, &newK, &newI);
+				//printf ("from origin: {%d %d %d} makes '%c'{%d %d %d}\n", r, k, i, wp_getPole (wp), newR, newK, newI);
+				hex_rki2xy (r, k, i, &newX, &newY);
+				adjEntity = world_loadGroundAt (wp);
+				newLabel = ground_createLabel (origin, adjEntity, newX, newY);
+				cacheOffset = hex_linearCoord (r, k, i);
+				dynarr_assign (OriginCache->cache, cacheOffset, newLabel);
+				wp_destroy (wp);
+				i++;
+			}
+			k++;
+		}
+		OriginCache->extent++;
+	}
+	printf ("%d unique grounds loaded into memory\n", world_getLoadedGroundCount ());
 }
 
 void cameraCache_setGroundEntityAsOrigin (Entity g)
