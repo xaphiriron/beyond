@@ -55,7 +55,7 @@ void cameraCache_extend (int size)
 	unsigned int
 		r, k, i,
 		newR, newK, newI;
-	//printf ("%s (%d)...\n", __FUNCTION__, size);
+	printf ("%s (%d)...\n", __FUNCTION__, size);
 	if (OriginCache == NULL || OriginCache->cache == NULL || dynarr_isEmpty (OriginCache->cache))
 	{
 		// augh
@@ -95,7 +95,7 @@ void cameraCache_extend (int size)
 		}
 		OriginCache->extent++;
 	}
-	printf ("%d unique grounds loaded into memory\n", world_getLoadedGroundCount ());
+	printf ("%s (%d): done w/ %d unique grounds loaded into memory\n", __FUNCTION__, size, world_getLoadedGroundCount ());
 }
 
 void cameraCache_setGroundEntityAsOrigin (Entity g)

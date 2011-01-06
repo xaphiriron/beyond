@@ -28,11 +28,11 @@ void video_loadDefaultSettings (VIDEO * v) {
   v->width = 960;
   v->orthographic = FALSE;
   v->doublebuffer = TRUE;
-  v->resolution = 0.03;
+  v->resolution = 0.07;
   v->title = xph_alloc_name (16, "video->title");
   strncpy (v->title, "beyond 0.0.0.1", 16);
   v->icon = NULL;
-  v->near = 10.0;
+  v->near = 20.0;
   v->far = 5000.0;
   v->SDLmode = SDL_OPENGL;
   v->screen = NULL;

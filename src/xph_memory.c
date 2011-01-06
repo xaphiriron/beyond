@@ -83,7 +83,7 @@ void xph_free (void * d) {
   assert (mlist != NULL);
   k = bsearch (d, mlist->a, mlist->o, sizeof (struct mdata *), memory_search);
   if (k == NULL) {
-    //fprintf (stderr, "Attempted to free %p, which is not allocated.\n", d);
+    fprintf (stderr, "Attempted to free %p, which is not allocated.\n", d);
     return;
   }
   free ((*k)->address);

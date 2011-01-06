@@ -12,38 +12,38 @@ START_TEST (test_clock_create) {
 END_TEST
 
 START_TEST (test_timer_create) {
-  TIMER * t = timer_create (clock_create (), 1.0);
+  TIMER * t = xtimer_create (clock_create (), 1.0);
   fail_unless (
     t != NULL
   );
   fail_unless (
-    timer_timeSinceLastUpdate (t) < 0,
+    xtimer_timeSinceLastUpdate (t) < 0,
     "A timer which has never been updated should return a negative value for time since last update."
   );
   fail_unless (
-    timer_timeElapsed (t) == 0.0,
+    xtimer_timeElapsed (t) == 0.0,
     "A timer which has never been updated should say no time has elapsed since starting"
   );
-  timer_destroy (t);
+  xtimer_destroy (t);
 }
 END_TEST
 
 START_TEST (test_timer_update) {
-  TIMER * t = timer_create (clock_create (), 1.0);
+  TIMER * t = xtimer_create (clock_create (), 1.0);
   float elapsed = 0.0;
-  timer_update (t);
-  elapsed = timer_timeElapsed (t);
+  xtimer_update (t);
+  elapsed = xtimer_timeElapsed (t);
   fail_unless (
     elapsed >= 0,
     "timer_update should update the specified timer (%f)",
     elapsed
   );
-  timer_updateAll ();
+  xtimer_updateAll ();
   fail_unless (
-    timer_timeElapsed (t) >= elapsed,
+    xtimer_timeElapsed (t) >= elapsed,
     "timer_updateAll should update every created timer"
   );
-  timer_destroy (t);
+  xtimer_destroy (t);
 }
 END_TEST
 
@@ -51,15 +51,15 @@ START_TEST (test_timer_scale) {
   CLOCK
     * c = clock_create ();
   TIMER
-    * t = timer_create (c, 1.0),
-    * u = timer_create (c, 2.0);
-  timer_updateAll ();
+    * t = xtimer_create (c, 1.0),
+    * u = xtimer_create (c, 2.0);
+  xtimer_updateAll ();
   fail_unless (
-    fcmp (timer_timeElapsed (t) * 2.0, timer_timeElapsed (u)) == TRUE,
+    fcmp (xtimer_timeElapsed (t) * 2.0, xtimer_timeElapsed (u)) == TRUE,
     "The scale of a timer should work as a multiplier for the time elapsed"
   );
-  timer_destroy (t);
-  timer_destroy (u);
+  xtimer_destroy (t);
+  xtimer_destroy (u);
 }
 END_TEST
 

@@ -346,10 +346,12 @@ void input_update (Object * d)
 	}
 }
 
-
-int component_input (Object * o, objMsg msg, void * a, void * b) {
-  Component t = NULL;
-  char * comp_msg = NULL;
+int component_input (Object * o, objMsg msg, void * a, void * b)
+{
+	Component
+		t = NULL;
+	char
+		* comp_msg = NULL;
   switch (msg) {
     case OM_CLSNAME:
       strncpy (a, "input", 32);

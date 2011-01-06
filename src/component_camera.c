@@ -22,6 +22,7 @@ const float * camera_getMatrix (Entity e)
 	return cdata->m;
 }
 
+// these three functions are incorrect
 float camera_getHeading (Entity e)
 {
 	cameraComponent
@@ -99,7 +100,7 @@ void camera_updateLabelsFromEdgeTraversal (Entity e, struct ground_edge_traversa
 	hex_xy2rki (x, y, &r, &k, &i);
 	lo = hex_linearCoord (r, k, i);
 	newLabel = *(CameraGroundLabel *)dynarr_at (OriginCache->cache, lo);
-	if (newLabel == NULL || (label_getCoordinateDistanceFromOrigin (newLabel) > (w->groundDistanceDraw / 3) && label_getCoordinateDistanceFromOrigin (newLabel) > 1))
+	if (newLabel == NULL || (label_getCoordinateDistanceFromOrigin (newLabel) >= (w->groundDistanceDraw / 3) && label_getCoordinateDistanceFromOrigin (newLabel) > 1))
 	{
 		if (newLabel == NULL)
 		{
@@ -240,64 +241,71 @@ void camera_update (Entity e)
 }
 
 
+static Dynarr
+	comp_entdata = NULL;
 int component_camera (Object * obj, objMsg msg, void * a, void * b) {
-  struct camera_data ** cd = NULL;
-	Dynarr
-		v = NULL;
+	struct camera_data
+		** cd = NULL;
 	DynIterator
 		it = NULL;
-  Entity e = NULL;
+	Entity
+		e = NULL;
 	char
 		* message = NULL;
-  switch (msg) {
-    case OM_CLSNAME:
-      strncpy (a, "camera", 32);
-      return EXIT_SUCCESS;
-    case OM_CLSINIT:
-      OriginCache = cameraCache_create ();
-      return EXIT_SUCCESS;
-    case OM_CLSFREE:
-      cameraCache_destroy (OriginCache);
-      OriginCache = NULL;
-      return EXIT_SUCCESS;
+	switch (msg)
+	{
+		case OM_CLSNAME:
+			strncpy (a, "camera", 32);
+			return EXIT_SUCCESS;
+		case OM_CLSINIT:
+			OriginCache = cameraCache_create ();
+			comp_entdata = dynarr_create (8, sizeof (Entity));
+			return EXIT_SUCCESS;
+		case OM_CLSFREE:
+			cameraCache_destroy (OriginCache);
+			OriginCache = NULL;
+			dynarr_destroy (comp_entdata);
+			comp_entdata = NULL;
+			return EXIT_SUCCESS;
     case OM_CLSVARS:
     case OM_CREATE:
       return EXIT_FAILURE;
     default:
       break;
-  }
-  switch (msg) {
-    case OM_SHUTDOWN:
-    case OM_DESTROY:
-      obj_destroy (obj);
-      return EXIT_SUCCESS;
+	}
+	switch (msg)
+	{
+		case OM_SHUTDOWN:
+		case OM_DESTROY:
+			obj_destroy (obj);
+			return EXIT_SUCCESS;
+		case OM_COMPONENT_INIT_DATA:
+			e = (Entity)b;
+			cd = a;
+			*cd = xph_alloc (sizeof (struct camera_data));
+			camera_setAsActive (b);
+			dynarr_push (comp_entdata, e);
+			return EXIT_SUCCESS;
+		case OM_COMPONENT_DESTROY_DATA:
+			e = (Entity)b;
+			cd = a;
+			xph_free (*cd);
+			*cd = NULL;
+			dynarr_remove_condense (comp_entdata, e);
+			return EXIT_SUCCESS;
 
-    case OM_COMPONENT_INIT_DATA:
-      cd = a;
-      *cd = xph_alloc (sizeof (struct camera_data));
-      camera_setAsActive (b);
-      return EXIT_SUCCESS;
+		case OM_UPDATE:
+			it = dynIterator_create (comp_entdata);
+			while (!dynIterator_done (it))
+			{
+				e = *(Entity *)dynIterator_next (it);
+				camera_update (e);
+			}
+			dynIterator_destroy (it);
+			return EXIT_SUCCESS;
 
-    case OM_COMPONENT_DESTROY_DATA:
-      cd = a;
-      xph_free (*cd);
-      *cd = NULL;
-      return EXIT_SUCCESS;
-
-    case OM_UPDATE:
-      v = entity_getEntitiesWithComponent (1, "camera");
-      it = dynIterator_create (v);
-      while (!dynIterator_done (it))
-      {
-        e = *(Entity *)dynIterator_next (it);
-        camera_update (e);
-      }
-      dynIterator_destroy (it);
-      dynarr_destroy (v);
-      return EXIT_SUCCESS;
-
-    case OM_POSTUPDATE:
-      return EXIT_SUCCESS;
+		case OM_POSTUPDATE:
+			return EXIT_SUCCESS;
 
     case OM_COMPONENT_RECEIVE_MESSAGE:
       message = ((struct comp_message *)a)->message;

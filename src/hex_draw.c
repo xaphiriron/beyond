@@ -1,11 +1,12 @@
 #include "hex_draw.h"
 
-static float rgb[3] = {1.0, 1.0, 1.0};
+static float rgb[3] = {0.75, 0.7, 0.65};
 
-void hex_setDrawColor (float red, float green, float blue) {
-  rgb[0] = red;
-  rgb[1] = green;
-  rgb[2] = blue;
+void hex_setDrawColor (float red, float green, float blue)
+{
+	rgb[0] = red;
+	rgb[1] = green;
+	rgb[2] = blue;
 }
 
 void hex_draw (const Hex hex, const Entity camera, const CameraGroundLabel label) {
@@ -17,7 +18,6 @@ void hex_draw (const Hex hex, const Entity camera, const CameraGroundLabel label
     // I don't know why these two work, but they do.
     c = hex->top + (ra + (hex->top - e)),
     f = hex->top + ((hex->top - d) + rb),
-//     avg = (hex->topA + hex->topB + c + d + e + f) / 6.0,
     corners[6] = {hex->topA, hex->topB, c, d, e, f};
   int
     i = 0,
@@ -29,11 +29,9 @@ void hex_draw (const Hex hex, const Entity camera, const CameraGroundLabel label
     light = FALSE;
   VECTOR3
     labelOffset = label_getOriginOffset (label),
-    hexOffset = hex_coordOffset (hex->r, hex->k, hex->i),
+    hexOffset = hex_coord2space (hex->r, hex->k, hex->i),
     pos = vectorAdd (&labelOffset, &hexOffset);
-  //printf ("\tlabel offset: %5.2f, %5.2f, %5.2f\n", labelOffset.x, labelOffset.y, labelOffset.z);
-  //printf ("\thex offset:  %5.2f, %5.2f, %5.2f\n", hexOffset.x, hexOffset.y, hexOffset.z);
-  if ((hex->i % 2) ^ !(hex->r % 2)) {
+  if ((hex->r & 0x01) ^ (hex->k & 0x01)) {
     light = TRUE;
   }
   if (light == TRUE) {
