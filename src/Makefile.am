@@ -22,7 +22,6 @@ beyond_SOURCES = \
   video.c video.h	\
   timer.c timer.h	\
   accumulator.c accumulator.h \
-  physics.c physics.h	\
   entity.c entity.h	\
   world_position.c world_position.h \
   component_position.c component_position.h	\

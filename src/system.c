@@ -7,14 +7,18 @@ SYSTEM * system_create () {
   s->quit = FALSE;
   s->clock = clock_create ();
   s->timer_mult = 1.0;
+  s->timestep = 0.03;
+  s->acc = accumulator_create (xtimer_create (s->clock, s->timer_mult), s->timestep);
   s->state = STATE_INIT;
   return s;
 }
 
-void system_destroy (SYSTEM * s) {
-  xtimer_destroyTimerRegistry ();
-  clock_destroy (s->clock);
-  xph_free (s);
+void system_destroy (SYSTEM * s)
+{
+	accumulator_destroy (s->acc);
+	xtimer_destroyTimerRegistry ();
+	clock_destroy (s->clock);
+	xph_free (s);
 }
 
 enum system_states system_getState (const SYSTEM * s)
@@ -48,7 +52,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 			s = obj_getClassData (SystemObject, "SYSTEM");
 			//printf ("initializing other objects\n");
 			objClass_init (video_handler, NULL, NULL, NULL);
-			objClass_init (physics_handler, NULL, NULL, NULL);
+			//objClass_init (physics_handler, NULL, NULL, NULL);
 			objClass_init (world_handler, NULL, NULL, NULL);
 			//printf ("registering components\n");
 			entity_registerComponentAndSystem (component_position);
@@ -74,8 +78,10 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
       obj_create ("video", SystemObject,
         NULL, NULL);
 			//printf ("\tphysics:\n");
+/*
       obj_create ("physics", SystemObject,
         accumulator_create (xtimer_create (s->clock, 1.0), 0.03), NULL);
+*/
 			//printf ("\tworld:\n");
       obj_create ("world", SystemObject,
         NULL, NULL);
@@ -116,7 +122,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
       //printf ("%s[OM_DESTROY]\n", __FUNCTION__);
       obj_messagePost (WorldObject, OM_DESTROY, NULL, NULL);
       obj_messagePost (VideoObject, OM_DESTROY, NULL, NULL);
-      obj_messagePost (PhysicsObject, OM_DESTROY, NULL, NULL);
+      //obj_messagePost (PhysicsObject, OM_DESTROY, NULL, NULL);
 
       //printf ("%s[OM_DESTROY]: destroying system data\n", __FUNCTION__);
       system_destroy (s);
@@ -130,16 +136,24 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
     case OM_START:
       // for the record, the VideoEntity calls SDL_Init; everything else calls SDL_InitSubSystem. so the video entity has to start first. If this becomes a problem, feel free to switch the SDL_Init call to somewhere where it will /really/ always be called first (the system entity seems like a good place) and make everything else use SDL_InitSubSystem.
       obj_message (VideoObject, OM_START, NULL, NULL);
-      obj_message (PhysicsObject, OM_START, NULL, NULL);
+      //obj_message (PhysicsObject, OM_START, NULL, NULL);
       obj_message (WorldObject, OM_START, NULL, NULL);
       system_setState (s, STATE_FIRSTPERSONVIEW);
       return EXIT_SUCCESS;
 
-    case OM_UPDATE:
-      clock_update (s->clock);
-      xtimer_updateAll ();
-      obj_halt ();
-      return EXIT_SUCCESS;
+		case OM_UPDATE:
+			clock_update (s->clock);
+			xtimer_updateAll ();
+			accumulator_update (s->acc);
+			while (accumulator_withdrawlTime (s->acc))
+			{
+				obj_messagePre (WorldObject, OM_UPDATE, NULL, NULL);
+				entitySubsystem_runOnStored (OM_UPDATE);
+				obj_messagePre (WorldObject, OM_POSTUPDATE, NULL, NULL);
+				entitySubsystem_runOnStored (OM_POSTUPDATE);
+			}
+			obj_halt ();
+			return EXIT_SUCCESS;
 
     default:
       // no passing. no reason to.

@@ -3,14 +3,27 @@
 
 #include "object.h"
 #include "video.h"
-#include "physics.h"
 #include "world.h"
 #include "timer.h"
+#include "accumulator.h"
+
+#include "component_ground.h"
+#include "component_plant.h"
+#include "component_input.h"
+#include "component_camera.h"
+#include "component_walking.h"
 
 extern Object * SystemObject;
 
 typedef struct system
 {
+	float
+		timer_mult,
+		timestep;
+	CLOCK
+		* clock;
+	ACCUMULATOR
+		* acc;
 	enum system_states
 	{
 		STATE_ERROR				= 0x0000,
@@ -22,9 +35,8 @@ typedef struct system
 		STATE_QUIT				= 0x8000
 	} state;
 
-	bool quit;
-	CLOCK * clock;
-	float timer_mult;
+	bool
+		quit;
 } SYSTEM;
 
 SYSTEM * system_create ();

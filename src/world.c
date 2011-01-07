@@ -89,14 +89,12 @@ void world_init ()
 	//printf ("%s: done!\n", __FUNCTION__);
 }
 
-void world_update () {
-  // components are stored when first registered by the system object. you can
-  // probably change this around at runtime, but it might not be a great idea.
-  entitySubsystem_runOnStored (OM_UPDATE);
+void world_update ()
+{
 }
 
-void world_postupdate () {
-  entitySubsystem_runOnStored (OM_POSTUPDATE);
+void world_postupdate ()
+{
 }
 
 
@@ -222,17 +220,12 @@ int world_handler (Object * o, objMsg msg, void * a, void * b) {
       obj_destroy (o);
       return EXIT_SUCCESS;
 
-    case OM_UPDATE:
-      // integrate kids or prepare kids to be integrated
-      obj_halt ();
-      world_update ();
-      return EXIT_FAILURE;
-
-    case OM_POSTUPDATE:
-      // do integration things which depend on all world objects having their
-      // new position and momentum and the like
-      world_postupdate ();
-      return EXIT_FAILURE;
+		case OM_UPDATE:
+			world_update ();
+			return EXIT_FAILURE;
+		case OM_POSTUPDATE:
+			world_postupdate ();
+			return EXIT_FAILURE;
 
     case OM_PRERENDER:
       // called after video:prerender and before this:render

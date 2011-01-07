@@ -5,21 +5,19 @@
 #include "xph_memory.h"
 #include "vector.h"
 #include "hex.h"
-#include "physics.h"
+
+#include "world_position.h"
 
 #include "object.h"
 #include "entity.h"
 
-#include "component_position.h"
 #include "component_ground.h"
-#include "component_integrate.h"
-#include "component_camera.h"
-#include "component_input.h"
-#include "component_walking.h"
 #include "component_plant.h"
+#include "component_input.h"
+#include "component_camera.h"
 
-#include "ground_draw.h"
 #include "camera_draw.h"
+
 #include "system.h"
 
 extern Object * WorldObject;

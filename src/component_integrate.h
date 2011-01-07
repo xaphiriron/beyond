@@ -4,9 +4,10 @@
 #include "vector.h"
 #include "object.h"
 #include "entity.h"
-#include "physics.h"
 
 #include "component_position.h"
+
+#include "system.h"
 
 struct integrate_data {
   VECTOR3

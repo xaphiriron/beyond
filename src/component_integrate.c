@@ -97,7 +97,8 @@ void integrate (Entity e, float delta) {
  * depending on colliding, too.
  */
 int component_integrate (Object * obj, objMsg msg, void * a, void * b) {
-  const PHYSICS * physics = obj_getClassData (PhysicsObject, "physics");
+	const SYSTEM
+		* sys = obj_getClassData (SystemObject, "SYSTEM");
   Entity e = NULL;
   Dynarr v = NULL;
   DynIterator it = NULL;
@@ -140,7 +141,7 @@ int component_integrate (Object * obj, objMsg msg, void * a, void * b) {
       //printf ("%s: iterating over %d entit%s that ha%s position/integrate components\n", __FUNCTION__, vector_size (v), (vector_size (v) == 1 ? "y" : "ies"), (vector_size (v) == 1 ? "s" : "ve"));
       while (!dynIterator_done (it)) {
         e = *(Entity *)dynIterator_next (it);
-        integrate (e, physics->timestep);
+        integrate (e, sys->timestep);
       }
       dynIterator_destroy (it);
       dynarr_destroy (v);
@@ -151,7 +152,7 @@ int component_integrate (Object * obj, objMsg msg, void * a, void * b) {
       it = dynIterator_create (v);
       while (!dynIterator_done (it)) {
         e = *(Entity *)dynIterator_next (it);
-        commitIntegration (e, physics->timestep);
+        commitIntegration (e, sys->timestep);
       }
       dynIterator_destroy (it);
       dynarr_destroy (v);
