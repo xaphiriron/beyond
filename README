@@ -1,0 +1,9 @@
+If you just pulled this, here's what you need to do to get it running:
+
+autoreconf --install
+autoconf
+./configure
+make check
+./src/beyond
+
+But if one of those steps fails, you're probably doomed.
