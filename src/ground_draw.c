@@ -80,11 +80,11 @@ void cameraCache_extend (int size)
 			i = 0;
 			while (i < r)
 			{
-				wp = wp_fromRelativeOffset (originPos, world_getPoleRadius (), r, k, i);
+				wp = wp_fromRelativeOffset (originPos, groundWorld_getPoleRadius (), r, k, i);
 				wp_getCoords (wp, &newR, &newK, &newI);
 				//printf ("from origin: {%d %d %d} makes '%c'{%d %d %d}\n", r, k, i, wp_getPole (wp), newR, newK, newI);
 				hex_rki2xy (r, k, i, &newX, &newY);
-				adjEntity = world_loadGroundAt (wp);
+				adjEntity = groundWorld_loadGroundAt (wp);
 				newLabel = ground_createLabel (origin, adjEntity, newX, newY);
 				cacheOffset = hex_linearCoord (r, k, i);
 				dynarr_assign (OriginCache->cache, cacheOffset, newLabel);
@@ -95,7 +95,7 @@ void cameraCache_extend (int size)
 		}
 		OriginCache->extent++;
 	}
-	printf ("%s (%d): done w/ %d unique grounds loaded into memory\n", __FUNCTION__, size, world_getLoadedGroundCount ());
+	//printf ("%s (%d): done w/ %d unique grounds loaded into memory\n", __FUNCTION__, size, world_getLoadedGroundCount ());
 }
 
 void cameraCache_setGroundEntityAsOrigin (Entity g)
@@ -271,14 +271,17 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
 	dynIterator_destroy (it);
 }
 
-void ground_draw_fill (Entity origin, Entity camera, int stepsOutward) {
+void ground_draw_fill (Entity camera) {
   CameraGroundLabel
     label = NULL;
+	Entity
+		origin = groundWorld_getEntityOrigin (camera);
   GroundMap
     origin_map = component_getData (entity_getAs (origin, "ground"));
   int
    i = 0,
-   limit = 0;
+   limit = 0,
+   stepsOutward = groundWorld_getDrawDistance ();
   if (origin_map == NULL) {
     // oh i give up what is even the point???
     return;

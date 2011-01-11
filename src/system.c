@@ -53,7 +53,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 			//printf ("initializing other objects\n");
 			objClass_init (video_handler, NULL, NULL, NULL);
 			//objClass_init (physics_handler, NULL, NULL, NULL);
-			objClass_init (world_handler, NULL, NULL, NULL);
+			//objClass_init (world_handler, NULL, NULL, NULL);
 			//printf ("registering components\n");
 			entity_registerComponentAndSystem (component_position);
 			entity_registerComponentAndSystem (component_ground);
@@ -83,8 +83,10 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
         accumulator_create (xtimer_create (s->clock, 1.0), 0.03), NULL);
 */
 			//printf ("\tworld:\n");
+/*
       obj_create ("world", SystemObject,
         NULL, NULL);
+*/
 
 #ifdef MEM_DEBUG
 			atexit (xph_audit);
@@ -120,7 +122,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
     case OM_DESTROY:
       // this is post-order because if it was pre-order it wouldn't hit all its children due to an annoying issue I can't fix easily. When an entity is destroyed it detatches itself from the entity hierarchy, and since the *Entity globals are at the top of the entity tree, destroying them makes their children no longer siblings and thus unable to message each other. most likely I'll need to rework how messaging works internally, so I can ensure a message sent pre/post/in/whatever will hit all of the entities it should, at the moment the message was first sent (messages that change the entity tree that use the entity tree to flow are kind of a challenge, as you might imagine :/)
       //printf ("%s[OM_DESTROY]\n", __FUNCTION__);
-      obj_messagePost (WorldObject, OM_DESTROY, NULL, NULL);
+      //obj_messagePost (WorldObject, OM_DESTROY, NULL, NULL);
       obj_messagePost (VideoObject, OM_DESTROY, NULL, NULL);
       //obj_messagePost (PhysicsObject, OM_DESTROY, NULL, NULL);
 
@@ -133,13 +135,15 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
       SystemObject = NULL;
       return EXIT_SUCCESS;
 
-    case OM_START:
-      // for the record, the VideoEntity calls SDL_Init; everything else calls SDL_InitSubSystem. so the video entity has to start first. If this becomes a problem, feel free to switch the SDL_Init call to somewhere where it will /really/ always be called first (the system entity seems like a good place) and make everything else use SDL_InitSubSystem.
-      obj_message (VideoObject, OM_START, NULL, NULL);
-      //obj_message (PhysicsObject, OM_START, NULL, NULL);
-      obj_message (WorldObject, OM_START, NULL, NULL);
-      system_setState (s, STATE_FIRSTPERSONVIEW);
-      return EXIT_SUCCESS;
+		case OM_START:
+			// for the record, the VideoEntity calls SDL_Init; everything else calls SDL_InitSubSystem. so the video entity has to start first. If this becomes a problem, feel free to switch the SDL_Init call to somewhere where it will /really/ always be called first (the system entity seems like a good place) and make everything else use SDL_InitSubSystem.
+			obj_message (VideoObject, OM_START, NULL, NULL);
+			//obj_message (PhysicsObject, OM_START, NULL, NULL);
+			//obj_message (WorldObject, OM_START, NULL, NULL);
+			// this next line "generates" the "world" - xph 2011-01-11
+			entitySubsystem_message ("ground", OM_START, NULL, NULL);
+			system_setState (s, STATE_FIRSTPERSONVIEW);
+			return EXIT_SUCCESS;
 
 		case OM_UPDATE:
 			clock_update (s->clock);
@@ -147,9 +151,9 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 			accumulator_update (s->acc);
 			while (accumulator_withdrawlTime (s->acc))
 			{
-				obj_messagePre (WorldObject, OM_UPDATE, NULL, NULL);
+				//obj_messagePre (WorldObject, OM_UPDATE, NULL, NULL);
 				entitySubsystem_runOnStored (OM_UPDATE);
-				obj_messagePre (WorldObject, OM_POSTUPDATE, NULL, NULL);
+				//obj_messagePre (WorldObject, OM_POSTUPDATE, NULL, NULL);
 				entitySubsystem_runOnStored (OM_POSTUPDATE);
 			}
 			obj_halt ();

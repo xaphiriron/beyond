@@ -85,6 +85,8 @@ bool input_rmEntity (Entity e, enum input_control_types t);
 
 void input_sendGameEventMessage (const struct input_event * ie);
 
+Entity input_getPlayerEntity ();
+
 void input_update ();
 
 int component_input (Object * o, objMsg msg, void * a, void * b);

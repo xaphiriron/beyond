@@ -24,6 +24,7 @@ struct ground_edge_traversal
 };
 
 #include "component_position.h"
+#include "component_plant.h"
 
 typedef struct ground_comp * GroundMap;
 /*
@@ -37,6 +38,19 @@ struct ground_occupant
 	short
 		r, k, i;
 };
+
+
+
+unsigned int groundWorld_getPoleRadius ();
+unsigned int groundWorld_getGroundRadius ();
+unsigned int groundWorld_getDrawDistance ();
+
+Entity groundWorld_getEntityOrigin (const Entity e);
+void groundWorld_updateEntityOrigin (const Entity e, Entity newOrigin);
+
+Entity groundWorld_loadGroundAt (const worldPosition wp);
+
+
 
 Dynarr ground_getOccupants (GroundMap m);
 

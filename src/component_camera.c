@@ -81,7 +81,8 @@ void camera_updateLabelsFromEdgeTraversal (Entity e, struct ground_edge_traversa
 		x, y,
 		lo = 0;
 	unsigned int
-		r, k, i;
+		r, k, i,
+		drawDistance;
 	CameraGroundLabel
 		newLabel;
 	Entity
@@ -90,17 +91,16 @@ void camera_updateLabelsFromEdgeTraversal (Entity e, struct ground_edge_traversa
 	VECTOR3
 		newOffset;
 */
-	WORLD * w = NULL;
 	if (cdata == NULL)
 		return;
-	w = obj_getClassData (WorldObject, "world");
+	drawDistance = groundWorld_getDrawDistance ();
 	label_getXY (cdata->l, &x, &y);
 	x += XY[t->directionOfMovement][0];
 	y += XY[t->directionOfMovement][1];
 	hex_xy2rki (x, y, &r, &k, &i);
 	lo = hex_linearCoord (r, k, i);
 	newLabel = *(CameraGroundLabel *)dynarr_at (OriginCache->cache, lo);
-	if (newLabel == NULL || (label_getCoordinateDistanceFromOrigin (newLabel) >= (w->groundDistanceDraw / 3) && label_getCoordinateDistanceFromOrigin (newLabel) > 1))
+	if (newLabel == NULL || (label_getCoordinateDistanceFromOrigin (newLabel) >= (drawDistance / 3) && label_getCoordinateDistanceFromOrigin (newLabel) > 1))
 	{
 		if (newLabel == NULL)
 		{
@@ -113,9 +113,9 @@ void camera_updateLabelsFromEdgeTraversal (Entity e, struct ground_edge_traversa
 			lo = 0;
 		}
 		cameraCache_setGroundEntityAsOrigin (newOrigin);
-		cameraCache_extend (w->groundDistanceDraw);
+		cameraCache_extend (drawDistance);
 		//printf ("%s: resetting world origin to #%d (from #%d) \n", __FUNCTION__, entity_GUID (newOrigin), entity_GUID (w->groundOrigin));
-		w->groundOrigin = newOrigin;
+		groundWorld_updateEntityOrigin (e, newOrigin);
 		if (newLabel == NULL)
 		{
 			x = XY[t->directionOfMovement][0];

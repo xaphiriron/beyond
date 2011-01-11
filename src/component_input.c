@@ -206,7 +206,7 @@ void input_sendGameEventMessage (const struct input_event * ie) {
 			msg->from = NULL;
 			msg->message = xph_alloc (17);
 			strcpy (msg->message, "WIREFRAME_SWITCH");
-			obj_message (WorldObject, OM_SYSTEM_RECEIVE_MESSAGE, msg, msg->message);
+			obj_message (VideoObject, OM_SYSTEM_RECEIVE_MESSAGE, msg, msg->message);
 			xph_free (msg->message);
 			xph_free (msg);
 			msg = NULL;
@@ -233,6 +233,13 @@ void input_sendGameEventMessage (const struct input_event * ie) {
 	}
 }
 
+// FIXME: if there is only ever going to be one controlled entity at one time, there's no need for the array. if there may be more than one controlled entity at one time, this code won't always work.
+Entity input_getPlayerEntity ()
+{
+	if (Input == NULL || dynarr_isEmpty (Input->controlledEntities))
+		return NULL;
+	return *(Entity *)dynarr_front (Input->controlledEntities);
+}
 
 
 void input_update (Object * d)

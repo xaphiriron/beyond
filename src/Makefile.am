@@ -36,7 +36,6 @@ beyond_SOURCES = \
   hex_draw.c hex_draw.h \
   ground_draw.c ground_draw.h \
   camera_draw.c camera_draw.h \
-  world.c world.h	\
   system.c system.h	\
   beyond.c beyond.h
 beyond_LDADD =	\

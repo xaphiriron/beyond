@@ -11,8 +11,184 @@ struct ground_comp
 		size;
 };
 
+struct ground_world
+{
+	unsigned int
+		poleRadius,
+		groundRadius,
+		drawDistance;
+	Dynarr
+		loadedGrounds,
+		streamLoad;
+
+	Entity
+		origin;
+	worldPosition
+		player;
+};
+
+struct ground_world
+	* World = NULL;
+
+
+static struct ground_world * groundWorld_create ();
+static void groundWorld_init ();
+static void groundWorld_destroy ();
+
+static int world_entwp_search (const void * key, const void * datum);
+static int world_entwp_sort (const void * a, const void * b);
+
 static GroundMap ground_create ();
 static void ground_destroy (GroundMap g);
+
+
+static struct ground_world * groundWorld_create ()
+{
+	struct ground_world
+		* w = xph_alloc (sizeof (struct ground_world));
+
+	w->poleRadius = 2;
+	w->groundRadius = 2;
+	w->drawDistance = 10;
+
+	w->loadedGrounds = dynarr_create (hex (w->drawDistance + 1), sizeof (Entity));
+
+	return w;
+}
+
+static void groundWorld_init ()
+{
+	Entity
+		poleA = NULL,
+		camera = NULL,
+		plant = NULL;
+	worldPosition
+		wp;
+
+	wp = wp_create ('a', 0, 0, 0);
+	poleA = groundWorld_loadGroundAt (wp);
+	World->origin = poleA;
+	wp_destroy (wp);
+
+	plant = entity_create ();
+	component_instantiateOnEntity ("position", plant);
+	plant_generateRandom (plant);
+	ground_placeOnTile (poleA, 0, 0, 0, plant);
+
+	camera = entity_create ();
+	if (component_instantiateOnEntity ("position", camera))
+	{
+		ground_placeOnTile (poleA, 0, 0, 0, camera);
+		position_move (camera, vectorCreate (0.0, 90.0, 0.0));
+	}
+	component_instantiateOnEntity ("integrate", camera);
+	component_instantiateOnEntity ("camera", camera);
+	if (component_instantiateOnEntity ("input", camera)) {
+		input_addEntity (camera, INPUT_CONTROLLED);
+	}
+	component_instantiateOnEntity ("walking", camera);
+
+	groundWorld_updateEntityOrigin (camera, poleA);
+}
+
+static void groundWorld_destroy ()
+{
+	xph_free (World);
+	World = NULL;
+}
+
+unsigned int groundWorld_getPoleRadius ()
+{
+	return World->poleRadius;
+}
+
+unsigned int groundWorld_getGroundRadius ()
+{
+	return World->groundRadius;
+}
+
+unsigned int groundWorld_getDrawDistance ()
+{
+	return World->drawDistance;
+}
+
+
+// TODO: these are placeholder functions. if i ever add multiplayer support... well, this will be one of the many things i will have to revise.
+Entity groundWorld_getEntityOrigin (const Entity e)
+{
+	return World->origin;
+}
+
+void groundWorld_updateEntityOrigin (const Entity e, Entity newOrigin)
+{
+	World->origin = newOrigin;
+}
+
+Entity groundWorld_loadGroundAt (const worldPosition wp)
+{
+	Entity
+		m = *(Entity *)dynarr_search (World->loadedGrounds, world_entwp_search, wp);
+	GroundMap
+		g;
+	worldPosition
+		mp;
+	unsigned int
+		r, k, i;
+	if (m)
+		return m;
+
+	m = entity_create ();
+	component_instantiateOnEntity ("ground", m);
+	g = component_getData (entity_getAs (m, "ground"));
+	wp_getCoords (wp, &r, &k, &i);
+	printf ("CREATING NEW GROUND (#%d) AT '%c'{%d %d %d}\n", entity_GUID (m), wp_getPole (wp), r, k, i);
+	if (r > World->poleRadius)
+		assert (0 && "ground requested with an invalid radius");
+	mp = wp_create (wp_getPole (wp), r, k, i);
+	ground_initSize (g, World->groundRadius);
+	ground_fillFlat (g, ((World->poleRadius - r) / (float)World->poleRadius) * 4.0);
+	ground_setWorldPos (g, mp);
+	ground_bakeTiles (m);
+	// ADD TO LOADED GROUNDS
+	//printf ("adding new ground (#%d/%p) to loaded list:\n", entity_GUID (m), g);
+	dynarr_push (World->loadedGrounds, m);
+	dynarr_sort (World->loadedGrounds, world_entwp_sort);
+	//printf ("done w/ %s\n", __FUNCTION__);
+	return m;
+}
+
+
+static int world_entwp_search (const void * key, const void * datum)
+{
+	const worldPosition
+		d = ground_getWorldPos (component_getData (entity_getAs (*(Entity *)datum, "ground")));
+/*
+	printf ("KEY (%p):\n", *(void **)key);
+	wp_print (*(const worldPosition *)key);
+	printf ("DATUM (%p):\n", d);
+	wp_print (d);
+*/
+	return wp_compare (*(const worldPosition *)key, d);
+}
+
+static int world_entwp_sort (const void * a, const void * b)
+{
+	const worldPosition
+		aa = ground_getWorldPos (component_getData (entity_getAs (*(Entity *)a, "ground"))),
+		bb = ground_getWorldPos (component_getData (entity_getAs (*(Entity *)b, "ground")));
+/*
+	printf ("A (%p):\n", a);
+	wp_print (aa);
+	printf ("B (%p):\n", b);
+	wp_print (bb);
+*/
+	return wp_compare (aa, bb);
+}
+
+
+
+
+
 
 
 Dynarr ground_getOccupants (GroundMap m)
@@ -95,8 +271,8 @@ bool ground_bridgeConnections (const Entity groundEntity, Entity e)
 	hex_xy2rki (x, y, &r, &k, &i);
 	if (r <= g->size)
 		return TRUE;
-	newp = wp_fromRelativeOffset (g->wp, world_getPoleRadius (), 1, k, 0);
-	adj = world_loadGroundAt (newp);
+	newp = wp_fromRelativeOffset (g->wp, World->poleRadius, 1, k, 0);
+	adj = groundWorld_loadGroundAt (newp);
 	wp_destroy (newp);
 	newp = NULL;
 	trav = xph_alloc (sizeof (struct ground_edge_traversal));
@@ -221,7 +397,9 @@ static void ground_destroy (GroundMap g)
 }
 
 
-void ground_initSize (GroundMap g, int size) {
+void ground_initSize (GroundMap g, int size)
+{
+	//printf ("%s (%p, %d)...\n", __FUNCTION__, g, size);
   if (size < 0) {
     fprintf (stderr, "%s (%p, %d): invalid size\n", __FUNCTION__, g, size);
     return;
@@ -231,6 +409,7 @@ void ground_initSize (GroundMap g, int size) {
   }
   g->size = size;
   g->tiles = dynarr_create (hex (size) + 1, sizeof (struct tile *));
+	//printf ("...%s\n", __FUNCTION__);
 }
 
 void ground_fillFlat (GroundMap g, float height) {
@@ -279,28 +458,38 @@ bool ground_isValidRKI (const GroundMap g, short r, short k, short i) {
  * THE COMPONENT ITSELF
  */
 
-int component_ground (Object * obj, objMsg msg, void * a, void * b) {
-  GroundMap g = NULL;
-  switch (msg) {
-    case OM_CLSNAME:
-      strncpy (a, "ground", 32);
-      return EXIT_SUCCESS;
-    case OM_CLSINIT:
-      return EXIT_SUCCESS;
-    case OM_CLSFREE:
-      return EXIT_SUCCESS;
-    case OM_CLSVARS:
-    case OM_CREATE:
-      return EXIT_FAILURE;
-    default:
-      break;
-  }
+int component_ground (Object * obj, objMsg msg, void * a, void * b)
+{
+	GroundMap
+		g = NULL;
+	switch (msg)
+	{
+		case OM_CLSNAME:
+			strncpy (a, "ground", 32);
+			return EXIT_SUCCESS;
+		case OM_CLSINIT:
+			World = groundWorld_create ();
+			return EXIT_SUCCESS;
+		case OM_CLSFREE:
+			groundWorld_destroy ();
+			return EXIT_SUCCESS;
+		case OM_CLSVARS:
+		case OM_CREATE:
+			return EXIT_FAILURE;
+		default:
+		break;
+	}
 
-  switch (msg) {
+	switch (msg)
+	{
     case OM_SHUTDOWN:
     case OM_DESTROY:
       obj_destroy (obj);
       return EXIT_SUCCESS;
+
+		case OM_START:
+			groundWorld_init ();
+			return EXIT_SUCCESS;
 
     case OM_COMPONENT_INIT_DATA:
       g = ground_create ();

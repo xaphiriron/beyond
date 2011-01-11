@@ -40,6 +40,7 @@ bool component_removeFromEntity (const char * comp_name, Entity e);
 bool component_messageEntity (Component c, char * message, void * arg);
 bool component_messageSystem (Component c, char * message, void * arg);
 
+bool entitySubsystem_message (const char * comp_name, enum object_messages message, void * a, void * b);
 bool entitySubsystem_store (const char * comp_name);
 bool entitySubsystem_unstore (const char * comp_name);
 bool entitySubsystem_runOnStored (objMsg);

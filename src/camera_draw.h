@@ -10,6 +10,6 @@
 
 #include "component_camera.h"
 
-void camera_drawCursor (const Entity e);
+void camera_drawCursor ();
 
 #endif /* XPH_CAMERA_DRAW_H */

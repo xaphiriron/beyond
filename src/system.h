@@ -3,7 +3,6 @@
 
 #include "object.h"
 #include "video.h"
-#include "world.h"
 #include "timer.h"
 #include "accumulator.h"
 
@@ -12,6 +11,8 @@
 #include "component_input.h"
 #include "component_camera.h"
 #include "component_walking.h"
+
+#include "camera_draw.h"
 
 extern Object * SystemObject;
 

@@ -1,6 +1,6 @@
 #include "camera_draw.h"
 
-void camera_drawCursor (const Entity e)
+void camera_drawCursor ()
 {
 	//cameraComponent
 	//	cdata = component_getData (entity_getAs (e, "camera"));

@@ -27,6 +27,9 @@ typedef struct video {
   unsigned int SDLmode;
   SDL_Surface * screen;
 
+	bool
+		renderWireframe;
+
 } VIDEO;
 
 VIDEO * video_create ();

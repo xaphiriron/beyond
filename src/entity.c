@@ -155,6 +155,7 @@ bool entity_registerComponentAndSystem (objHandler func) {
   }
   dynarr_push (SystemRegistry, reg);
   dynarr_sort (SystemRegistry, sys_sort);
+	printf ("%s: registered component \"%s\"\n", __FUNCTION__, reg->comp_name);
   return TRUE;
 }
 
@@ -409,6 +410,16 @@ bool component_messageSystem (Component comp, char * message, void * arg) {
   obj_message (comp->reg->system, OM_SYSTEM_RECEIVE_MESSAGE, msg, message);
   xph_free (msg);
   return TRUE;
+}
+
+bool entitySubsystem_message (const char * comp_name, enum object_messages message, void * a, void * b)
+{
+	System
+		s = entity_getSystemByName (comp_name);
+	if (s == NULL)
+		return FALSE;
+	obj_message (s->system, message, a, b);
+	return TRUE;
 }
 
 bool entitySubsystem_store (const char * comp_name) {

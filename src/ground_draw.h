@@ -40,11 +40,7 @@ Entity label_getOriginReference (const CameraGroundLabel l);
 VECTOR3 label_getOriginOffset (const CameraGroundLabel l);
 int label_getCoordinateDistanceFromOrigin (const CameraGroundLabel l);
 
-// ultimately this will require a camera entity reference to draw, since
-// ultimately i will be doing my own depth-sorting instead of relying on
-// opengl to do it for me. right now, however, (and pending finalization
-// of the camera code) it's all automatic and inefficient. - xax 10-2010
 void ground_draw (Entity g, Entity camera, CameraGroundLabel l);
-void ground_draw_fill (Entity origin, Entity camera, int stepsOutward);
+void ground_draw_fill (Entity camera);
 
 #endif /* XPH_GROUND_DRAW_H */

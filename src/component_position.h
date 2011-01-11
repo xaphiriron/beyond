@@ -3,7 +3,6 @@
 
 #include "xph_memory.h"
 #include "vector.h"
-#include "world.h"
 #include "object.h"
 #include "entity.h"
 #include "quaternion.h"

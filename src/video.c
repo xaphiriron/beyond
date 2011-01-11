@@ -36,6 +36,7 @@ void video_loadDefaultSettings (VIDEO * v) {
   v->far = 5000.0;
   v->SDLmode = SDL_OPENGL;
   v->screen = NULL;
+	v->renderWireframe = FALSE;
 }
 
 
@@ -203,6 +204,8 @@ inline float video_pixelXMap (int x)
 
 int video_handler (Object * o, objMsg msg, void * a, void * b) {
   VIDEO * v = NULL;
+	char
+		* message;
   switch (msg) {
     case OM_CLSNAME:
       strncpy (a, "video", 32);
@@ -256,6 +259,19 @@ int video_handler (Object * o, objMsg msg, void * a, void * b) {
         SDL_GL_SwapBuffers();
       }
       return EXIT_SUCCESS;
+
+		case OM_SYSTEM_RECEIVE_MESSAGE:
+			message = b;
+			if (strcmp (message, "WIREFRAME_SWITCH") == 0)
+			{
+				v->renderWireframe ^= 1;
+				if (v->renderWireframe)
+					glPolygonMode (GL_FRONT, GL_LINE);
+				else
+					glPolygonMode (GL_FRONT, GL_FILL);
+				return EXIT_SUCCESS;
+			}
+			return EXIT_FAILURE;
 
     default:
       return obj_pass ();
