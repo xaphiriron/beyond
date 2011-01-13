@@ -45,6 +45,7 @@ void system_destroy (SYSTEM *);
 
 enum system_states system_getState (const SYSTEM * s);
 bool system_setState (SYSTEM * s, enum system_states state);
+const TIMER * system_getTimer ();
 
 int system_handler (Object * o, objMsg msg, void * a, void * b);
 

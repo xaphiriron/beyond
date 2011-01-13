@@ -95,7 +95,7 @@ float xtimer_timeSinceLastUpdate (const TIMER * t) {
     return -1.0;
   }
   gettimeofday (&now, NULL);
-  return timeval_cmp (&now, &t->lastUpdate);
+  return timeval_cmp (&now, &t->lastUpdate) * t->scale;
 }
 
 static Dynarr TimerRegistry = NULL;

@@ -11,28 +11,62 @@ struct ent_system {
   Object * system;
   const char * comp_name;
   Dynarr entities;
+	void (* loaderCallback) (Component);
+	unsigned char (* weighCallback) (Component);
 };
 
-struct ent_component {
+
+enum componentLoadStatus
+{
+	COMPONENT_NONEXISTANT = 0,
+	COMPONENT_UNLOADED,
+	COMPONENT_LOADING,
+	COMPONENT_LOADED
+};
+
+typedef struct
+{
+	unsigned int
+		totalValues,
+		loadedValues;
+	unsigned char
+		loadWeight;
+	enum componentLoadStatus
+		status;
+} COMPONENT_LOAD;
+
+struct ent_component
+{
   Entity e;
   System reg;
   void * comp_data;
+	COMPONENT_LOAD
+		* loader;
   unsigned int comp_guid;
+	bool
+		loaded;
 };
 
+
 static unsigned int EntityGUIDs = 0;
-static Dynarr DestroyedEntities = NULL;	// stores guids
-static Dynarr ExistantEntities = NULL;	// stores struct entity *
-
 static unsigned int ComponentGUIDs = 0;
-static Dynarr SystemRegistry = NULL;
 
-static Dynarr SubsystemComponentStore = NULL;
+static Dynarr
+	DestroyedEntities = NULL,		// stores guids
+	ExistantEntities = NULL,		// stores struct entity *
+	SystemRegistry = NULL,
+	SubsystemComponentStore = NULL,
+	ComponentLoader = NULL;
+
+static bool ComponentLoaderUnsorted = FALSE;
+
 
 static int comp_sort (const void * a, const void * b);
 static int comp_search (const void * k, const void * d);
 static int sys_sort (const void * a, const void * b);
 static int sys_search (const void * k, const void * d);
+
+static int comp_weight_sort (const void * a, const void * b);
 
 static int comp_sort (const void * a, const void * b) {
   //printf ("%s: got %d vs. %d\n", __FUNCTION__, (*(const struct ent_component **)a)->e->guid, (*(const struct ent_component **)b)->e->guid);
@@ -150,6 +184,10 @@ bool entity_registerComponentAndSystem (objHandler func) {
   reg->system = sys;
   reg->comp_name = obj_getClassName (sys);
   reg->entities = dynarr_create (4, sizeof (Component *));
+	reg->loaderCallback = NULL;
+	reg->weighCallback = NULL;
+	obj_message (sys, OM_COMPONENT_GET_LOADER_CALLBACK, &reg->loaderCallback, NULL);
+	obj_message (sys, OM_COMPONENT_GET_WEIGH_CALLBACK, &reg->weighCallback, NULL);
   if (SystemRegistry == NULL) {
     SystemRegistry = dynarr_create (4, sizeof (System *));
   }
@@ -323,10 +361,12 @@ bool component_instantiateOnEntity (const char * comp_name, Entity e) {
   if (sys == NULL) {
     return FALSE;
   }
-  new (struct ent_component, instance);
+	struct ent_component * instance = xph_alloc (sizeof (struct ent_component));
   instance->e = e;
   instance->reg = sys;
   instance->comp_guid = ++ComponentGUIDs;
+	instance->loaded = FALSE;
+	instance->loader = NULL;
   // we care less about enforcing uniqueness of component guids than we do about entities.
   dynarr_push (sys->entities, instance);
   dynarr_push (e->components, instance);
@@ -350,6 +390,8 @@ bool component_removeFromEntity (const char * comp_name, Entity e) {
   obj_message (sys->system, OM_COMPONENT_DESTROY_DATA, &comp->comp_data, e);
   dynarr_remove_condense (sys->entities, comp);
   dynarr_remove_condense (e->components, comp);
+	if (comp->loader != NULL)
+		xph_free (comp->loader);
   xph_free (comp);
   return TRUE;
 }
@@ -474,4 +516,95 @@ void entitySubsystem_clearStored () {
   if (SubsystemComponentStore != NULL) {
     dynarr_clear (SubsystemComponentStore);
   }
+}
+
+
+
+
+
+void component_setLoadTarget (Component c, unsigned int m)
+{
+	if (c == NULL || c->loader == NULL)
+		return;
+	c->loader->status = COMPONENT_LOADING;
+	c->loader->totalValues = m;
+}
+
+void component_updateLoadData (Component c, unsigned int v)
+{
+	if (c == NULL || c->loader == NULL)
+		return;
+	c->loader->status = COMPONENT_LOADING;
+	c->loader->loadedValues = (v > c->loader->totalValues)
+		? c->loader->totalValues
+		: v;
+}
+
+void component_setLoadComplete (Component c)
+{
+	if (c == NULL || c->loader == NULL)
+		return;
+	c->loader->status = COMPONENT_LOADED;
+	dynarr_remove_condense (ComponentLoader, c);
+}
+
+
+
+void component_setAsLoadable (Component c)
+{
+	COMPONENT_LOAD
+		* l = c->loader;
+	if (l != NULL)
+	{
+		fprintf (stderr, "%s (%p): Dual loading??? HOW CAN THIS BE?\not really sure what to do here...\n", __FUNCTION__, c);
+		return;
+	}
+	l = xph_alloc (sizeof (COMPONENT_LOAD));
+	c->loader = l;
+	l->status = COMPONENT_UNLOADED;
+	if (c->reg->weighCallback != NULL)
+		c->loader->loadWeight = c->reg->weighCallback (c);
+	else
+		c->loader->loadWeight = 32;
+	dynarr_push (ComponentLoader, c);
+	ComponentLoaderUnsorted = TRUE;
+}
+
+bool component_isLoaderActive ()
+{
+	if (ComponentLoader == NULL)
+		return FALSE;
+	if (dynarr_isEmpty (ComponentLoader))
+		return FALSE;
+	return TRUE;
+}
+
+void component_runLoader (const TIMER * t)
+{
+	Component
+		c;
+	float
+		timeElapsed;
+	if (ComponentLoader == NULL)
+		ComponentLoader = dynarr_create (8, sizeof (Component));
+	if (ComponentLoaderUnsorted == TRUE)
+	{
+		dynarr_sort (ComponentLoader, comp_weight_sort);
+		ComponentLoaderUnsorted = FALSE;
+	}
+	while (component_isLoaderActive () && (timeElapsed = xtimer_timeSinceLastUpdate (t)) < 0.1)
+	{
+		c = *(Component *)dynarr_front (ComponentLoader);
+		if (c->reg->loaderCallback == NULL)
+		{
+			dynarr_remove_condense (ComponentLoader, c);
+			continue;
+		}
+		c->reg->loaderCallback (c);
+	}
+}
+
+static int comp_weight_sort (const void * a, const void * b)
+{
+	return (*(Component *)a)->loader->loadWeight - (*(Component *)b)->loader->loadWeight;
 }

@@ -2,6 +2,7 @@
 #define XPH_ENTITY_H
 
 #include <stdarg.h>
+#include "timer.h"
 #include "dynarr.h"
 #include "object.h"
 
@@ -45,5 +46,15 @@ bool entitySubsystem_store (const char * comp_name);
 bool entitySubsystem_unstore (const char * comp_name);
 bool entitySubsystem_runOnStored (objMsg);
 void entitySubsystem_clearStored ();
+
+
+
+void component_setLoadTarget (Component c, unsigned int m);
+void component_updateLoadData (Component c, unsigned int v);
+void component_setLoadComplete (Component c);
+
+void component_setAsLoadable (Component c);
+bool component_isLoaderActive ();
+void component_runLoader (const TIMER * t);
 
 #endif /* XPH_ENTITY_H */

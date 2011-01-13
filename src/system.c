@@ -28,6 +28,16 @@ enum system_states system_getState (const SYSTEM * s)
 	return s->state;
 }
 
+const TIMER * system_getTimer ()
+{
+	SYSTEM
+		* s;
+	if (SystemObject == NULL)
+		return NULL;
+	s = obj_getClassData (SystemObject, "SYSTEM");
+	return s->acc->timer;
+}
+
 bool system_setState (SYSTEM * s, enum system_states state)
 {
 	if (s == NULL)
@@ -151,6 +161,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 			accumulator_update (s->acc);
 			while (accumulator_withdrawlTime (s->acc))
 			{
+				component_runLoader (system_getTimer ());
 				//obj_messagePre (WorldObject, OM_UPDATE, NULL, NULL);
 				entitySubsystem_runOnStored (OM_UPDATE);
 				//obj_messagePre (WorldObject, OM_POSTUPDATE, NULL, NULL);
