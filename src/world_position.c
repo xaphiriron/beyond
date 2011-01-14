@@ -175,43 +175,18 @@ unsigned int wp_distance (const worldPosition a, const worldPosition b)
 }
 
 
-// TODO: there is probably an overflow bug here
-// ADDITIONAL TODO: what the fuck is this? to start with practical concerns, the shift doesn't work right and will overflow, and also it limits pole radius to a maximum of 4096 (or maybe 2048?), after which everything will break.
 int wp_compare (const worldPosition a, const worldPosition b)
 {
-	unsigned int
-		aa = 0, bb = 0,
-		shift;
-	shift = sizeof (int) * CHAR_BIT - 1;
-
-/*
-	printf ("got %p:\n", a);
-	wp_print (a);
-	printf ("got %p:\n", b);
-	wp_print (b);
-*/
-	
-	aa |= GET_BITS (a->bits, WORLD_POLE_BITS, WORLD_POLE_SHIFT) << (shift - (WORLD_POLE_BITS - 1));
-	shift -= WORLD_POLE_BITS;
-	aa |= GET_BITS (a->bits, WORLD_CORNER_BITS, WORLD_CORNER_SHIFT) << (shift - (WORLD_CORNER_BITS - 1));
-	shift -= WORLD_CORNER_BITS;
-	aa |= GET_BITS (a->r, 12, 0) << (shift - 11);
-	shift -= 12;
-	aa |= GET_BITS (a->t, 12, 0) << (shift - 11);
-	shift -= 12;
-	if (shift < 0)
-		assert (0 && "ints not long enough :(");
-	shift = sizeof (int) * CHAR_BIT - 1;
-	bb |= GET_BITS (b->bits, WORLD_POLE_BITS, WORLD_POLE_SHIFT) << (shift - (WORLD_POLE_BITS - 1));
-	shift -= WORLD_POLE_BITS;
-	bb |= GET_BITS (b->bits, WORLD_CORNER_BITS, WORLD_CORNER_SHIFT) << (shift - (WORLD_CORNER_BITS - 1));
-	shift -= WORLD_CORNER_BITS;
-	bb |= GET_BITS (b->r, 12, 0) << (shift - 11);
-	shift -= 12;
-	bb |= GET_BITS (b->t, 12, 0) << (shift - 11);
-	shift -= 12;
-	//printf ("a hash: %d\nb hash: %d\n", aa, bb);
-	return aa - bb;
+	signed char
+		pd = GET_BITS (a->bits, WORLD_POLE_BITS, WORLD_POLE_SHIFT) - GET_BITS (b->bits, WORLD_POLE_BITS, WORLD_POLE_SHIFT),
+		kd = GET_BITS (a->bits, WORLD_CORNER_BITS, WORLD_CORNER_SHIFT) - GET_BITS (b->bits, WORLD_CORNER_BITS, WORLD_CORNER_SHIFT);
+	if (pd != 0)
+		return pd;
+	if (a->r - b->r != 0)
+		return a->r - b->r;
+	if (kd != 0)
+		return kd;
+	return a->t - b->t;
 }
 
 void wp_print (const worldPosition pos)
