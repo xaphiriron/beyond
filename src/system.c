@@ -57,7 +57,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 			strncpy (a, "SYSTEM", 32);
 			return EXIT_SUCCESS;
 		case OM_CLSINIT:
-			//printf ("STARTING CLASS INIT\n");
+			printf ("STARTING CLASS INIT\n");
 			obj_create ("SYSTEM", NULL, NULL, NULL);
 			s = obj_getClassData (SystemObject, "SYSTEM");
 			//printf ("initializing other objects\n");
@@ -66,6 +66,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 			//objClass_init (world_handler, NULL, NULL, NULL);
 			//printf ("registering components\n");
 			entity_registerComponentAndSystem (component_position);
+			entity_registerComponentAndSystem (component_pattern);
 			entity_registerComponentAndSystem (component_ground);
 //			entity_registerComponentAndSystem (component_integrate);
 			entity_registerComponentAndSystem (component_camera);
@@ -75,6 +76,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 			entity_registerComponentAndSystem (component_plant);
       // this order DOES matter, since this is the order they're updated later.
       entitySubsystem_store ("position");
+      entitySubsystem_store ("pattern");
       entitySubsystem_store ("ground");
       entitySubsystem_store ("plant");
       entitySubsystem_store ("walking");
@@ -101,7 +103,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 #ifdef MEM_DEBUG
 			atexit (xph_audit);
 #endif /* MEM_DEBUG */
-			//printf ("DONE WITH SYSTEM CLASS INIT\n");
+			printf ("DONE WITH SYSTEM CLASS INIT\n");
 			return EXIT_SUCCESS;
     case OM_CLSFREE:
       //printf ("%s[OM_CLSFREE]: calling entity_destroyEverything\n", __FUNCTION__);
@@ -147,12 +149,14 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 
 		case OM_START:
 			// for the record, the VideoEntity calls SDL_Init; everything else calls SDL_InitSubSystem. so the video entity has to start first. If this becomes a problem, feel free to switch the SDL_Init call to somewhere where it will /really/ always be called first (the system entity seems like a good place) and make everything else use SDL_InitSubSystem.
+			printf ("SYSTEM START:\n");
 			obj_message (VideoObject, OM_START, NULL, NULL);
 			//obj_message (PhysicsObject, OM_START, NULL, NULL);
 			//obj_message (WorldObject, OM_START, NULL, NULL);
 			// this next line "generates" the "world" - xph 2011-01-11
 			entitySubsystem_message ("ground", OM_START, NULL, NULL);
 			system_setState (s, STATE_FIRSTPERSONVIEW);
+			printf ("DONE W/ SYSTEM START:\n");
 			return EXIT_SUCCESS;
 
 		case OM_UPDATE:

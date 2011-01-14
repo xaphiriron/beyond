@@ -17,10 +17,7 @@ int main (int argc, char * argv[])
 		obj_message (SystemObject, OM_UPDATE, NULL, NULL);
 
     obj_messagePre (VideoObject, OM_PRERENDER, NULL, NULL);
-    //obj_messagePre (WorldObject, OM_PRERENDER, NULL, NULL);
     render ();
-    //obj_messagePre (WorldObject, OM_RENDER, NULL, NULL);
-    //obj_messagePre (WorldObject, OM_POSTRENDER, NULL, NULL);
     obj_messagePre (VideoObject, OM_POSTRENDER, NULL, NULL);
   }
 

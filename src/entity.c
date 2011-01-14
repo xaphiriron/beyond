@@ -125,7 +125,7 @@ void entity_destroy (Entity e) {
   struct ent_component * c = NULL;
   //printf ("destroying entity #%d; removing components:\n", e->guid);
   while (!dynarr_isEmpty (e->components)) {
-    //printf ("%d component%s.\n", vector_size (e->components), (vector_size (e->components) == 1 ? "" : "s"));
+    //printf ("%d component%s.\n", dynarr_size (e->components), (dynarr_size (e->components) == 1 ? "" : "s"));
     c = *(struct ent_component **)dynarr_front (e->components);
     component_removeFromEntity (c->reg->comp_name, e);
   }
@@ -134,6 +134,8 @@ void entity_destroy (Entity e) {
   if (DestroyedEntities == NULL) {
     DestroyedEntities = dynarr_create (32, sizeof (unsigned int));
   }
+	// TODO: this function requires two passes through the array even though since ExistantEntities is kept sorted it ought to be possible to search for the entity by GUID, unset it, and then condense from that index.
+	dynarr_remove_condense (ExistantEntities, e);
   dynarr_push (DestroyedEntities, e->guid);
   //printf ("done\n");
   xph_free (e);
@@ -319,6 +321,7 @@ System entity_getSystemByName (const char * comp_name) {
 void entity_destroySystem (const char * comp_name) {
   System sys = entity_getSystemByName (comp_name);
   Component c = NULL;
+	printf ("%s (\"%s\")...\n", __FUNCTION__, comp_name);
   if (sys == NULL) {
     return;
   }
@@ -331,11 +334,13 @@ void entity_destroySystem (const char * comp_name) {
   obj_message (sys->system, OM_DESTROY, NULL, NULL);
   objClass_destroy (sys->comp_name);
   xph_free (sys);
+	printf ("...%s\n", __FUNCTION__);
 }
 
 void entity_destroyEverything () {
   System sys = NULL;
   Entity e = NULL;
+	printf ("%s...\n", __FUNCTION__);
   while ((e = *(Entity *)dynarr_pop (ExistantEntities)) != NULL) {
     entity_destroy (e);
   }
@@ -354,6 +359,7 @@ void entity_destroyEverything () {
   }
   dynarr_destroy (SystemRegistry);
   SystemRegistry = NULL;
+	printf ("...%s\n", __FUNCTION__);
 }
 
 bool component_instantiateOnEntity (const char * comp_name, Entity e) {
@@ -382,6 +388,7 @@ bool component_removeFromEntity (const char * comp_name, Entity e) {
   if (sys == NULL) {
     return FALSE;
   }
+	//printf ("%s: removing component \"%s\" from entity #%d\n", __FUNCTION__, comp_name, entity_GUID (e));
   comp = *(Component *)dynarr_search (sys->entities, comp_search, e);
   if (comp == NULL) {
     fprintf (stderr, "%s: Entity #%d doesn't have a component \"%s\"\n", __FUNCTION__, e->guid, comp_name);
@@ -522,7 +529,7 @@ void entitySubsystem_clearStored () {
 
 
 
-void component_setLoadTarget (Component c, unsigned int m)
+void component_setLoadGoal (Component c, unsigned int m)
 {
 	if (c == NULL || c->loader == NULL)
 		return;
@@ -530,7 +537,7 @@ void component_setLoadTarget (Component c, unsigned int m)
 	c->loader->totalValues = m;
 }
 
-void component_updateLoadData (Component c, unsigned int v)
+void component_updateLoadAmount (Component c, unsigned int v)
 {
 	if (c == NULL || c->loader == NULL)
 		return;
@@ -545,7 +552,24 @@ void component_setLoadComplete (Component c)
 	if (c == NULL || c->loader == NULL)
 		return;
 	c->loader->status = COMPONENT_LOADED;
+	c->loaded = TRUE;
 	dynarr_remove_condense (ComponentLoader, c);
+}
+
+bool component_fullyLoaded (const Component c)
+{
+	return c->loaded;
+}
+
+void component_dropLoad (Component c)
+{
+	if (ComponentLoader == NULL || c == NULL)
+		return;
+	dynarr_remove_condense (ComponentLoader, c);
+	if (c->loader != NULL)
+		xph_free (c->loader);
+	c->loader = NULL;
+	c->loaded = FALSE;
 }
 
 
@@ -561,11 +585,14 @@ void component_setAsLoadable (Component c)
 	}
 	l = xph_alloc (sizeof (COMPONENT_LOAD));
 	c->loader = l;
+	c->loaded = FALSE;
 	l->status = COMPONENT_UNLOADED;
 	if (c->reg->weighCallback != NULL)
 		c->loader->loadWeight = c->reg->weighCallback (c);
 	else
 		c->loader->loadWeight = 32;
+	if (ComponentLoader == NULL)
+		ComponentLoader = dynarr_create (8, sizeof (Component));
 	dynarr_push (ComponentLoader, c);
 	ComponentLoaderUnsorted = TRUE;
 }
@@ -579,12 +606,13 @@ bool component_isLoaderActive ()
 	return TRUE;
 }
 
-void component_runLoader (const TIMER * t)
+void component_forceRunLoader (unsigned int load)
 {
 	Component
 		c;
-	float
-		timeElapsed;
+	unsigned int
+		loaded = 0;
+	//printf ("%s...\n", __FUNCTION__);
 	if (ComponentLoader == NULL)
 		ComponentLoader = dynarr_create (8, sizeof (Component));
 	if (ComponentLoaderUnsorted == TRUE)
@@ -592,7 +620,7 @@ void component_runLoader (const TIMER * t)
 		dynarr_sort (ComponentLoader, comp_weight_sort);
 		ComponentLoaderUnsorted = FALSE;
 	}
-	while (component_isLoaderActive () && (timeElapsed = xtimer_timeSinceLastUpdate (t)) < 0.1)
+	while (component_isLoaderActive () && loaded < load)
 	{
 		c = *(Component *)dynarr_front (ComponentLoader);
 		if (c->reg->loaderCallback == NULL)
@@ -602,6 +630,34 @@ void component_runLoader (const TIMER * t)
 		}
 		c->reg->loaderCallback (c);
 	}
+	//printf ("...%s\n", __FUNCTION__);
+}
+
+void component_runLoader (const TIMER * t)
+{
+	Component
+		c;
+	float
+		timeElapsed;
+	//printf ("%s...\n", __FUNCTION__);
+	if (ComponentLoader == NULL)
+		ComponentLoader = dynarr_create (8, sizeof (Component));
+	if (ComponentLoaderUnsorted == TRUE)
+	{
+		dynarr_sort (ComponentLoader, comp_weight_sort);
+		ComponentLoaderUnsorted = FALSE;
+	}
+	while (component_isLoaderActive () && (timeElapsed = xtimer_timeSinceLastUpdate (t)) < 0.05)
+	{
+		c = *(Component *)dynarr_front (ComponentLoader);
+		if (c->reg->loaderCallback == NULL)
+		{
+			dynarr_remove_condense (ComponentLoader, c);
+			continue;
+		}
+		c->reg->loaderCallback (c);
+	}
+	//printf ("...%s\n", __FUNCTION__);
 }
 
 static int comp_weight_sort (const void * a, const void * b)

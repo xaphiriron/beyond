@@ -63,6 +63,26 @@ unsigned int hex (unsigned int n)
 }
 
 
+void hex_nextValidCoord (unsigned int * rp, unsigned int * kp, unsigned int * ip)
+{
+	if (rp == NULL || kp == NULL || ip == NULL)
+		return;
+	if (*rp != 0 && *ip < (*rp) - 1)
+	{
+		(*ip)++;
+		return;
+	}
+	if (*kp < 5 && *rp > 0)
+	{
+		(*kp)++;
+		*ip = 0;
+		return;
+	}
+	*kp = 0;
+	*ip = 0;
+	(*rp)++;
+}
+
 bool hex_wellformedRKI (unsigned int r, unsigned int k, unsigned int i)
 {
 	if (r == 0 && i == 0)

@@ -55,7 +55,7 @@ void cameraCache_extend (int size)
 	unsigned int
 		r, k, i,
 		newR, newK, newI;
-	printf ("%s (%d)...\n", __FUNCTION__, size);
+	//printf ("%s (%d)...\n", __FUNCTION__, size);
 	if (OriginCache == NULL || OriginCache->cache == NULL || dynarr_isEmpty (OriginCache->cache))
 	{
 		// augh
@@ -71,31 +71,26 @@ void cameraCache_extend (int size)
 	origin = label->origin;
 	originPos = ground_getWorldPos (component_getData (entity_getAs (origin, "ground")));
 	label = NULL;
-	while (OriginCache->extent < size)
+	r = OriginCache->extent + 1;
+	k = 0;
+	i = 0;
+	while (r <= size)
 	{
-		r = OriginCache->extent + 1;
-		k = 0;
-		while (k < 6)
-		{
-			i = 0;
-			while (i < r)
-			{
-				wp = wp_fromRelativeOffset (originPos, groundWorld_getPoleRadius (), r, k, i);
-				wp_getCoords (wp, &newR, &newK, &newI);
-				//printf ("from origin: {%d %d %d} makes '%c'{%d %d %d}\n", r, k, i, wp_getPole (wp), newR, newK, newI);
-				hex_rki2xy (r, k, i, &newX, &newY);
-				adjEntity = groundWorld_loadGroundAt (wp);
-				newLabel = ground_createLabel (origin, adjEntity, newX, newY);
-				cacheOffset = hex_linearCoord (r, k, i);
-				dynarr_assign (OriginCache->cache, cacheOffset, newLabel);
-				wp_destroy (wp);
-				i++;
-			}
-			k++;
-		}
-		OriginCache->extent++;
+		wp = wp_fromRelativeOffset (originPos, groundWorld_getPoleRadius (), r, k, i);
+		wp_getCoords (wp, &newR, &newK, &newI);
+		//printf ("from origin: {%d %d %d} makes '%c'{%d %d %d}\n", r, k, i, wp_getPole (wp), newR, newK, newI);
+		hex_rki2xy (r, k, i, &newX, &newY);
+		adjEntity = groundWorld_loadGroundAt (wp);
+		newLabel = ground_createLabel (origin, adjEntity, newX, newY);
+		cacheOffset = hex_linearCoord (r, k, i);
+		dynarr_assign (OriginCache->cache, cacheOffset, newLabel);
+		wp_destroy (wp);
+
+		hex_nextValidCoord (&r, &k, &i);
 	}
-	//printf ("%s (%d): done w/ %d unique grounds loaded into memory\n", __FUNCTION__, size, world_getLoadedGroundCount ());
+	OriginCache->extent = r - 1;
+
+	//printf ("%s (%d): done\n", __FUNCTION__, size);
 }
 
 void cameraCache_setGroundEntityAsOrigin (Entity g)
@@ -144,12 +139,11 @@ CameraGroundLabel cameraCache_getOriginLabel ()
 
 CameraGroundLabel ground_createLabel (Entity origin, Entity this, int x, int y) {
   CameraGroundLabel l = xph_alloc (sizeof (struct ground_origin_label));
-  GroundMap m = component_getData (entity_getAs (this, "ground"));
   l->origin = origin;
   l->this = this;
   l->x = x;
   l->y = y;
-  l->offset = label_distanceFromOrigin (ground_getMapSize (m), x, y);
+  l->offset = label_distanceFromOrigin (groundWorld_getGroundRadius (), x, y);
   //printf ("%s: label x,y offset is %d, %d; distance vector is %f, %f, %f\n", __FUNCTION__, x, y, l->offset.x, l->offset.y, l->offset.z);
   return l;
 }
@@ -228,22 +222,42 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
     i = 0;
   float
     red, green, blue;
+	Component
+		g_comp;
 	DynIterator
 		it;
 	Dynarr
 		occupants;
 	struct ground_occupant
 		* o;
+
+	unsigned int
+		r, k, j;
+	unsigned char
+		p;
+
   struct hex * h = NULL;
+	//printf ("%s (%p, %p, %p)...\n", __FUNCTION__, g_entity, camera, g_label);
   if (g_entity == NULL || g_label == NULL || g_label->this != g_entity) {
     fprintf (stderr, "%s (#%d, %p): nonexistant entity, invalid label, or label does not match ground.\n", __FUNCTION__, entity_GUID (g_entity), g_label);
     return;
   }
-  g = component_getData (entity_getAs (g_entity, "ground"));
-  if (g == NULL) {
-    fprintf (stderr, "%s (#%d, %p): invalid entity (no ground component)\n", __FUNCTION__, entity_GUID (g_entity), g_label);
-    return;
-  }
+	g_comp = entity_getAs (g_entity, "ground");
+	g = component_getData (g_comp);
+	if (g_comp == NULL) {
+		fprintf (stderr, "%s (#%d, %p): invalid entity (no ground component)\n", __FUNCTION__, entity_GUID (g_entity), g_label);
+		return;
+	}
+	else if (!component_fullyLoaded (g_comp))
+	{
+		//fprintf (stderr, "%s (#%d, %p): skipping partially-loaded ground.\n", __FUNCTION__, entity_GUID (g_entity), g_label);
+		return;
+	}
+	p = wp_getPole (ground_getWorldPos (g));
+	wp_getCoords (ground_getWorldPos (g), &r, &k, &j);
+/*
+	printf ("GROUND AT '%c'{%d %d %d}\n", p, r, k, j);
+*/
   //printf ("%s: ground label at coord %d,%d\n", __FUNCTION__, g_label->x, g_label->y);
   red = (g_label->x + OriginCache->extent) / (float)(OriginCache->extent * 2);
   blue = (g_label->y + OriginCache->extent) / (float)(OriginCache->extent * 2);
@@ -251,11 +265,11 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
   hex_setDrawColor (red, green, blue);
   tilesPerGround = hex (ground_getMapSize (g) + 1);
   i = 0;
+	//printf ("DRAWING GROUND AT '%c'{%d %d %d} (%d, %d :: %f %f %f)\n", p, r, k, j, g_label->x, g_label->y, g_label->offset.x, g_label->offset.y, g_label->offset.z);
   while (i < tilesPerGround) {
     h = ground_getHexAtOffset (g, i);
-    if (h != NULL) {
-      hex_draw (h, camera, g_label);
-    }
+    assert (h != NULL);
+    hex_draw (h, camera, g_label);
     i++;
   }
 	occupants = ground_getOccupants (g);
@@ -269,9 +283,11 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
 		entity_message (o->occupant, "RENDER", g_label);
 	}
 	dynIterator_destroy (it);
+	//printf ("%s: DONE\n", __FUNCTION__);
 }
 
 void ground_draw_fill (Entity camera) {
+	//printf ("%s...\n", __FUNCTION__);
   CameraGroundLabel
     label = NULL;
 	Entity
@@ -299,7 +315,7 @@ void ground_draw_fill (Entity camera) {
   i = 0;
   limit = hex (stepsOutward + 1);
   while (i < limit) {
-    //printf ("...[5.%d] (%d)\n", i, vector_size (OriginCache->cache));
+    //printf ("...[5.%d] (%d)\n", i, dynarr_size (OriginCache->cache));
     label = *(CameraGroundLabel *)dynarr_at (OriginCache->cache, i);
     //printf ("   %p, %p\n", label, label->this);
     if (label != NULL) {
@@ -307,4 +323,5 @@ void ground_draw_fill (Entity camera) {
     }
     i++;
   }
+	//printf ("...%s\n", __FUNCTION__);
 }

@@ -49,6 +49,7 @@ Entity groundWorld_getEntityOrigin (const Entity e);
 void groundWorld_updateEntityOrigin (const Entity e, Entity newOrigin);
 
 Entity groundWorld_loadGroundAt (const worldPosition wp);
+void groundWorld_pruneDistantGrounds ();
 
 
 
@@ -80,6 +81,20 @@ void ground_fillFlat (GroundMap g, float height);
 bool ground_isInitialized (const GroundMap g);
 bool ground_isValidRKI (const GroundMap g, short r, short k, short i);
 
+
+
+
+void groundWorld_patternLoad (Component c);
+void groundWorld_groundLoad (Component c);
+unsigned char groundWorld_patternWeigh (Component c);
+unsigned char groundWorld_groundWeigh (Component c);
+
+bool groundWorld_groundFileExists (const worldPosition wp);
+Entity groundWorld_queueLoad (const worldPosition wp);
+Entity groundWorld_queueGeneration (const worldPosition wp);
+
 int component_ground (Object * obj, objMsg msg, void * a, void * b);
+// this is a placeholder:
+int component_pattern (Object * obj, objMsg msg, void * a, void * b);
 
 #endif

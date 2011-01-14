@@ -126,6 +126,14 @@ worldPosition wp_createEmpty ()
 	return wp;
 }
 
+worldPosition wp_duplicate (const worldPosition wp)
+{
+	struct world_position
+		* dup = xph_alloc (sizeof (struct world_position));
+	memcpy (dup, wp, sizeof (struct world_position));
+	return dup;
+}
+
 void wp_destroy (worldPosition wp)
 {
 	xph_free (wp);
@@ -143,7 +151,32 @@ void wp_destroyAdjacent (worldPosition * adj)
 	xph_free (adj);
 }
 
+unsigned int wp_distance (const worldPosition a, const worldPosition b)
+{
+	unsigned int
+		r, k, i;
+	signed int
+		ax, ay,
+		bx, by,
+		x, y;
+	// TODO: translate the coordinates so that they both have representations around the same pole. otherwise this next step will produce entirely wrong distance values at pole edges.
+	wp_getCoords (a, &r, &k, &i);
+	hex_rki2xy (r, k, i, &ax, &ay);
+	wp_getCoords (b, &r, &k, &i);
+	hex_rki2xy (r, k, i, &bx, &by);
+	x = ax - bx;
+	y = ay - by;
+	if ((x ^ y) < 0)
+		return abs (x) > abs (y)
+			? abs (x)
+			: abs (y);
+	else
+		return abs (x + y);
+}
+
+
 // TODO: there is probably an overflow bug here
+// ADDITIONAL TODO: what the fuck is this? to start with practical concerns, the shift doesn't work right and will overflow, and also it limits pole radius to a maximum of 4096 (or maybe 2048?), after which everything will break.
 int wp_compare (const worldPosition a, const worldPosition b)
 {
 	unsigned int

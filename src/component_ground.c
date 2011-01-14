@@ -9,6 +9,8 @@ struct ground_comp
 		occupants;
 	int
 		size;
+	unsigned int
+		far;
 };
 
 struct ground_world
@@ -16,15 +18,19 @@ struct ground_world
 	unsigned int
 		poleRadius,
 		groundRadius,
-		drawDistance;
+		drawDistance,
+		partialUnloadDistance,
+		loadedUnloadDistance;
 	Dynarr
 		loadedGrounds,
-		streamLoad;
+		partlyLoadedGrounds;
 
 	Entity
 		origin;
 	worldPosition
 		player;
+	bool
+		originChanged;
 };
 
 struct ground_world
@@ -47,11 +53,16 @@ static struct ground_world * groundWorld_create ()
 	struct ground_world
 		* w = xph_alloc (sizeof (struct ground_world));
 
-	w->poleRadius = 2;
+	w->poleRadius = 40000;
 	w->groundRadius = 2;
-	w->drawDistance = 10;
+	w->drawDistance = 8;
+	w->partialUnloadDistance = 1;
+	w->loadedUnloadDistance = 3;
 
 	w->loadedGrounds = dynarr_create (hex (w->drawDistance + 1), sizeof (Entity));
+	w->partlyLoadedGrounds = dynarr_create (hex (w->drawDistance + 1), sizeof (Entity));
+
+	w->originChanged = FALSE;
 
 	return w;
 }
@@ -65,10 +76,15 @@ static void groundWorld_init ()
 	worldPosition
 		wp;
 
+	printf ("%s...\n", __FUNCTION__);
+
 	wp = wp_create ('a', 0, 0, 0);
 	poleA = groundWorld_loadGroundAt (wp);
 	World->origin = poleA;
 	wp_destroy (wp);
+
+	// vvv this is to force the ground load started with the loadGround to complete before we start adding occupants to it. this is not a good way to do that.
+	component_forceRunLoader (2);
 
 	plant = entity_create ();
 	component_instantiateOnEntity ("position", plant);
@@ -89,10 +105,13 @@ static void groundWorld_init ()
 	component_instantiateOnEntity ("walking", camera);
 
 	groundWorld_updateEntityOrigin (camera, poleA);
+	printf ("...%s\n", __FUNCTION__);
 }
 
 static void groundWorld_destroy ()
 {
+	dynarr_destroy (World->loadedGrounds);
+	dynarr_destroy (World->partlyLoadedGrounds);
 	xph_free (World);
 	World = NULL;
 }
@@ -122,41 +141,123 @@ Entity groundWorld_getEntityOrigin (const Entity e)
 void groundWorld_updateEntityOrigin (const Entity e, Entity newOrigin)
 {
 	World->origin = newOrigin;
+	World->originChanged = TRUE;
 }
 
 Entity groundWorld_loadGroundAt (const worldPosition wp)
 {
 	Entity
-		m = *(Entity *)dynarr_search (World->loadedGrounds, world_entwp_search, wp);
+		x = *(Entity *)dynarr_search (World->loadedGrounds, world_entwp_search, wp);
+	DynIterator
+		it;
+	if (x)
+		return x;
+	//printf ("checking for partly-loaded ground...\n");
+	it = dynIterator_create (World->partlyLoadedGrounds);
+	//printf ("iterating...\n");
+	while (!dynIterator_done (it))
+	{
+		x = *(Entity *)dynIterator_next (it);
+		//printf ("got %p\n", x);
+		if (world_entwp_search (&wp, &x) == 0)
+		{
+			//printf ("%s: found partly loaded ground; using that\n", __FUNCTION__);
+			dynIterator_destroy (it);
+			return x;
+		}
+	}
+	//printf ("no match\n");
+	dynIterator_destroy (it);
+	if (groundWorld_groundFileExists (wp))
+	{
+		x = groundWorld_queueLoad (wp);
+		dynarr_push (World->partlyLoadedGrounds, x);
+		return x;
+	}
+	x = groundWorld_queueGeneration (wp);
+	dynarr_push (World->partlyLoadedGrounds, x);
+	return x;
+}
+
+void groundWorld_pruneDistantGrounds ()
+{
+	DynIterator
+		it;
+	int
+		i,
+		pcount = 0,
+		lcount = 0;
+	Entity
+		x;
+	Component
+		c,
+		p;
 	GroundMap
 		g;
 	worldPosition
-		mp;
-	unsigned int
-		r, k, i;
-	if (m)
-		return m;
+		origin;
+	//printf ("%s...\n", __FUNCTION__);
+	origin = ground_getWorldPos (component_getData (entity_getAs (groundWorld_getEntityOrigin (input_getPlayerEntity ()), "ground")));
+	it = dynIterator_create (World->partlyLoadedGrounds);
+	while (!dynIterator_done (it))
+	{
+		i = dynIterator_nextIndex (it);
+		x = *(Entity *)dynarr_at (World->partlyLoadedGrounds, i);
+		c = entity_getAs (x, "ground");
+		p = entity_getAs (x, "pattern");
+		g = component_getData (c);
+		if (g == NULL)
+		{
+			//fprintf (stderr, "...?\n");
+			continue;
+		}
+		if (wp_distance (g->wp, origin) <= groundWorld_getDrawDistance ())
+		{
+			g->far = 0;
+			continue;
+		}
+		g->far++;
+		if (g->far >= World->partialUnloadDistance)
+		{
+			//printf ("UNLOADING PARTIAL ENTITY %p/COMPONENT %p & %p\n", x, c, p);
+			component_dropLoad (p);
+			component_dropLoad (c);
+			entity_destroy (x);
+			dynarr_unset (World->partlyLoadedGrounds, i);
+			pcount++;
+		}
+	}
+	dynIterator_destroy (it);
+	if (pcount)
+		dynarr_condense (World->partlyLoadedGrounds);
+	it = dynIterator_create (World->loadedGrounds);
+	while (!dynIterator_done (it))
+	{
+		i = dynIterator_nextIndex (it);
+		x = *(Entity *)dynarr_at (World->loadedGrounds, i);
+		c = entity_getAs (x, "ground");
+		g = component_getData (c);
+		if (wp_distance (g->wp, origin) <= groundWorld_getDrawDistance ())
+		{
+			g->far = 0;
+			continue;
+		}
+		g->far++;
+		if (g->far >= World->loadedUnloadDistance)
+		{
+			//printf ("UNLOADING LOADED ENTITY %p/COMPONENT %p\n", x, c);
+			// TODO: save ground state before unloading it (once there's a savefile)
+			entity_destroy (x);
+			dynarr_unset (World->loadedGrounds, i);
+			lcount++;
+		}
+	}
+	dynIterator_destroy (it);
+	if (lcount)
+		dynarr_condense (World->loadedGrounds);
 
-	m = entity_create ();
-	component_instantiateOnEntity ("ground", m);
-	g = component_getData (entity_getAs (m, "ground"));
-	wp_getCoords (wp, &r, &k, &i);
-	printf ("CREATING NEW GROUND (#%d) AT '%c'{%d %d %d}\n", entity_GUID (m), wp_getPole (wp), r, k, i);
-	if (r > World->poleRadius)
-		assert (0 && "ground requested with an invalid radius");
-	mp = wp_create (wp_getPole (wp), r, k, i);
-	ground_initSize (g, World->groundRadius);
-	ground_fillFlat (g, ((World->poleRadius - r) / (float)World->poleRadius) * 4.0);
-	ground_setWorldPos (g, mp);
-	ground_bakeTiles (m);
-	// ADD TO LOADED GROUNDS
-	//printf ("adding new ground (#%d/%p) to loaded list:\n", entity_GUID (m), g);
-	dynarr_push (World->loadedGrounds, m);
-	dynarr_sort (World->loadedGrounds, world_entwp_sort);
-	//printf ("done w/ %s\n", __FUNCTION__);
-	return m;
+	//printf ("%s: unloaded %d partly-loaded ground%s and %d ground%s\n", __FUNCTION__, pcount, pcount == 1 ? "" : "s", lcount, lcount == 1 ? "" : "s");
 }
-
 
 static int world_entwp_search (const void * key, const void * datum)
 {
@@ -208,6 +309,8 @@ short ground_getMapSize (const GroundMap g)
 
 const worldPosition ground_getWorldPos (const GroundMap g)
 {
+	if (g == NULL)
+		return NULL;
 	return g->wp;
 }
 
@@ -309,10 +412,9 @@ void ground_bakeTiles (Entity g_entity)
 {
 	GroundMap
 		map = component_getData (entity_getAs (g_entity, "ground"));
-	DynIterator
-		it;
 	int
 		index,
+		max,
 		edge,
 		adjIndex,
 		dir;
@@ -325,10 +427,10 @@ void ground_bakeTiles (Entity g_entity)
 	//printf ("%s (#%d): start\n", __FUNCTION__, entity_GUID (g_entity));
 	if (map == NULL)
 		return;
-	it = dynIterator_create (map->tiles);
-	while (!dynIterator_done (it))
+	index = 0;
+	max = dynarr_size (map->tiles);
+	while (index < max)
 	{
-		index = dynIterator_nextIndex (it);
 		hex = *(Hex *)dynarr_at (map->tiles, index);
 		//printf ("iterating over the %d-th index (with hex %p {%d %d %d})\n", index, hex, hex->r, hex->k, hex->i);
 		edge = 0;
@@ -357,8 +459,8 @@ void ground_bakeTiles (Entity g_entity)
 			continue;
 		}
 		hex_bakeEdges (hex);
+		index++;
 	}
-	dynIterator_destroy (it);
 	//printf ("%s (#%d): done!\n", __FUNCTION__, entity_GUID (g_entity));
 }
 
@@ -374,9 +476,11 @@ struct hex * ground_getHexatCoord (GroundMap g, short r, short k, short i) {
  */
 
 static GroundMap ground_create () {
-  new (struct ground_comp, g);
+	struct ground_comp
+		* g = xph_alloc (sizeof (struct ground_comp));
   g->tiles = NULL;
   g->size = -1;
+	g->far = 0;
   g->occupants = dynarr_create (1, sizeof (struct ground_occupant *));
   return g;
 }
@@ -403,8 +507,9 @@ void ground_initSize (GroundMap g, int size)
   if (size < 0) {
     fprintf (stderr, "%s (%p, %d): invalid size\n", __FUNCTION__, g, size);
     return;
-  } if (g->size >= 0 || g->tiles != NULL) {
-    fprintf (stderr, "%s (%p, %d): ground already has been sized.\n", __FUNCTION__, g, size);
+  }
+  if (g->size >= 0 || g->tiles != NULL) {
+    fprintf (stderr, "%s (%p, %d): ground has already been sized. (size: %d, tiles: %p)\n", __FUNCTION__, g, size, g->size, g->tiles);
     return;
   }
   g->size = size;
@@ -454,6 +559,117 @@ bool ground_isValidRKI (const GroundMap g, short r, short k, short i) {
   return TRUE;
 }
 
+
+
+
+
+
+
+void groundWorld_patternLoad (Component c)
+{
+	Component
+		ground;
+	component_setLoadGoal (c, 1);
+
+	// WORLD GEN STUFF HERE !!!!
+
+	component_updateLoadAmount (c, 1);
+	component_setLoadComplete (c);
+	
+	ground = entity_getAs (component_entityAttached (c), "ground");
+	if (ground)
+		component_setAsLoadable (ground);
+	return;
+}
+
+void groundWorld_groundLoad (Component c)
+{
+	int
+		index;
+	Entity
+		x = component_entityAttached (c);
+	GroundMap
+		g = component_getData (c);
+	unsigned char
+		p;
+	unsigned int
+		r, k, i;
+	component_setLoadGoal (c, 1);
+
+	ground_initSize (g, World->groundRadius);
+	ground_fillFlat (g, 1.0);
+	ground_bakeTiles (x);
+	dynarr_push (World->loadedGrounds, x);
+	dynarr_sort (World->loadedGrounds, world_entwp_sort);
+	index = in_dynarr (World->partlyLoadedGrounds, x);
+	if (index >= 0)
+		dynarr_unset (World->partlyLoadedGrounds, index);
+
+	component_updateLoadAmount (c, 1);
+	component_setLoadComplete (c);
+
+	p = wp_getPole (g->wp);
+	wp_getCoords (g->wp, &r, &k, &i);
+	//printf ("loaded ground at '%c'{%d %d %d}\n", p, r, k, i);
+	return;
+}
+
+unsigned char groundWorld_patternWeigh (Component c)
+{
+	return 255;
+}
+
+unsigned char groundWorld_groundWeigh (Component c)
+{
+	worldPosition
+		w = ground_getWorldPos (component_getData (entity_getAs (groundWorld_getEntityOrigin (input_getPlayerEntity ()), "ground")));
+	unsigned int
+		dd = groundWorld_getDrawDistance (),
+		d = wp_distance (ground_getWorldPos (component_getData (c)), w);
+	unsigned char
+		r;
+	r = (dd - d) / (float)dd * 192 + 63;
+	//printf ("%s: weight %d on ground %d distant (of %d) from origin\n", __FUNCTION__, r, d, dd);
+	return r;
+}
+
+
+bool groundWorld_groundFileExists (const worldPosition wp)
+{
+	return FALSE;
+}
+
+Entity groundWorld_queueLoad (const worldPosition wp)
+{
+	return NULL;
+}
+
+Entity groundWorld_queueGeneration (const worldPosition wp)
+{
+	Entity
+		x = entity_create ();
+	worldPosition
+		dup = wp_duplicate (wp);
+	GroundMap
+		g;
+	Component
+		pattern,
+		ground;
+	component_instantiateOnEntity ("pattern", x);
+	component_instantiateOnEntity ("ground", x);
+	pattern = entity_getAs (x, "pattern");
+	ground = entity_getAs (x, "ground");
+	g = component_getData (ground);
+	ground_setWorldPos (g, dup);
+	component_setAsLoadable (pattern);
+	// ^ or component_activateLoading or SOMETHING. the actual function just adds that component to the weighed list of COMPONENTS TO LOAD, which will be processed in any order.
+	// (the idea is that components are initialized to some base state (here) and then stream loaded from there (in a callback function; currently the groundWorld_[x]Load placeholders))
+	return x;
+}
+
+
+
+
 /***
  * THE COMPONENT ITSELF
  */
@@ -491,6 +707,14 @@ int component_ground (Object * obj, objMsg msg, void * a, void * b)
 			groundWorld_init ();
 			return EXIT_SUCCESS;
 
+		case OM_UPDATE:
+			if (World->originChanged == TRUE)
+			{
+				groundWorld_pruneDistantGrounds ();
+				World->originChanged = FALSE;
+			}
+			return EXIT_SUCCESS;
+
     case OM_COMPONENT_INIT_DATA:
       g = ground_create ();
       *(void **)a = g;
@@ -502,13 +726,56 @@ int component_ground (Object * obj, objMsg msg, void * a, void * b)
       *(void **)a = NULL;
       return EXIT_SUCCESS;
 
-    case OM_COMPONENT_RECEIVE_MESSAGE:
-      return EXIT_FAILURE;
+		case OM_COMPONENT_RECEIVE_MESSAGE:
+			return EXIT_FAILURE;
 
     case OM_SYSTEM_RECEIVE_MESSAGE:
       return EXIT_FAILURE;
 
+		case OM_COMPONENT_GET_LOADER_CALLBACK:
+			*(void **)a = groundWorld_groundLoad;
+			return EXIT_SUCCESS;
+		case OM_COMPONENT_GET_WEIGH_CALLBACK:
+			*(void **)a = groundWorld_groundWeigh;
+			return EXIT_SUCCESS;
+
     default:
       return obj_pass ();
   }
+}
+
+// this is a placeholder
+int component_pattern (Object * obj, objMsg msg, void * a, void * b)
+{
+	switch (msg)
+	{
+		case OM_CLSNAME:
+			strncpy (a, "pattern", 32);
+			return EXIT_SUCCESS;
+		case OM_CLSINIT:
+		case OM_CLSFREE:
+		case OM_CLSVARS:
+		case OM_CREATE:
+			return EXIT_FAILURE;
+		default:
+		break;
+	}
+
+	switch (msg)
+	{
+		case OM_SHUTDOWN:
+		case OM_DESTROY:
+			obj_destroy (obj);
+			return EXIT_SUCCESS;
+
+		case OM_COMPONENT_GET_LOADER_CALLBACK:
+			*(void **)a = groundWorld_patternLoad;
+			return EXIT_SUCCESS;
+		case OM_COMPONENT_GET_WEIGH_CALLBACK:
+			*(void **)a = groundWorld_patternWeigh;
+			return EXIT_SUCCESS;
+
+		default:
+			return EXIT_FAILURE;
+	}
 }

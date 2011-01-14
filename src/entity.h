@@ -49,12 +49,15 @@ void entitySubsystem_clearStored ();
 
 
 
-void component_setLoadTarget (Component c, unsigned int m);
-void component_updateLoadData (Component c, unsigned int v);
+void component_setLoadGoal (Component c, unsigned int m);
+void component_updateLoadAmount (Component c, unsigned int v);
 void component_setLoadComplete (Component c);
+bool component_fullyLoaded (const Component c);
+void component_dropLoad (Component c);
 
 void component_setAsLoadable (Component c);
 bool component_isLoaderActive ();
+void component_forceRunLoader (unsigned int load);
 void component_runLoader (const TIMER * t);
 
 #endif /* XPH_ENTITY_H */
