@@ -574,6 +574,25 @@ void component_dropLoad (Component c)
 
 
 
+void component_reweigh (Component c)
+{
+	if (c->loader == NULL)
+		return;
+	if (c->reg->weighCallback != NULL)
+		c->loader->loadWeight = c->reg->weighCallback (c);
+	else
+		c->loader->loadWeight = 32;
+}
+
+void component_forceLoaderResort ()
+{
+	dynarr_sort (ComponentLoader, comp_weight_sort);
+	ComponentLoaderUnsorted = FALSE;
+}
+
+
+
+
 void component_setAsLoadable (Component c)
 {
 	COMPONENT_LOAD
@@ -587,10 +606,7 @@ void component_setAsLoadable (Component c)
 	c->loader = l;
 	c->loaded = FALSE;
 	l->status = COMPONENT_UNLOADED;
-	if (c->reg->weighCallback != NULL)
-		c->loader->loadWeight = c->reg->weighCallback (c);
-	else
-		c->loader->loadWeight = 32;
+	component_reweigh (c);
 	if (ComponentLoader == NULL)
 		ComponentLoader = dynarr_create (8, sizeof (Component));
 	dynarr_push (ComponentLoader, c);
@@ -617,8 +633,7 @@ void component_forceRunLoader (unsigned int load)
 		ComponentLoader = dynarr_create (8, sizeof (Component));
 	if (ComponentLoaderUnsorted == TRUE)
 	{
-		dynarr_sort (ComponentLoader, comp_weight_sort);
-		ComponentLoaderUnsorted = FALSE;
+		component_forceLoaderResort ();
 	}
 	while (component_isLoaderActive () && loaded < load)
 	{
@@ -644,15 +659,17 @@ void component_runLoader (const TIMER * t)
 		ComponentLoader = dynarr_create (8, sizeof (Component));
 	if (ComponentLoaderUnsorted == TRUE)
 	{
+		//printf ("%s: resorting components by weight\n", __FUNCTION__);
 		dynarr_sort (ComponentLoader, comp_weight_sort);
 		ComponentLoaderUnsorted = FALSE;
 	}
 	while (component_isLoaderActive () && (timeElapsed = xtimer_timeSinceLastUpdate (t)) < 0.05)
 	{
-		c = *(Component *)dynarr_front (ComponentLoader);
+		c = *(Component *)dynarr_back (ComponentLoader);
+		//printf ("%s: got front component with weight %d\n", __FUNCTION__, c->loader->loadWeight);
 		if (c->reg->loaderCallback == NULL)
 		{
-			dynarr_remove_condense (ComponentLoader, c);
+			dynarr_pop (ComponentLoader);
 			continue;
 		}
 		c->reg->loaderCallback (c);

@@ -55,6 +55,9 @@ void component_setLoadComplete (Component c);
 bool component_fullyLoaded (const Component c);
 void component_dropLoad (Component c);
 
+void component_reweigh (Component c);
+void component_forceLoaderResort ();
+
 void component_setAsLoadable (Component c);
 bool component_isLoaderActive ();
 void component_forceRunLoader (unsigned int load);

@@ -1,6 +1,5 @@
 #include "component_camera.h"
 
-
 /***
  * the camera component exists simply to visualize the data already stored in
  * the position component. orientation is a property of the position component,
@@ -113,7 +112,6 @@ void camera_updateLabelsFromEdgeTraversal (Entity e, struct ground_edge_traversa
 			lo = 0;
 		}
 		cameraCache_setGroundEntityAsOrigin (newOrigin);
-		cameraCache_extend (drawDistance);
 		//printf ("%s: resetting world origin to #%d (from #%d) \n", __FUNCTION__, entity_GUID (newOrigin), entity_GUID (w->groundOrigin));
 		groundWorld_updateEntityOrigin (e, newOrigin);
 		if (newLabel == NULL)
@@ -243,7 +241,8 @@ void camera_update (Entity e)
 
 static Dynarr
 	comp_entdata = NULL;
-int component_camera (Object * obj, objMsg msg, void * a, void * b) {
+int component_camera (Object * obj, objMsg msg, void * a, void * b)
+{
 	struct camera_data
 		** cd = NULL;
 	DynIterator

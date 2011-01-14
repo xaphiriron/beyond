@@ -165,6 +165,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 			accumulator_update (s->acc);
 			while (accumulator_withdrawlTime (s->acc))
 			{
+				cameraCache_update (system_getTimer ());
 				component_runLoader (system_getTimer ());
 				//obj_messagePre (WorldObject, OM_UPDATE, NULL, NULL);
 				entitySubsystem_runOnStored (OM_UPDATE);

@@ -71,41 +71,43 @@ static void groundWorld_init ()
 {
 	Entity
 		poleA = NULL,
-		camera = NULL,
+		player = NULL,
 		plant = NULL;
 	worldPosition
 		wp;
 
-	printf ("%s...\n", __FUNCTION__);
+	//printf ("%s...\n", __FUNCTION__);
 
 	wp = wp_create ('a', 0, 0, 0);
 	poleA = groundWorld_loadGroundAt (wp);
 	World->origin = poleA;
 	wp_destroy (wp);
 
+	//printf ("%s: forcing component to generate pole\n", __FUNCTION__);
 	// vvv this is to force the ground load started with the loadGround to complete before we start adding occupants to it. this is not a good way to do that.
 	component_forceRunLoader (2);
 
+	//printf ("%s: placing plant entity\n", __FUNCTION__);
 	plant = entity_create ();
 	component_instantiateOnEntity ("position", plant);
 	plant_generateRandom (plant);
 	ground_placeOnTile (poleA, 0, 0, 0, plant);
 
-	camera = entity_create ();
-	if (component_instantiateOnEntity ("position", camera))
+	//printf ("%s: placing player entity\n", __FUNCTION__);
+	player = entity_create ();
+	if (component_instantiateOnEntity ("position", player))
 	{
-		ground_placeOnTile (poleA, 0, 0, 0, camera);
-		position_move (camera, vectorCreate (0.0, 90.0, 0.0));
+		ground_placeOnTile (poleA, 0, 0, 0, player);
+		position_move (player, vectorCreate (0.0, 90.0, 0.0));
 	}
-	component_instantiateOnEntity ("integrate", camera);
-	component_instantiateOnEntity ("camera", camera);
-	if (component_instantiateOnEntity ("input", camera)) {
-		input_addEntity (camera, INPUT_CONTROLLED);
+	component_instantiateOnEntity ("camera", player);
+	if (component_instantiateOnEntity ("input", player)) {
+		input_addEntity (player, INPUT_CONTROLLED);
 	}
-	component_instantiateOnEntity ("walking", camera);
+	component_instantiateOnEntity ("walking", player);
 
-	groundWorld_updateEntityOrigin (camera, poleA);
-	printf ("...%s\n", __FUNCTION__);
+	groundWorld_updateEntityOrigin (player, poleA);
+	//printf ("...%s\n", __FUNCTION__);
 }
 
 static void groundWorld_destroy ()
@@ -211,6 +213,8 @@ void groundWorld_pruneDistantGrounds ()
 			//fprintf (stderr, "...?\n");
 			continue;
 		}
+		component_reweigh (c);
+		component_reweigh (p);
 		if (wp_distance (g->wp, origin) <= groundWorld_getDrawDistance ())
 		{
 			g->far = 0;
@@ -227,6 +231,7 @@ void groundWorld_pruneDistantGrounds ()
 			pcount++;
 		}
 	}
+	component_forceLoaderResort ();
 	dynIterator_destroy (it);
 	if (pcount)
 		dynarr_condense (World->partlyLoadedGrounds);
@@ -562,6 +567,17 @@ bool ground_isValidRKI (const GroundMap g, short r, short k, short i) {
 
 
 
+unsigned int ground_entDistance (const Entity a, const Entity b)
+{
+	const worldPosition
+		awp = ground_getWorldPos (component_getData (entity_getAs (a, "ground"))),
+		bwp = ground_getWorldPos (component_getData (entity_getAs (b, "ground")));
+	return wp_distance (awp, bwp);
+}
+
+
+
+
 
 
 
@@ -616,7 +632,20 @@ void groundWorld_groundLoad (Component c)
 
 unsigned char groundWorld_patternWeigh (Component c)
 {
-	return 255;
+	worldPosition
+		w = ground_getWorldPos (component_getData (entity_getAs (groundWorld_getEntityOrigin (input_getPlayerEntity ()), "ground"))),
+		l = ground_getWorldPos (component_getData (entity_getAs (component_entityAttached (c), "ground")));
+	unsigned int
+		dd = groundWorld_getDrawDistance (),
+		d;
+	unsigned char
+		r;
+	if (w == NULL || l == NULL)
+		return 255;
+	d = wp_distance (l, w);
+	r = (dd - d) / (float)dd * 192 + 63;
+	//printf ("%s: weight %d on pattern %d distant (of %d) from origin\n", __FUNCTION__, r, d, dd);
+	return r;
 }
 
 unsigned char groundWorld_groundWeigh (Component c)

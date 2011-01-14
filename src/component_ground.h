@@ -82,6 +82,7 @@ bool ground_isInitialized (const GroundMap g);
 bool ground_isValidRKI (const GroundMap g, short r, short k, short i);
 
 
+unsigned int ground_entDistance (const Entity a, const Entity b);
 
 
 void groundWorld_patternLoad (Component c);

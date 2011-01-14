@@ -20,12 +20,16 @@ CameraCache OriginCache = NULL;
  * CACHE
  */
 
-CameraCache cameraCache_create () {
-  CameraCache o = xph_alloc (sizeof (struct camera_cache));
-  o->origin = NULL;
-  o->extent = 0;
-  o->cache = dynarr_create (1, sizeof (CameraGroundLabel));
-  return o;
+CameraCache cameraCache_create ()
+{
+	CameraCache
+		o = xph_alloc (sizeof (struct camera_cache));
+	o->origin = NULL;
+	o->desiredExtent = 0;
+	o->done = TRUE;
+	o->nextR = o->nextK = o->nextI = 0;
+	o->cache = dynarr_create (1, sizeof (CameraGroundLabel));
+	return o;
 }
 
 void cameraCache_destroy (CameraCache cache) {
@@ -36,8 +40,12 @@ void cameraCache_destroy (CameraCache cache) {
   xph_free (cache);
 }
 
+void cameraCache_setExtent (unsigned int size)
+{
+	OriginCache->desiredExtent = size;
+}
 
-void cameraCache_extend (int size)
+void cameraCache_update (const TIMER * t)
 {
 	Entity
 		origin = NULL,
@@ -52,16 +60,14 @@ void cameraCache_extend (int size)
 		wp;
 	signed int
 		newX, newY;
-	unsigned int
-		r, k, i,
-		newR, newK, newI;
 	//printf ("%s (%d)...\n", __FUNCTION__, size);
 	if (OriginCache == NULL || OriginCache->cache == NULL || dynarr_isEmpty (OriginCache->cache))
 	{
-		// augh
 		fprintf (stderr, "%s: label cache nonexistant or empty.\n", __FUNCTION__);
 		return;
 	}
+	if (OriginCache->done)
+		return;
 	label = *(CameraGroundLabel *)dynarr_at (OriginCache->cache, 0);
 	if (label == NULL || label->origin != label->this)
 	{
@@ -71,24 +77,24 @@ void cameraCache_extend (int size)
 	origin = label->origin;
 	originPos = ground_getWorldPos (component_getData (entity_getAs (origin, "ground")));
 	label = NULL;
-	r = OriginCache->extent + 1;
-	k = 0;
-	i = 0;
-	while (r <= size)
+	while (OriginCache->nextR <= OriginCache->desiredExtent)
 	{
-		wp = wp_fromRelativeOffset (originPos, groundWorld_getPoleRadius (), r, k, i);
-		wp_getCoords (wp, &newR, &newK, &newI);
-		//printf ("from origin: {%d %d %d} makes '%c'{%d %d %d}\n", r, k, i, wp_getPole (wp), newR, newK, newI);
-		hex_rki2xy (r, k, i, &newX, &newY);
+		wp = wp_fromRelativeOffset (originPos, groundWorld_getPoleRadius (), OriginCache->nextR, OriginCache->nextK, OriginCache->nextI);
+		//wp_getCoords (wp, &newR, &newK, &newI);
+		//printf ("from origin: {%d %d %d} makes '%c'{%d %d %d}\n", OriginCache->nextR, OriginCache->nextK, OriginCache->nextI, wp_getPole (wp), newR, newK, newI);
+		hex_rki2xy (OriginCache->nextR, OriginCache->nextK, OriginCache->nextI, &newX, &newY);
 		adjEntity = groundWorld_loadGroundAt (wp);
 		newLabel = ground_createLabel (origin, adjEntity, newX, newY);
-		cacheOffset = hex_linearCoord (r, k, i);
+		cacheOffset = hex_linearCoord (OriginCache->nextR, OriginCache->nextK, OriginCache->nextI);
 		dynarr_assign (OriginCache->cache, cacheOffset, newLabel);
 		wp_destroy (wp);
-
-		hex_nextValidCoord (&r, &k, &i);
+		hex_nextValidCoord (&OriginCache->nextR, &OriginCache->nextK, &OriginCache->nextI);
+		if (xtimer_timeSinceLastUpdate (t) >= 0.05)
+		{
+			return;
+		}
 	}
-	OriginCache->extent = r - 1;
+	OriginCache->done = TRUE;
 
 	//printf ("%s (%d): done\n", __FUNCTION__, size);
 }
@@ -97,6 +103,7 @@ void cameraCache_setGroundEntityAsOrigin (Entity g)
 {
 	CameraGroundLabel
 		label = NULL;
+	printf ("%s...\n", __FUNCTION__);
 	if (OriginCache == NULL || OriginCache->cache == NULL)
 	{
 		// augh
@@ -114,14 +121,24 @@ void cameraCache_setGroundEntityAsOrigin (Entity g)
 	// as it is right now, the entire cache is destroyed with each origin
 	// update, which is increasingly wasteful the closer the new origin is to
 	// the existing one and the further out the cache has been calculated.
-	if (OriginCache->cache != NULL) {
+	if (OriginCache->origin != NULL && ground_entDistance (OriginCache->origin, g) < OriginCache->desiredExtent) {
+		printf ("we ought to shift the cache here instead of rebuilding it\n");
 		dynarr_wipe (OriginCache->cache, (void (*)(void *))ground_destroyLabel);
 	}
-	OriginCache->extent = 0;
+	else
+	{
+		dynarr_wipe (OriginCache->cache, (void (*)(void *))ground_destroyLabel);
+	}
+	OriginCache->done = FALSE;
+	OriginCache->nextR = 1;
+	OriginCache->nextK = 0;
+	OriginCache->nextI = 0;
 	OriginCache->origin = g;
+
 	label = ground_createLabel (g, g, 0, 0);
 	dynarr_assign (OriginCache->cache, 0, label);
 	label = NULL;
+	printf ("...%s\n", __FUNCTION__);
 }
 
 CameraGroundLabel cameraCache_getOriginLabel ()
@@ -259,8 +276,8 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
 	printf ("GROUND AT '%c'{%d %d %d}\n", p, r, k, j);
 */
   //printf ("%s: ground label at coord %d,%d\n", __FUNCTION__, g_label->x, g_label->y);
-  red = (g_label->x + OriginCache->extent) / (float)(OriginCache->extent * 2);
-  blue = (g_label->y + OriginCache->extent) / (float)(OriginCache->extent * 2);
+  red = (g_label->x + OriginCache->desiredExtent) / (float)(OriginCache->desiredExtent * 2);
+  blue = (g_label->y + OriginCache->desiredExtent) / (float)(OriginCache->desiredExtent * 2);
   green = (red + blue) / 2.0;
   hex_setDrawColor (red, green, blue);
   tilesPerGround = hex (ground_getMapSize (g) + 1);
@@ -295,9 +312,9 @@ void ground_draw_fill (Entity camera) {
   GroundMap
     origin_map = component_getData (entity_getAs (origin, "ground"));
   int
-   i = 0,
-   limit = 0,
    stepsOutward = groundWorld_getDrawDistance ();
+	DynIterator
+		it;
   if (origin_map == NULL) {
     // oh i give up what is even the point???
     return;
@@ -309,19 +326,16 @@ void ground_draw_fill (Entity camera) {
   if (OriginCache->origin != origin) {
 	cameraCache_setGroundEntityAsOrigin (origin);
   }
-  if (OriginCache->extent < stepsOutward) {
-    cameraCache_extend (stepsOutward);
+  if (OriginCache->desiredExtent < stepsOutward) {
+    cameraCache_setExtent (stepsOutward);
   }
-  i = 0;
-  limit = hex (stepsOutward + 1);
-  while (i < limit) {
-    //printf ("...[5.%d] (%d)\n", i, dynarr_size (OriginCache->cache));
-    label = *(CameraGroundLabel *)dynarr_at (OriginCache->cache, i);
-    //printf ("   %p, %p\n", label, label->this);
-    if (label != NULL) {
-      ground_draw (label->this, camera, label);
-    }
-    i++;
-  }
+	it = dynIterator_create (OriginCache->cache);
+	while (!dynIterator_done (it))
+	{
+		label = *(CameraGroundLabel *)dynIterator_next (it);
+		if (label != NULL && label->this != NULL)
+			ground_draw (label->this, camera, label);
+	}
+	dynIterator_destroy (it);
 	//printf ("...%s\n", __FUNCTION__);
 }

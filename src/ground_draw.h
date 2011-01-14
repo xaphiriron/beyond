@@ -15,7 +15,11 @@ typedef struct camera_cache * CameraCache;
 struct camera_cache {
   Entity origin;	// which entity the cache has been constructed around
   Dynarr cache;	// has hex (extent) indices; contains CameraGroundLabels; values may be NULL (since a ground is not obligated to be connected in all directions)
-  unsigned short extent; // how many steps outward the cache has been filled to
+	unsigned int
+		desiredExtent,
+		nextR, nextK, nextI;
+	bool
+		done;
 };
 
 extern CameraCache OriginCache;
@@ -23,7 +27,8 @@ extern CameraCache OriginCache;
 CameraCache cameraCache_create ();
 void cameraCache_destroy (CameraCache cache);
 
-void cameraCache_extend (int size);
+void cameraCache_setExtent (unsigned int size);
+void cameraCache_update (const TIMER * t);
 
 void cameraCache_setGroundEntityAsOrigin (Entity g);
 CameraGroundLabel cameraCache_getOriginLabel ();
