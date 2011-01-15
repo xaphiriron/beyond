@@ -151,27 +151,157 @@ void wp_destroyAdjacent (worldPosition * adj)
 	xph_free (adj);
 }
 
-unsigned int wp_distance (const worldPosition a, const worldPosition b)
+/***
+ * returns the distance in coordinate steps between the two worldPositions,
+ * and additionally sets xp and yp to the cartesian coordinate offset of b
+ * from a, if they're not NULL
+ */
+unsigned int wp_pos2xy (const worldPosition a, const worldPosition b, unsigned int poleRadius, signed int * xp, signed int * yp)
 {
 	unsigned int
-		r, k, i;
+		r, k, i,
+		distance[3];
 	signed int
 		ax, ay,
 		bx, by,
-		x, y;
-	// TODO: translate the coordinates so that they both have representations around the same pole. otherwise this next step will produce entirely wrong distance values at pole edges.
+		gx, gy,
+		poleX, poleY,
+		dx[3], dy[3];
+	signed char
+		pd = wp_getPole (b) - wp_getPole (a),
+		dir[3],
+		smallest;
 	wp_getCoords (a, &r, &k, &i);
 	hex_rki2xy (r, k, i, &ax, &ay);
 	wp_getCoords (b, &r, &k, &i);
 	hex_rki2xy (r, k, i, &bx, &by);
-	x = ax - bx;
-	y = ay - by;
-	if ((x ^ y) < 0)
-		return abs (x) > abs (y)
-			? abs (x)
-			: abs (y);
+	if (pd == 0)
+	{
+		dx[0] = ax - bx;
+		dy[0] = ay - by;
+		if (xp)
+			*xp = dx[0];
+		if (yp)
+			*yp = dy[0];
+		return hex_coordinateMagnitude (dx[0], dy[0]);
+	}
+	if (pd == 2 || pd == -2)
+		pd = pd * -1;
+
+	if (pd < 0)
+	{
+		dir[0] = 0;
+		dir[1] = 2;
+		dir[2] = 4;
+	}
 	else
-		return abs (x + y);
+	{
+		dir[0] = 1;
+		dir[1] = 3;
+		dir[2] = 5;
+	}
+	hexGround_centerDistanceCoord (poleRadius, dir[0], &poleX, &poleY);
+	gx = bx + poleX;
+	gy = by + poleY;
+	dx[0] = ax - gx;
+	dy[0] = ay - gy;
+	distance[0] = hex_coordinateMagnitude (dx[0], dy[0]);
+
+	hexGround_centerDistanceCoord (poleRadius, dir[1], &poleX, &poleY);
+	gx = bx + poleX;
+	gy = by + poleY;
+	dx[1] = ax - gx;
+	dy[1] = ay - gy;
+	distance[1] = hex_coordinateMagnitude (dx[1], dy[1]);
+
+	hexGround_centerDistanceCoord (poleRadius, dir[2], &poleX, &poleY);
+	gx = bx + poleX;
+	gy = by + poleY;
+	dx[2] = ax - gx;
+	dy[2] = ay - gy;
+	distance[2] = hex_coordinateMagnitude (dx[2], dy[2]);
+
+	smallest = distance[0] < distance[1]
+		? 0
+		: 1;
+	smallest = distance[smallest] < distance[2]
+		? smallest
+		: 2;
+	if (xp)
+		*xp = dx[smallest];
+	if (yp)
+		*yp = dy[smallest];
+	return distance[smallest];
+}
+
+unsigned int wp_distance (const worldPosition a, const worldPosition b, unsigned int poleRadius)
+{
+	unsigned int
+		r, k, i,
+		dist1, dist2, dist3,
+		distance;
+	signed int
+		ax, ay,
+		bx, by,
+		gx, gy,
+		poleX, poleY;
+	signed char
+		pd = wp_getPole (b) - wp_getPole (a);
+
+	wp_getCoords (a, &r, &k, &i);
+	hex_rki2xy (r, k, i, &ax, &ay);
+	wp_getCoords (b, &r, &k, &i);
+	hex_rki2xy (r, k, i, &bx, &by);
+	if (pd == 0)
+	{
+		return hex_distanceBetween (ax, ay, bx, by);
+	}
+	if (pd == 2 || pd == -2)
+		pd = pd * -1;
+	//printf ("transfer \'%c\' to \'%c\': %d. (%d %d %d)\n", wp_getPole (a), wp_getPole (b), pd, pd < 0 ? 0 : 1, pd < 0 ? 2 : 3, pd < 0 ? 4 : 5);
+
+	if (pd < 0)
+	{
+		hexGround_centerDistanceCoord (poleRadius, 0, &poleX, &poleY);
+		gx = bx + poleX;
+		gy = by + poleY;
+		dist1 = hex_distanceBetween (ax, ay, gx, gy);
+
+		hexGround_centerDistanceCoord (poleRadius, 2, &poleX, &poleY);
+		gx = bx + poleX;
+		gy = by + poleY;
+		dist2 = hex_distanceBetween (ax, ay, gx, gy);
+
+		hexGround_centerDistanceCoord (poleRadius, 4, &poleX, &poleY);
+		gx = bx + poleX;
+		gy = by + poleY;
+		dist3 = hex_distanceBetween (ax, ay, gx, gy);
+	}
+	else
+	{
+		hexGround_centerDistanceCoord (poleRadius, 1, &poleX, &poleY);
+		gx = bx + poleX;
+		gy = by + poleY;
+		dist1 = hex_distanceBetween (ax, ay, gx, gy);
+
+		hexGround_centerDistanceCoord (poleRadius, 3, &poleX, &poleY);
+		gx = bx + poleX;
+		gy = by + poleY;
+		dist2 = hex_distanceBetween (ax, ay, gx, gy);
+
+		hexGround_centerDistanceCoord (poleRadius, 5, &poleX, &poleY);
+		gx = bx + poleX;
+		gy = by + poleY;
+		dist3 = hex_distanceBetween (ax, ay, gx, gy);
+	}
+	//printf ("distances: %d %d %d\n", dist1, dist2, dist3);
+	distance = dist1 < dist2
+		? dist1
+		: dist2;
+	distance = dist3 < distance
+		? dist3
+		: distance;
+	return distance;
 }
 
 
@@ -195,7 +325,7 @@ void wp_print (const worldPosition pos)
 		corner = GET_BITS (pos->bits, WORLD_CORNER_BITS, WORLD_CORNER_SHIFT);
 	unsigned char
 		polestr = wp_getPole (pos);
-	printf ("POSITION\n\tpole %c\n\t{%d %d %d} (%d)\n\n", polestr, pos->r, corner, pos->t, corner * pos->t);
+	printf ("POSITION (%p): \'%c\'{%d %d %d}\n", pos, polestr, pos->r, corner, pos->t);
 }
 
 unsigned char wp_getPole (const worldPosition pos)

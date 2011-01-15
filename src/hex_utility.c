@@ -178,6 +178,24 @@ unsigned int hex_linearCoord (unsigned int r, unsigned int k, unsigned int i)
 		: hex (r) + (k * r) + i;
 }
 
+unsigned int hex_distanceBetween (signed int ax, signed int ay, signed int bx, signed int by)
+{
+	signed int
+		x = ax - bx,
+		y = ay - by;
+	return hex_coordinateMagnitude (x, y);
+}
+
+unsigned int hex_coordinateMagnitude (signed int x, signed int y)
+{
+	if ((x ^ y) < 0)
+		return abs (x) > abs (y)
+			? abs (x)
+			: abs (y);
+	else
+		return abs (x + y);
+}
+
 bool hexGround_centerDistanceCoord (unsigned int radius, unsigned int dir, signed int * xp, signed int * yp)
 {
 	if (xp == NULL || yp == NULL)

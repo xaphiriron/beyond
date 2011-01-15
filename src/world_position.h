@@ -17,7 +17,8 @@ worldPosition wp_duplicate (const worldPosition wp);
 void wp_destroy (worldPosition wp);
 void wp_destroyAdjacent (worldPosition * adj);
 
-unsigned int wp_distance (const worldPosition a, const worldPosition b);
+unsigned int wp_pos2xy (const worldPosition a, const worldPosition b, unsigned int poleRadius, signed int * xp, signed int * yp);
+unsigned int wp_distance (const worldPosition a, const worldPosition b, unsigned int poleRadius);
 
 int wp_compare (const worldPosition a, const worldPosition b);
 void wp_print (const worldPosition pos);

@@ -26,7 +26,6 @@ START_TEST (test_worldpos_neighbors_small)
 		i = 0,
 		pole;
 	neighbors = wp_adjacent (wp, 0);
-	//wp_print (wp);
 	while (i < 6)
 	{
 		pole = wp_getPole (neighbors[i]);
@@ -35,6 +34,38 @@ START_TEST (test_worldpos_neighbors_small)
 			pole == (i % 2 ? 'b' : 'c'),
 			"Expected the %d-th directional offset to be pole '%c', but instead was '%c'.",
 			i, (i % 2 ? 'b' : 'c'), pole
+		);
+		i++;
+	}
+	wp_destroyAdjacent (neighbors);
+	wp_destroy (wp);
+
+	wp = wp_create ('b', 0, 0, 0);
+	neighbors = wp_adjacent (wp, 0);
+	while (i < 6)
+	{
+		pole = wp_getPole (neighbors[i]);
+		//wp_print (neighbors[i]);
+		fail_unless (
+			pole == (i % 2 ? 'c' : 'a'),
+			"Expected the %d-th directional offset to be pole '%c', but instead was '%c'.",
+			i, (i % 2 ? 'c' : 'a'), pole
+		);
+		i++;
+	}
+	wp_destroyAdjacent (neighbors);
+	wp_destroy (wp);
+
+	wp = wp_create ('c', 0, 0, 0);
+	neighbors = wp_adjacent (wp, 0);
+	while (i < 6)
+	{
+		pole = wp_getPole (neighbors[i]);
+		//wp_print (neighbors[i]);
+		fail_unless (
+			pole == (i % 2 ? 'a' : 'b'),
+			"Expected the %d-th directional offset to be pole '%c', but instead was '%c'.",
+			i, (i % 2 ? 'a' : 'b'), pole
 		);
 		i++;
 	}
@@ -122,17 +153,53 @@ START_TEST (test_worldpos_loop_target)
 }
 END_TEST
 
+START_TEST (test_worldpos_pole_cross)
+{
+	worldPosition
+		o = wp_create ('a', 12, 0, 0),
+		wp;
+	int
+		dist;
+	unsigned int
+		r, k, i;
+	wp = wp_fromRelativeOffset (o, 12, 1, 0, 0);
+	assert (wp_getPole (wp) == 'c');
+	wp_getCoords (wp, &r, &k, &i);
+	assert (r == 12 && k == 4 && i == 0);
+	dist = wp_distance (o, wp, 12);
+	fail_unless (
+		dist == 1,
+		"Distance must be calculated properly across pole edges. (Expecting 1, got %d)",
+		dist
+	);
+	dist = wp_distance (wp, o, 12);
+	fail_unless (
+		dist == 1,
+		"Distance calculations must be symmetric. (Expecting 1, got %d)",
+		dist
+	);
+
+	wp_destroy (wp);
+	wp_destroy (o);
+}
+END_TEST
+
+
 Suite * make_worldpos_suite (void)
 {
 	Suite
 		* s = suite_create ("World Position");
 	TCase
-		* tc_core = tcase_create ("Core");
+		* tc_core = tcase_create ("Core"),
+		* tc_distance = tcase_create ("Distance");
 	tcase_add_test (tc_core, test_worldpos_create_valid);
 	tcase_add_test (tc_core, test_worldpos_neighbors_small);
 	tcase_add_test (tc_core, test_worldpos_distant_target);
 	tcase_add_test (tc_core, test_worldpos_loop_target);
 	suite_add_tcase (s, tc_core);
+
+	tcase_add_test (tc_core, test_worldpos_pole_cross);
+	suite_add_tcase (s, tc_distance);
 	return s;
 }
 
