@@ -59,6 +59,7 @@ check_entity_SOURCES = \
   component_debug.c \
   $(top_builddir)/src/dynarr.c \
   $(top_builddir)/src/object.c \
+  $(top_builddir)/src/timer.c \
   $(top_builddir)/src/entity.c
 check_entity_CFLAGS = @CHECK_CFLAGS@
 check_entity_LDADD = @CHECK_LIBS@
