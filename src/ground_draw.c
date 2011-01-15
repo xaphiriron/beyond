@@ -8,10 +8,10 @@ struct ground_origin_label {
     this;	// the entity w/ ground at x,y in a fill out from the origin
     		// ground. note that "this" may not be unique if the ground
     		// edges wrap around.
-  int		// location of this ground in a coordinate grid outward from
-    x, y;	// the origin ground. the coordinate grid is not rotated with
-    		// ground rotations; it remains clamped to the rotation of the
-    		// origin grid (which, due to relativity, is always 0)
+	int			// location of this ground in a coordinate grid outward from
+		x, y;	// the origin ground.
+	unsigned char
+		angle;
 };
 
 CameraCache OriginCache = NULL;
@@ -60,6 +60,10 @@ void cameraCache_update (const TIMER * t)
 		wp;
 	signed int
 		newX, newY;
+/*
+	unsigned int
+		newR, newK, newI;
+*/
 	//printf ("%s (%d)...\n", __FUNCTION__, size);
 	if (OriginCache == NULL || OriginCache->cache == NULL || dynarr_isEmpty (OriginCache->cache))
 	{
@@ -71,7 +75,7 @@ void cameraCache_update (const TIMER * t)
 	label = *(CameraGroundLabel *)dynarr_at (OriginCache->cache, 0);
 	if (label == NULL || label->origin != label->this)
 	{
-		fprintf (stderr, "%s: label cache is invalid or has no base entry.\n", __FUNCTION__);
+		fprintf (stderr, "%s: label cache is invalid or has no base entry. (%p, %p, %p)\n", __FUNCTION__, label, label == NULL ? NULL : label->origin, label == NULL ? NULL : label->this);
 		return;
 	}
 	origin = label->origin;
@@ -79,15 +83,23 @@ void cameraCache_update (const TIMER * t)
 	label = NULL;
 	while (OriginCache->nextR <= OriginCache->desiredExtent)
 	{
+		cacheOffset = hex_linearCoord (OriginCache->nextR, OriginCache->nextK, OriginCache->nextI);
+		if (*(void **)dynarr_at (OriginCache->cache, cacheOffset) != NULL)
+		{
+			hex_nextValidCoord (&OriginCache->nextR, &OriginCache->nextK, &OriginCache->nextI);
+			continue;
+		}
 		wp = wp_fromRelativeOffset (originPos, groundWorld_getPoleRadius (), OriginCache->nextR, OriginCache->nextK, OriginCache->nextI);
-		//wp_getCoords (wp, &newR, &newK, &newI);
-		//printf ("from origin: {%d %d %d} makes '%c'{%d %d %d}\n", OriginCache->nextR, OriginCache->nextK, OriginCache->nextI, wp_getPole (wp), newR, newK, newI);
 		hex_rki2xy (OriginCache->nextR, OriginCache->nextK, OriginCache->nextI, &newX, &newY);
 		adjEntity = groundWorld_loadGroundAt (wp);
 		newLabel = ground_createLabel (origin, adjEntity, newX, newY);
-		cacheOffset = hex_linearCoord (OriginCache->nextR, OriginCache->nextK, OriginCache->nextI);
 		dynarr_assign (OriginCache->cache, cacheOffset, newLabel);
+		//wp_getCoords (wp, &newR, &newK, &newI);
+		//printf ("from origin: {%d %d %d} makes '%c'{%d %d %d}\n", OriginCache->nextR, OriginCache->nextK, OriginCache->nextI, wp_getPole (wp), newR, newK, newI);
+		//printf ("  got entity #%d (%p)\n", entity_GUID (adjEntity), adjEntity);
+		//printf ("  placed into cache at %d, %d (%d)\n", newX, newY, cacheOffset);
 		wp_destroy (wp);
+
 		hex_nextValidCoord (&OriginCache->nextR, &OriginCache->nextK, &OriginCache->nextI);
 		if (xtimer_timeSinceLastUpdate (t) >= 0.05)
 		{
@@ -99,46 +111,104 @@ void cameraCache_update (const TIMER * t)
 	//printf ("%s (%d): done\n", __FUNCTION__, size);
 }
 
-void cameraCache_setGroundEntityAsOrigin (Entity g)
+void cameraCache_setGroundEntityAsOrigin (Entity newOrigin)
 {
 	CameraGroundLabel
 		label = NULL;
-	printf ("%s...\n", __FUNCTION__);
+	Dynarr
+		newCache;
+	worldPosition
+		oldOriginPos,
+		newOriginPos;
+	signed int
+		x, y;
+	unsigned int
+		distance,
+		index,
+		r, k, i;
+/*
+	int
+		copied = 0,
+		destroyed = 0;
+*/
+	//printf ("%s...\n", __FUNCTION__);
 	if (OriginCache == NULL || OriginCache->cache == NULL)
 	{
-		// augh
 		fprintf (stderr, "%s: label cache nonexistant or empty.\n", __FUNCTION__);
 		return;
 	}
-	if (OriginCache->origin == g) {
+	if (OriginCache->origin == newOrigin) {
 		return;
 	}
-	// in most cases (i.e., any time the new origin is within the extent of
-	// the cache, which should be "always" unless there is teleportation) the
-	// new origin and the current origin floods will overlap to some degree,
-	// and so if we can find the label of the new origin within the existing
-	// cache we can reuse some of the labels with minimal updating.
-	// as it is right now, the entire cache is destroyed with each origin
-	// update, which is increasingly wasteful the closer the new origin is to
-	// the existing one and the further out the cache has been calculated.
-	if (OriginCache->origin != NULL && ground_entDistance (OriginCache->origin, g) < OriginCache->desiredExtent) {
-		printf ("we ought to shift the cache here instead of rebuilding it\n");
-		dynarr_wipe (OriginCache->cache, (void (*)(void *))ground_destroyLabel);
-	}
-	else
+
+	oldOriginPos = ground_getWorldPos (component_getData (entity_getAs (OriginCache->origin, "ground")));
+	newOriginPos = ground_getWorldPos (component_getData (entity_getAs (newOrigin, "ground")));
+	if (OriginCache->origin == NULL)
 	{
 		dynarr_wipe (OriginCache->cache, (void (*)(void *))ground_destroyLabel);
+		OriginCache->done = FALSE;
+		OriginCache->nextR = 1;
+		OriginCache->nextK = 0;
+		OriginCache->nextI = 0;
+		OriginCache->origin = newOrigin;
+		label = ground_createLabel (newOrigin, newOrigin, 0, 0);
+		dynarr_assign (OriginCache->cache, 0, label);
+		label = NULL;
+		//printf ("...%s (wipe)\n", __FUNCTION__);
+		return;
 	}
+	distance = wp_pos2xy (oldOriginPos, newOriginPos, groundWorld_getPoleRadius (), &x, &y);
+	if (distance > OriginCache->desiredExtent)
+	{
+		dynarr_wipe (OriginCache->cache, (void (*)(void *))ground_destroyLabel);
+		OriginCache->done = FALSE;
+		OriginCache->nextR = 1;
+		OriginCache->nextK = 0;
+		OriginCache->nextI = 0;
+		OriginCache->origin = newOrigin;
+		label = ground_createLabel (newOrigin, newOrigin, 0, 0);
+		dynarr_assign (OriginCache->cache, 0, label);
+		label = NULL;
+		//printf ("...%s (wipe)\n", __FUNCTION__);
+		return;
+	}
+	//printf ("[recalc]\n");
 	OriginCache->done = FALSE;
 	OriginCache->nextR = 1;
 	OriginCache->nextK = 0;
 	OriginCache->nextI = 0;
-	OriginCache->origin = g;
-
-	label = ground_createLabel (g, g, 0, 0);
-	dynarr_assign (OriginCache->cache, 0, label);
-	label = NULL;
-	printf ("...%s\n", __FUNCTION__);
+	OriginCache->origin = newOrigin;
+	newCache = dynarr_create (dynarr_capacity (OriginCache->cache), sizeof (CameraGroundLabel));
+	while (!dynarr_isEmpty (OriginCache->cache))
+	{
+		label = *(CameraGroundLabel *)dynarr_pop (OriginCache->cache);
+		label->x += x;
+		label->y += y;
+		distance = hex_coordinateMagnitude (label->x, label->y);
+		if (distance > OriginCache->desiredExtent)
+		{
+			ground_destroyLabel (label);
+			//destroyed++;
+			continue;
+		}
+		label->origin = newOrigin;
+		label->offset = label_distanceFromOrigin (groundWorld_getGroundRadius (), label->x, label->y);
+		label->angle = hex_dirHashFromCoord (x, y);
+		hex_xy2rki (label->x, label->y, &r, &k, &i);
+		index = hex_linearCoord (r, k, i);
+		dynarr_assign (newCache, index, label);
+		//copied++;
+	}
+	dynarr_destroy (OriginCache->cache);
+	OriginCache->cache = newCache;
+	if (*(void **)dynarr_at (OriginCache->cache, 0) == NULL)
+	{
+		label = ground_createLabel (newOrigin, newOrigin, 0, 0);
+		dynarr_assign (OriginCache->cache, 0, label);
+		label = NULL;
+	}
+	//printf ("%s: copied %d camera labels and destroyed %d. Cache size: %d\n", __FUNCTION__, copied, destroyed, dynarr_size (OriginCache->cache));
+	//printf ("...%s\n", __FUNCTION__);
 }
 
 CameraGroundLabel cameraCache_getOriginLabel ()
@@ -161,6 +231,7 @@ CameraGroundLabel ground_createLabel (Entity origin, Entity this, int x, int y) 
   l->x = x;
   l->y = y;
   l->offset = label_distanceFromOrigin (groundWorld_getGroundRadius (), x, y);
+	l->angle = hex_dirHashFromCoord (x, y);
   //printf ("%s: label x,y offset is %d, %d; distance vector is %f, %f, %f\n", __FUNCTION__, x, y, l->offset.x, l->offset.y, l->offset.z);
   return l;
 }
@@ -240,7 +311,8 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
   float
     red, green, blue;
 	Component
-		g_comp;
+		g_comp,
+		p_comp;
 	DynIterator
 		it;
 	Dynarr
@@ -249,24 +321,39 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
 		* o;
 
 	unsigned int
-		r, k, j;
+		r, k, j,
+		size = groundWorld_getGroundRadius ();
 	unsigned char
 		p;
 
   struct hex * h = NULL;
 	//printf ("%s (%p, %p, %p)...\n", __FUNCTION__, g_entity, camera, g_label);
+
   if (g_entity == NULL || g_label == NULL || g_label->this != g_entity) {
-    fprintf (stderr, "%s (#%d, %p): nonexistant entity, invalid label, or label does not match ground.\n", __FUNCTION__, entity_GUID (g_entity), g_label);
+    fprintf (stderr, "%s (#%d/%p, ..., %p): nonexistant entity, invalid label, or label does not match ground.\n", __FUNCTION__, entity_GUID (g_entity), g_entity, g_label);
+	hex_setDrawColor (1.0, 0.0, 0.0);
+	hex_drawFiller (g_label, size);
     return;
   }
+	p_comp = entity_getAs (g_entity, "pattern");
 	g_comp = entity_getAs (g_entity, "ground");
 	g = component_getData (g_comp);
-	if (g_comp == NULL) {
-		fprintf (stderr, "%s (#%d, %p): invalid entity (no ground component)\n", __FUNCTION__, entity_GUID (g_entity), g_label);
+	if (g_comp == NULL || p_comp == NULL) {
+		fprintf (stderr, "%s (#%d/%p, ..., %p): invalid entity (lacking ground or pattern component)\n", __FUNCTION__, entity_GUID (g_entity), g_entity, g_label);
+		hex_setDrawColor (0.8, 0.3, 0.0);
+		hex_drawFiller (g_label, size);
 		return;
 	}
-	else if (!component_fullyLoaded (g_comp))
+	if (!component_fullyLoaded (p_comp))
 	{
+		hex_setDrawColor (0.0, 1.0, 0.2);
+		hex_drawFiller (g_label, size);
+		return;
+	}
+	if (!component_fullyLoaded (g_comp))
+	{
+		hex_setDrawColor (0.0, 0.4, 1.0);
+		hex_drawFiller (g_label, size);
 		//fprintf (stderr, "%s (#%d, %p): skipping partially-loaded ground.\n", __FUNCTION__, entity_GUID (g_entity), g_label);
 		return;
 	}
@@ -305,8 +392,9 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
 
 void ground_draw_fill (Entity camera) {
 	//printf ("%s...\n", __FUNCTION__);
-  CameraGroundLabel
-    label = NULL;
+	CameraGroundLabel
+// 		cameraLabel = camera_getLabel (camera),
+		label = NULL;
 	Entity
 		origin = groundWorld_getEntityOrigin (camera);
   GroundMap
@@ -315,6 +403,15 @@ void ground_draw_fill (Entity camera) {
    stepsOutward = groundWorld_getDrawDistance ();
 	DynIterator
 		it;
+/*
+	signed int
+		x = cameraLabel->x,
+		y = cameraLabel->y;
+	unsigned char
+		cameraDir = hex_dirHashFromYaw (camera_getHeading (camera)),
+		labelDir;
+*/
+	//printf ("YAW: %02x\n", cameraDir);
   if (origin_map == NULL) {
     // oh i give up what is even the point???
     return;
@@ -333,6 +430,12 @@ void ground_draw_fill (Entity camera) {
 	while (!dynIterator_done (it))
 	{
 		label = *(CameraGroundLabel *)dynIterator_next (it);
+/*
+		labelDir = hex_dirHashFromCoord (label->x + x, label->y + y);
+		printf ("ground at %d, %d (%d, %d from player): %02x = %02x\n", label->x, label->y, label->x + x, label->y + y, labelDir, hex_dirHashCmp (labelDir, cameraDir));
+		if (hex_dirHashCmp (labelDir, cameraDir) > 0x3f)
+			continue;
+*/
 		if (label != NULL && label->this != NULL)
 			ground_draw (label->this, camera, label);
 	}

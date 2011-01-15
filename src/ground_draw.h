@@ -9,6 +9,7 @@
 typedef struct ground_origin_label * CameraGroundLabel;
 typedef struct camera_cache * CameraCache;
 
+#include "component_camera.h"
 #include "component_ground.h"
 #include "hex_draw.h"
 

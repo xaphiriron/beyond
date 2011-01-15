@@ -189,6 +189,8 @@ void groundWorld_pruneDistantGrounds ()
 		i,
 		pcount = 0,
 		lcount = 0;
+	unsigned int
+		distance;
 	Entity
 		x;
 	Component
@@ -215,7 +217,11 @@ void groundWorld_pruneDistantGrounds ()
 		}
 		component_reweigh (c);
 		component_reweigh (p);
-		if (wp_distance (g->wp, origin) <= groundWorld_getDrawDistance ())
+		distance = wp_distance (g->wp, origin, World->poleRadius);
+		//wp_print (g->wp);
+		//wp_print (origin);
+		//printf ("distance between the two above: %d\n", distance);
+		if (distance <= groundWorld_getDrawDistance ())
 		{
 			g->far = 0;
 			continue;
@@ -242,7 +248,12 @@ void groundWorld_pruneDistantGrounds ()
 		x = *(Entity *)dynarr_at (World->loadedGrounds, i);
 		c = entity_getAs (x, "ground");
 		g = component_getData (c);
-		if (wp_distance (g->wp, origin) <= groundWorld_getDrawDistance ())
+
+		distance = wp_distance (g->wp, origin, World->poleRadius);
+		//wp_print (g->wp);
+		//wp_print (origin);
+		//printf ("distance between the two above: %d\n", distance);
+		if (distance <= groundWorld_getDrawDistance ())
 		{
 			g->far = 0;
 			continue;
@@ -572,7 +583,7 @@ unsigned int ground_entDistance (const Entity a, const Entity b)
 	const worldPosition
 		awp = ground_getWorldPos (component_getData (entity_getAs (a, "ground"))),
 		bwp = ground_getWorldPos (component_getData (entity_getAs (b, "ground")));
-	return wp_distance (awp, bwp);
+	return wp_distance (awp, bwp, World->poleRadius);
 }
 
 
@@ -642,7 +653,7 @@ unsigned char groundWorld_patternWeigh (Component c)
 		r;
 	if (w == NULL || l == NULL)
 		return 255;
-	d = wp_distance (l, w);
+	d = wp_distance (l, w, World->poleRadius);
 	r = (dd - d) / (float)dd * 192 + 63;
 	//printf ("%s: weight %d on pattern %d distant (of %d) from origin\n", __FUNCTION__, r, d, dd);
 	return r;
@@ -654,7 +665,7 @@ unsigned char groundWorld_groundWeigh (Component c)
 		w = ground_getWorldPos (component_getData (entity_getAs (groundWorld_getEntityOrigin (input_getPlayerEntity ()), "ground")));
 	unsigned int
 		dd = groundWorld_getDrawDistance (),
-		d = wp_distance (ground_getWorldPos (component_getData (c)), w);
+		d = wp_distance (ground_getWorldPos (component_getData (c)), w, World->poleRadius);
 	unsigned char
 		r;
 	r = (dd - d) / (float)dd * 192 + 63;

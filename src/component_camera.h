@@ -13,6 +13,7 @@
 typedef struct camera_data * cameraComponent;
 
 const float * camera_getMatrix (Entity e);
+const CameraGroundLabel camera_getLabel (Entity e);
 float camera_getHeading (Entity e);
 float camera_getPitch (Entity e);
 float camera_getRoll (Entity e);

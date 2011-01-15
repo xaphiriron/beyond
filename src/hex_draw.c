@@ -80,3 +80,21 @@ void hex_draw (const Hex hex, const Entity camera, const CameraGroundLabel label
     j = (i + 1) % 6;
   }
 }
+
+void hex_drawFiller (const CameraGroundLabel label, signed int scale)
+{
+	signed int
+		rs = scale * 2;
+	VECTOR3
+		o = label_getOriginOffset (label);
+	glColor3f (rgb[0], rgb[1], rgb[2]);
+	glBegin (GL_TRIANGLE_FAN);
+	glVertex3f (o.x + H[0][1] * rs, o.y, o.z + H[0][0] * rs);
+	glVertex3f (o.x + H[1][1] * rs, o.y, o.z + H[1][0] * rs);
+	glVertex3f (o.x + H[2][1] * rs, o.y, o.z + H[2][0] * rs);
+	glVertex3f (o.x + H[3][1] * rs, o.y, o.z + H[3][0] * rs);
+	glVertex3f (o.x + H[4][1] * rs, o.y, o.z + H[4][0] * rs);
+	glVertex3f (o.x + H[5][1] * rs, o.y, o.z + H[5][0] * rs);
+	glVertex3f (o.x + H[0][1] * rs, o.y, o.z + H[0][0] * rs);
+	glEnd ();
+}

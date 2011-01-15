@@ -21,7 +21,16 @@ const float * camera_getMatrix (Entity e)
 	return cdata->m;
 }
 
-// these three functions are incorrect
+const CameraGroundLabel camera_getLabel (Entity e)
+{
+	cameraComponent
+		cdata = component_getData (entity_getAs (e, "camera"));
+	if (cdata == NULL)
+		return NULL;
+	return cdata->l;
+}
+
+
 float camera_getHeading (Entity e)
 {
 	cameraComponent
@@ -32,7 +41,7 @@ float camera_getHeading (Entity e)
 		return atan2 (cdata->m[8], cdata->m[10]);
 	return atan2 (-cdata->m[2], cdata->m[0]);
 }
-
+// these two functions are incorrect (i think?)
 float camera_getPitch (Entity e)
 {
 	cameraComponent
