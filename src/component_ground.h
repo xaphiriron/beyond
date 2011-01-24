@@ -49,6 +49,7 @@ Entity groundWorld_getEntityOrigin (const Entity e);
 void groundWorld_updateEntityOrigin (const Entity e, Entity newOrigin);
 
 Entity groundWorld_loadGroundAt (const worldPosition wp);
+Entity groundWorld_getGroundAt (const worldPosition wp);
 void groundWorld_pruneDistantGrounds ();
 
 
@@ -72,7 +73,9 @@ void ground_setWorldPos (GroundMap g, worldPosition wp);
 bool ground_bridgeConnections (const Entity groundEntity, Entity e);
 bool ground_placeOnTile (Entity groundEntity, short r, short k, short i, Entity e);
 
-void ground_bakeTiles (Entity g_entity);
+void ground_bakeInternalTiles (Entity g_entity);
+void ground_bakeEdgeTiles (Entity g_entity, unsigned int edge, Entity adj_entity);
+//void ground_bakeTiles (Entity g_entity);
 struct hex * ground_getHexatCoord (GroundMap g, short r, short k, short i);
 
 void ground_initSize (GroundMap g, int size);

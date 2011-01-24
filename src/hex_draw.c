@@ -21,8 +21,7 @@ void hex_draw (const Hex hex, const Entity camera, const CameraGroundLabel label
     corners[6] = {hex->topA, hex->topB, c, d, e, f};
   int
     i = 0,
-    j = 1,
-    edge;/*,
+    j = 1;/*,
 	// that's 30 degrees in radians there
     cameraRot = (int)(((camera_getHeading (camera) + 0.52359877559829882) / (M_PI * 2) + 0.5) * 6) % 6*/
   bool
@@ -63,18 +62,17 @@ void hex_draw (const Hex hex, const Entity camera, const CameraGroundLabel label
     glColor3f (rgb[0] * 0.9, rgb[1] * 0.9, rgb[2] * 0.9);
   }
   while (i < 6) {
-	edge = i;
-	if (hex->edgeDepth[edge * 2] >= corners[edge] && hex->edgeDepth[edge * 2 + 1] >= corners[j])
+	if (hex->edgeDepth[i * 2] >= corners[i] && hex->edgeDepth[i * 2 + 1] >= corners[j])
 	{
 		i++;
 		j = (i + 1) % 6;
 		continue;
 	}
     glBegin (GL_TRIANGLE_STRIP);
-    glVertex3f (pos.x + H[i][0], pos.y + corners[edge], pos.z + H[i][1]);
+    glVertex3f (pos.x + H[i][0], pos.y + corners[i], pos.z + H[i][1]);
     glVertex3f (pos.x + H[j][0], pos.y + corners[j], pos.z + H[j][1]);
-    glVertex3f (pos.x + H[i][0], pos.y + hex->edgeDepth[edge * 2], pos.z + H[i][1]);
-    glVertex3f (pos.x + H[j][0], pos.y + hex->edgeDepth[edge * 2 + 1], pos.z + H[j][1]);
+    glVertex3f (pos.x + H[i][0], pos.y + hex->edgeDepth[i * 2], pos.z + H[i][1]);
+    glVertex3f (pos.x + H[j][0], pos.y + hex->edgeDepth[i * 2 + 1], pos.z + H[j][1]);
     glEnd ();
     i++;
     j = (i + 1) % 6;

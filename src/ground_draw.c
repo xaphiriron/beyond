@@ -344,13 +344,13 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
 		hex_drawFiller (g_label, size);
 		return;
 	}
-	if (!component_fullyLoaded (p_comp))
+	if (!component_isFullyLoaded (p_comp))
 	{
 		hex_setDrawColor (0.0, 1.0, 0.2);
 		hex_drawFiller (g_label, size);
 		return;
 	}
-	if (!component_fullyLoaded (g_comp))
+	if (!component_isFullyLoaded (g_comp))
 	{
 		hex_setDrawColor (0.0, 0.4, 1.0);
 		hex_drawFiller (g_label, size);
@@ -383,7 +383,7 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
 	while (!dynIterator_done (it))
 	{
 		o = *(struct ground_occupant **)dynIterator_next (it);
-		//printf ("%s: have occupant #%d @ %p\n", __FUNCTION__, entity_GUID (o->entity), occupant);
+		//printf ("%s: have occupant #%d @ %p\n", __FUNCTION__, entity_GUID (o->occupant), o->occupant);
 		entity_message (o->occupant, "RENDER", g_label);
 	}
 	dynIterator_destroy (it);

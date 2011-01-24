@@ -17,7 +17,6 @@ struct hex * hex_create (unsigned int r, unsigned int k, unsigned int i, float h
   hex_rki2xy (r, k, i, &h->x, &h->y);
   hex_setSlope (h, HEX_TOP, height, height, height);
   hex_setSlope (h, HEX_BASE, -1.0, -1.0, -1.0);
-  memset (h->neighbors, '\0', sizeof (struct hex *) * 6);
   memset (h->edgeDepth, '\0', sizeof (float) * 12);
 
   return h;
@@ -51,15 +50,35 @@ void hex_setSlope (struct hex * h, enum hex_sides side, float height, float a, f
   }
 }
 
+float hex_getCornerHeight (const struct hex * h, int corner)
+{
+	if (h == NULL || corner < 0 || corner >= 6)
+		return 0.0;
+	switch (corner)
+	{
+		case 0:
+			return h->topA;
+		case 1:
+			return h->topB;
+		case 2:
+			return h->top + (h->top - h->topA) - (h->top - h->topB);
+		case 3:
+			return h->top + (h->top - h->topA);
+		case 4:
+			return h->top + (h->top - h->topB);
+		case 5:
+		default:
+			return h->top + (h->top - h->topB) - (h->top - h->topA);
+	}
+}
+
+/*
 void hex_bakeEdges (struct hex * h)
 {
 	struct hex
 		* adj;
 	int
 		i = 0;
-	float
-		ra, rb,
-		corners[6];
 	if (h == NULL)
 		return;
 	while (i < 6)
@@ -71,16 +90,33 @@ void hex_bakeEdges (struct hex * h)
 			i++;
 			continue;
 		}
-		ra = adj->top - adj->topA;
-		rb = adj->top - adj->topB;
-		corners[0] = adj->topA;
-		corners[1] = adj->topB;
-		corners[3] = adj->top + ra;
-		corners[4] = adj->top + rb;
-		corners[2] = adj->top + ra + (adj->top - corners[4]);
-		corners[5] = adj->top + rb + (adj->top - corners[3]);
-		h->edgeDepth[i * 2] = corners[(i + 4) % 6];
-		h->edgeDepth[i * 2 + 1] = corners[(i + 3) % 6];
+		h->edgeDepth[i * 2] = hex_getCornerHeight (adj, (i + 4) % 6);
+		h->edgeDepth[i * 2 + 1] = hex_getCornerHeight (adj, (i + 3) % 6);
 		i++;
 	}
 }
+*/
+
+/*
+void hex_bakeEdge (struct hex * h, int dir, struct hex * adj)
+{
+	int
+		valA, valB;
+	if (h == NULL || adj == NULL || dir < 0 || dir > 5)
+		return;
+	switch (dir)
+	{
+		case 0:
+		case 1:
+		case 2:
+		case 3:
+		case 4:
+		case 5:
+		default:
+	}
+
+	h->edgeDepth[dir * 2] =
+	h->edgeDepth[dir * 2 + 1] =
+
+}
+*/

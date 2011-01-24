@@ -8,8 +8,6 @@
 typedef struct hex * Hex;
 
 struct hex {
-	struct hex
-		* neighbors[6];
 	VECTOR3
 		topNormal,
 		baseNormal;
@@ -32,6 +30,11 @@ struct hex * hex_create (unsigned int r, unsigned int k, unsigned int i, float h
 void hex_destroy (struct hex * h);
 
 void hex_setSlope (struct hex * h, enum hex_sides side, float a, float b, float c);
+
+float hex_getCornerHeight (const struct hex * h, int corner);
+/*
 void hex_bakeEdges (struct hex * h);
+void hex_bakeEdge (struct hex * h, int dir, struct hex * adj);
+*/
 
 #endif /* XPH_HEX_H */

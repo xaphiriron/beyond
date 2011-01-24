@@ -70,7 +70,7 @@ static struct ground_world * groundWorld_create ()
 static void groundWorld_init ()
 {
 	Entity
-		poleA = NULL,
+		pole = NULL,
 		player = NULL,
 		plant = NULL;
 	worldPosition
@@ -79,8 +79,8 @@ static void groundWorld_init ()
 	//printf ("%s...\n", __FUNCTION__);
 
 	wp = wp_create ('a', 0, 0, 0);
-	poleA = groundWorld_loadGroundAt (wp);
-	World->origin = poleA;
+	pole = groundWorld_loadGroundAt (wp);
+	World->origin = pole;
 	wp_destroy (wp);
 
 	//printf ("%s: forcing component to generate pole\n", __FUNCTION__);
@@ -90,14 +90,14 @@ static void groundWorld_init ()
 	//printf ("%s: placing plant entity\n", __FUNCTION__);
 	plant = entity_create ();
 	component_instantiateOnEntity ("position", plant);
-	plant_generateRandom (plant);
-	ground_placeOnTile (poleA, 0, 0, 0, plant);
+	plant_createRandom (plant);
+	ground_placeOnTile (pole, 0, 0, 0, plant);
 
 	//printf ("%s: placing player entity\n", __FUNCTION__);
 	player = entity_create ();
 	if (component_instantiateOnEntity ("position", player))
 	{
-		ground_placeOnTile (poleA, 0, 0, 0, player);
+		ground_placeOnTile (pole, 0, 0, 0, player);
 		position_move (player, vectorCreate (0.0, 90.0, 0.0));
 	}
 	component_instantiateOnEntity ("camera", player);
@@ -106,7 +106,7 @@ static void groundWorld_init ()
 	}
 	component_instantiateOnEntity ("walking", player);
 
-	groundWorld_updateEntityOrigin (player, poleA);
+	groundWorld_updateEntityOrigin (player, pole);
 	//printf ("...%s\n", __FUNCTION__);
 }
 
@@ -149,6 +149,23 @@ void groundWorld_updateEntityOrigin (const Entity e, Entity newOrigin)
 Entity groundWorld_loadGroundAt (const worldPosition wp)
 {
 	Entity
+		x = groundWorld_getGroundAt (wp);
+	if (x)
+		return x;
+	if (groundWorld_groundFileExists (wp))
+	{
+		x = groundWorld_queueLoad (wp);
+		dynarr_push (World->partlyLoadedGrounds, x);
+		return x;
+	}
+	x = groundWorld_queueGeneration (wp);
+	dynarr_push (World->partlyLoadedGrounds, x);
+	return x;
+}
+
+Entity groundWorld_getGroundAt (const worldPosition wp)
+{
+	Entity
 		x = *(Entity *)dynarr_search (World->loadedGrounds, world_entwp_search, wp);
 	DynIterator
 		it;
@@ -170,15 +187,7 @@ Entity groundWorld_loadGroundAt (const worldPosition wp)
 	}
 	//printf ("no match\n");
 	dynIterator_destroy (it);
-	if (groundWorld_groundFileExists (wp))
-	{
-		x = groundWorld_queueLoad (wp);
-		dynarr_push (World->partlyLoadedGrounds, x);
-		return x;
-	}
-	x = groundWorld_queueGeneration (wp);
-	dynarr_push (World->partlyLoadedGrounds, x);
-	return x;
+	return NULL;
 }
 
 void groundWorld_pruneDistantGrounds ()
@@ -420,64 +429,108 @@ bool ground_placeOnTile (Entity groundEntity, short r, short k, short i, Entity 
 	o->r = r;
 	o->k = k;
 	o->i = i;
+	//printf ("added entity #%d to ground\n", entity_GUID (e));
 	dynarr_push (map->occupants, o);
 	return TRUE;
 }
 
-void ground_bakeTiles (Entity g_entity)
+void ground_bakeInternalTiles (Entity g_entity)
 {
 	GroundMap
 		map = component_getData (entity_getAs (g_entity, "ground"));
-	int
-		index,
-		max,
-		edge,
-		adjIndex,
-		dir;
-	signed int
-		x, y;
-	unsigned int
-		r, k, i;
 	Hex
-		hex;
-	//printf ("%s (#%d): start\n", __FUNCTION__, entity_GUID (g_entity));
-	if (map == NULL)
-		return;
-	index = 0;
-	max = dynarr_size (map->tiles);
-	while (index < max)
+		h,
+		adj;
+	signed int
+		x = 0, y = 0,
+		ax, ay;
+	unsigned int
+		dir,
+		adjIndex,
+		mag, k, i,
+		hexes = 0,
+		radius = groundWorld_getGroundRadius ();
+	
+	while (hexes < hex (radius + 1))
 	{
-		hex = *(Hex *)dynarr_at (map->tiles, index);
-		//printf ("iterating over the %d-th index (with hex %p {%d %d %d})\n", index, hex, hex->r, hex->k, hex->i);
-		edge = 0;
-		while (edge < 6)
+		h = *(Hex *)dynarr_at (map->tiles, hexes);
+		x = h->x;
+		y = h->y;
+		//printf ("%s: got tile %p (%d, %d)\n", __FUNCTION__, h, x, y);
+		dir = 0;
+		while (dir < 6)
 		{
-			x = hex->x + XY[edge][0];
-			y = hex->y + XY[edge][1];
-			hex_xy2rki (x, y, &r, &k, &i);
-			//printf ("\tedge %d: %d, %d {%d %d %d}\n", edge, x, y, r, k, i);
-			dir = ground_getTileAdjacencyIndex (g_entity, r, k, i);
-			if (dir < 0)
+			ax = h->x + XY[dir][0];
+			ay = h->y + XY[dir][1];
+			hex_xy2rki (ax, ay, &mag, &k, &i);
+			mag = hex_coordinateMagnitude (ax, ay);
+			if (mag > radius)
 			{
-				adjIndex = hex_linearCoord (r, k, i);
-				hex->neighbors[edge] = *(Hex *)dynarr_at (map->tiles, adjIndex);
-				//printf ("set %d-th edge of %p to %p\n", edge, hex, hex->neighbors[edge]);
-				edge++;
+				dir++;
 				continue;
 			}
-			// hex at the edge of the ground. aah.
-			/***
-			 * we're just going to ignore this for now -- the proper thing to
-			 * do is ask if the adjacent ground is loaded (but not require that
-			 * it be) and if so, hook up its neighbors.
-			 */
-			edge++;
-			continue;
+			adjIndex = hex_linearCoord (mag, k, i);
+			adj = *(Hex *)dynarr_at (map->tiles, adjIndex);
+			//printf ("%s: got adjacent tile %p (%d, %d)\n", __FUNCTION__, adj, adj->x, adj->y);
+			h->edgeDepth[((dir + 5) % 6) * 2] = hex_getCornerHeight (adj, (dir + 3) % 6);
+			h->edgeDepth[((dir + 5) % 6) * 2 + 1] = hex_getCornerHeight (adj, (dir + 2) % 6);
+			dir++;
 		}
-		hex_bakeEdges (hex);
-		index++;
+		hexes++;
 	}
-	//printf ("%s (#%d): done!\n", __FUNCTION__, entity_GUID (g_entity));
+}
+
+void ground_bakeEdgeTiles (Entity g_entity, unsigned int edge, Entity adj_entity)
+{
+	Component
+		c = entity_getAs (g_entity, "ground"),
+		a = entity_getAs (adj_entity, "ground");
+	GroundMap
+		map = component_getData (c)/*,
+		adjMap = component_getData (a)*/;
+	Hex
+		h/*,
+		adj*/;
+	unsigned int
+		radius = groundWorld_getGroundRadius (),
+		r = radius,
+		k = edge,
+		i,/*
+		ak, ai,*/
+		dir,/*
+		adjDir,*/
+		dirCount = 0;
+	
+	if (a == NULL || !component_isFullyLoaded (a))
+	{
+		return;
+	}
+	while (!(k != edge && i == 1)) // stop after {r k+1 0}
+	{
+		if (r != radius)
+			r = radius;
+		h = *(Hex *)dynarr_at (map->tiles, hex_linearCoord (r, k, i));
+		//printf ("%s: got tile %p at {%d %d %d}\n", __FUNCTION__, h, r, k, i);
+		dir = edge;
+		dirCount = 0;
+		while (dirCount < 2)
+		{
+/*
+			adjDir = (((6 - dir) % 6) + 5) % 6;
+			ak = (k + 3) % 6;
+			printf ("{%d %d %d} %d: {%d %d %d}\n", r, k, i, dir, r, ak, ai);
+			adj = *(Hex *)dynarr_at (adjMap->tiles, hex_linearCoord (r, ak, ai));
+			h->edgeDepth[((dir + 5) % 6) * 2] = hex_getCornerHeight (adj, (dir + 3) % 6);
+			h->edgeDepth[((dir + 5) % 6) * 2 + 1] = hex_getCornerHeight (adj, (dir + 2) % 6);
+			
+			adj->edgeDepth[adjDir * 2] = hex_getCornerHeight (h, (adjDir + 4) % 6);
+			adj->edgeDepth[adjDir * 2 + 1] = hex_getCornerHeight (h, (adjDir + 3) % 6);
+*/
+			dir = (dir + 1) % 6;
+			dirCount++;
+		}
+		hex_nextValidCoord (&r, &k, &i);
+	}
 }
 
 struct hex * ground_getHexatCoord (GroundMap g, short r, short k, short i) {
@@ -611,21 +664,83 @@ void groundWorld_patternLoad (Component c)
 
 void groundWorld_groundLoad (Component c)
 {
-	int
-		index;
+	worldPosition
+		* adjacent;
+	float
+		height;
 	Entity
-		x = component_entityAttached (c);
+		x = component_entityAttached (c),
+		adj;
 	GroundMap
 		g = component_getData (c);
+	Hex
+		hex;
 	unsigned char
 		p;
 	unsigned int
 		r, k, i;
+	int
+		index;
 	component_setLoadGoal (c, 1);
 
+	p = wp_getPole (g->wp);
+	wp_getCoords (g->wp, &r, &k, &i);
+
 	ground_initSize (g, World->groundRadius);
-	ground_fillFlat (g, 1.0);
-	ground_bakeTiles (x);
+	if (r == 0)
+	{
+		switch (p)
+		{
+			case 'a':
+				height = 4.0;
+				break;
+			case 'b':
+				height = 6.0;
+				break;
+			case 'c':
+				height = 2.0;
+				break;
+			default:
+				height = 0.0;
+				break;
+		}
+	}
+	else
+		height = (int)(((World->poleRadius - r) / (float)World->poleRadius) * 4.0);
+
+	ground_fillFlat (g, height);
+
+	hex = ground_getHexatCoord (g, 1, 0, 0);
+	hex_setSlope (hex, HEX_TOP, height + 1, height + 1, height + 1.5);
+	hex = ground_getHexatCoord (g, 1, 1, 0);
+	hex_setSlope (hex, HEX_TOP, height + 1, height + 1.5, height + 1);
+	hex = ground_getHexatCoord (g, 2, 0, 1);
+	hex_setSlope (hex, HEX_TOP, height + 1.5, height + 1, height + 1);
+	hex = ground_getHexatCoord (g, 1, 3, 0);
+	hex_setSlope (hex, HEX_TOP, height + 1, height + 1, height + 1.5);
+	hex = ground_getHexatCoord (g, 1, 4, 0);
+	hex_setSlope (hex, HEX_TOP, height + 1, height + 1.5, height + 1);
+	hex = ground_getHexatCoord (g, 2, 3, 1);
+	hex_setSlope (hex, HEX_TOP, height + 1.5, height + 1, height + 1);
+	hex = ground_getHexatCoord (g, 3, 2, 0);
+	hex_setSlope (hex, HEX_TOP, height + 2, height + 2.5, height + 1.5);
+	hex = ground_getHexatCoord (g, 3, 5, 0);
+	hex_setSlope (hex, HEX_TOP, height + 1.5, height + 2.5, height + 2);
+
+	ground_bakeInternalTiles (x);
+	adjacent = wp_adjacent (g->wp, World->poleRadius);
+	i = 0;
+	while (i < 6)
+	{
+		adj = groundWorld_getGroundAt (adjacent[i]);
+		if (adj != NULL)
+		{
+			ground_bakeEdgeTiles (x, i, adj);
+		}
+		i++;
+	}
+	wp_destroyAdjacent (adjacent);
+
 	dynarr_push (World->loadedGrounds, x);
 	dynarr_sort (World->loadedGrounds, world_entwp_sort);
 	index = in_dynarr (World->partlyLoadedGrounds, x);
@@ -635,8 +750,6 @@ void groundWorld_groundLoad (Component c)
 	component_updateLoadAmount (c, 1);
 	component_setLoadComplete (c);
 
-	p = wp_getPole (g->wp);
-	wp_getCoords (g->wp, &r, &k, &i);
 	//printf ("loaded ground at '%c'{%d %d %d}\n", p, r, k, i);
 	return;
 }
