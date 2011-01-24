@@ -5,19 +5,23 @@
 #include "entity.h"
 
 #include "vector.h"
-#include "shapes.h"
+#include "lsystem.h"
 #include "dynarr.h"
 
 #include "ground_draw.h"
 
-struct plant_data * plantComponent;
+typedef struct plantData * plantData;
 
-void plant_generateSeed (struct plant_data * pd);
+bool plant_createRandom (Entity e);
+bool plant_createHybrid (Dynarr parents);
 
-void plant_generateRandom (Entity e);
-
+void plant_grow (plantData plant);
+void plant_die (plantData plant);
 
 void plant_draw (Entity e, CameraGroundLabel label);
+
+//void plant_pruneSegment (plantData plant, ??? segment);
+//aaah collision detection with plant segments to determine pruning??? D:
 
 int component_plant (Object * obj, objMsg msg, void * a, void * b);
 
