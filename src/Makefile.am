@@ -18,6 +18,7 @@ beyond_SOURCES = \
   xph_memory.c xph_memory.h \
   shapes.c shapes.h \
   dynarr.c dynarr.h \
+  lsystem.c lsystem.h \
   object.c object.h	\
   video.c video.h	\
   timer.c timer.h	\
