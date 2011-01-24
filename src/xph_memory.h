@@ -30,7 +30,7 @@ struct mlist {
 };
 
 #define xph_alloc(a)		_xph_alloc(a, #a)
-#define xph_alloc_name(a, b)	_xph_alloc(a, b);
+#define xph_alloc_name(a, b)	_xph_alloc(a, b)
 //#define xph_alloc(a, b)		_xph_alloc(a, b)
 void * _xph_alloc (size_t size, char * exp);
 void * xph_realloc (void * d, size_t size);
