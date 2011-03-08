@@ -1,14 +1,16 @@
 ## Process this file with automake to produce Makefile.in
 
-AM_CPPFLAGS = -Wall -Werror -O3 -DMEM_DEBUG
+AM_CPPFLAGS = -Wall -Werror -O3
+#AM_CPPFLAGS = -Wall -Werror -O3 -DMEM_DEBUG
 # AM_CPPFLAGS = -Wall -Werror -fprofile-generate -ftest-coverage
 # AM_LDFLAGS = -fprofile-generate -lgcov
 
-lib_LTLIBRARIES = libfcmp.la libvector.la libquat.la libline.la
+lib_LTLIBRARIES = libfcmp.la libvector.la libquat.la libline.la libsph.la
 libfcmp_la_SOURCES = fcmp.c fcmp.h
 libvector_la_SOURCES = vector.c vector.h
 libquat_la_SOURCES = quaternion.c quaternion.h
 libline_la_SOURCES = line.c line.h
+libsph_la_SOURCES = sph.c sph.h
 #libline_la_LIBADD = libvector.la
 
 
@@ -41,6 +43,7 @@ beyond_SOURCES = \
   beyond.c beyond.h
 beyond_LDADD =	\
   libline.la	\
+  libsph.la		\
   libvector.la	\
   libquat.la	\
   libfcmp.la	\

@@ -34,6 +34,7 @@ void entity_destroySystem (const char * comp_name);
 void entity_destroyEverything ();
 
 void * component_getData (Component c);
+const char * component_getName (const Component c);
 Entity component_entityAttached (Component c);
 
 bool component_instantiateOnEntity (const char * comp_name, Entity e);
@@ -52,7 +53,7 @@ void entitySubsystem_clearStored ();
 void component_setLoadGoal (Component c, unsigned int m);
 void component_updateLoadAmount (Component c, unsigned int v);
 void component_setLoadComplete (Component c);
-bool component_fullyLoaded (const Component c);
+bool component_isFullyLoaded (const Component c);
 void component_dropLoad (Component c);
 
 void component_reweigh (Component c);
@@ -62,5 +63,12 @@ void component_setAsLoadable (Component c);
 bool component_isLoaderActive ();
 void component_forceRunLoader (unsigned int load);
 void component_runLoader (const TIMER * t);
+
+
+typedef void (compFunc) (Component);
+
+bool entitySubsystem_registerMessageResponse (const char * comp_name, const char * message, compFunc * function);
+bool entitySubsystem_clearMessageResponses (const char * comp_name, const char * message);
+void component_sendMessage (const char * message, Component c);
 
 #endif /* XPH_ENTITY_H */

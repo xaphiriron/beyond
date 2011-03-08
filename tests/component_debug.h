@@ -4,6 +4,10 @@
 #include "../src/object.h"
 #include "../src/entity.h"
 
+struct dummy_struct {
+	char * lastMessage;
+};
+
 int component_name_obj_func (Object * o, objMsg msg, void * a, void * b);
 int component_name_2_obj_func (Object * o, objMsg msg, void * a, void * b);
 

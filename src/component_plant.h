@@ -4,6 +4,7 @@
 #include "object.h"
 #include "entity.h"
 
+#include "sph.h"
 #include "vector.h"
 #include "lsystem.h"
 #include "dynarr.h"

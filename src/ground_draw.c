@@ -298,6 +298,44 @@ int label_getCoordinateDistanceFromOrigin (const CameraGroundLabel l)
 }
 
 
+static CameraGroundLabel lastUsed = NULL;
+static bool matrixEstablished = FALSE;
+void label_setMatrix (const CameraGroundLabel l)
+{
+	VECTOR3
+		o = label_getOriginOffset (l);
+	static const float
+		* matrix;
+	if (!matrixEstablished)
+	{
+		matrix = camera_getMatrix (input_getPlayerEntity ());
+		matrixEstablished = TRUE;
+		if (matrix == NULL)
+			glLoadIdentity ();
+		else
+			glLoadMatrixf (matrix);
+	}
+	if (lastUsed != NULL)
+	{
+		fprintf (stderr, "%s: overriding prior used label. (stored: %p)\n", __FUNCTION__, lastUsed);
+	}
+	lastUsed = l;
+	glTranslatef (o.x, o.y, o.z);
+}
+
+void label_unsetMatrix (const CameraGroundLabel l)
+{
+	VECTOR3
+		o = label_getOriginOffset (l);
+	if (lastUsed != l)
+	{
+		fprintf (stderr, "%s: used label mismatch. (stored: %p. expecting: %p) unsetting anyway.\n", __FUNCTION__, lastUsed, l);
+	}
+	glTranslatef (-o.x, -o.y, -o.z);
+	lastUsed = NULL;
+}
+
+
 /***
  * DRAWING FUNCTIONS (WHICH CALL draw_hex, ULTIMATELY)
  */
@@ -319,6 +357,10 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
 		occupants;
 	struct ground_occupant
 		* o;
+/*
+	GLuint
+		displayList;
+*/
 
 	unsigned int
 		r, k, j,
@@ -329,16 +371,18 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
   struct hex * h = NULL;
 	//printf ("%s (%p, %p, %p)...\n", __FUNCTION__, g_entity, camera, g_label);
 
-  if (g_entity == NULL || g_label == NULL || g_label->this != g_entity) {
-    fprintf (stderr, "%s (#%d/%p, ..., %p): nonexistant entity, invalid label, or label does not match ground.\n", __FUNCTION__, entity_GUID (g_entity), g_entity, g_label);
-	hex_setDrawColor (1.0, 0.0, 0.0);
-	hex_drawFiller (g_label, size);
-    return;
-  }
+	if (g_entity == NULL || g_label == NULL || g_label->this != g_entity)
+	{
+		fprintf (stderr, "%s (#%d/%p, ..., %p): nonexistant entity, invalid label, or label does not match ground.\n", __FUNCTION__, entity_GUID (g_entity), g_entity, g_label);
+		hex_setDrawColor (1.0, 0.0, 0.0);
+		hex_drawFiller (g_label, size);
+		return;
+	}
 	p_comp = entity_getAs (g_entity, "pattern");
 	g_comp = entity_getAs (g_entity, "ground");
 	g = component_getData (g_comp);
-	if (g_comp == NULL || p_comp == NULL) {
+	if (g_comp == NULL || p_comp == NULL)
+	{
 		fprintf (stderr, "%s (#%d/%p, ..., %p): invalid entity (lacking ground or pattern component)\n", __FUNCTION__, entity_GUID (g_entity), g_entity, g_label);
 		hex_setDrawColor (0.8, 0.3, 0.0);
 		hex_drawFiller (g_label, size);
@@ -357,6 +401,20 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
 		//fprintf (stderr, "%s (#%d, %p): skipping partially-loaded ground.\n", __FUNCTION__, entity_GUID (g_entity), g_label);
 		return;
 	}
+	label_setMatrix (g_label);
+/*
+	displayList = ground_getDisplayList (g);
+	if (displayList != 0)
+	{
+		glCallList (displayList);
+		label_unsetMatrix (g_label);
+		return;
+	}
+	displayList = glGenLists (1);
+	ground_setDisplayList (g, displayList);
+	glNewList (displayList, GL_COMPILE);
+*/
+
 	p = wp_getPole (ground_getWorldPos (g));
 	wp_getCoords (ground_getWorldPos (g), &r, &k, &j);
 /*
@@ -373,9 +431,14 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
   while (i < tilesPerGround) {
     h = ground_getHexAtOffset (g, i);
     assert (h != NULL);
-    hex_draw (h, camera, g_label);
+    hex_draw (h, camera);
     i++;
   }
+/*
+	glEndList ();
+	glCallList (displayList);
+*/
+	label_unsetMatrix (g_label);
 	occupants = ground_getOccupants (g);
 	if (dynarr_isEmpty (occupants))
 		return;

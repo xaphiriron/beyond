@@ -48,9 +48,9 @@ START_TEST (test_video_resize) {
   x = video_getXResolution ();
   y = video_getYResolution ();
   fail_unless (
-    fcmp (x, 28.8)
-      && fcmp (y, 16.2),
-    "Video default resolution should be 960x540 with a scale of 0.03"
+    fcmp (x, 67.2)
+      && fcmp (y, 37.8),
+    "Video default resolution should be 960x540 with a scale of 0.07"
   );
   video_setScaling (v, 1.0);
   video_setResolution (v, 500.0, 500.0);

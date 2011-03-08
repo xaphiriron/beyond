@@ -133,6 +133,7 @@ int obj_messagePre (Object * o, objMsg, void *, void *);
 int obj_messageIn (Object * o, objMsg, void *, void *);
 int obj_messagePost (Object * o, objMsg, void *, void *);
 
+bool objPassEnable (bool o);
 int obj_pass ();
 int obj_halt ();
 int obj_skipchildren ();

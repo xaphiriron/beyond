@@ -46,6 +46,9 @@ Entity label_getOriginReference (const CameraGroundLabel l);
 VECTOR3 label_getOriginOffset (const CameraGroundLabel l);
 int label_getCoordinateDistanceFromOrigin (const CameraGroundLabel l);
 
+void label_setMatrix (const CameraGroundLabel l);
+void label_unsetMatrix (const CameraGroundLabel l);
+
 void ground_draw (Entity g, Entity camera, CameraGroundLabel l);
 void ground_draw_fill (Entity camera);
 

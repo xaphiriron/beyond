@@ -9,8 +9,9 @@
 
 #include "hex.h"
 #include "hex_utility.h"
-
 #include "world_position.h"
+
+#include <SDL/SDL_opengl.h>
 
 // the argument in a "GROUND_EDGE_TRAVERSAL" entity message is a pointer to
 // this struct.
@@ -60,6 +61,8 @@ short ground_getMapSize (const GroundMap g);
 const worldPosition ground_getWorldPos (const GroundMap g);
 struct hex * ground_getHexAtOffset (GroundMap g, int o);
 short ground_getTileAdjacencyIndex (const Entity groundEntity, short r, short k, short i);
+GLuint ground_getDisplayList (const GroundMap g);
+void ground_setDisplayList (GroundMap g, GLuint list);
 
 void ground_setWorldPos (GroundMap g, worldPosition wp);
 

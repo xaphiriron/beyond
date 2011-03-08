@@ -7,6 +7,7 @@ AM_CPPFLAGS = -Wall -Werror -fstrict-aliasing -O3
 TESTS = \
   check_check \
   check_dynarr \
+	check_lsystem \
   check_object \
   check_entity \
   check_tiles \
@@ -14,6 +15,7 @@ TESTS = \
 check_PROGRAMS = \
   check_check \
   check_dynarr \
+	check_lsystem \
   check_object \
   check_entity \
   check_tiles \
@@ -45,6 +47,13 @@ check_dynarr_SOURCES = \
   $(top_builddir)/src/dynarr.c
 check_dynarr_CFLAGS = @CHECK_CFLAGS@
 check_dynarr_LDADD = @CHECK_LIBS@
+
+check_lsystem_SOURCES = \
+	check_lsystem.c \
+	$(top_builddir)/src/dynarr.c \
+	$(top_builddir)/src/lsystem.c
+check_lsystem_CFLAGS = @CHECK_CFLAGS@
+check_lsystem_LDADD = @CHECK_LIBS@
 
 check_object_SOURCES = \
   check_object.c \

@@ -9,7 +9,7 @@ void hex_setDrawColor (float red, float green, float blue)
 	rgb[2] = blue;
 }
 
-void hex_draw (const Hex hex, const Entity camera, const CameraGroundLabel label) {
+void hex_draw (const Hex hex, const Entity camera) {
   float
     ra = hex->top - hex->topA,
     rb = hex->top - hex->topB,
@@ -27,9 +27,7 @@ void hex_draw (const Hex hex, const Entity camera, const CameraGroundLabel label
   bool
     light = FALSE;
   VECTOR3
-    labelOffset = label_getOriginOffset (label),
-    hexOffset = hex_coord2space (hex->r, hex->k, hex->i),
-    pos = vectorAdd (&labelOffset, &hexOffset);
+    pos = hex_coord2space (hex->r, hex->k, hex->i);
   if ((hex->r & 0x01) ^ (hex->k & 0x01)) {
     light = TRUE;
   }

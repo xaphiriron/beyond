@@ -7,12 +7,23 @@ struct entity {
   Dynarr components;
 };
 
+struct messageTrigger
+{
+	char * message;
+	Dynarr
+		funcs;
+};
+
 struct ent_system {
   Object * system;
   const char * comp_name;
   Dynarr entities;
+
 	void (* loaderCallback) (Component);
 	unsigned char (* weighCallback) (Component);
+
+	Dynarr
+		messageTriggers;
 };
 
 
@@ -60,13 +71,17 @@ static Dynarr
 
 static bool ComponentLoaderUnsorted = FALSE;
 
-
 static int comp_sort (const void * a, const void * b);
 static int comp_search (const void * k, const void * d);
 static int sys_sort (const void * a, const void * b);
 static int sys_search (const void * k, const void * d);
 
 static int comp_weight_sort (const void * a, const void * b);
+
+static struct messageTrigger * mt_create (const char * message);
+static void mt_destroy (struct messageTrigger * mt);
+static int mt_sort (const void * a, const void * b);
+static int mt_search (const void * k, const void * d);
 
 static int comp_sort (const void * a, const void * b) {
   //printf ("%s: got %d vs. %d\n", __FUNCTION__, (*(const struct ent_component **)a)->e->guid, (*(const struct ent_component **)b)->e->guid);
@@ -169,6 +184,7 @@ bool entity_message (Entity e, char * message, void * arg)
 		t = *(Component *)dynIterator_next (it);
 		msg.to = t;
 		obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, &msg, arg);
+		component_sendMessage (message, t);
 	}
 	dynIterator_destroy (it);
 	return TRUE;
@@ -180,7 +196,8 @@ unsigned int entity_GUID (const Entity e) {
 
 
 bool entity_registerComponentAndSystem (objHandler func) {
-  new (struct ent_system, reg);
+	struct ent_system
+		* reg = xph_alloc (sizeof (struct ent_system));
   ObjClass * oc = objClass_init (func, NULL, NULL, NULL);
   Object * sys = obj_create (oc->name, NULL, NULL, NULL);
   reg->system = sys;
@@ -190,12 +207,13 @@ bool entity_registerComponentAndSystem (objHandler func) {
 	reg->weighCallback = NULL;
 	obj_message (sys, OM_COMPONENT_GET_LOADER_CALLBACK, &reg->loaderCallback, NULL);
 	obj_message (sys, OM_COMPONENT_GET_WEIGH_CALLBACK, &reg->weighCallback, NULL);
+	reg->messageTriggers = dynarr_create (4, sizeof (struct messageTrigger));
   if (SystemRegistry == NULL) {
     SystemRegistry = dynarr_create (4, sizeof (System *));
   }
   dynarr_push (SystemRegistry, reg);
   dynarr_sort (SystemRegistry, sys_sort);
-	printf ("%s: registered component \"%s\"\n", __FUNCTION__, reg->comp_name);
+	//printf ("%s: registered component \"%s\"\n", __FUNCTION__, reg->comp_name);
   return TRUE;
 }
 
@@ -321,7 +339,7 @@ System entity_getSystemByName (const char * comp_name) {
 void entity_destroySystem (const char * comp_name) {
   System sys = entity_getSystemByName (comp_name);
   Component c = NULL;
-	printf ("%s (\"%s\")...\n", __FUNCTION__, comp_name);
+	//printf ("%s (\"%s\")...\n", __FUNCTION__, comp_name);
   if (sys == NULL) {
     return;
   }
@@ -329,18 +347,20 @@ void entity_destroySystem (const char * comp_name) {
     c = *(Component *)dynarr_front (sys->entities);
     component_removeFromEntity (sys->comp_name, c->e);
   }
+	dynarr_wipe (sys->messageTriggers, (void (*)(void *))mt_destroy);
+	dynarr_destroy (sys->messageTriggers);
   dynarr_destroy (sys->entities);
   dynarr_remove_condense (SystemRegistry, sys);
   obj_message (sys->system, OM_DESTROY, NULL, NULL);
   objClass_destroy (sys->comp_name);
   xph_free (sys);
-	printf ("...%s\n", __FUNCTION__);
+	//printf ("...%s\n", __FUNCTION__);
 }
 
 void entity_destroyEverything () {
   System sys = NULL;
   Entity e = NULL;
-	printf ("%s...\n", __FUNCTION__);
+	//printf ("%s...\n", __FUNCTION__);
   while ((e = *(Entity *)dynarr_pop (ExistantEntities)) != NULL) {
     entity_destroy (e);
   }
@@ -359,7 +379,7 @@ void entity_destroyEverything () {
   }
   dynarr_destroy (SystemRegistry);
   SystemRegistry = NULL;
-	printf ("...%s\n", __FUNCTION__);
+	//printf ("...%s\n", __FUNCTION__);
 }
 
 bool component_instantiateOnEntity (const char * comp_name, Entity e) {
@@ -371,6 +391,7 @@ bool component_instantiateOnEntity (const char * comp_name, Entity e) {
   instance->e = e;
   instance->reg = sys;
   instance->comp_guid = ++ComponentGUIDs;
+	instance->comp_data = NULL;
 	instance->loaded = FALSE;
 	instance->loader = NULL;
   // we care less about enforcing uniqueness of component guids than we do about entities.
@@ -424,6 +445,13 @@ void * component_getData (Component c) {
   return c->comp_data;
 }
 
+const char * component_getName (const Component c)
+{
+	if (c == NULL || c->reg == NULL)
+		return NULL;
+	return c->reg->comp_name;
+}
+
 Entity component_entityAttached (Component c) {
   if (c == NULL) {
     return NULL;
@@ -448,6 +476,7 @@ bool component_messageEntity (Component comp, char * message, void * arg)
 		msg.to = t;
 		//printf ("%s: #%d: messaging component \"%s\"\n", __FUNCTION__, comp->e->guid, t->reg->comp_name);
 		obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, &msg, arg);
+		component_sendMessage (message, t);
 	}
 	return TRUE;
 }
@@ -553,10 +582,11 @@ void component_setLoadComplete (Component c)
 		return;
 	c->loader->status = COMPONENT_LOADED;
 	c->loaded = TRUE;
+	//printf ("---component %p fully loaded\n", c);
 	dynarr_remove_condense (ComponentLoader, c);
 }
 
-bool component_fullyLoaded (const Component c)
+bool component_isFullyLoaded (const Component c)
 {
 	return c->loaded;
 }
@@ -597,6 +627,7 @@ void component_setAsLoadable (Component c)
 {
 	COMPONENT_LOAD
 		* l = c->loader;
+	//printf ("%s (%p)...\n", __FUNCTION__, c);
 	if (l != NULL)
 	{
 		fprintf (stderr, "%s (%p): Dual loading??? HOW CAN THIS BE?\not really sure what to do here...\n", __FUNCTION__, c);
@@ -611,6 +642,7 @@ void component_setAsLoadable (Component c)
 		ComponentLoader = dynarr_create (8, sizeof (Component));
 	dynarr_push (ComponentLoader, c);
 	ComponentLoaderUnsorted = TRUE;
+	//printf ("...%s\n", __FUNCTION__);
 }
 
 bool component_isLoaderActive ()
@@ -628,24 +660,27 @@ void component_forceRunLoader (unsigned int load)
 		c;
 	unsigned int
 		loaded = 0;
-	//printf ("%s...\n", __FUNCTION__);
+	printf ("%s...\n", __FUNCTION__);
 	if (ComponentLoader == NULL)
 		ComponentLoader = dynarr_create (8, sizeof (Component));
 	if (ComponentLoaderUnsorted == TRUE)
 	{
 		component_forceLoaderResort ();
 	}
-	while (component_isLoaderActive () && loaded < load)
+	while (component_isLoaderActive () && (loaded < load || load == 0))
 	{
 		c = *(Component *)dynarr_front (ComponentLoader);
+		printf ("%s: got %p\n", __FUNCTION__, c);
+		dynarr_remove_condense (ComponentLoader, c);
 		if (c->reg->loaderCallback == NULL)
 		{
-			dynarr_remove_condense (ComponentLoader, c);
 			continue;
 		}
+		// TODO: this makes a mockery of the priority queue.
+		dynarr_push (ComponentLoader, c);
 		c->reg->loaderCallback (c);
 	}
-	//printf ("...%s\n", __FUNCTION__);
+	printf ("...%s\n", __FUNCTION__);
 }
 
 void component_runLoader (const TIMER * t)
@@ -680,4 +715,96 @@ void component_runLoader (const TIMER * t)
 static int comp_weight_sort (const void * a, const void * b)
 {
 	return (*(Component *)a)->loader->loadWeight - (*(Component *)b)->loader->loadWeight;
+}
+
+
+
+
+
+
+static struct messageTrigger * mt_create (const char * message)
+{
+	struct messageTrigger
+		* mt = xph_alloc (sizeof (struct messageTrigger));
+	mt->message = xph_alloc (strlen (message) + 1);
+	strcpy (mt->message, message);
+	mt->funcs = dynarr_create (2, sizeof (compFunc *));
+	return mt;
+}
+
+static void mt_destroy (struct messageTrigger * mt)
+{
+	xph_free (mt->message);
+	dynarr_wipe (mt->funcs, xph_free);
+	dynarr_destroy (mt->funcs);
+	xph_free (mt);
+}
+
+static int mt_sort (const void * a, const void * b)
+{
+	return strcmp
+	(
+		(*(const struct messageTrigger **)a)->message,
+		(*(const struct messageTrigger **)b)->message
+	);
+}
+
+static int mt_search (const void * k, const void * d)
+{
+	return strcmp
+	(
+		*(char **)k,
+		(*(const struct messageTrigger **)d)->message
+	);
+}
+
+bool entitySubsystem_registerMessageResponse (const char * comp_name, const char * message, compFunc * function)
+{
+	System
+		sys = entity_getSystemByName (comp_name);
+	struct messageTrigger
+		* mt;
+	if (sys == NULL)
+		return FALSE;
+	mt = *(struct messageTrigger **)dynarr_search (sys->messageTriggers, mt_search, message);
+	if (mt == NULL)
+	{
+		mt = mt_create (message);
+		dynarr_push (sys->messageTriggers, mt);
+		dynarr_sort (sys->messageTriggers, mt_sort);
+	}
+	// TODO: this allows for registering the same function multiple times. this should iterate over the set functions and only push if function isn't already set.
+	dynarr_push (mt->funcs, function);
+	return TRUE;
+}
+
+bool entitySubsystem_clearMessageResponses (const char * comp_name, const char * message)
+{
+	System
+		sys = entity_getSystemByName (comp_name);
+	struct messageTrigger
+		* mt;
+	if (sys == NULL)
+		return FALSE;
+	// TODO: this is yet another place that would be served by the existance of dynarr_searchAndReturnIndex or w/e
+	mt = *(struct messageTrigger **)dynarr_search (sys->messageTriggers, mt_search, message);
+	if (mt == NULL)
+		return TRUE;
+	dynarr_remove_condense (sys->messageTriggers, mt);
+	mt_destroy (mt);
+	return TRUE;
+}
+
+void component_sendMessage (const char * message, Component c)
+{
+	struct messageTrigger
+		* mt = *(struct messageTrigger **)dynarr_search (c->reg->messageTriggers, mt_search, message);
+	int
+		i = 0;
+	if (mt == NULL)
+		return;
+	while (i < dynarr_size (mt->funcs))
+	{
+		(*(compFunc **)dynarr_at (mt->funcs, i++))(c);
+	}
 }

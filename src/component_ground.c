@@ -11,6 +11,8 @@ struct ground_comp
 		size;
 	unsigned int
 		far;
+	GLuint
+		displayList;
 };
 
 struct ground_world
@@ -53,11 +55,11 @@ static struct ground_world * groundWorld_create ()
 	struct ground_world
 		* w = xph_alloc (sizeof (struct ground_world));
 
-	w->poleRadius = 40000;
-	w->groundRadius = 2;
-	w->drawDistance = 8;
-	w->partialUnloadDistance = 1;
-	w->loadedUnloadDistance = 3;
+	w->poleRadius = 144;
+	w->groundRadius = 4;
+	w->drawDistance = 5;
+	w->partialUnloadDistance = 2;
+	w->loadedUnloadDistance = 4;
 
 	w->loadedGrounds = dynarr_create (hex (w->drawDistance + 1), sizeof (Entity));
 	w->partlyLoadedGrounds = dynarr_create (hex (w->drawDistance + 1), sizeof (Entity));
@@ -85,7 +87,7 @@ static void groundWorld_init ()
 
 	//printf ("%s: forcing component to generate pole\n", __FUNCTION__);
 	// vvv this is to force the ground load started with the loadGround to complete before we start adding occupants to it. this is not a good way to do that.
-	component_forceRunLoader (2);
+	component_forceRunLoader (0);
 
 	//printf ("%s: placing plant entity\n", __FUNCTION__);
 	plant = entity_create ();
@@ -360,6 +362,15 @@ short ground_getTileAdjacencyIndex (const Entity groundEntity, short r, short k,
 	return dir;
 }
 
+GLuint ground_getDisplayList (const GroundMap g)
+{
+	return g->displayList;
+}
+
+void ground_setDisplayList (GroundMap g, GLuint list)
+{
+	g->displayList = list;
+}
 
 void ground_setWorldPos (GroundMap g, worldPosition wp)
 {
@@ -551,11 +562,13 @@ static GroundMap ground_create () {
   g->size = -1;
 	g->far = 0;
   g->occupants = dynarr_create (1, sizeof (struct ground_occupant *));
+	g->displayList = 0;
   return g;
 }
 
 static void ground_destroy (GroundMap g)
 {
+	glDeleteLists (g->displayList, 1);
 	wp_destroy (g->wp);
 	if (g->tiles == NULL)
 	{
@@ -647,18 +660,12 @@ unsigned int ground_entDistance (const Entity a, const Entity b)
 
 void groundWorld_patternLoad (Component c)
 {
-	Component
-		ground;
 	component_setLoadGoal (c, 1);
 
 	// WORLD GEN STUFF HERE !!!!
 
 	component_updateLoadAmount (c, 1);
 	component_setLoadComplete (c);
-	
-	ground = entity_getAs (component_entityAttached (c), "ground");
-	if (ground)
-		component_setAsLoadable (ground);
 	return;
 }
 
@@ -681,6 +688,11 @@ void groundWorld_groundLoad (Component c)
 		r, k, i;
 	int
 		index;
+	while (!component_isFullyLoaded (entity_getAs (x, "pattern")))
+	{
+		fprintf (stderr, "cannot load ground component (%p): pattern component (%p) isn't loaded yet. (on entity #%d)\n", c, entity_getAs (x, "pattern"), entity_GUID (x));
+		return;
+	}
 	component_setLoadGoal (c, 1);
 
 	p = wp_getPole (g->wp);
@@ -778,9 +790,14 @@ unsigned char groundWorld_groundWeigh (Component c)
 		w = ground_getWorldPos (component_getData (entity_getAs (groundWorld_getEntityOrigin (input_getPlayerEntity ()), "ground")));
 	unsigned int
 		dd = groundWorld_getDrawDistance (),
-		d = wp_distance (ground_getWorldPos (component_getData (c)), w, World->poleRadius);
+		d;
 	unsigned char
 		r;
+	if (!component_isFullyLoaded (entity_getAs (component_entityAttached (c), "pattern")))
+		return 0;
+	if (w == NULL)
+		return 127;
+	d = wp_distance (ground_getWorldPos (component_getData (c)), w, World->poleRadius);
 	r = (dd - d) / (float)dd * 192 + 63;
 	//printf ("%s: weight %d on ground %d distant (of %d) from origin\n", __FUNCTION__, r, d, dd);
 	return r;
@@ -808,6 +825,7 @@ Entity groundWorld_queueGeneration (const worldPosition wp)
 	Component
 		pattern,
 		ground;
+	//printf ("%s (%p)...\n", __FUNCTION__, wp);
 	component_instantiateOnEntity ("pattern", x);
 	component_instantiateOnEntity ("ground", x);
 	pattern = entity_getAs (x, "pattern");
@@ -815,8 +833,10 @@ Entity groundWorld_queueGeneration (const worldPosition wp)
 	g = component_getData (ground);
 	ground_setWorldPos (g, dup);
 	component_setAsLoadable (pattern);
+	component_setAsLoadable (ground);
 	// ^ or component_activateLoading or SOMETHING. the actual function just adds that component to the weighed list of COMPONENTS TO LOAD, which will be processed in any order.
 	// (the idea is that components are initialized to some base state (here) and then stream loaded from there (in a callback function; currently the groundWorld_[x]Load placeholders))
+	//printf ("...%s\n", __FUNCTION__);
 	return x;
 }
 
@@ -857,7 +877,9 @@ int component_ground (Object * obj, objMsg msg, void * a, void * b)
       return EXIT_SUCCESS;
 
 		case OM_START:
+			printf ("TRYING GROUND/WORLD INIT\n");
 			groundWorld_init ();
+			printf ("DONE GROUND/WORLD INIT\n");
 			return EXIT_SUCCESS;
 
 		case OM_UPDATE:

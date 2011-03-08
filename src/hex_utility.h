@@ -30,6 +30,10 @@ unsigned int hex_coordinateMagnitude (signed int x, signed int y);
 
 bool hexGround_centerDistanceCoord (unsigned int radius, unsigned int dir, signed int * xp, signed int * yp);
 
+unsigned char hex_dirHashFromYaw (float yaw);
+unsigned char hex_dirHashFromCoord (signed int x, signed int y);
+unsigned char hex_dirHashCmp (unsigned char a, unsigned char b);
+
 /***
  * generic hex functions involving vectors:
  */
@@ -38,5 +42,6 @@ VECTOR3 hex_tileDistance (int length, unsigned int dir);
 VECTOR3 hex_coord2space (unsigned int r, unsigned int k, unsigned int i);
 bool hex_space2coord (const VECTOR3 * space, signed int * xp, signed int * yp);
 VECTOR3 hexGround_centerDistanceSpace (unsigned int radius, unsigned int dir);
+
 
 #endif /* XPH_HEX_UTILITY_H */
