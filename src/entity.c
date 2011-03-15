@@ -63,6 +63,7 @@ static unsigned int EntityGUIDs = 0;
 static unsigned int ComponentGUIDs = 0;
 
 static Dynarr
+	ToBeDestroyed = NULL,			// stores guids
 	DestroyedEntities = NULL,		// stores guids
 	ExistantEntities = NULL,		// stores struct entity *
 	SystemRegistry = NULL,
@@ -71,6 +72,8 @@ static Dynarr
 
 static bool ComponentLoaderUnsorted = FALSE;
 
+static int guid_sort (const void * a, const void * b);
+static int guid_search (const void * k, const void * d);
 static int comp_sort (const void * a, const void * b);
 static int comp_search (const void * k, const void * d);
 static int sys_sort (const void * a, const void * b);
@@ -82,6 +85,22 @@ static struct messageTrigger * mt_create (const char * message);
 static void mt_destroy (struct messageTrigger * mt);
 static int mt_sort (const void * a, const void * b);
 static int mt_search (const void * k, const void * d);
+
+
+static int guid_sort (const void * a, const void * b)
+{
+	//printf ("%s (%p, %p): %d vs. %d\n", __FUNCTION__, a, b, (*(const struct entity **)a)->guid, (*(const struct entity **)b)->guid);
+	return
+		(*(const struct entity **)a)->guid -
+		(*(const struct entity **)b)->guid;
+}
+static int guid_search (const void * k, const void * d)
+{
+	//printf ("%s (%p, %p): %d vs. %d\n", __FUNCTION__, k, d, *(const unsigned int *)k, (*(const struct entity **)d)->guid);
+	return
+		*(const unsigned int *)k -
+		(*(const struct entity **)d)->guid;
+}
 
 static int comp_sort (const void * a, const void * b) {
   //printf ("%s: got %d vs. %d\n", __FUNCTION__, (*(const struct ent_component **)a)->e->guid, (*(const struct ent_component **)b)->e->guid);
@@ -133,27 +152,61 @@ Entity entity_create () {
     ExistantEntities = dynarr_create (128, sizeof (Entity));
   }
   dynarr_push (ExistantEntities, e);
+  dynarr_sort (ExistantEntities, guid_sort);
   return e;
 }
 
-void entity_destroy (Entity e) {
-  struct ent_component * c = NULL;
-  //printf ("destroying entity #%d; removing components:\n", e->guid);
-  while (!dynarr_isEmpty (e->components)) {
-    //printf ("%d component%s.\n", dynarr_size (e->components), (dynarr_size (e->components) == 1 ? "" : "s"));
-    c = *(struct ent_component **)dynarr_front (e->components);
-    component_removeFromEntity (c->reg->comp_name, e);
-  }
-  dynarr_destroy (e->components);
-  //printf ("adding #%d to the destroyed list, to be reused\n", e->guid);
-  if (DestroyedEntities == NULL) {
-    DestroyedEntities = dynarr_create (32, sizeof (unsigned int));
-  }
-	// TODO: this function requires two passes through the array even though since ExistantEntities is kept sorted it ought to be possible to search for the entity by GUID, unset it, and then condense from that index.
-	dynarr_remove_condense (ExistantEntities, e);
-  dynarr_push (DestroyedEntities, e->guid);
-  //printf ("done\n");
-  xph_free (e);
+Entity entity_get (unsigned int guid)
+{
+	//printf ("%s (%d)...\n", __FUNCTION__, guid);
+	//printf ("entity count: %d\n", dynarr_size (ExistantEntities));
+	Entity
+		e = *(Entity *)dynarr_search (ExistantEntities, guid_search, guid);
+	//printf ("...%s () -> %p\n", __FUNCTION__, e);
+	return e;
+}
+
+void entity_destroy (Entity e)
+{
+	DEBUG ("Registering entity #%d for destruction", entity_GUID (e));
+	if (ToBeDestroyed == NULL)
+		ToBeDestroyed = dynarr_create (32, sizeof (unsigned int));
+	dynarr_push (ToBeDestroyed, entity_GUID (e));
+}
+
+void entity_purgeDestroyed ()
+{
+	//printf ("%s ()...\n", __FUNCTION__);
+	struct ent_component
+		* c = NULL;
+	Entity
+		e;
+	if (ToBeDestroyed == NULL)
+		return;
+	while ((e = entity_get (*(unsigned int *)dynarr_pop (ToBeDestroyed))) != NULL)
+	{
+		DEBUG ("Destroying entity #%d", entity_GUID (e));
+		//printf ("destroying entity #%d; removing components:\n", e->guid);
+		while (!dynarr_isEmpty (e->components))
+		{
+			//printf ("%d component%s.\n", dynarr_size (e->components), (dynarr_size (e->components) == 1 ? "" : "s"));
+			c = *(struct ent_component **)dynarr_front (e->components);
+			DEBUG ("Destroying #%d:\"%s\"", e->guid, c->reg->comp_name);
+			component_removeFromEntity (c->reg->comp_name, e);
+		}
+		dynarr_destroy (e->components);
+		//printf ("adding #%d to the destroyed list, to be reused\n", e->guid);
+		if (DestroyedEntities == NULL)
+		{
+			DestroyedEntities = dynarr_create (32, sizeof (unsigned int));
+		}
+		// TODO: this function requires two passes through the array even though since ExistantEntities is kept sorted it ought to be possible to search for the entity by GUID, unset it, and then condense from that index.
+		dynarr_remove_condense (ExistantEntities, e);
+		dynarr_push (DestroyedEntities, e->guid);
+		//printf ("done\n");
+		xph_free (e);
+	}
+	//printf ("...%s ()\n", __FUNCTION__);
 }
 
 bool entity_exists (unsigned int guid) {
@@ -190,8 +243,11 @@ bool entity_message (Entity e, char * message, void * arg)
 	return TRUE;
 }
 
-unsigned int entity_GUID (const Entity e) {
-  return e->guid;
+unsigned int entity_GUID (const Entity e)
+{
+	if (e == NULL)
+		return 0;
+	return e->guid;
 }
 
 
@@ -343,10 +399,14 @@ void entity_destroySystem (const char * comp_name) {
   if (sys == NULL) {
     return;
   }
-  while (!dynarr_isEmpty (sys->entities)) {
-    c = *(Component *)dynarr_front (sys->entities);
-    component_removeFromEntity (sys->comp_name, c->e);
-  }
+	if (!dynarr_isEmpty (sys->entities))
+	{
+		WARNING ("Component system \"%s\" still has %d entit%s with instantiations while being destroyed.", sys->comp_name, dynarr_size (sys->entities), dynarr_size (sys->entities) == 1 ? "y" : "ies");
+		while (!dynarr_isEmpty (sys->entities)) {
+			c = *(Component *)dynarr_front (sys->entities);
+			component_removeFromEntity (sys->comp_name, c->e);
+		}
+	}
 	dynarr_wipe (sys->messageTriggers, (void (*)(void *))mt_destroy);
 	dynarr_destroy (sys->messageTriggers);
   dynarr_destroy (sys->entities);
@@ -360,21 +420,36 @@ void entity_destroySystem (const char * comp_name) {
 void entity_destroyEverything () {
   System sys = NULL;
   Entity e = NULL;
+	DynIterator
+		it = dynIterator_create (ExistantEntities);
 	//printf ("%s...\n", __FUNCTION__);
-  while ((e = *(Entity *)dynarr_pop (ExistantEntities)) != NULL) {
-    entity_destroy (e);
-  }
+	
+	while (!dynIterator_done (it))
+	{
+		e = *(Entity *)dynIterator_next (it);
+    	entity_destroy (e);
+	}
+	dynIterator_destroy (it);
+	it = NULL;
+	entity_purgeDestroyed ();
+	dynarr_destroy (ToBeDestroyed);
+	ToBeDestroyed = NULL;
   dynarr_destroy (ExistantEntities);
   ExistantEntities = NULL;
-  dynarr_destroy (DestroyedEntities);
-  DestroyedEntities = NULL;
+	if (DestroyedEntities != NULL)
+	{
+		dynarr_destroy (DestroyedEntities);
+		DestroyedEntities = NULL;
+	}
   dynarr_destroy (SubsystemComponentStore);
   SubsystemComponentStore = NULL;
   if (SystemRegistry == NULL) {
+	//printf ("...%s (early)\n", __FUNCTION__);
     return;
   }
   while (!dynarr_isEmpty (SystemRegistry)) {
     sys = *(System *)dynarr_front (SystemRegistry);
+	DEBUG ("Destroying system \"%s\"", sys->comp_name);
     entity_destroySystem (sys->comp_name);
   }
   dynarr_destroy (SystemRegistry);
@@ -808,4 +883,3 @@ void component_sendMessage (const char * message, Component c)
 		(*(compFunc **)dynarr_at (mt->funcs, i++))(c);
 	}
 }
-	DEBUG ("Destroying system \"%s\"", sys->comp_name);

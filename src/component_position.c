@@ -1,5 +1,27 @@
 #include "component_position.h"
 
+void position_unset (Entity e)
+{
+	positionComponent
+		pdata = component_getData (entity_getAs (e, "position"));
+	if (pdata == NULL)
+		return;
+	if (pdata->mapEntity)
+	{
+		ground_removeOccupant (pdata->mapEntity, e);
+	}
+	pdata->mapEntity = NULL;
+}
+
+void position_destroy (Entity e)
+{
+	positionComponent
+		pdata = component_getData (entity_getAs (e, "position"));
+	if (pdata == NULL)
+		return;
+	position_unset (e);
+	xph_free (pdata);
+}
 
 void position_set (Entity e, VECTOR3 pos, Entity mapEntity)
 {
@@ -67,6 +89,10 @@ void position_updateAxesFromOrientation (Entity e)
 	if (pdata == NULL || pdata->dirty == FALSE)
 		return;
 	r = pdata->orientation;
+	/* FIXME?: wait, why are the side and front vectors transposed here? I
+	 * guess it doesn't really matter, but...
+	 *  - xph 2011-03-10
+	 */
 	// these values constitute a 3x3 rotation matrix. opengl offsets are commented on each value. see the camera component for how these are used to create the cameraview matrix.
 	pdata->view.side.x =		// [0]
 		1 -
@@ -279,12 +305,13 @@ int component_position (Object * obj, objMsg msg, void * a, void * b) {
 
     case OM_COMPONENT_DESTROY_DATA:
       cd = a;
+		position_destroy ((Entity)b);
       /*
       if ((*cd)->tileFootprint != NULL) {
         vector_destroy ((*cd)->tileFootprint);
       }
-      */
       xph_free (*cd);
+      */
       return EXIT_SUCCESS;
 
     case OM_UPDATE:

@@ -31,7 +31,6 @@ check_check_SOURCES = \
   $(top_builddir)/src/turtle.c \
   $(top_builddir)/src/point.c \
   $(top_builddir)/src/dynarr.c \
-	$(top_builddir)/src/xph_log.c \
   $(top_builddir)/src/object.c \
   $(top_builddir)/src/timer.c \
   $(top_builddir)/src/video.c
@@ -60,7 +59,6 @@ check_object_SOURCES = \
   check_object.c \
   object_debug.c \
   $(top_builddir)/src/object.c \
-	$(top_builddir)/src/xph_log.c \
   $(top_builddir)/src/dynarr.c
 check_object_CFLAGS = @CHECK_CFLAGS@
 check_object_LDADD = @CHECK_LIBS@
@@ -69,7 +67,6 @@ check_entity_SOURCES = \
   check_entity.c \
   component_debug.c \
   $(top_builddir)/src/dynarr.c \
-	$(top_builddir)/src/xph_log.c \
   $(top_builddir)/src/object.c \
   $(top_builddir)/src/timer.c \
   $(top_builddir)/src/entity.c

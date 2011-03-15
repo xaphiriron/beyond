@@ -75,6 +75,7 @@ void ground_setWorldPos (GroundMap g, worldPosition wp);
  */
 bool ground_bridgeConnections (const Entity groundEntity, Entity e);
 bool ground_placeOnTile (Entity groundEntity, short r, short k, short i, Entity e);
+bool ground_removeOccupant (Entity groundEntity, const Entity e);
 
 void ground_bakeInternalTiles (Entity g_entity);
 void ground_bakeEdgeTiles (Entity g_entity, unsigned int edge, Entity adj_entity);

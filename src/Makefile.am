@@ -18,6 +18,7 @@ bin_PROGRAMS = beyond
 #bin_PROGRAMS = beyond logo
 beyond_SOURCES = \
   xph_memory.c xph_memory.h \
+	xph_log.c xph_log.h \
   shapes.c shapes.h \
   dynarr.c dynarr.h \
   lsystem.c lsystem.h \
@@ -69,4 +70,4 @@ beyond_LDADD =	\
 #   libline.la	\
 #   libvector.la	\
 #   libfcmp.la	\
-#   -lm -lGL -lSDL	xph_log.c xph_log.h \
+#   -lm -lGL -lSDL

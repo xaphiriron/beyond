@@ -445,6 +445,34 @@ bool ground_placeOnTile (Entity groundEntity, short r, short k, short i, Entity 
 	return TRUE;
 }
 
+bool ground_removeOccupant (Entity groundEntity, const Entity e)
+{
+	
+	GroundMap
+		map = component_getData (entity_getAs (groundEntity, "ground"));
+	DynIterator
+		it;
+	unsigned int
+		i;
+	struct ground_occupant
+		* oc;
+	if (map == NULL)
+		return FALSE;
+	it = dynIterator_create (map->occupants);
+	while (!dynIterator_done (it))
+	{
+		i = dynIterator_nextIndex (it);
+		oc = *(struct ground_occupant **)dynarr_at (map->occupants, i);
+		if (oc->occupant == e)
+		{
+			dynarr_unset (map->occupants, i);
+			dynarr_condense (map->occupants);
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
 void ground_bakeInternalTiles (Entity g_entity)
 {
 	GroundMap
@@ -568,6 +596,10 @@ static GroundMap ground_create () {
 
 static void ground_destroy (GroundMap g)
 {
+	DynIterator
+		it;
+	struct ground_occupant
+		* o;
 	glDeleteLists (g->displayList, 1);
 	wp_destroy (g->wp);
 	if (g->tiles == NULL)
@@ -576,9 +608,20 @@ static void ground_destroy (GroundMap g)
 		return;
 	}
 	dynarr_wipe (g->tiles, (void (*)(void *))hex_destroy);
-	dynarr_wipe (g->occupants, xph_free);
 	dynarr_destroy (g->tiles);
-	dynarr_destroy (g->occupants);
+	if (g->occupants != NULL)
+	{
+		it = dynIterator_create (g->occupants);
+		while (!dynIterator_done (it))
+		{
+			o = *(struct ground_occupant **)dynIterator_next (it);
+			//printf ("%s: unsetting position of entity #%d\n", __FUNCTION__, entity_GUID (o->occupant));
+			position_unset (o->occupant);
+		}
+		dynIterator_destroy (it);
+		dynarr_wipe (g->occupants, xph_free);
+		dynarr_destroy (g->occupants);
+	}
 	xph_free (g);
 }
 

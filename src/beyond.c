@@ -6,6 +6,7 @@ int main (int argc, char * argv[])
 {
 	SYSTEM
 		* sys = NULL;
+	logSetLevel (E_ALL);
 	objPassEnable (FALSE);
 	objClass_init (system_handler, NULL, NULL, NULL);
 	sys = obj_getClassData (SystemObject, "SYSTEM");
@@ -50,4 +51,3 @@ void render ()
 	// THIS IS FROM WORLD:POSTRENDER
 	//glPopMatrix ();
 }
-	logSetLevel (E_ALL);

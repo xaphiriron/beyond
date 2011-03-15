@@ -18,6 +18,8 @@ struct comp_message {
 };
 
 Entity entity_create ();
+Entity entity_get (unsigned int guid);
+void entity_purgeDestroyed ();
 void entity_destroy (Entity e);
 bool entity_exists (unsigned int guid);
 

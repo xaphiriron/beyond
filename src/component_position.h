@@ -38,6 +38,9 @@ struct position_data {
 };
 
 
+void position_destroy (Entity e);
+
+void position_unset (Entity e);
 void position_set (Entity e, VECTOR3 pos, Entity mapEntity);
 bool position_move (Entity e, VECTOR3 move);
 

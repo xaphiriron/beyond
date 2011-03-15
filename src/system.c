@@ -108,6 +108,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
     case OM_CLSFREE:
       //printf ("%s[OM_CLSFREE]: calling entity_destroyEverything\n", __FUNCTION__);
       entity_destroyEverything ();
+      //printf ("...done\n");
       SDL_Quit ();
       return EXIT_SUCCESS;
     case OM_CLSVARS:
@@ -163,6 +164,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 			clock_update (s->clock);
 			xtimer_updateAll ();
 			accumulator_update (s->acc);
+			entity_purgeDestroyed ();
 			while (accumulator_withdrawlTime (s->acc))
 			{
 				cameraCache_update (system_getTimer ());
