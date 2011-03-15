@@ -7,6 +7,7 @@
 #include "sph.h"
 #include "vector.h"
 #include "lsystem.h"
+#include "turtle3d.h"
 #include "dynarr.h"
 
 #include "ground_draw.h"
@@ -16,6 +17,7 @@ typedef struct plantData * plantData;
 bool plant_createRandom (Entity e);
 bool plant_createHybrid (Dynarr parents);
 
+void plant_update (Component plant);
 void plant_grow (plantData plant);
 void plant_die (plantData plant);
 

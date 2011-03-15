@@ -72,3 +72,79 @@ QUAT quat_multiply (const QUAT * a, const QUAT * b)
 	r.z = a->w * b->z + a->x * b->y - a->y * b->x + a->z * b->w;
 	return r;
 }
+
+void quat_quatToMatrixf (const QUAT * q, float * m)
+{
+	if (m == (void *)0)
+		return;
+	m[3] = m[7] = m[11] = m[12] = m[13] = m[14] = 0.0;
+	m[15] = 1.0;
+	m[0] =
+		1 -
+		2 * q->y * q->y -
+		2 * q->z * q->z;
+	m[1] =
+		2 * q->x * q->y +
+		2 * q->w * q->z;
+	m[2] =
+		2 * q->x * q->z -
+		2 * q->w * q->y;
+	m[4] =
+		2 * q->x * q->y -
+		2 * q->w * q->z;
+	m[5] =
+		1 -
+		2 * q->x * q->x -
+		2 * q->z * q->z;
+	m[6] =
+		2 * q->y * q->z +
+		2 * q->w * q->x;
+	m[8] =
+		2 * q->x * q->z +
+		2 * q->w * q->y;
+	m[9] =
+		2 * q->y * q->z -
+		2 * q->w * q->x;
+	m[10] =
+		1 -
+		2 * q->x * q->x -
+		2 * q->y * q->y;
+}
+
+void quat_quatToMatrixd (const QUAT * q, double * m)
+{
+	if (m == (void *)0)
+		return;
+	m[3] = m[7] = m[11] = m[12] = m[13] = m[14] = 0.0;
+	m[15] = 1.0;
+	m[0] =
+		1 -
+		2 * q->y * q->y -
+		2 * q->z * q->z;
+	m[1] =
+		2 * q->x * q->y +
+		2 * q->w * q->z;
+	m[2] =
+		2 * q->x * q->z -
+		2 * q->w * q->y;
+	m[4] =
+		2 * q->x * q->y -
+		2 * q->w * q->z;
+	m[5] =
+		1 -
+		2 * q->x * q->x -
+		2 * q->z * q->z;
+	m[6] =
+		2 * q->y * q->z +
+		2 * q->w * q->x;
+	m[8] =
+		2 * q->x * q->z +
+		2 * q->w * q->y;
+	m[9] =
+		2 * q->y * q->z -
+		2 * q->w * q->x;
+	m[10] =
+		1 -
+		2 * q->x * q->x -
+		2 * q->y * q->y;
+}

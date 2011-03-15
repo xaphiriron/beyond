@@ -20,6 +20,7 @@ beyond_SOURCES = \
   xph_memory.c xph_memory.h \
 	xph_log.c xph_log.h \
   shapes.c shapes.h \
+	turtle3d.c turtle3d.h \
   dynarr.c dynarr.h \
   lsystem.c lsystem.h \
   object.c object.h	\

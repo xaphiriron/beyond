@@ -18,4 +18,7 @@ QUAT quat_normalize (const QUAT * q);
 QUAT quat_conjugate (const QUAT * q);
 QUAT quat_multiply (const QUAT * a, const QUAT * b);
 
+void quat_quatToMatrixf (const QUAT * q, float * m);
+void quat_quatToMatrixd (const QUAT * q, double * m);
+
 #endif /* XPH_QUATERNION_H */
