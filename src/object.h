@@ -2,6 +2,7 @@
 #define XPH_OBJECT_H
 
 #include "xph_memory.h"
+#include "xph_log.h"
 #include "dynarr.h"
 
 typedef enum object_messages {

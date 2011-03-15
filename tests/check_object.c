@@ -500,10 +500,12 @@ Suite * make_object_suite () {
     * tc_pass = tcase_create ("Passing"),
     * tc_skiphalt = tcase_create ("Skipping and Halting"),
     * tc_submessages = tcase_create ("Recursive Messaging");
+
   tcase_add_test (tc_class, test_objclass_create);
   tcase_add_test (tc_class, test_objclass_inherit);
   tcase_add_test (tc_class, test_objclass_parentage);
   suite_add_tcase (s, tc_class);
+
   tcase_add_test (tc_create, test_object_create_fake);
   tcase_add_test (tc_create, test_object_create);
   tcase_add_test (tc_create, test_object_create_classset);
@@ -512,17 +514,21 @@ Suite * make_object_suite () {
   tcase_add_test (tc_create, test_object_create_object_initializer);
   tcase_add_test (tc_create, test_object_create_init_override);
   suite_add_tcase (s, tc_create);
+
   tcase_add_test (tc_parentage, test_object_parentage);
   suite_add_tcase (s, tc_parentage);
+
   tcase_add_checked_fixture (tc_messaging, message_setup, message_teardown);
   tcase_add_test (tc_messaging, test_object_message_siblings);
   tcase_add_test (tc_messaging, test_object_message_children);
   tcase_add_test (tc_messaging, test_object_message_parents);
   tcase_add_test (tc_messaging, test_object_message_order);
   suite_add_tcase (s, tc_messaging);
+
   tcase_add_checked_fixture (tc_pass, pass_setup, pass_teardown);
   tcase_add_test (tc_pass, test_object_message_pass);
   suite_add_tcase (s, tc_pass);
+
   tcase_add_checked_fixture (tc_skiphalt, message_setup, message_teardown);
   tcase_add_test (tc_skiphalt, test_object_message_halt);
   tcase_add_test (tc_skiphalt, test_object_message_skipchildren);
@@ -531,10 +537,14 @@ Suite * make_object_suite () {
   return s;
 }
 
-int main (void) {
-  int number_failed = 0;
-  SRunner * sr = srunner_create (make_object_suite ());
+int main (void)
+{
+	int
+		number_failed = 0;
+	SRunner
+		* sr = srunner_create (make_object_suite ());
 
+	logSetLevel (E_OFF);
   srunner_run_all (sr, CK_NORMAL);
   number_failed = srunner_ntests_failed (sr);
   srunner_free (sr);

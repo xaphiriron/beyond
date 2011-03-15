@@ -808,3 +808,4 @@ void component_sendMessage (const char * message, Component c)
 		(*(compFunc **)dynarr_at (mt->funcs, i++))(c);
 	}
 }
+	DEBUG ("Destroying system \"%s\"", sys->comp_name);

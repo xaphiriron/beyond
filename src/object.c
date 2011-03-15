@@ -36,7 +36,7 @@ void objects_destroyEverything () {
   struct objCall * m = NULL;
   while ((c = *(ObjClass **)dynarr_pop (ObjectClasses)) != NULL) {
     if (c->instances != 0) {
-      fprintf (stderr, "%s: destroying class \"%s\", which has %d instance%s. expect this to crash everything.\n", __FUNCTION__, c->name, c->instances, (c->instances == 1 ? "" : "s"));
+		ERROR ("Destroying class \"%s\", which has %d instance%s. Expect this to crash everything.", c->name, c->instances, (c->instances == 1 ? "" : "s"));
     }
     objClass_destroyP (c);
   }
@@ -44,7 +44,7 @@ void objects_destroyEverything () {
   ObjectClasses = NULL;
   if (ObjectMessageCallstack != NULL) {
     if (!dynarr_isEmpty (ObjectMessageCallstack)) {
-      fprintf (stderr, "%s: destroying the object message callstack even through it has entries in it. Wow, is this a bad idea.\n", __FUNCTION__);
+		ERROR ("Destroying the object message callstack even though it has entries in it. Wow, is this a bad idea.", NULL);
       while ((m = *(struct objCall **)dynarr_pop (ObjectMessageCallstack)) != NULL) {
         xph_free (m->function);
         xph_free (m);
@@ -75,7 +75,7 @@ ObjClass * objClass_init (objHandler h, const char * pn, void * a, void * b) {
   h (NULL, OM_CLSNAME, &c->name, NULL);
 #endif /* MEM_DEBUG */
   if (strlen (c->name) == 0) {
-    fprintf (stderr, "%s: Class handler (%p) is incompetent; we can't make this object class.\n", __FUNCTION__, h);
+		WARNING ("Class handler (%p) is incompetent; we can't make this object class.", h);
     xph_free (c);
     return NULL;
   }
@@ -85,7 +85,7 @@ ObjClass * objClass_init (objHandler h, const char * pn, void * a, void * b) {
   if (pn != NULL) {
     p = objClass_get (pn);
     if (NULL == p) {
-      fprintf (stderr, "Request for non-existant parent class (of \"%s\")\n", pn);
+		WARNING ("Request for non-existant parent class (of \"%s\")", pn);
       xph_free (c);
       return NULL;
     }
@@ -137,7 +137,7 @@ bool objClass_addChild (ObjClass * p, ObjClass * c) {
   ObjClass * t = NULL;
   //printf ("%s (%p, %p)\n", __FUNCTION__, p, c);
   if (objClass_inheritsP (c, p) == TRUE) {
-    fprintf (stderr, "%s (%p, %p): Classes can't be their own children, at any remove\n", __FUNCTION__, p, c);
+		WARNING ("Cannot make object class \"%s\" a child of \"%s\", since \"%s\" is a child of \"%s\".", c->name, c, p->name, p, p->name, p, c->name, c);
     return FALSE;
   }
   c->parent = p;
@@ -164,7 +164,7 @@ bool objClass_rmChild (ObjClass * p, ObjClass * c) {
     //fprintf (stderr, "%s (%p, %p): can't remove %p from null parent\n", __FUNCTION__, p, c, c);
     return FALSE;
   } else if (c->parent != p) {
-    fprintf (stderr, "%s (%p, %p): %p is no child of %p.\n", __FUNCTION__, p, c, c, p);
+		INFO ("Cannot remove object class \"%s\" (%p) as a child of \"%s\" (%p), since it's not one", c->name, c, p->name, p);
     return FALSE;
   }
   c->parent = NULL;
@@ -183,7 +183,7 @@ bool objClass_rmChild (ObjClass * p, ObjClass * c) {
     t = t->nextSibling;
   }
   c->nextSibling = NULL;
-  fprintf (stderr, "%s (%p, %p): Malformed class hierarchy: %p is a child of %p, but wasn't in its list of children\n", __FUNCTION__, p, c, c, p);
+	ERROR ("Malformed object class hierarchy: \"%s\" is a child of \"%s\", but wasn't in its list of children.", c->name, p->name);
   return FALSE;
 }
 
@@ -202,7 +202,7 @@ bool objClass_inheritsP (ObjClass * p, ObjClass * c) {
         u = u->nextSibling;
       }
       if (u != t) {
-        fprintf (stderr, "%s (%p, %p): Malformed class heirarchy: %p is a child of %p, but isn't in its list of children.\n", __FUNCTION__, c, p, t, t->parent);
+			ERROR ("Malformed object class hierarchy: \"%s\" is a child of \"%s\", but isn't in its list of children.", t->name, t->parent->name);
         exit (1);
         return FALSE;
       }
@@ -316,7 +316,7 @@ Object * obj_create (const char * n, Object * p, void * a, void * b) {
     memstr[64];
 #endif /* MEM_DEBUG */
   if (c == NULL) {
-    fprintf (stderr, "%s (%s, %p, [...]): Can't make object with non-existant class \"%s\"\n", __FUNCTION__, n, p, n);
+		ERROR ("Can't make object with non-existant class \"%s\"", n);
     return NULL;
   }
 #ifdef MEM_DEBUG
@@ -331,8 +331,8 @@ Object * obj_create (const char * n, Object * p, void * a, void * b) {
   o->objData = dynarr_create (1, sizeof (struct objData *));
   o->guid = ++ObjectGUID;
   if (o->guid == 0) {
-    fprintf (stderr, "entity GUIDs have overflowed at entity %p. Now, anything is possible! Expect everything to come crashing down in about a tick or two\n", o);
     o->guid = ++ObjectGUID;
+		ERROR ("entity GUIDs have overflowed at entity %p (#%d, not that that's useful now). Now, anything is possible! Expect everything to come crashing down in about a tick or two.", o, o->guid);
   }
   o->parent = NULL;
   o->firstChild = NULL;
@@ -363,9 +363,11 @@ void obj_destroy (Object * o) {
     * u = NULL;
   struct objData * od = NULL;
   //printf ("%s (%p)\n", __FUNCTION__, o);
-  if (o == NULL || o->class == NULL) {
-    fprintf (stderr, "%s (%p): got a NULL object or an object with a NULL class\n", __FUNCTION__, o);
-  }
+	if (o == NULL)
+		return;
+	else if (o->class == NULL) {
+		ERROR ("Can't properly destroy an object (%p) that has no class.", o);
+	}
   c = o->class;
   while (c != NULL) {
     //printf ("\"%s\" w/ %d instance%s (now %d)\n", c->name, c->instances, (c->instances == 1 ? "" : "s"), c->instances - 1);
@@ -374,7 +376,7 @@ void obj_destroy (Object * o) {
   }
   while (!dynarr_isEmpty (o->objData)) {
     od = *(struct objData **)dynarr_pop (o->objData);
-    fprintf (stderr, "%s (%p): un-destroyed \"%s\" class data (%p) at %p (this is going to cause a memory leak)\n", __FUNCTION__, o, od->ref->name, od->ref, od->data);
+	WARNING ("Object was destroyed with class data (from \"%s\") still existant at %p. This is going to cause a memory leak.", od->ref->name, od->data);
     xph_free (od);
   }
   dynarr_destroy (o->objData);
@@ -396,18 +398,18 @@ bool obj_addChild (Object * p, Object * c) {
   Object * t = NULL;
   //printf ("%s (%p, %p) ... \n", __FUNCTION__, p, c);
   if (c == NULL) {
-    fprintf (stderr, "%s: (%p, %p): invalid NULL object as child\n", __FUNCTION__, p, c);
+		DEBUG ("Can't add NULL pointer as child of %p", p);
     return FALSE;
   } else if (obj_isChild (c, p) == TRUE) {
-    fprintf (stderr, "%s (%p, %p): Making %p the child of %p would create a hierarchal loop, which is forbidden.\n", __FUNCTION__, p, c, c, p);
+		WARNING ("Can't make object #%d a child of #%d since that would create a hierarchal loop.", c->guid, p == NULL ? 0 : p->guid);
     return FALSE;
   } else if (c->parent == p) {
-    //fprintf (stderr, "%s (%p, %p): Entity %p is already the child of %p.\n", __FUNCTION__, p, c, c, p);
+		DEBUG ("Can't make object #%d a child of #%d since it already is.", c->guid, p == NULL ? 0 : p->guid);
     return FALSE;
   }
   //printf ("past first child/parent check\n");
   if (c->parent != NULL) {
-    fprintf (stderr, "%s (%p, %p): child (%p) alreay has a parent (%p); this could get tangled... (so we're disconnecting it from its old parent)\n", __FUNCTION__, p, c, c, p);
+		INFO ("Child object #%d already has a parent (#%d); this could get tangled...", c->guid, c->parent->guid);
     obj_rmChild (c->parent, c);
   }
   if (p == NULL) {
@@ -438,7 +440,7 @@ bool obj_rmChild (Object * p, Object * c) {
     //fprintf (stderr, "%s (%p, %p): got invalid null object\n", __FUNCTION__, p, c, c);
     return FALSE;
   } else if (c->parent != p) {
-    fprintf (stderr, "%s (%p, %p): %p is no child of %p\n", __FUNCTION__, p, c, c, p);
+		INFO ("Can't remove object #%d as child of #%d since it isn't one.", c->guid, p->guid);
     return FALSE;
   }
   c->parent = NULL;
@@ -458,14 +460,15 @@ bool obj_rmChild (Object * p, Object * c) {
     }
     t = t->nextSibling;
   }
-  fprintf (stderr, "%s (%p, %p): Malformed object hierarchy: %p is a child of %p, but wasn't in its list of children\n", __FUNCTION__, p, c, c, p);
+		ERROR ("Malformed object hierarchy: Object #%d is a child of #%d, but wasn't in its list of children.", c->guid, p->guid);
   c->nextSibling = NULL;
   return FALSE;
 }
 
 void obj_chparent (Object * p, Object * c) {
+	//printf ("%s (%p, %p)...\n", __FUNCTION__, p, c);
   if (c == NULL) {
-    fprintf (stderr, "%s (%p, %p): passed an NULL object as a child; nothing to do.\n", __FUNCTION__, p, c);
+		INFO ("Cannot chparent NULL to an object (#%d)", p == NULL ? 0 : p->guid);
     return;
   }
   obj_rmChild (c->parent, c);
@@ -488,11 +491,14 @@ static int objData_sort (const void * a, const void * b) {
 }
 
 const char * obj_getClassName (const Object * o) {
-  if (o == NULL || o->class == NULL) {
-    fprintf (stderr, "%s: given NULL object or object with NULL class.\n", __FUNCTION__);
-    return NULL;
-  }
-  return o->class->name;
+	if (o == NULL)
+		return NULL;
+	else if (o->class == NULL)
+	{
+		WARNING ("Object #%d has NULL class pointer; cannot get class name", o->guid);
+		return NULL;
+	}
+	return o->class->name;
 }
 
 bool obj_isa (const Object * o, const char * cn) {
@@ -540,7 +546,7 @@ bool obj_areSiblings (const Object * i, const Object * j) {
   Object * t = NULL;
 #endif /* OBJECT_VERIFY */
   if (i == NULL || j == NULL) {
-    fprintf (stderr, "%s (%p, %p): received NULL object.\n", __FUNCTION__, i, j);
+		DEBUG ("Cannot compare siblings when one or both is NULL (%p and %p)", i, j);
     return FALSE;
   }
   if (i->parent == NULL || j->parent == NULL) {
@@ -564,10 +570,10 @@ bool obj_areSiblings (const Object * i, const Object * j) {
     case 3:
       return FALSE;
     case 0:
-      fprintf (stderr, "Malformed entity hierarchy: %p is a child of %p, but isn't in its list of children.\n", i, i->parent);
+		ERROR ("Malformed object hierarchy: #%d is a child of #%d, but isn't in its list of children", i->guid, i->parent->guid);
       exit (1);
     default:
-      fprintf (stderr, "Malformed entity hierarchy: duplicate entries of %p or %p in %p's list of children\n", i, j, i->parent);
+		ERROR ("Malformed entity hierarchy: duplicate entries of #%d or #%d in #%d's list of children\n", i->guid, j->guid, i->parent->guid);
       exit (1);
   }
   return FALSE;
@@ -582,7 +588,7 @@ int obj_childCount (const Object * o) {
   Object * t = NULL;
   int i = 0;
   if (o == NULL) {
-    fprintf (stderr, "%s (%p): received NULL object.\n", __FUNCTION__, o);
+		DEBUG ("Can't count children of NULL object", NULL);
     return -1;
   }
   t = o->firstChild;
@@ -595,7 +601,7 @@ int obj_childCount (const Object * o) {
 
 int obj_siblingCount (const Object * o) {
   if (o == NULL) {
-    fprintf (stderr, "%s (%p): received NULL object.\n", __FUNCTION__, o);
+		DEBUG ("Can't count siblings of NULL object", NULL);
     return -1;
   } else if (o->parent == NULL) {
     return 0;
@@ -609,7 +615,7 @@ bool obj_addClassData (Object * o, const char * c, void * d) {
   od->ref = objClass_get (c);
   od->data = d;
   if (od->ref == NULL) {
-    fprintf (stderr, "%s: Can't set data for non-existant class \"%s\".", __FUNCTION__, c);
+		WARNING ("Can't set class data \"%s\" on object #%d, since that class doesn't exist", c, o->guid);
     return FALSE;
   }
   dynarr_push (o->objData, od);
@@ -654,10 +660,16 @@ bool obj_rmClassData (Object * o, const char * c) {
 
 int obj_message (Object * o, objMsg msg, void * a, void * b) {
   int r = 0;
-  if (o == NULL || o->class == NULL) {
-    fprintf (stderr, "%s (%p ...): recieved NULL object or object with NULL class.\n", __FUNCTION__, o);
-    return 0;
-  }
+	if (o == NULL)
+	{
+		DEBUG ("Can't send message to NULL object", NULL);
+		return 0;
+	}
+	else if (o->class == NULL)
+	{
+		ERROR ("Object #%d recieved a message and has no class", o->guid);
+		return 0;
+	}
   if (ObjectMessageCallstack == NULL) {
     ObjectMessageCallstack = dynarr_create (4, sizeof (struct objCall *));
   }
@@ -787,7 +799,7 @@ static void obj_pushMessageCallstack (void * o, const char * func, objMsg msg, v
   }
 	if (dynarr_size (ObjectMessageCallstack) >= 32)
 	{
-		fprintf (stderr, "Callstack hit 32 entries. I'm going to guess this is an infinite recursion that I should put a stop to.");
+		WARNING ("Callstack hit 32 entries. I'm going to guess this is an infinite recursion that I should put a stop to.", NULL);
 		abort ();
 	}
   dynarr_push (ObjectMessageCallstack, n);
@@ -841,7 +853,7 @@ static int obj_messageBACKEND (Object * o, const char * func, objMsg msg, void *
   } else if (strcmp (func, "obj_messagePost") == 0) {
     obj_recordMessagePost (v, o);
   } else {
-    fprintf (stderr, "%s: called from an invalid function, \"%s\"\n", __FUNCTION__, func);
+		ERROR ("%s was called from an invalid function (%s)", __FUNCTION__, func);
     return EXIT_FAILURE;
   }
 
@@ -899,7 +911,7 @@ int obj_pass () {
   lastCall = *(struct objCall **)dynarr_at (ObjectMessageCallstack, i - 1);
   while ((base = *(struct objCall **)dynarr_at (ObjectMessageCallstack, --i))->stage == OC_PASS) {
     if (i == 0) {
-      fprintf (stderr, "%s: the callstack is in a bad state: all registered calls are pass invocations, which should be impossible (but apparently isn't). we're going to blow everything up in the hopes you notice this, sorry.\n", __FUNCTION__);
+		ERROR ("The callstack is in a bad state: all registered calls are pass invocations, which should be impossible (but apparently isn't). We're going to blow everything up in the hopes you notice this, sorry.", NULL);
       exit (1);
     }
   }

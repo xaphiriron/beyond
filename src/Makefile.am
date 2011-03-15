@@ -69,4 +69,4 @@ beyond_LDADD =	\
 #   libline.la	\
 #   libvector.la	\
 #   libfcmp.la	\
-#   -lm -lGL -lSDL
+#   -lm -lGL -lSDL	xph_log.c xph_log.h \

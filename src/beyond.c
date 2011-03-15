@@ -50,3 +50,4 @@ void render ()
 	// THIS IS FROM WORLD:POSTRENDER
 	//glPopMatrix ();
 }
+	logSetLevel (E_ALL);

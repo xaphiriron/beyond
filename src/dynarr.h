@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "bool.h"
+#include "xph_log.h"
 
 typedef struct dynarr * Dynarr;
 typedef struct dyn_iterator * DynIterator;

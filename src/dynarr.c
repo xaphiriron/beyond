@@ -169,6 +169,11 @@ Dynarr dynarr_create (int indices, size_t size)
 
 void dynarr_destroy (Dynarr da)
 {
+	if (da == NULL)
+	{
+		WARNING ("Tried to destroy a NULL array", NULL);
+		return;
+	}
 	free (da->items);
 	free (da->indicesUsed);
 	free (da);
