@@ -47,13 +47,15 @@ check_check_LDADD = \
 
 check_dynarr_SOURCES = \
   check_dynarr.c \
-  $(top_builddir)/src/dynarr.c
+  $(top_builddir)/src/dynarr.c \
+	$(top_builddir)/src/xph_log.c
 check_dynarr_CFLAGS = @CHECK_CFLAGS@
 check_dynarr_LDADD = @CHECK_LIBS@
 
 check_lsystem_SOURCES = \
 	check_lsystem.c \
 	$(top_builddir)/src/dynarr.c \
+	$(top_builddir)/src/xph_log.c \
 	$(top_builddir)/src/lsystem.c
 check_lsystem_CFLAGS = @CHECK_CFLAGS@
 check_lsystem_LDADD = @CHECK_LIBS@
@@ -94,7 +96,8 @@ check_tiles_SOURCES = \
   check_tiles.c \
   $(top_builddir)/src/hex.c \
   $(top_builddir)/src/hex_utility.c \
-  $(top_builddir)/src/dynarr.c
+  $(top_builddir)/src/dynarr.c \
+	$(top_builddir)/src/xph_log.c
 check_tiles_CFLAGS = @CHECK_CFLAGS@
 check_tiles_LDADD = \
   $(top_builddir)/src/libvector.la \
