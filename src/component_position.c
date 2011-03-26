@@ -1,16 +1,61 @@
 #include "component_position.h"
 
+static void position_messageGroundChange (const Component c, Entity oldGround, Entity newGround);
+
+
+static void position_messageGroundChange (const Component c, Entity oldGround, Entity newGround)
+{
+	struct ground_change
+		* g;
+	worldPosition
+		oldPos, newPos;
+	signed int
+		x, y;
+	unsigned int
+		r, k, i;
+	g = xph_alloc (sizeof (struct ground_change));
+	g->oldGround = oldGround;
+	g->newGround = newGround;
+	// update this g->dir check by first checking if one of the grounds is null or the distance between them is > 1 (use wp_distance()). if so, it's GROUND_FAR, otherwise do a check for adjacent world position direction (which i will have to write)
+	if (oldGround == NULL || newGround == NULL)
+		g->dir = GROUND_FAR;
+	else
+	{
+		oldPos = ground_getWorldPos (component_getData (entity_getAs (oldGround, "ground")));
+		newPos = ground_getWorldPos (component_getData (entity_getAs (newGround, "ground")));
+		wp_pos2xy (oldPos, newPos, groundWorld_getPoleRadius (), &x, &y);
+		hex_xy2rki (-x, -y, &r, &k, &i);
+		if (r > 1)
+		{
+			g->dir = GROUND_FAR;
+		}
+		else
+		{
+			g->dir = k;
+		}
+	}
+	//printf ("GROUND DIR: %d\n", g->dir);
+	component_messageEntity (c, "GROUND_CHANGE", g);
+	xph_free (g);
+}
+
 void position_unset (Entity e)
 {
+	Component
+		pc = entity_getAs (e, "position");
 	positionComponent
-		pdata = component_getData (entity_getAs (e, "position"));
+		pdata = component_getData (pc);
+	Entity
+		oldGround;
 	if (pdata == NULL)
 		return;
 	if (pdata->mapEntity)
 	{
 		ground_removeOccupant (pdata->mapEntity, e);
 	}
+	oldGround = pdata->mapEntity;
 	pdata->mapEntity = NULL;
+	position_messageGroundChange (pc, oldGround, NULL);
 }
 
 void position_destroy (Entity e)
@@ -25,27 +70,41 @@ void position_destroy (Entity e)
 
 void position_set (Entity e, VECTOR3 pos, Entity mapEntity)
 {
+	Component
+		pc = entity_getAs (e, "position");
 	struct position_data
-		* pdata = component_getData (entity_getAs (e, "position"));
+		* pdata = component_getData (pc);
+	Entity
+		oldGround;
 	if (pdata == NULL)
 	{
 		fprintf (stderr, "%s (#%d, ...): entity without position component\n", __FUNCTION__, entity_GUID (e));
 		return;
 	}
 	pdata->pos = pos;
+	oldGround = pdata->mapEntity;
 	pdata->mapEntity = mapEntity;
+	if (oldGround != mapEntity)
+		position_messageGroundChange (pc, oldGround, pdata->mapEntity);
 }
 
 bool position_move (Entity e, VECTOR3 move)
 {
+	Component
+		pc = entity_getAs (e, "position");
 	struct position_data
-		* pos = component_getData (entity_getAs (e, "position"));
+		* pos = component_getData (pc);
 	GroundMap
-		map = NULL;
+		map = NULL,
+		newMapData;
+	Entity
+		oldMap,
+		newMap;
 	VECTOR3
 		oldPos,
 		movedPos,
-		hexCenter;
+		hexCenter,
+		newMapOrigin;
 	signed int
 		x, y;
 	unsigned int
@@ -63,21 +122,63 @@ bool position_move (Entity e, VECTOR3 move)
 	hex_space2coord (&movedPos, &x, &y);
 	hex_xy2rki (x, y, &r, &k, &i);
 	hexCenter = hex_coord2space (r, k, i);
+	oldMap = pos->mapEntity;
 	//printf ("%s: over tile {%d %d %d} (%d, %d) @ %5.2f, %5.2f, %5.2f; real pos (locally): %5.2f, %5.2f, %5.2f\n", __FUNCTION__, r, k, i, x, y, hexCenter.x, hexCenter.y, hexCenter.z, pos->pos.x, pos->pos.y, pos->pos.z);
 	oldPos = pos->pos;
 	pos->pos = movedPos;
 	if (r > groundSize)
 	{
 		//printf ("%s: outside ground boundary (%d tiles from center)\n", __FUNCTION__, r);
-		if (!ground_bridgeConnections (pos->mapEntity, e))
+		/* ground_bridgeConnections is kind of a legacy function from the days
+		 * when grounds were connected in a graph network instead of by the
+		 * world position system, when the edges of a ground could in fact lead
+		 * to nowhere. that being said, these days it still calculates the new
+		 * ground for the position to be over and returns it. It's conceptually
+		 * outdated; when grounds were arbitrarily connected by edges, the only
+		 * part that could fully calculate the direction between the two
+		 * grounds was right here, and that information needed to be
+		 * transmitted to the other components. now with the world position
+		 * system, in all cases except the most extreme (a poleradius of 0)
+		 * neighboring grounds can only be connected in one direction.
+		 * The most important part of this to note is that it requires the position component to have a position vector that's outside the bounds of the ground, but it doesn't do the position updating itself -- it shoots off a entity message, which is then used by position_updateOnEdgeTraversal() to update the position vector.
+		 * this really needs to be made simpler.
+		 *   - xph 2011-03-15/16
+		 */
+		if ((newMap = ground_bridgeConnections (pos->mapEntity, e)) == NULL)
 		{
-			// invalid move attempt: walked outside of ground into void or into ground edge wall, depending on the ground's settings. this should send off an entity message to e, but ihni what would pick it up. collision, i guess. 
+			// invalid move attempt: walked outside of ground into void or into ground edge wall, depending on the ground's settings. this should send off an entity message to e, but ihni what would pick it up. collision, i guess.
 			pos->pos = oldPos;
 			return FALSE;
 		}
+		else if (newMap != oldMap)
+		{
+			newMapData = component_getData (entity_getAs (newMap, "ground"));
+			pos->mapEntity = newMap;
+			newMapOrigin = hexGround_centerDistanceSpace (ground_getMapSize (newMapData), k);
+			//printf ("origin of new ground: %5.2f, %5.2f, %5.2f (k: %d); moved position: %5.2f, %5.2f, %5.2f\n", newMapOrigin.x, newMapOrigin.y, newMapOrigin.z, k, movedPos.x, movedPos.y, movedPos.z);
+			movedPos = vectorSubtract (&movedPos, &newMapOrigin);
+			position_set (e, movedPos, newMap);
+		}
 	}
-	//printf ("%s: new local offset is %5.2f, %5.2f, %5.2f\n", __FUNCTION__, pos->pos.x, pos->pos.y, pos->pos.z);
 	return TRUE;
+}
+
+void position_copy (Entity target, const Entity source)
+{
+	const positionComponent
+		sData = component_getData (entity_getAs (source, "position"));
+	position_set (target, sData->pos, sData->mapEntity);
+	position_setOrientation (target, sData->orientation);
+}
+
+void position_setOrientation (Entity e, const QUAT q)
+{
+	positionComponent
+		pdata = component_getData (entity_getAs (e, "position"));
+	if (pdata == NULL)
+		return;
+	pdata->orientation = q;
+	pdata->dirty = TRUE;	// we assume
 }
 
 void position_updateAxesFromOrientation (Entity e)
@@ -232,6 +333,7 @@ bool position_rotateAroundGround (Entity e, float rotation)
 	return TRUE;
 }
 
+/*
 void position_updateOnEdgeTraversal (Entity e, struct ground_edge_traversal * t)
 {
 	positionComponent
@@ -245,18 +347,98 @@ void position_updateOnEdgeTraversal (Entity e, struct ground_edge_traversal * t)
 	//printf ("\tbased off of the new ground (%5.2f, %5.2f, %5.2f) @ %d\n", groundOrigin.x, groundOrigin.y, groundOrigin.z, t->directionOfMovement);
 	position_set (e, newPosition, t->newGroundEntity);
 }
+*/
+
+float position_getHeading (const Entity e)
+{
+	return position_getHeadingR (component_getData (entity_getAs (e, "position")));
+}
+
+float position_getPitch (const Entity e)
+{
+	return position_getPitchR (component_getData (entity_getAs (e, "position")));
+}
+
+float position_getRoll (const Entity e)
+{
+	return position_getRollR (component_getData (entity_getAs (e, "position")));
+}
+
+/* NOTE: I HAVE NO IDEA IF THESE FUNCTIONS WORK RIGHT. AT ALL. SERIOUSLY. SORRY.
+ *
+ */
+float position_getHeadingR (const positionComponent p)
+{
+	if (p == NULL)
+		return 0.0;
+	if (p->dirty == TRUE)
+		WARNING ("Whoops getting outdated axes (heading)", NULL);
+	if (fcmp (p->view.up.x, 1.0) || fcmp (p->view.up.x, -1.0))
+		return atan2 (p->view.side.z, p->view.front.z);
+	return atan2 (-p->view.front.x, p->view.side.x);
+}
+
+float position_getPitchR (const positionComponent p)
+{
+	if (p == NULL)
+		return 0.0;
+	if (p->dirty == TRUE)
+		WARNING ("Whoops getting outdated axes (pitch)", NULL);
+	if (fcmp (p->view.up.x, 1.0))
+		return M_PI_2;
+	else if (fcmp (p->view.up.x, -1.0))
+		return -M_PI_2;
+	return asin (p->view.up.x);
+}
+
+float position_getRollR (const positionComponent p)
+{
+	if (p == NULL)
+		return 0.0;
+	if (p->dirty == TRUE)
+		WARNING ("Whoops getting outdated axes (roll)", NULL);
+	if (fcmp (p->view.up.x, 1.0) || fcmp (p->view.up.x, -1.0))
+		return 0.0;
+	return atan2 (p->view.up.z, p->view.up.x);
+}
 
 VECTOR3 position_getLocalOffset (const Entity e)
 {
 	struct position_data
 		* pdata = component_getData (entity_getAs (e, "position"));
-	if (pdata == NULL)
-		return vectorCreate (0, 0, 0);
-	return pdata->pos;
+	return position_getLocalOffsetR (pdata);
 }
 
-Entity position_getGroundEntity (const positionComponent p)
+QUAT position_getOrientation (const Entity e)
 {
+	struct position_data
+		* pdata = component_getData (entity_getAs (e, "position"));
+	return position_getOrientationR (pdata);
+}
+
+Entity position_getGroundEntity (const Entity e)
+{
+	struct position_data
+		* pdata = component_getData (entity_getAs (e, "position"));
+	return position_getGroundEntityR (pdata);
+}
+VECTOR3 position_getLocalOffsetR (const positionComponent p)
+{
+	if (p == NULL)
+		return vectorCreate (0, 0, 0);
+	return p->pos;
+}
+QUAT position_getOrientationR (const positionComponent p)
+{
+	if (p == NULL)
+		return quat_create (1, 0, 0, 0);
+	return p->orientation;
+}
+
+Entity position_getGroundEntityR (const positionComponent p)
+{
+	if (p == NULL)
+		return NULL;
 	return p->mapEntity;
 }
 
@@ -320,12 +502,7 @@ int component_position (Object * obj, objMsg msg, void * a, void * b) {
 		case OM_COMPONENT_RECEIVE_MESSAGE:
 			message = ((struct comp_message *)a)->message;
 			e = component_entityAttached (((struct comp_message *)a)->to);
-			if (strcmp (message, "GROUND_EDGE_TRAVERSAL") == 0)
-			{
-				position_updateOnEdgeTraversal (e, b);
-				return EXIT_SUCCESS;
-			}
-			else if (strcmp (message, "CONTROL_INPUT") == 0)
+			if (strcmp (message, "CONTROL_INPUT") == 0)
 			{
 				position_rotateOnMouseInput (e, b);
       		}

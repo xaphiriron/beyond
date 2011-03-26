@@ -72,9 +72,10 @@ static struct ground_world * groundWorld_create ()
 static void groundWorld_init ()
 {
 	Entity
-		pole = NULL,
-		player = NULL,
-		plant = NULL;
+		pole,
+		player,
+		camera,
+		plant;
 	worldPosition
 		wp;
 
@@ -102,11 +103,22 @@ static void groundWorld_init ()
 		ground_placeOnTile (pole, 0, 0, 0, player);
 		position_move (player, vectorCreate (0.0, 90.0, 0.0));
 	}
-	component_instantiateOnEntity ("camera", player);
 	if (component_instantiateOnEntity ("input", player)) {
 		input_addEntity (player, INPUT_CONTROLLED);
 	}
 	component_instantiateOnEntity ("walking", player);
+
+	camera = entity_create ();
+	component_instantiateOnEntity ("position", camera);
+	if (component_instantiateOnEntity ("camera", camera))
+	{
+		camera_attachToTarget (camera, player);
+		camera_setAsActive (camera);
+	}
+	if (component_instantiateOnEntity ("input", camera))
+	{
+		input_addEntity (camera, INPUT_CONTROLLED);
+	}
 
 	groundWorld_updateEntityOrigin (player, pole);
 	//printf ("...%s\n", __FUNCTION__);
@@ -377,7 +389,7 @@ void ground_setWorldPos (GroundMap g, worldPosition wp)
 	g->wp = wp;
 }
 
-bool ground_bridgeConnections (const Entity groundEntity, Entity e)
+Entity ground_bridgeConnections (const Entity groundEntity, Entity e)
 {
 	signed int
 		x, y;
@@ -393,34 +405,38 @@ bool ground_bridgeConnections (const Entity groundEntity, Entity e)
 		newp;
 	Entity
 		adj;
+/*
 	struct ground_edge_traversal
 		* trav = NULL;
+*/
 	//printf ("%s: called\n", __FUNCTION__);
 	if (pdata == NULL)
 	{
 		fprintf (stderr, "%s (#%d, #%d): invalid entity[2] (no position data)\n", __FUNCTION__, entity_GUID (groundEntity), entity_GUID (e));
-		return FALSE;
+		return NULL;
 	}
 	else if (g == NULL)
 	{
 		fprintf (stderr, "%s (#%d, #%d): invalid entity[1] (no ground data)\n", __FUNCTION__, entity_GUID (groundEntity), entity_GUID (e));
-		return FALSE;
+		return NULL;
 	}
 	hex_space2coord (&pdata->pos, &x, &y);
 	hex_xy2rki (x, y, &r, &k, &i);
 	if (r <= g->size)
-		return TRUE;
+		return groundEntity;
 	newp = wp_fromRelativeOffset (g->wp, World->poleRadius, 1, k, 0);
 	adj = groundWorld_loadGroundAt (newp);
 	wp_destroy (newp);
 	newp = NULL;
+/*
 	trav = xph_alloc (sizeof (struct ground_edge_traversal));
 	trav->oldGroundEntity = groundEntity;
 	trav->newGroundEntity = adj;
 	trav->directionOfMovement = k;
 	component_messageEntity (p, "GROUND_EDGE_TRAVERSAL", trav);
 	xph_free (trav);
-	return TRUE;
+*/
+	return adj;
 
 }
 
@@ -600,15 +616,6 @@ static void ground_destroy (GroundMap g)
 		it;
 	struct ground_occupant
 		* o;
-	glDeleteLists (g->displayList, 1);
-	wp_destroy (g->wp);
-	if (g->tiles == NULL)
-	{
-		xph_free (g);
-		return;
-	}
-	dynarr_wipe (g->tiles, (void (*)(void *))hex_destroy);
-	dynarr_destroy (g->tiles);
 	if (g->occupants != NULL)
 	{
 		it = dynIterator_create (g->occupants);
@@ -622,6 +629,15 @@ static void ground_destroy (GroundMap g)
 		dynarr_wipe (g->occupants, xph_free);
 		dynarr_destroy (g->occupants);
 	}
+	glDeleteLists (g->displayList, 1);
+	wp_destroy (g->wp);
+	if (g->tiles == NULL)
+	{
+		xph_free (g);
+		return;
+	}
+	dynarr_wipe (g->tiles, (void (*)(void *))hex_destroy);
+	dynarr_destroy (g->tiles);
 	xph_free (g);
 }
 

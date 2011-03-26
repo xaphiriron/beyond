@@ -25,8 +25,8 @@ void camera_drawCursor ()
 	zNear = video_getZnear () - 0.001;
 	centerHeight = height / 2;
 	centerWidth = width / 2;
-	halfTexHeight = 4;//texture_pxHeight (t) / 2;
-	halfTexWidth = 4;//texture_pxWidth (t) / 2;
+	halfTexHeight = 2;//texture_pxHeight (t) / 2;
+	halfTexWidth = 2;//texture_pxWidth (t) / 2;
 	top = video_pixelYMap (centerHeight + halfTexHeight);
 	bottom = video_pixelYMap (centerHeight - halfTexHeight);
 	left = video_pixelXMap (centerWidth - halfTexWidth);

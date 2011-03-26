@@ -10,7 +10,7 @@ struct world_position
 	 * the full rotation value is GET_BITS(.bits, ...) * 6 + t.
 	 * the max valid value of t is r - 1, except when r == 0 (when it is 0)
 	 */
-	// todo: since t's max value is always r * 6 - 1, there's much more of a danger of t overflowing than of r overflowing. however, this issue can be resolved by using bitfields: two bytes are required to store the pole information, and three bytes are required to store a 'k' value for the polar coordinate, where the full phi value is k * 6 + t instead of just t. this constrains t to strictly < r in all cases and doesn't require adding any additional data to the position struct.
+	// since t's max value is always r * 6 - 1, there's much more of a danger of t overflowing than of r overflowing. however, this issue can be resolved by using bitfields: two bytes are required to store the pole information, and three bytes are required to store a 'k' value for the polar coordinate, where the full phi value is k * 6 + t instead of just t. this constrains t to strictly < r in all cases and doesn't require adding any additional data to the position struct.
 };
 
 #define WORLD_POLE_BITS		2
@@ -325,7 +325,7 @@ void wp_print (const worldPosition pos)
 		corner = GET_BITS (pos->bits, WORLD_CORNER_BITS, WORLD_CORNER_SHIFT);
 	unsigned char
 		polestr = wp_getPole (pos);
-	printf ("POSITION (%p): \'%c\'{%d %d %d}\n", pos, polestr, pos->r, corner, pos->t);
+	printf ("[%c:%d %d %d]", polestr - 32, pos->r, corner, pos->t);
 }
 
 unsigned char wp_getPole (const worldPosition pos)

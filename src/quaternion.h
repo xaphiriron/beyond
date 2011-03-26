@@ -3,6 +3,8 @@
 
 #include <assert.h>
 #include <math.h>
+#include "bool.h"
+#include "fcmp.h"
 
 typedef struct Quaternion
 {
@@ -20,5 +22,7 @@ QUAT quat_multiply (const QUAT * a, const QUAT * b);
 
 void quat_quatToMatrixf (const QUAT * q, float * m);
 void quat_quatToMatrixd (const QUAT * q, double * m);
+
+bool quat_cmp (const QUAT * a, const QUAT * b);
 
 #endif /* XPH_QUATERNION_H */

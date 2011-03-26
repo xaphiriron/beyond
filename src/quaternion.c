@@ -148,3 +148,12 @@ void quat_quatToMatrixd (const QUAT * q, double * m)
 		2 * q->x * q->x -
 		2 * q->y * q->y;
 }
+
+bool quat_cmp (const QUAT * a, const QUAT * b)
+{
+	return
+		fcmp (a->w, b->w) &&
+		fcmp (a->x, b->x) &&
+		fcmp (a->y, b->y) &&
+		fcmp (a->z, b->z);
+}

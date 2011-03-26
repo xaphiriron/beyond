@@ -13,15 +13,31 @@
 
 #include <SDL/SDL_opengl.h>
 
-// the argument in a "GROUND_EDGE_TRAVERSAL" entity message is a pointer to
+// this is the dumbest naming scheme but 1) I don't remember the mapping from
+// offsets to directions, 2) it doesn't make sense to call it "north",
+// "northwest", etc anyway since there are actual poles, and 3) the only value
+// of import here is the GROUND_FAR one, which would be used for teleportation
+//  - xph 2011-03-16
+enum ground_edges
+{
+	GROUND_EDGE0,
+	GROUND_EDGE1,
+	GROUND_EDGE2,
+	GROUND_EDGE3,
+	GROUND_EDGE4,
+	GROUND_EDGE5,
+	GROUND_FAR,
+};
+
+// the argument in a "GROUND_CHANGE" entity message is a pointer to
 // this struct.
-struct ground_edge_traversal
+struct ground_change
 {
 	Entity
-		oldGroundEntity,
-		newGroundEntity;
-	unsigned short
-		directionOfMovement;	// the direction moved from the old ground map
+		oldGround,
+		newGround;
+	enum ground_edges
+		dir;
 };
 
 #include "component_position.h"
@@ -67,13 +83,9 @@ void ground_setDisplayList (GroundMap g, GLuint list);
 void ground_setWorldPos (GroundMap g, worldPosition wp);
 
 /***
- *  given an entity with a ground component and a position from the
- * groundmap's origin that is outside the bounds of the groundmap, updates the
- * entity's position component.
- *  returns TRUE if entity was updated successfully or didn't need updating,
- * or FALSE if there is no valid update possible (no adjacent ground)
+ * given an entity, [e], and the ground it's placed on, [groundEntity], calculates and returns a new ground if [e]'s position vector is out of bounds. returns groundEntity if the position vector isn't out of bounds
  */
-bool ground_bridgeConnections (const Entity groundEntity, Entity e);
+Entity ground_bridgeConnections (const Entity groundEntity, Entity e);
 bool ground_placeOnTile (Entity groundEntity, short r, short k, short i, Entity e);
 bool ground_removeOccupant (Entity groundEntity, const Entity e);
 

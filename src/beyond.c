@@ -31,12 +31,12 @@ void render ()
 	SYSTEM
 		* sys = obj_getClassData (SystemObject, "SYSTEM");
 	Entity
-		player;
+		camera;
 	const float
 		* matrix;
-	player = input_getPlayerEntity ();
+	camera = camera_getActiveCamera ();
 	// THIS IS FROM WORLD:PRERENDER
-	matrix = camera_getMatrix (player);
+	matrix = camera_getMatrix (camera);
 	//glPushMatrix ();
 	if (matrix == NULL)
 		glLoadIdentity ();
@@ -44,7 +44,7 @@ void render ()
 		glLoadMatrixf (matrix);
 
 	// THIS IS FROM WORLD:RENDER
-	ground_draw_fill (player);
+	ground_draw_fill (camera);
 	if (system_getState (sys) == STATE_FIRSTPERSONVIEW)
 		camera_drawCursor ();
 

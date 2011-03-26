@@ -486,10 +486,11 @@ bool component_removeFromEntity (const char * comp_name, Entity e) {
   }
 	//printf ("%s: removing component \"%s\" from entity #%d\n", __FUNCTION__, comp_name, entity_GUID (e));
   comp = *(Component *)dynarr_search (sys->entities, comp_search, e);
-  if (comp == NULL) {
-    fprintf (stderr, "%s: Entity #%d doesn't have a component \"%s\"\n", __FUNCTION__, e->guid, comp_name);
-    return FALSE;
-  }
+	if (comp == NULL)
+	{
+		WARNING ("Entity #%d doesn't have component \"%s\"", e->guid, comp_name);
+		return FALSE;
+	}
   obj_message (sys->system, OM_COMPONENT_DESTROY_DATA, &comp->comp_data, e);
   dynarr_remove_condense (sys->entities, comp);
   dynarr_remove_condense (e->components, comp);
@@ -507,7 +508,7 @@ Component entity_getAs (Entity e, const char * comp_name) {
   }
   comp = *(Component *)dynarr_search (sys->entities, comp_search, e);
   if (comp == NULL) {
-    fprintf (stderr, "%s: Entity #%d doesn't have a component \"%s\"\n", __FUNCTION__, e->guid, comp_name);
+	WARNING ("Entity #%d doesn't have component \"%s\"", entity_GUID (e), comp_name);
     return NULL;
   }
   return comp;

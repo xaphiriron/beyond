@@ -43,16 +43,33 @@ void position_destroy (Entity e);
 void position_unset (Entity e);
 void position_set (Entity e, VECTOR3 pos, Entity mapEntity);
 bool position_move (Entity e, VECTOR3 move);
+// moves target to source
+void position_copy (Entity target, const Entity source);
+
+void position_setOrientation (Entity e, const QUAT q);
 
 void position_updateAxesFromOrientation (Entity e);
 void position_rotateOnMouseInput (Entity e, const struct input_event * ie);
 
 // (rotation around world y axis, which is "up")
+/* neither of these are used anymore (and the first was never really used); they are both relics from the days when grounds were connected in a graph
 bool position_rotateAroundGround (Entity e, float rotation);
 void position_updateOnEdgeTraversal (Entity e, struct ground_edge_traversal * t);
+*/
+
+float position_getHeading (const Entity e);
+float position_getPitch (const Entity e);
+float position_getRoll (const Entity e);
+float position_getHeadingR (const positionComponent p);
+float position_getPitchR (const positionComponent p);
+float position_getRollR (const positionComponent p);
 
 VECTOR3 position_getLocalOffset (const Entity e);
-Entity position_getGroundEntity (const positionComponent p);
+QUAT position_getOrientation (const Entity e);
+Entity position_getGroundEntity (const Entity e);
+VECTOR3 position_getLocalOffsetR (const positionComponent p);
+QUAT position_getOrientationR (const positionComponent p);
+Entity position_getGroundEntityR (const positionComponent p);
 
 int component_position (Object * obj, objMsg msg, void * a, void * b);
 

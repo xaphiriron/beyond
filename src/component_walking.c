@@ -73,6 +73,8 @@ void walk_move (Entity e) {
   }
   pdata = component_getData (p);
   wdata = component_getData (w);
+	if (pdata->dirty)
+		position_updateAxesFromOrientation (e);
   //printf ("%s: updating entity #%d (w/ %5.2f, %5.2f, %5.2f)\n", __FUNCTION__, e->guid, wdata->dir.x, wdata->dir.y, wdata->dir.z);
   if (wdata->dirsActive == WALK_MOVE_NONE) {
     return;
@@ -259,8 +261,6 @@ int component_walking (Object * o, objMsg msg, void * a, void * b)
 			message = ((struct comp_message *)a)->message;
 			if (strcmp (message, "CONTROL_INPUT") == 0) {
 				walking_doControlInputResponse (ce, b);
-				return EXIT_SUCCESS;
-			} else if (strcmp ("GROUND_EDGE_TRAVERSAL", message) == 0) {
 				return EXIT_SUCCESS;
 			}
 			return EXIT_FAILURE;
