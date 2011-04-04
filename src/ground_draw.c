@@ -425,7 +425,7 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
   blue = (g_label->y + OriginCache->desiredExtent) / (float)(OriginCache->desiredExtent * 2);
   green = (red + blue) / 2.0;
   hex_setDrawColor (red, green, blue);
-  tilesPerGround = hex (ground_getMapSize (g) + 1);
+  tilesPerGround = hx (ground_getMapSize (g) + 1);
   i = 0;
 	//printf ("DRAWING GROUND AT '%c'{%d %d %d} (%d, %d :: %f %f %f)\n", p, r, k, j, g_label->x, g_label->y, g_label->offset.x, g_label->offset.y, g_label->offset.z);
   while (i < tilesPerGround) {

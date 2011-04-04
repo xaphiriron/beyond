@@ -271,6 +271,18 @@ int video_handler (Object * o, objMsg msg, void * a, void * b) {
 					glPolygonMode (GL_FRONT, GL_FILL);
 				return EXIT_SUCCESS;
 			}
+			else if (strcmp (message, "ORTHOGRAPHIC_OFF") == 0)
+			{
+				v->orthographic = 0;
+				video_setScaling (v, 0.07);
+				video_regenerateDisplay (v);
+			}
+			else if (strcmp (message, "ORTHOGRAPHIC_ON") == 0)
+			{
+				v->orthographic = 1;
+				video_setScaling (v, 1.00);
+				video_regenerateDisplay (v);
+			}
 			return EXIT_FAILURE;
 
     default:

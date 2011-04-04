@@ -55,14 +55,14 @@ static struct ground_world * groundWorld_create ()
 	struct ground_world
 		* w = xph_alloc (sizeof (struct ground_world));
 
-	w->poleRadius = 144;
-	w->groundRadius = 4;
+	w->poleRadius = 6;
+	w->groundRadius = 6;
 	w->drawDistance = 5;
 	w->partialUnloadDistance = 2;
 	w->loadedUnloadDistance = 4;
 
-	w->loadedGrounds = dynarr_create (hex (w->drawDistance + 1), sizeof (Entity));
-	w->partlyLoadedGrounds = dynarr_create (hex (w->drawDistance + 1), sizeof (Entity));
+	w->loadedGrounds = dynarr_create (hx (w->drawDistance + 1), sizeof (Entity));
+	w->partlyLoadedGrounds = dynarr_create (hx (w->drawDistance + 1), sizeof (Entity));
 
 	w->originChanged = FALSE;
 
@@ -78,6 +78,15 @@ static void groundWorld_init ()
 		plant;
 	worldPosition
 		wp;
+
+	/* this entire function should be doing something else; the world init
+	 * should /maybe/ queue worldgen and then return. maybe it should just
+	 * make sure everything was generated empty correctly. at any rate, the
+	 * code that handles placing the player at start shouldn't load anything;
+	 * it shouldn't be invoked until the spawn has been loaded in the first
+	 * place. (which ought to solve one of the camera display issues.)
+	 *  - xph 2011-04-03
+	 */
 
 	//printf ("%s...\n", __FUNCTION__);
 
@@ -506,7 +515,7 @@ void ground_bakeInternalTiles (Entity g_entity)
 		hexes = 0,
 		radius = groundWorld_getGroundRadius ();
 	
-	while (hexes < hex (radius + 1))
+	while (hexes < hx (radius + 1))
 	{
 		h = *(Hex *)dynarr_at (map->tiles, hexes);
 		x = h->x;
@@ -515,8 +524,8 @@ void ground_bakeInternalTiles (Entity g_entity)
 		dir = 0;
 		while (dir < 6)
 		{
-			ax = h->x + XY[dir][0];
-			ay = h->y + XY[dir][1];
+			ax = h->x + XY[(dir + 1) % 6][0];
+			ay = h->y + XY[(dir + 1) % 6][1];
 			hex_xy2rki (ax, ay, &mag, &k, &i);
 			mag = hex_coordinateMagnitude (ax, ay);
 			if (mag > radius)
@@ -527,8 +536,13 @@ void ground_bakeInternalTiles (Entity g_entity)
 			adjIndex = hex_linearCoord (mag, k, i);
 			adj = *(Hex *)dynarr_at (map->tiles, adjIndex);
 			//printf ("%s: got adjacent tile %p (%d, %d)\n", __FUNCTION__, adj, adj->x, adj->y);
+			//printf ("got val: %d, %d, %d\n", adj->centre, hexGetCornerHeight (adj, (dir + 4) % 6), hexGetCornerHeight (adj, (dir + 3) % 6));
+			h->edgeBase[dir * 2] = FULLHEIGHT (adj, (dir + 4) % 6);
+			h->edgeBase[dir * 2 + 1] = FULLHEIGHT (adj, (dir + 3) % 6);
+/*
 			h->edgeDepth[((dir + 5) % 6) * 2] = hex_getCornerHeight (adj, (dir + 3) % 6);
 			h->edgeDepth[((dir + 5) % 6) * 2 + 1] = hex_getCornerHeight (adj, (dir + 2) % 6);
+*/
 			dir++;
 		}
 		hexes++;
@@ -654,7 +668,7 @@ void ground_initSize (GroundMap g, int size)
     return;
   }
   g->size = size;
-  g->tiles = dynarr_create (hex (size) + 1, sizeof (struct tile *));
+  g->tiles = dynarr_create (hx (size) + 1, sizeof (struct tile *));
 	//printf ("...%s\n", __FUNCTION__);
 }
 
@@ -747,6 +761,8 @@ void groundWorld_groundLoad (Component c)
 		r, k, i;
 	int
 		index;
+	DynIterator
+		it;
 	while (!component_isFullyLoaded (entity_getAs (x, "pattern")))
 	{
 		fprintf (stderr, "cannot load ground component (%p): pattern component (%p) isn't loaded yet. (on entity #%d)\n", c, entity_getAs (x, "pattern"), entity_GUID (x));
@@ -780,23 +796,24 @@ void groundWorld_groundLoad (Component c)
 		height = (int)(((World->poleRadius - r) / (float)World->poleRadius) * 4.0);
 
 	ground_fillFlat (g, height);
-
-	hex = ground_getHexatCoord (g, 1, 0, 0);
-	hex_setSlope (hex, HEX_TOP, height + 1, height + 1, height + 1.5);
-	hex = ground_getHexatCoord (g, 1, 1, 0);
-	hex_setSlope (hex, HEX_TOP, height + 1, height + 1.5, height + 1);
-	hex = ground_getHexatCoord (g, 2, 0, 1);
-	hex_setSlope (hex, HEX_TOP, height + 1.5, height + 1, height + 1);
-	hex = ground_getHexatCoord (g, 1, 3, 0);
-	hex_setSlope (hex, HEX_TOP, height + 1, height + 1, height + 1.5);
-	hex = ground_getHexatCoord (g, 1, 4, 0);
-	hex_setSlope (hex, HEX_TOP, height + 1, height + 1.5, height + 1);
-	hex = ground_getHexatCoord (g, 2, 3, 1);
-	hex_setSlope (hex, HEX_TOP, height + 1.5, height + 1, height + 1);
-	hex = ground_getHexatCoord (g, 3, 2, 0);
-	hex_setSlope (hex, HEX_TOP, height + 2, height + 2.5, height + 1.5);
-	hex = ground_getHexatCoord (g, 3, 5, 0);
-	hex_setSlope (hex, HEX_TOP, height + 1.5, height + 2.5, height + 2);
+	it = dynIterator_create (g->tiles);
+	i = 0;
+	while (!dynIterator_done (it))
+	{
+		hex = *(Hex *)dynIterator_next (it);
+		if (i <= 6)
+		{
+			hexSetHeight (hex, i);
+			hexSetCorners (hex, -1, -1, 0, 1, 1, 0);
+			i++;
+		}
+		else
+		{
+			hexSetHeight (hex, 1);
+			hexSetCorners (hex, 0, 0, 0, 0, 0, 0);
+			//hexSetCornersRandom (hex);
+		}
+	}
 
 	ground_bakeInternalTiles (x);
 	adjacent = wp_adjacent (g->wp, World->poleRadius);

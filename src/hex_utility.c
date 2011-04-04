@@ -57,7 +57,7 @@ const signed char XY [6][2] =
 	{1,-1},
 };
 
-unsigned int hex (unsigned int n)
+unsigned int hx (unsigned int n)
 {
 	return 3 * n * (n - 1) + 1;
 }
@@ -175,7 +175,7 @@ unsigned int hex_linearCoord (unsigned int r, unsigned int k, unsigned int i)
 {
 	return (r == 0 && k == 0 && i == 0)
 		? 0
-		: hex (r) + (k * r) + i;
+		: hx (r) + (k * r) + i;
 }
 
 unsigned int hex_distanceBetween (signed int ax, signed int ay, signed int bx, signed int by)

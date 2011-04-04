@@ -17,7 +17,7 @@ extern const signed char XY [6][2];
 
 #define		DIR1MOD6(x)		((x) + 1 >= 6 ? 0 : (x) + 1)
 
-unsigned int hex (unsigned int n);
+unsigned int hx (unsigned int n);
 
 void hex_nextValidCoord (unsigned int * rp, unsigned int * kp, unsigned int * ip);
 bool hex_wellformedRKI (unsigned int r, unsigned int k, unsigned int i);

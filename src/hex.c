@@ -1,23 +1,23 @@
 #include "hex.h"
 
-struct hex * hex_create (unsigned int r, unsigned int k, unsigned int i, float height) {
-  struct hex * h = xph_alloc (sizeof (struct hex));
+HEX hex_create (unsigned int r, unsigned int k, unsigned int i, float height) {
+	HEX
+		h = xph_alloc (sizeof (struct hex));
   if (r < 0 || (r == 0 && (k != 0 || i != 0))) {
-    fprintf (stderr, "%s (%d, %d, %d): invalid r-val\n", __FUNCTION__, r, k, i);
+	WARNING ("%s (%d, %d, %d): invalid r-val\n", __FUNCTION__, r, k, i);
   }
   if (k < 0 || k >= 6) {
-    fprintf (stderr, "%s (%d, %d, %d): invalid k-val\n", __FUNCTION__, r, k, i);
+	WARNING ("%s (%d, %d, %d): invalid k-val\n", __FUNCTION__, r, k, i);
   }
   if (i >= r && i != 0) {
-    fprintf (stderr, "%s (%d, %d, %d): invalid i-val\n", __FUNCTION__, r, k, i);
+	WARNING ("%s (%d, %d, %d): invalid i-val\n", __FUNCTION__, r, k, i);
   }
   h->r = r;
   h->k = k;
   h->i = i;
   hex_rki2xy (r, k, i, &h->x, &h->y);
-  hex_setSlope (h, HEX_TOP, height, height, height);
-  hex_setSlope (h, HEX_BASE, -1.0, -1.0, -1.0);
-  memset (h->edgeDepth, '\0', sizeof (float) * 12);
+	memset (h->corners, '\0', 3);
+	memset (h->edgeBase, '\0', sizeof (int) * 12);
 
   return h;
 }
@@ -26,50 +26,101 @@ void hex_destroy (struct hex * h) {
   xph_free (h);
 }
 
-void hex_setSlope (struct hex * h, enum hex_sides side, float height, float a, float b) {
-  // the a offset is H[0], the b offset is H[1]. if we change the hex mapping (which we probably will) then we will need to update this code or else everything that depends on it working (most notably, tile collisions) will break
-  VECTOR3
-    av, bv;
-  // if we end up storing the other values, calculate them here.
-  if (side == HEX_TOP) {
-    h->top = height * 15;
-    h->topA = a * 15;
-    h->topB = b * 15;
-    av = vectorCreate (H[0][0], h->topA - h->top, H[0][1]);
-    bv = vectorCreate (H[1][0], h->topB - h->top, H[1][1]);
-    h->topNormal = vectorCross (&bv, &av);
-    h->topNormal = vectorNormalize (&h->topNormal);
-  } else {
-    h->base = height * 15;
-    h->baseA = a * 15;
-    h->baseB = b * 15;
-    av = vectorCreate (H[0][0], h->baseA - h->base, H[0][1]);
-    bv = vectorCreate (H[1][0], h->baseB - h->base, H[1][1]);
-    h->baseNormal = vectorCross (&av, &bv);
-    h->baseNormal = vectorNormalize (&h->baseNormal);
-  }
+
+void hexSetHeight (HEX hex, unsigned short height)
+{
+	hex->centre = height;
 }
 
-float hex_getCornerHeight (const struct hex * h, int corner)
+void hexSetCorners (HEX hex, short a, short b, short c, short d, short e, short f)
 {
-	if (h == NULL || corner < 0 || corner >= 6)
-		return 0.0;
-	switch (corner)
+	hex->corners[0] =
+		(a < 0 ? ((~a & 15) + 1) | 8 : a & 7) << 4 |
+		(b < 0 ? ((~b & 15) + 1) | 8 : b & 7);
+	hex->corners[1] =
+		(c < 0 ? ((~c & 15) + 1) | 8 : c & 7) << 4 |
+		(d < 0 ? ((~d & 15) + 1) | 8 : d & 7);
+	hex->corners[2] =
+		(e < 0 ? ((~e & 15) + 1) | 8 : e & 7) << 4 |
+		(f < 0 ? ((~f & 15) + 1) | 8 : f & 7);
+}
+
+void hexPullCorner (HEX hex, short corner)
+{
+	signed char
+		loop = 0,
+		height,
+		adj1, adj2,
+		change;
+	if (corner < 0 || corner > 5)
+		return;
+	while (loop < 6)
 	{
-		case 0:
-			return h->topA;
-		case 1:
-			return h->topB;
-		case 2:
-			return h->top + (h->top - h->topA) - (h->top - h->topB);
-		case 3:
-			return h->top + (h->top - h->topA);
-		case 4:
-			return h->top + (h->top - h->topB);
-		case 5:
-		default:
-			return h->top + (h->top - h->topB) - (h->top - h->topA);
+		height = GETCORNER (hex->corners, corner);
+		if (height == 7)
+		{
+			// lol an underflow bug per line. which is funny cause the entire point of this if is to avoid overflow.
+			hex->centre--;
+			SETCORNER (hex->corners, 0, GETCORNER (hex->corners, 0) - 1);
+			SETCORNER (hex->corners, 1, GETCORNER (hex->corners, 1) - 1);
+			SETCORNER (hex->corners, 2, GETCORNER (hex->corners, 2) - 1);
+			SETCORNER (hex->corners, 3, GETCORNER (hex->corners, 3) - 1);
+			SETCORNER (hex->corners, 4, GETCORNER (hex->corners, 4) - 1);
+			SETCORNER (hex->corners, 5, GETCORNER (hex->corners, 5) - 1);
+			height--;
+		}
+		if (height - hex->centre > 2)
+		{
+			change = (height + 1) / 2;
+			hex->centre += change;
+			SETCORNER (hex->corners, 0, GETCORNER (hex->corners, 0) - change);
+			SETCORNER (hex->corners, 1, GETCORNER (hex->corners, 1) - change);
+			SETCORNER (hex->corners, 2, GETCORNER (hex->corners, 2) - change);
+			SETCORNER (hex->corners, 3, GETCORNER (hex->corners, 3) - change);
+			SETCORNER (hex->corners, 4, GETCORNER (hex->corners, 4) - change);
+			SETCORNER (hex->corners, 5, GETCORNER (hex->corners, 5) - change);
+			height -= change;
+		}
+		adj1 = GETCORNER (hex->corners, (corner + 1) % 6);
+		adj2 = GETCORNER (hex->corners, (corner + 5) % 6);
+		SETCORNER (hex->corners, corner, height + 1);
+		height++;
+		if (height - adj1 > 2)
+		{
+			adj1++;
+			SETCORNER (hex->corners, (corner + 1) % 6, adj1);
+		}
+		if (height - adj2 > 2)
+		{
+			adj2++;
+			SETCORNER (hex->corners, (corner + 5) % 6, adj2);
+		}
+		corner = adj1 > adj2 ? (corner + 5) % 6 : (corner + 1) % 6;
+		loop++;
 	}
+}
+
+void hexSetCornersRandom (HEX hex)
+{
+	int
+		i = rand ();
+	if (i & 1)
+		hexPullCorner (hex, 0);
+	if (i & 2)
+		hexPullCorner (hex, 1);
+	if (i & 4)
+		hexPullCorner (hex, 2);
+	if (i & 8)
+		hexPullCorner (hex, 3);
+	if (i & 16)
+		hexPullCorner (hex, 4);
+	if (i & 32)
+		hexPullCorner (hex, 5);
+}
+
+signed char hexGetCornerHeight (const HEX hex, short corner)
+{
+	return GETCORNER (hex->corners, corner);
 }
 
 /*

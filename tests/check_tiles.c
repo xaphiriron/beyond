@@ -137,10 +137,133 @@ START_TEST (test_tile_hex_outside) {
 END_TEST
 */
 
-Suite * make_tile_suite (void) {
-  Suite * s = suite_create ("Tile");
-  TCase
-    * tc_coord = tcase_create ("Coordinates");
+HEX hex = NULL;
+void hexSlopeSetup (void)
+{
+	hex = hex_create (0, 0, 0, 1);
+	hexSetHeight (hex, 32);
+	hexSetCorners (hex, 0, 0, 0, 0, 0, 0);
+	hexSetCorners (hex, -1, -1, 0, 1, 1, 0);
+}
+
+void hexSlopeTeardown (void)
+{
+	hex_destroy (hex);
+}
+
+/*
+START_TEST (hexSlopeInitTest)
+{
+	signed char
+		height;
+	int
+		i = 0;
+	while (i < 6)
+	{
+		height = hexGetCornerHeight (hex, i);
+		fail_unless (height == 0);
+		i++;
+	}
+}
+END_TEST
+*/
+
+START_TEST (hexSlopeChangeTest0)
+{
+	signed char
+		height;
+	height = hexGetCornerHeight (hex, 0);
+	fail_unless (
+		height == -1,
+		"Expected height of %d-th corner to be %d, got %d instead",
+		0, -1, height
+	);
+}
+END_TEST
+
+START_TEST (hexSlopeChangeTest1)
+{
+	signed char
+		height;
+	height = hexGetCornerHeight (hex, 1);
+	fail_unless (
+		height == -1,
+		"Expected height of %d-th corner to be %d, got %d instead",
+		1, -1, height
+	);
+}
+END_TEST
+
+START_TEST (hexSlopeChangeTest2)
+{
+	signed char
+		height;
+	height = hexGetCornerHeight (hex, 2);
+	fail_unless (
+		height == 0,
+		"Expected height of %d-th corner to be %d, got %d instead",
+		2, 0, height
+	);
+}
+END_TEST
+
+START_TEST (hexSlopeChangeTest3)
+{
+	signed char
+		height;
+	height = hexGetCornerHeight (hex, 3);
+	fail_unless (
+		height == 1,
+		"Expected height of %d-th corner to be %d, got %d instead",
+		3, 1, height
+	);
+}
+END_TEST
+
+START_TEST (hexSlopeChangeTest4)
+{
+	signed char
+		height;
+	height = hexGetCornerHeight (hex, 4);
+	fail_unless (
+		height == 1,
+		"Expected height of %d-th corner to be %d, got %d instead",
+		4, 1, height
+	);
+}
+END_TEST
+
+START_TEST (hexSlopeChangeTest5)
+{
+	signed char
+		height;
+	height = hexGetCornerHeight (hex, 5);
+	fail_unless (
+		height == 0,
+		"Expected height of %d-th corner to be %d, got %d instead",
+		5, 0, height
+	);
+}
+END_TEST
+
+/*
+START_TEST (hexSlopeMinLimitTest)
+{
+	signed char
+		height;
+	hexSetHeight (hex, 0);
+	hexSetCorners (hex, -1, -2, -3, -4, -5, -6);
+}
+END_TEST
+*/
+
+Suite * make_tile_suite (void)
+{
+	Suite
+		* s = suite_create ("Tile");
+	TCase
+		* tc_coord = tcase_create ("Coordinates");
+
   tcase_add_test (tc_coord, test_tile_hex_coords);
 /*
   tcase_add_test (tc_coord, test_tile_hex_inside);
@@ -150,14 +273,38 @@ Suite * make_tile_suite (void) {
   return s;
 }
 
-int main (void) {
-  int number_failed = 0;
-  SRunner * sr = srunner_create (make_tile_suite ());
+Suite * makeHexSlopeSuite (void)
+{
+	Suite
+		* s = suite_create ("Hex slopes");
+	TCase
+		* tcSetSlope = tcase_create ("Setting slope");
 
-  srunner_run_all (sr, CK_NORMAL);
-  number_failed = srunner_ntests_failed (sr);
-  srunner_free (sr);
-  return (number_failed == 0)
-    ? EXIT_SUCCESS
-    : EXIT_FAILURE;
+	tcase_add_checked_fixture (tcSetSlope, hexSlopeSetup, hexSlopeTeardown);
+	tcase_add_test (tcSetSlope, hexSlopeChangeTest0);
+	tcase_add_test (tcSetSlope, hexSlopeChangeTest1);
+	tcase_add_test (tcSetSlope, hexSlopeChangeTest2);
+	tcase_add_test (tcSetSlope, hexSlopeChangeTest3);
+	tcase_add_test (tcSetSlope, hexSlopeChangeTest4);
+	tcase_add_test (tcSetSlope, hexSlopeChangeTest5);
+
+	suite_add_tcase (s, tcSetSlope);
+	return s;
+}
+
+int main (void)
+{
+	int
+		number_failed = 0;
+	SRunner
+		* sr = srunner_create (make_tile_suite ());
+
+	srunner_add_suite (sr, makeHexSlopeSuite ());
+
+	srunner_run_all (sr, CK_NORMAL);
+	number_failed = srunner_ntests_failed (sr);
+	srunner_free (sr);
+	return (number_failed == 0)
+		? EXIT_SUCCESS
+		: EXIT_FAILURE;
 }
