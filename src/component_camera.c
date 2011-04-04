@@ -4,6 +4,9 @@
  * the camera component exists simply to visualize the data already stored in
  * the position component. orientation is a property of the position component,
  * not the camera.
+ *
+ * that being said, the camera component often caches its own position data and
+ * the position data of its target in matrix form just to speed things up.
  */
 struct camera_data
 {
@@ -399,6 +402,7 @@ void camera_updateLabelsFromGroundChange (Entity camera, struct ground_change * 
 	if (ch->dir == GROUND_FAR)
 	{
 		// something something
+		WARNING ("ground change dir is _FAR; no way to handle this yet; ignoring (?!)", NULL);
 		return;
 	}
 	drawDistance = groundWorld_getDrawDistance ();
@@ -471,7 +475,7 @@ void camera_update (Entity e)
 		cdata->m[2], cdata->m[6], cdata->m[10], cdata->m[14],
 		cdata->m[3], cdata->m[7], cdata->m[11], cdata->m[15]
 	);
-*/
+//*/
 
 }
 
@@ -484,9 +488,11 @@ void camera_updatePosition (Entity camera)
 		cameraDistance;
 	if (cdata == NULL || cdata->target == NULL)
 		return;
-	camera_updateTargetPositionData (camera);
 	// update the final viewmatrix from position + offset data; derive position from that; get target ground data; position_set (camera, finalPosition, targetGround);
 	// what is this.
+	//DEBUG ("camera offset from target is %5.2f, %5.2f, %5.2f", cameraDistance.x, cameraDistance.y, cameraDistance.z);
+	position_copy (camera, cdata->target);
+	camera_updateTargetPositionData (camera);
 	cameraDistance.x =
 		cdata->offset[12] * cdata->offset[0] +
 		cdata->offset[13] * cdata->offset[4] +
@@ -499,8 +505,6 @@ void camera_updatePosition (Entity camera)
 		cdata->offset[12] * cdata->offset[2] +
 		cdata->offset[13] * cdata->offset[6] +
 		cdata->offset[14] * cdata->offset[10];
-	//DEBUG ("camera offset from target is %5.2f, %5.2f, %5.2f", cameraDistance.x, cameraDistance.y, cameraDistance.z);
-	position_copy (camera, cdata->target);
 	//position_move (camera, cameraDistance);
 }
 //*/
