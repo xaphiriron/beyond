@@ -95,7 +95,7 @@ void ground_bakeEdgeTiles (Entity g_entity, unsigned int edge, Entity adj_entity
 struct hex * ground_getHexatCoord (GroundMap g, short r, short k, short i);
 
 void ground_initSize (GroundMap g, int size);
-void ground_fillFlat (GroundMap g, float height);
+void ground_fillFlat (GroundMap g);
 
 bool ground_isInitialized (const GroundMap g);
 bool ground_isValidRKI (const GroundMap g, short r, short k, short i);

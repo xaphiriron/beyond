@@ -39,12 +39,19 @@ int __v, __n;
 #define FULLHEIGHT(hex, i)		(__v = GETCORNER (hex->corners, i), (__v < 0 && hex->centre < abs (__v)) ? 0 : ((__v > 0 && hex->centre > (UINT_MAX - __v)) ? UINT_MAX : hex->centre + __v))
 
 
+/* keep these cast as float no matter what they are; since hex heights are
+ * unsigned ints we really don't want to force a signed int * unsigned int
+ * multiplication when we render the hexes; (or whatever) just accept that
+ * we're going to lose precision when we do it. so don't do it until you
+ * render.
+ *  -xph 2011-04-03
+ */
 #define HEX_SIZE	(float)30
 #define HEX_SIZE_4	(float)7.5
 
 typedef struct hex * HEX;
 
-HEX hex_create (unsigned int r, unsigned int k, unsigned int i, float height);
+HEX hex_create (unsigned int r, unsigned int k, unsigned int i);
 void hex_destroy (HEX h);
 /*
 HEX hex_create ();
@@ -52,7 +59,7 @@ HEX hex_create ();
 void hexSetHeight (HEX hex, unsigned short height);
 void hexSetCorners (HEX hex, short a, short b, short c, short d, short e, short f);
 // i want some kind of 'pullCorner' function that takes a hex and a corner and shifts that corner up, tugging up the center and its adjacent corners if their difference is above a certain value. ...except that since that value would likely be '1', it reduces to something like "if value >= 2, shift centre up by value, shift all corners down by value", except not really.
-// it should be noted that the above is not actually what pullcorner does. right now
+// it should be noted that the above is not actually what pullcorner does, right now
 void hexPullCorner (HEX hex, short corner);
 void hexSetCornersRandom (HEX hex);
 signed char hexGetCornerHeight (const HEX hex, short corner);

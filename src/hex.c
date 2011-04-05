@@ -1,29 +1,33 @@
 #include "hex.h"
 
-HEX hex_create (unsigned int r, unsigned int k, unsigned int i, float height) {
+HEX hex_create (unsigned int r, unsigned int k, unsigned int i)
+{
 	HEX
 		h = xph_alloc (sizeof (struct hex));
-  if (r < 0 || (r == 0 && (k != 0 || i != 0))) {
-	WARNING ("%s (%d, %d, %d): invalid r-val\n", __FUNCTION__, r, k, i);
-  }
-  if (k < 0 || k >= 6) {
-	WARNING ("%s (%d, %d, %d): invalid k-val\n", __FUNCTION__, r, k, i);
-  }
-  if (i >= r && i != 0) {
-	WARNING ("%s (%d, %d, %d): invalid i-val\n", __FUNCTION__, r, k, i);
-  }
-  h->r = r;
-  h->k = k;
-  h->i = i;
-  hex_rki2xy (r, k, i, &h->x, &h->y);
+	if (r < 0 || (r == 0 && (k != 0 || i != 0)))
+	{
+		WARNING ("%s (%d, %d, %d): invalid r-val\n", __FUNCTION__, r, k, i);
+	}
+	if (k < 0 || k >= 6)
+	{
+		WARNING ("%s (%d, %d, %d): invalid k-val\n", __FUNCTION__, r, k, i);
+	}
+	if (i >= r && i != 0)
+	{
+		WARNING ("%s (%d, %d, %d): invalid i-val\n", __FUNCTION__, r, k, i);
+	}
+	h->r = r;
+	h->k = k;
+	h->i = i;
+	hex_rki2xy (r, k, i, &h->x, &h->y);
 	memset (h->corners, '\0', 3);
 	memset (h->edgeBase, '\0', sizeof (int) * 12);
-
-  return h;
+	return h;
 }
 
-void hex_destroy (struct hex * h) {
-  xph_free (h);
+void hex_destroy (HEX h)
+{
+	xph_free (h);
 }
 
 

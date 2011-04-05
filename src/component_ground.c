@@ -535,14 +535,8 @@ void ground_bakeInternalTiles (Entity g_entity)
 			}
 			adjIndex = hex_linearCoord (mag, k, i);
 			adj = *(Hex *)dynarr_at (map->tiles, adjIndex);
-			//printf ("%s: got adjacent tile %p (%d, %d)\n", __FUNCTION__, adj, adj->x, adj->y);
-			//printf ("got val: %d, %d, %d\n", adj->centre, hexGetCornerHeight (adj, (dir + 4) % 6), hexGetCornerHeight (adj, (dir + 3) % 6));
 			h->edgeBase[dir * 2] = FULLHEIGHT (adj, (dir + 4) % 6);
 			h->edgeBase[dir * 2 + 1] = FULLHEIGHT (adj, (dir + 3) % 6);
-/*
-			h->edgeDepth[((dir + 5) % 6) * 2] = hex_getCornerHeight (adj, (dir + 3) % 6);
-			h->edgeDepth[((dir + 5) % 6) * 2 + 1] = hex_getCornerHeight (adj, (dir + 2) % 6);
-*/
 			dir++;
 		}
 		hexes++;
@@ -555,20 +549,19 @@ void ground_bakeEdgeTiles (Entity g_entity, unsigned int edge, Entity adj_entity
 		c = entity_getAs (g_entity, "ground"),
 		a = entity_getAs (adj_entity, "ground");
 	GroundMap
-		map = component_getData (c)/*,
-		adjMap = component_getData (a)*/;
+		map = component_getData (c),
+		adjMap = component_getData (a);
 	Hex
-		h/*,
-		adj*/;
+		h,
+		adj;
 	unsigned int
 		radius = groundWorld_getGroundRadius (),
 		r = radius,
 		k = edge,
-		i,/*
-		ak, ai,*/
-		dir,/*
-		adjDir,*/
-		dirCount = 0;
+		i = 0,
+		ak, ai,
+		dir, adjDir,
+		count;
 	
 	if (a == NULL || !component_isFullyLoaded (a))
 	{
@@ -580,23 +573,27 @@ void ground_bakeEdgeTiles (Entity g_entity, unsigned int edge, Entity adj_entity
 			r = radius;
 		h = *(Hex *)dynarr_at (map->tiles, hex_linearCoord (r, k, i));
 		//printf ("%s: got tile %p at {%d %d %d}\n", __FUNCTION__, h, r, k, i);
-		dir = edge;
-		dirCount = 0;
-		while (dirCount < 2)
+		dir = (edge + 5) % 6;
+		count = 0;
+		while (count < 2)
 		{
-/*
-			adjDir = (((6 - dir) % 6) + 5) % 6;
 			ak = (k + 3) % 6;
-			printf ("{%d %d %d} %d: {%d %d %d}\n", r, k, i, dir, r, ak, ai);
-			adj = *(Hex *)dynarr_at (adjMap->tiles, hex_linearCoord (r, ak, ai));
-			h->edgeDepth[((dir + 5) % 6) * 2] = hex_getCornerHeight (adj, (dir + 3) % 6);
-			h->edgeDepth[((dir + 5) % 6) * 2 + 1] = hex_getCornerHeight (adj, (dir + 2) % 6);
-			
-			adj->edgeDepth[adjDir * 2] = hex_getCornerHeight (h, (adjDir + 4) % 6);
-			adj->edgeDepth[adjDir * 2 + 1] = hex_getCornerHeight (h, (adjDir + 3) % 6);
-*/
+			ai = r - (i + (dir == edge));
+			if (ai == r)
+			{
+				ak = (ak + 1) % 6;
+				ai = 0;
+			}
+			//DEBUG ("from {%d %d %d} along %d to {%d %d %d}", r, k, i, dir, r, ak, ai);
+			adj = *(HEX *)dynarr_at (adjMap->tiles, hex_linearCoord (r, ak, ai));
+			adjDir = (dir + 3) % 6;
+
+			h->edgeBase[dir * 2] = FULLHEIGHT (adj, (dir + 4) % 6);
+			h->edgeBase[dir * 2 + 1] = FULLHEIGHT (adj, (dir + 3) % 6);
+			adj->edgeBase[adjDir * 2] = FULLHEIGHT (adj, (dir + 1) % 6);
+			adj->edgeBase[adjDir * 2 + 1] = FULLHEIGHT (adj, dir);
 			dir = (dir + 1) % 6;
-			dirCount++;
+			count++;
 		}
 		hex_nextValidCoord (&r, &k, &i);
 	}
@@ -672,12 +669,12 @@ void ground_initSize (GroundMap g, int size)
 	//printf ("...%s\n", __FUNCTION__);
 }
 
-void ground_fillFlat (GroundMap g, float height) {
+void ground_fillFlat (GroundMap g) {
   int
     o = 0,
     r = 0, k = 0, i = 0;
   struct hex * h = NULL;
-  dynarr_assign (g->tiles, o, hex_create (r, k, i, height));
+  dynarr_assign (g->tiles, o, hex_create (r, k, i));
   o++;
   while (r <= g->size) {
     k = 0;
@@ -688,7 +685,7 @@ void ground_fillFlat (GroundMap g, float height) {
         if (h != NULL) {
           hex_destroy (h);
         }
-        dynarr_assign (g->tiles, o, hex_create (r, k, i, height));
+        dynarr_assign (g->tiles, o, hex_create (r, k, i));
         //printf ("created {%d %d %d} (%d)\n", r, k, i, hex_linearCoord (r, k, i));
         i++;
         o++;
@@ -746,8 +743,6 @@ void groundWorld_groundLoad (Component c)
 {
 	worldPosition
 		* adjacent;
-	float
-		height;
 	Entity
 		x = component_entityAttached (c),
 		adj;
@@ -774,42 +769,34 @@ void groundWorld_groundLoad (Component c)
 	wp_getCoords (g->wp, &r, &k, &i);
 
 	ground_initSize (g, World->groundRadius);
-	if (r == 0)
-	{
-		switch (p)
-		{
-			case 'a':
-				height = 4.0;
-				break;
-			case 'b':
-				height = 6.0;
-				break;
-			case 'c':
-				height = 2.0;
-				break;
-			default:
-				height = 0.0;
-				break;
-		}
-	}
-	else
-		height = (int)(((World->poleRadius - r) / (float)World->poleRadius) * 4.0);
 
-	ground_fillFlat (g, height);
+	ground_fillFlat (g);
 	it = dynIterator_create (g->tiles);
 	i = 0;
 	while (!dynIterator_done (it))
 	{
-		hex = *(Hex *)dynIterator_next (it);
+		i = dynIterator_nextIndex (it);
+		hex = *(HEX *)dynarr_at (g->tiles, i);
 		if (i <= 6)
 		{
 			hexSetHeight (hex, i);
-			hexSetCorners (hex, -1, -1, 0, 1, 1, 0);
-			i++;
+			hexSetCorners (hex, 0, -2, -2, 0, 2, 2);
+		}
+		else if (i >= hx (World->groundRadius))
+		{
+			hexSetHeight (hex, 4);
+			hexSetCorners (hex,
+				i % 2 ? -1 : 1,
+				i % 2 ? -1 : 1,
+				0,
+				i % 2 ? 1 : -1,
+				i % 2 ? 1 : -1,
+				0
+			);
 		}
 		else
 		{
-			hexSetHeight (hex, 1);
+			hexSetHeight (hex, 2);
 			hexSetCorners (hex, 0, 0, 0, 0, 0, 0);
 			//hexSetCornersRandom (hex);
 		}
