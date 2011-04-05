@@ -71,6 +71,10 @@ static struct ground_world * groundWorld_create ()
 
 static void groundWorld_init ()
 {
+}
+
+void groundWorld_placePlayer ()
+{
 	Entity
 		pole,
 		player,
@@ -78,14 +82,9 @@ static void groundWorld_init ()
 		plant;
 	worldPosition
 		wp;
-
-	/* this entire function should be doing something else; the world init
-	 * should /maybe/ queue worldgen and then return. maybe it should just
-	 * make sure everything was generated empty correctly. at any rate, the
-	 * code that handles placing the player at start shouldn't load anything;
-	 * it shouldn't be invoked until the spawn has been loaded in the first
-	 * place. (which ought to solve one of the camera display issues.)
-	 *  - xph 2011-04-03
+	/* this is still not how player placement in the world should work, but
+	 * it's an improvement.
+	 *  - xph 2011-04-05
 	 */
 
 	//printf ("%s...\n", __FUNCTION__);
@@ -98,6 +97,7 @@ static void groundWorld_init ()
 	//printf ("%s: forcing component to generate pole\n", __FUNCTION__);
 	// vvv this is to force the ground load started with the loadGround to complete before we start adding occupants to it. this is not a good way to do that.
 	component_forceRunLoader (0);
+
 
 	//printf ("%s: placing plant entity\n", __FUNCTION__);
 	plant = entity_create ();

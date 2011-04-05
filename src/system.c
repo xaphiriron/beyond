@@ -47,22 +47,35 @@ enum system_states system_getState (const SYSTEM * s)
 	return s->state;
 }
 
-const TIMER * system_getTimer ()
+bool system_setState (enum system_states state)
 {
 	SYSTEM
 		* s;
 	if (SystemObject == NULL)
-		return NULL;
-	s = obj_getClassData (SystemObject, "SYSTEM");
-	return s->acc->timer;
-}
-
-bool system_setState (SYSTEM * s, enum system_states state)
-{
-	if (s == NULL)
 		return FALSE;
+	s = obj_getClassData (SystemObject, "SYSTEM");
 	s->state = state;
 	return TRUE;
+}
+
+void system_registerTimedFunction (void (*func)(TIMER), unsigned char weight)
+{
+	SYSTEM
+		* s;
+	if (SystemObject == NULL)
+		return;
+	s = obj_getClassData (SystemObject, "SYSTEM");
+	dynarr_push (s->updateFuncs, func);
+}
+
+void system_removeTimedFunction (void (*func)(TIMER))
+{
+	SYSTEM
+		* s;
+	if (SystemObject == NULL)
+		return;
+	s = obj_getClassData (SystemObject, "SYSTEM");
+	dynarr_remove_condense (s->updateFuncs, func);
 }
 
 int system_handler (Object * o, objMsg msg, void * a, void * b)
@@ -103,6 +116,11 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
       entitySubsystem_store ("camera");
 //      entitySubsystem_store ("collide");
       entitySubsystem_store ("input");
+
+	// not really sure where these should go; they're going here for now.
+	system_registerTimedFunction (entity_purgeDestroyed, 0x7f);
+	system_registerTimedFunction (cameraCache_update, 0x7f);
+	system_registerTimedFunction (component_runLoader, 0x7f);
 
 			//printf ("creating additional objects\n");
 			//printf ("\tvideo:\n");
@@ -175,11 +193,16 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 			//obj_message (WorldObject, OM_START, NULL, NULL);
 			// this next line "generates" the "world" - xph 2011-01-11
 			entitySubsystem_message ("ground", OM_START, NULL, NULL);
-			system_setState (s, STATE_FIRSTPERSONVIEW);
 			printf ("DONE W/ SYSTEM START:\n");
+			printf ("ARTIFICIALLY TRIGGERING WORLDGEN:\n");
+			worldgenAbsHocNihilo ();
+			system_setState (STATE_WORLDGEN);
 			return EXIT_SUCCESS;
 
 		case OM_UPDATE:
+			system_update ();
+
+/*
 			clock_update (s->clock);
 			xtimer_updateAll ();
 			accumulator_update (s->acc);
@@ -193,6 +216,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 				//obj_messagePre (WorldObject, OM_POSTUPDATE, NULL, NULL);
 				entitySubsystem_runOnStored (OM_POSTUPDATE);
 			}
+*/
 			obj_halt ();
 			return EXIT_SUCCESS;
 
@@ -201,4 +225,41 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
       break;
   }
   return EXIT_FAILURE;
+}
+
+
+void system_update ()
+{
+	SYSTEM
+		* s;
+	int
+		i;
+	TIMER
+		t;
+	void (*func)(TIMER);
+	if (SystemObject == NULL)
+		return;
+	s = obj_getClassData (SystemObject, "SYSTEM");
+	clock_update (s->clock);
+	xtimerUpdateAll ();
+	accumulator_update (s->acc);
+
+	t = timerCreate ();
+	timerSetClock (t, s->clock);
+	while (accumulator_withdrawlTime (s->acc))
+	{
+		i = 0;
+		while ((func = *(void (**)(TIMER))dynarr_at (s->updateFuncs, i)) != NULL)
+		{
+			//printf ("got func %p\n", func);
+			// FIXME: this is the amount of time in seconds to give each function. it ought to 1) be related to the accumulator delta and 2) be divided between update funcs by their priority
+			timerSetGoal (t, 0.05);
+			timerUpdate (t);
+			func (t);
+			i++;
+		}
+		entitySubsystem_runOnStored (OM_UPDATE);
+		entitySubsystem_runOnStored (OM_POSTUPDATE);
+	}
+	timerDestroy (t);
 }

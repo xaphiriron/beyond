@@ -56,7 +56,7 @@ struct ground_occupant
 		r, k, i;
 };
 
-
+void groundWorld_placePlayer ();
 
 unsigned int groundWorld_getPoleRadius ();
 unsigned int groundWorld_getGroundRadius ();
