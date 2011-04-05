@@ -140,7 +140,7 @@ END_TEST
 HEX hex = NULL;
 void hexSlopeSetup (void)
 {
-	hex = hex_create (0, 0, 0, 1);
+	hex = hex_create (0, 0, 0);
 	hexSetHeight (hex, 32);
 	hexSetCorners (hex, 0, 0, 0, 0, 0, 0);
 	hexSetCorners (hex, -1, -1, 0, 1, 1, 0);
