@@ -1,9 +1,9 @@
 #include "accumulator.h"
 
-ACCUMULATOR * accumulator_create (TIMER * t, float delta) {
+ACCUMULATOR * accumulator_create (TIMER t, float delta) {
   ACCUMULATOR * a = xph_alloc (sizeof (ACCUMULATOR));
   a->timer = t;
-  a->timerElapsedLastUpdate = xtimer_timeElapsed (t);
+  a->timerElapsedLastUpdate = timerGetTotalTimeElapsed (t);
   a->delta = delta;
   a->maxDelta = delta * 50;
   a->accumulated = 0;
@@ -24,10 +24,12 @@ bool accumulator_withdrawlTime (ACCUMULATOR * a) {
 }
 
 void accumulator_update (ACCUMULATOR * a) {
-  float passed = xtimer_timeElapsed (a->timer) - a->timerElapsedLastUpdate;
-  //printf ("%s: %f seconds passed since last update\n", __FUNCTION__, passed);
+	float
+		elapsed = timerGetTotalTimeElapsed (a->timer),
+		passed = elapsed - a->timerElapsedLastUpdate;
+  //printf ("%s: %f seconds passed since last update (%f total)\n", __FUNCTION__, passed, elapsed);
   if (a->active) {
     a->accumulated += passed > a->maxDelta ? a->maxDelta : passed;
   }
-  a->timerElapsedLastUpdate = xtimer_timeElapsed (a->timer);
+  a->timerElapsedLastUpdate = elapsed;
 }

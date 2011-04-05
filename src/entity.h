@@ -19,7 +19,7 @@ struct comp_message {
 
 Entity entity_create ();
 Entity entity_get (unsigned int guid);
-void entity_purgeDestroyed ();
+void entity_purgeDestroyed (TIMER t);
 void entity_destroy (Entity e);
 bool entity_exists (unsigned int guid);
 
@@ -64,7 +64,7 @@ void component_forceLoaderResort ();
 void component_setAsLoadable (Component c);
 bool component_isLoaderActive ();
 void component_forceRunLoader (unsigned int load);
-void component_runLoader (const TIMER * t);
+void component_runLoader (const TIMER t);
 
 
 typedef void (compFunc) (Component);

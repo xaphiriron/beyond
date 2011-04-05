@@ -174,7 +174,7 @@ void entity_destroy (Entity e)
 	dynarr_push (ToBeDestroyed, entity_GUID (e));
 }
 
-void entity_purgeDestroyed ()
+void entity_purgeDestroyed (TIMER t)
 {
 	//printf ("%s ()...\n", __FUNCTION__);
 	struct ent_component
@@ -205,6 +205,8 @@ void entity_purgeDestroyed ()
 		dynarr_push (DestroyedEntities, e->guid);
 		//printf ("done\n");
 		xph_free (e);
+		if (t != NULL && outOfTime (t))
+			return;
 	}
 	//printf ("...%s ()\n", __FUNCTION__);
 }
@@ -431,7 +433,7 @@ void entity_destroyEverything () {
 	}
 	dynIterator_destroy (it);
 	it = NULL;
-	entity_purgeDestroyed ();
+	entity_purgeDestroyed (NULL);
 	dynarr_destroy (ToBeDestroyed);
 	ToBeDestroyed = NULL;
   dynarr_destroy (ExistantEntities);
@@ -759,7 +761,7 @@ void component_forceRunLoader (unsigned int load)
 	printf ("...%s\n", __FUNCTION__);
 }
 
-void component_runLoader (const TIMER * t)
+void component_runLoader (const TIMER t)
 {
 	Component
 		c;
@@ -774,7 +776,7 @@ void component_runLoader (const TIMER * t)
 		dynarr_sort (ComponentLoader, comp_weight_sort);
 		ComponentLoaderUnsorted = FALSE;
 	}
-	while (component_isLoaderActive () && (timeElapsed = xtimer_timeSinceLastUpdate (t)) < 0.05)
+	while (component_isLoaderActive () && (timeElapsed = timerGetTimeSinceLastUpdate (t)) < 0.05)
 	{
 		c = *(Component *)dynarr_back (ComponentLoader);
 		//printf ("%s: got front component with weight %d\n", __FUNCTION__, c->loader->loadWeight);

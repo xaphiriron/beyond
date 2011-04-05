@@ -45,7 +45,7 @@ void cameraCache_setExtent (unsigned int size)
 	OriginCache->desiredExtent = size;
 }
 
-void cameraCache_update (const TIMER * t)
+void cameraCache_update (const TIMER t)
 {
 	Entity
 		origin = NULL,
@@ -101,7 +101,7 @@ void cameraCache_update (const TIMER * t)
 		wp_destroy (wp);
 
 		hex_nextValidCoord (&OriginCache->nextR, &OriginCache->nextK, &OriginCache->nextI);
-		if (xtimer_timeSinceLastUpdate (t) >= 0.05)
+		if (outOfTime (t))
 		{
 			return;
 		}

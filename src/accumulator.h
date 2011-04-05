@@ -6,7 +6,7 @@
 #include "timer.h"
 
 typedef struct accumulator {
-  TIMER * timer;
+  TIMER timer;
   bool active;
   float
     delta,
@@ -15,7 +15,7 @@ typedef struct accumulator {
     timerElapsedLastUpdate;
 } ACCUMULATOR;
 
-ACCUMULATOR * accumulator_create (TIMER *, float delta);
+ACCUMULATOR * accumulator_create (TIMER, float delta);
 void accumulator_destroy (ACCUMULATOR *);
 
 bool accumulator_withdrawlTime (ACCUMULATOR *);

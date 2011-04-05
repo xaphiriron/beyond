@@ -1,8 +1,26 @@
 #include "timer.h"
 
+struct timer
+{
+	struct timeval
+		lastUpdate;
+	float
+		scale,
+		elapsed,
+		goal,
+		goalElapsed;
+	CLOCK
+		* clock;
+	enum
+	{
+		TIMER_PAUSED = TRUE,
+		TIMER_RUNNING = FALSE
+	} paused;
+};
+
 static void xtimer_createTimerRegistry ();
-static void xtimer_registerTimer (TIMER *);
-static void xtimer_unregisterTimer (TIMER *);
+static void xtimer_registerTimer (TIMER t);
+static void xtimer_unregisterTimer (TIMER t);
 
 struct timeval timeval_subtract (const struct timeval * a, const struct timeval * b) {
   struct timeval diff;
@@ -53,70 +71,108 @@ void clock_update (CLOCK * c) {
   gettimeofday (&c->now, NULL);
 }
 
-TIMER * xtimer_create (CLOCK * c, float scale) {
-  TIMER * t = xph_alloc (sizeof (TIMER));
-  t->scale = scale;
-  t->elapsed = 0.0;
-  t->clock = c;
-  t->paused = TIMER_RUNNING;
-  memset (&t->lastUpdate, '\0', sizeof (struct timeval));
-  xtimer_registerTimer (t);
-  return t;
+
+TIMER timerCreate ()
+{
+	TIMER t = xph_alloc (sizeof (struct timer));
+	t->scale = 1;
+	t->elapsed = 0.0;
+	t->clock = NULL;
+	t->paused = TIMER_RUNNING;
+	memset (&t->lastUpdate, '\0', sizeof (struct timeval));
+	xtimer_registerTimer (t);
+	return t;
 }
 
-void xtimer_destroy (TIMER * t) {
-  xtimer_unregisterTimer (t);
-  xph_free (t);
+void timerDestroy (TIMER t)
+{
+	xtimer_unregisterTimer (t);
+	xph_free (t);
 }
 
-void xtimer_update (TIMER * t) {
-  float u = 0.0;
-  if (TIMER_RUNNING != t->paused) {
-    return;
-  }
-  if (t->lastUpdate.tv_sec == 0) {
-    // If we're on the first update of the timer, skip calculating the difference, since it'll be huge and break everything.
-    t->lastUpdate = t->clock->now;
-    return;
-  }
-  u = timeval_cmp (&t->clock->now, &t->lastUpdate);
-  t->elapsed += u * t->scale;
-  t->lastUpdate = t->clock->now;
-  //printf ("%s: %f time elapsed total, %f between updates, %f inc. scaling\n", __FUNCTION__, t->elapsed, u, u * t->scale);
+void timerSetClock (TIMER t, CLOCK * c)
+{
+	t->clock = c;
 }
 
-float xtimer_timeElapsed (const TIMER * t) {
-  return t->elapsed;
+void timerSetScale (TIMER t, float scale)
+{
+	t->scale = scale;
 }
 
-float xtimer_timeSinceLastUpdate (const TIMER * t) {
-  struct timeval now;
-  if (t->elapsed == 0.0) {
-    return -1.0;
-  }
-  gettimeofday (&now, NULL);
-  return timeval_cmp (&now, &t->lastUpdate) * t->scale;
+void timerSetGoal (TIMER t, float goal)
+{
+	t->goal = goal;
+	t->goalElapsed = 0.0;
+}
+
+void timerPause (TIMER t)
+{
+	t->paused = TIMER_PAUSED;
+}
+
+void timerStart (TIMER t)
+{
+	t->paused = TIMER_RUNNING;
+}
+
+bool outOfTime (TIMER t)
+{
+	timerUpdate (t);
+	return t->goal != 0.0 && t->goalElapsed >= t->goal;
+}
+
+void timerUpdate (TIMER t)
+{
+	float
+		u;
+	if (t->paused != TIMER_RUNNING || t->clock == NULL)
+		return;
+	clock_update (t->clock);
+	if (t->lastUpdate.tv_sec == 0)
+	{
+		// If we're on the first update of the timer, skip calculating the difference, since it'll be huge and break everything.
+		t->lastUpdate = t->clock->now;
+		return;
+	}
+	u = timeval_cmp (&t->clock->now, &t->lastUpdate);
+	t->elapsed += u * t->scale;
+	if (t->goal)
+		t->goalElapsed += u * t->scale;
+	t->lastUpdate = t->clock->now;
+}
+
+float timerGetTotalTimeElapsed (const TIMER t)
+{
+	return t->elapsed;
+}
+
+float timerGetTimeSinceLastUpdate (const TIMER t)
+{
+	if (t->lastUpdate.tv_sec == 0)
+		return -1;
+	return timeval_cmp (&t->clock->now, &t->lastUpdate) * t->scale;
 }
 
 static Dynarr TimerRegistry = NULL;
 
-void xtimer_updateAll () {
-  TIMER * t = NULL;
+void xtimerUpdateAll () {
+  TIMER t = NULL;
   int i = 0;
   if (TimerRegistry == NULL)
     xtimer_createTimerRegistry ();
-  while ((t = *(TIMER **)dynarr_at (TimerRegistry, i++)) != NULL) {
-    xtimer_update (t);
+  while ((t = *(TIMER *)dynarr_at (TimerRegistry, i++)) != NULL) {
+    timerUpdate (t);
   }
 }
 
-static void xtimer_registerTimer (TIMER * t) {
+static void xtimer_registerTimer (TIMER t) {
   if (TimerRegistry == NULL)
     xtimer_createTimerRegistry ();
   dynarr_push (TimerRegistry, t);
 }
 
-static void xtimer_unregisterTimer (TIMER * t) {
+static void xtimer_unregisterTimer (TIMER t) {
   if (TimerRegistry == NULL)
     xtimer_createTimerRegistry ();
   dynarr_remove_condense (TimerRegistry, t);
@@ -126,12 +182,12 @@ static void xtimer_createTimerRegistry () {
   if (NULL != TimerRegistry) {
     return;
   }
-  TimerRegistry = dynarr_create (8, sizeof (struct timer *));
+  TimerRegistry = dynarr_create (8, sizeof (TIMER));
 }
 
-void xtimer_destroyTimerRegistry () {
+void xtimerDestroyRegistry () {
   while (!dynarr_isEmpty (TimerRegistry)) {
-    xtimer_destroy (*(TIMER **)dynarr_pop (TimerRegistry));
+    timerDestroy (*(TIMER *)dynarr_pop (TimerRegistry));
   }
   dynarr_destroy (TimerRegistry);
   TimerRegistry = NULL;

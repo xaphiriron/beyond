@@ -2,23 +2,42 @@
 
 Object * SystemObject = NULL;
 
+static void system_update ();
+
 SYSTEM * system_create () {
-  SYSTEM * s = xph_alloc (sizeof (SYSTEM));
+	SYSTEM
+		* s = xph_alloc (sizeof (SYSTEM));
+	TIMER
+		t = timerCreate ();
   s->quit = FALSE;
   s->clock = clock_create ();
   s->timer_mult = 1.0;
   s->timestep = 0.03;
-  s->acc = accumulator_create (xtimer_create (s->clock, s->timer_mult), s->timestep);
+	timerSetClock (t, s->clock);
+	timerSetScale (t, s->timer_mult);
+  s->acc = accumulator_create (t, s->timestep);
   s->state = STATE_INIT;
+	s->updateFuncs = dynarr_create (2, sizeof (void (*)(TIMER)));
   return s;
 }
 
 void system_destroy (SYSTEM * s)
 {
+	dynarr_destroy (s->updateFuncs);
 	accumulator_destroy (s->acc);
-	xtimer_destroyTimerRegistry ();
+	xtimerDestroyRegistry ();
 	clock_destroy (s->clock);
 	xph_free (s);
+}
+
+const TIMER system_getTimer ()
+{
+	SYSTEM
+		* s;
+	if (SystemObject == NULL)
+		return NULL;
+	s = obj_getClassData (SystemObject, "SYSTEM");
+	return s->acc->timer;
 }
 
 enum system_states system_getState (const SYSTEM * s)

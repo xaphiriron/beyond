@@ -29,7 +29,7 @@ CameraCache cameraCache_create ();
 void cameraCache_destroy (CameraCache cache);
 
 void cameraCache_setExtent (unsigned int size);
-void cameraCache_update (const TIMER * t);
+void cameraCache_update (const TIMER t);
 
 void cameraCache_setGroundEntityAsOrigin (Entity g);
 CameraGroundLabel cameraCache_getOriginLabel ();
