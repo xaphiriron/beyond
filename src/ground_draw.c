@@ -32,12 +32,14 @@ CameraCache cameraCache_create ()
 	return o;
 }
 
-void cameraCache_destroy (CameraCache cache) {
-  if (cache->cache != NULL) {
-    dynarr_wipe (cache->cache, (void (*)(void *))ground_destroyLabel);
-  }
-  dynarr_destroy (cache->cache);
-  xph_free (cache);
+void cameraCache_destroy (CameraCache cache)
+{
+	if (cache->cache != NULL)
+	{
+		dynarr_wipe (cache->cache, (void (*)(void *))ground_destroyLabel);
+		dynarr_destroy (cache->cache);
+	}
+	xph_free (cache);
 }
 
 void cameraCache_setExtent (unsigned int size)
