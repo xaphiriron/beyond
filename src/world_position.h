@@ -21,7 +21,7 @@ unsigned int wp_pos2xy (const worldPosition a, const worldPosition b, unsigned i
 unsigned int wp_distance (const worldPosition a, const worldPosition b, unsigned int poleRadius);
 
 int wp_compare (const worldPosition a, const worldPosition b);
-void wp_print (const worldPosition pos);
+const char * wp_print (const worldPosition pos);
 
 unsigned char wp_getPole (const worldPosition pos);
 bool wp_getCoords (const worldPosition pos, unsigned int * rp, unsigned int * kp, unsigned int * ip);

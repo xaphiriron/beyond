@@ -19,7 +19,7 @@ struct ent_system {
   const char * comp_name;
   Dynarr entities;
 
-	void (* loaderCallback) (Component);
+	void (* loaderCallback) (TIMER, Component);
 	unsigned char (* weighCallback) (Component);
 
 	Dynarr
@@ -666,6 +666,7 @@ void component_setLoadComplete (Component c)
 
 bool component_isFullyLoaded (const Component c)
 {
+	assert (c != NULL);
 	return c->loaded;
 }
 
@@ -756,7 +757,7 @@ void component_forceRunLoader (unsigned int load)
 		}
 		// TODO: this makes a mockery of the priority queue.
 		dynarr_push (ComponentLoader, c);
-		c->reg->loaderCallback (c);
+		c->reg->loaderCallback (NULL, c);
 	}
 	printf ("...%s\n", __FUNCTION__);
 }
@@ -767,6 +768,7 @@ void component_runLoader (const TIMER t)
 		c;
 	float
 		timeElapsed;
+	//DEBUG ("IN %s...", __FUNCTION__);
 	//printf ("%s...\n", __FUNCTION__);
 	if (ComponentLoader == NULL)
 		ComponentLoader = dynarr_create (8, sizeof (Component));
@@ -785,7 +787,7 @@ void component_runLoader (const TIMER t)
 			dynarr_pop (ComponentLoader);
 			continue;
 		}
-		c->reg->loaderCallback (c);
+		c->reg->loaderCallback (t, c);
 	}
 	//printf ("...%s\n", __FUNCTION__);
 }

@@ -5,6 +5,7 @@
 #include "world_position.h"
 #include "system.h"
 
+typedef struct worldgenPatternTemplate * PATTERNTEMPLATE;
 typedef struct worldgenFeature * FEATURE;
 typedef struct worldgenPattern * PATTERN;
 
@@ -16,6 +17,7 @@ typedef union worldEffects WORLDEFFECT;
 
 enum worldShapeTypes
 {
+	WG_HEX,
 	WG_STRAIGHTLINE,	// WORLDTILE * s, WORLDTILE * f, VECTOR3 * d
 	WG_CIRCLE,			// WORLDTILE * c, float r
 	WG_ELIPSOID,		// WORLDTILE * a, WORLDTILE * b, ???
@@ -28,10 +30,20 @@ enum worldEffectTypes
 	WG_HEIGHTSLOPE,			// unsigned int height, unsigned int changePerTile
 };
 
-// DO EVERYTHING
+// START EVERYTHING
 void worldgenAbsHocNihilo ();
-void worldgenExpandUniversalPatternGraph ();
+void worldgenExpandWorldPatternGraph ();
 void worldgenExpandPatternGraph (PATTERN p, unsigned int depth);
+
+
+bool worldgenUnexpandedPatternsAt (const worldPosition wp);
+Dynarr worldgenGetUnimprintedPatternsAt (const worldPosition wp);
+void worldgenMarkPatternImprinted (const PATTERN p, const worldPosition wp);
+void worldgenImprintGround (TIMER t, Component c);
+bool worldgenIsGroundFullyLoaded (const worldPosition wp);
+
+PATTERN patternFromTemplate (const PATTERNTEMPLATE pt);
+PATTERNTEMPLATE patternTemplateFromSpecification (const char * spec);
 
 WORLDSHAPE worldgenShapeCreate (enum worldShapeTypes shape, ...);
 WORLDEFFECT worldgenEffectCreate (enum worldEffectTypes effect, ...);

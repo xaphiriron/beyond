@@ -42,6 +42,7 @@ struct ground_change
 
 #include "component_position.h"
 #include "component_plant.h"
+#include "worldgen.h"
 
 typedef struct ground_comp * GroundMap;
 /*
@@ -94,7 +95,7 @@ void ground_bakeEdgeTiles (Entity g_entity, unsigned int edge, Entity adj_entity
 //void ground_bakeTiles (Entity g_entity);
 struct hex * ground_getHexatCoord (GroundMap g, short r, short k, short i);
 
-void ground_initSize (GroundMap g, int size);
+void ground_initSize (GroundMap g);
 void ground_fillFlat (GroundMap g);
 
 bool ground_isInitialized (const GroundMap g);
@@ -103,10 +104,7 @@ bool ground_isValidRKI (const GroundMap g, short r, short k, short i);
 
 unsigned int ground_entDistance (const Entity a, const Entity b);
 
-
-void groundWorld_patternLoad (Component c);
-void groundWorld_groundLoad (Component c);
-unsigned char groundWorld_patternWeigh (Component c);
+void groundWorld_groundLoad (TIMER t, Component c);
 unsigned char groundWorld_groundWeigh (Component c);
 
 bool groundWorld_groundFileExists (const worldPosition wp);
@@ -114,7 +112,5 @@ Entity groundWorld_queueLoad (const worldPosition wp);
 Entity groundWorld_queueGeneration (const worldPosition wp);
 
 int component_ground (Object * obj, objMsg msg, void * a, void * b);
-// this is a placeholder:
-int component_pattern (Object * obj, objMsg msg, void * a, void * b);
 
 #endif

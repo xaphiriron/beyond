@@ -20,6 +20,7 @@ HEX hex_create (unsigned int r, unsigned int k, unsigned int i)
 	h->k = k;
 	h->i = i;
 	hex_rki2xy (r, k, i, &h->x, &h->y);
+	h->centre = 0;
 	memset (h->corners, '\0', 3);
 	memset (h->edgeBase, '\0', sizeof (int) * 12);
 	return h;

@@ -7,9 +7,9 @@
 #include "object.h"
 #include "video.h"
 
+#include "ground_draw.h"
 #include "component_position.h"
 #include "component_ground.h"
-#include "ground_draw.h"
 
 enum camera_modes
 {

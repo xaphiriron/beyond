@@ -98,7 +98,6 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 			//objClass_init (world_handler, NULL, NULL, NULL);
 			//printf ("registering components\n");
 			entity_registerComponentAndSystem (component_position);
-			entity_registerComponentAndSystem (component_pattern);
 			entity_registerComponentAndSystem (component_ground);
 //			entity_registerComponentAndSystem (component_integrate);
 			entity_registerComponentAndSystem (component_camera);
@@ -108,7 +107,6 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 			entity_registerComponentAndSystem (component_plant);
       // this order DOES matter, since this is the order they're updated later.
       entitySubsystem_store ("position");
-      entitySubsystem_store ("pattern");
       entitySubsystem_store ("ground");
       entitySubsystem_store ("plant");
       entitySubsystem_store ("walking");
@@ -191,7 +189,6 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 			obj_message (VideoObject, OM_START, NULL, NULL);
 			//obj_message (PhysicsObject, OM_START, NULL, NULL);
 			//obj_message (WorldObject, OM_START, NULL, NULL);
-			// this next line "generates" the "world" - xph 2011-01-11
 			entitySubsystem_message ("ground", OM_START, NULL, NULL);
 			printf ("DONE W/ SYSTEM START:\n");
 			printf ("ARTIFICIALLY TRIGGERING WORLDGEN:\n");
@@ -201,22 +198,6 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 
 		case OM_UPDATE:
 			system_update ();
-
-/*
-			clock_update (s->clock);
-			xtimer_updateAll ();
-			accumulator_update (s->acc);
-			entity_purgeDestroyed ();
-			while (accumulator_withdrawlTime (s->acc))
-			{
-				cameraCache_update (system_getTimer ());
-				component_runLoader (system_getTimer ());
-				//obj_messagePre (WorldObject, OM_UPDATE, NULL, NULL);
-				entitySubsystem_runOnStored (OM_UPDATE);
-				//obj_messagePre (WorldObject, OM_POSTUPDATE, NULL, NULL);
-				entitySubsystem_runOnStored (OM_POSTUPDATE);
-			}
-*/
 			obj_halt ();
 			return EXIT_SUCCESS;
 
@@ -252,7 +233,7 @@ void system_update ()
 		while ((func = *(void (**)(TIMER))dynarr_at (s->updateFuncs, i)) != NULL)
 		{
 			//printf ("got func %p\n", func);
-			// FIXME: this is the amount of time in seconds to give each function. it ought to 1) be related to the accumulator delta and 2) be divided between update funcs by their priority
+			// FIXME: this is the amount of time in seconds to give each function. it ought to 1) be related to the accumulator delta and 2) be divided between update funcs by their priority (which is the second arg of the register function, but it's ignored completely right now)
 			timerSetGoal (t, 0.05);
 			timerUpdate (t);
 			func (t);

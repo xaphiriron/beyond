@@ -69,7 +69,7 @@ void cameraCache_update (const TIMER t)
 	//printf ("%s (%d)...\n", __FUNCTION__, size);
 	if (OriginCache == NULL || OriginCache->cache == NULL || dynarr_isEmpty (OriginCache->cache))
 	{
-		fprintf (stderr, "%s: label cache nonexistant or empty.\n", __FUNCTION__);
+		ERROR ("camera label cache nonexistant or empty", NULL);
 		return;
 	}
 	if (OriginCache->done)
@@ -77,7 +77,7 @@ void cameraCache_update (const TIMER t)
 	label = *(CameraGroundLabel *)dynarr_at (OriginCache->cache, 0);
 	if (label == NULL || label->origin != label->this)
 	{
-		fprintf (stderr, "%s: label cache is invalid or has no base entry. (%p, %p, %p)\n", __FUNCTION__, label, label == NULL ? NULL : label->origin, label == NULL ? NULL : label->this);
+		ERROR ("%s: label cache is invalid or has no base entry. (%p, %p, %p)\n", __FUNCTION__, label, label == NULL ? NULL : label->origin, label == NULL ? NULL : label->this);
 		return;
 	}
 	origin = label->origin;
@@ -351,8 +351,7 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
   float
     red, green, blue;
 	Component
-		g_comp,
-		p_comp;
+		g_comp;
 	DynIterator
 		it;
 	Dynarr
@@ -380,22 +379,23 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
 		hex_drawFiller (g_label, size);
 		return;
 	}
-	p_comp = entity_getAs (g_entity, "pattern");
 	g_comp = entity_getAs (g_entity, "ground");
 	g = component_getData (g_comp);
-	if (g_comp == NULL || p_comp == NULL)
+	if (g_comp == NULL)
 	{
-		fprintf (stderr, "%s (#%d/%p, ..., %p): invalid entity (lacking ground or pattern component)\n", __FUNCTION__, entity_GUID (g_entity), g_entity, g_label);
+		ERROR ("Can't draw #%d; it doesn't have a ground component (label: %p)", entity_GUID (g_entity), g_label);
 		hex_setDrawColor (0.8, 0.3, 0.0);
 		hex_drawFiller (g_label, size);
 		return;
 	}
+/*
 	if (!component_isFullyLoaded (p_comp))
 	{
 		hex_setDrawColor (0.0, 1.0, 0.2);
 		hex_drawFiller (g_label, size);
 		return;
 	}
+*/
 	if (!component_isFullyLoaded (g_comp))
 	{
 		hex_setDrawColor (0.0, 0.4, 1.0);

@@ -118,6 +118,8 @@ void timerStart (TIMER t)
 
 bool outOfTime (TIMER t)
 {
+	if (t == NULL)
+		return FALSE;
 	timerUpdate (t);
 	return t->goal != 0.0 && t->goalElapsed >= t->goal;
 }

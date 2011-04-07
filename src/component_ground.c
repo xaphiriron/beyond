@@ -56,8 +56,8 @@ static struct ground_world * groundWorld_create ()
 		* w = xph_alloc (sizeof (struct ground_world));
 
 	w->poleRadius = 6;
-	w->groundRadius = 6;
-	w->drawDistance = 5;
+	w->groundRadius = 8;
+	w->drawDistance = 4;
 	w->partialUnloadDistance = 2;
 	w->loadedUnloadDistance = 4;
 
@@ -653,19 +653,14 @@ static void ground_destroy (GroundMap g)
 }
 
 
-void ground_initSize (GroundMap g, int size)
+void ground_initSize (GroundMap g)
 {
-	//printf ("%s (%p, %d)...\n", __FUNCTION__, g, size);
-  if (size < 0) {
-    fprintf (stderr, "%s (%p, %d): invalid size\n", __FUNCTION__, g, size);
-    return;
-  }
   if (g->size >= 0 || g->tiles != NULL) {
-    fprintf (stderr, "%s (%p, %d): ground has already been sized. (size: %d, tiles: %p)\n", __FUNCTION__, g, size, g->size, g->tiles);
+	WARNING ("%s (%p): ground has already been sized. (size: %d, tiles: %p)\n", __FUNCTION__, g, g->size, g->tiles);
     return;
   }
-  g->size = size;
-  g->tiles = dynarr_create (hx (size) + 1, sizeof (struct tile *));
+  g->size = World->groundRadius;
+  g->tiles = dynarr_create (hx (g->size) + 1, sizeof (struct tile *));
 	//printf ("...%s\n", __FUNCTION__);
 }
 
@@ -725,21 +720,7 @@ unsigned int ground_entDistance (const Entity a, const Entity b)
 
 
 
-
-
-
-void groundWorld_patternLoad (Component c)
-{
-	component_setLoadGoal (c, 1);
-
-	// WORLD GEN STUFF HERE !!!!
-
-	component_updateLoadAmount (c, 1);
-	component_setLoadComplete (c);
-	return;
-}
-
-void groundWorld_groundLoad (Component c)
+void groundWorld_groundLoad (TIMER t, Component c)
 {
 	worldPosition
 		* adjacent;
@@ -748,27 +729,58 @@ void groundWorld_groundLoad (Component c)
 		adj;
 	GroundMap
 		g = component_getData (c);
-	Hex
-		hex;
-	unsigned char
-		p;
 	unsigned int
-		r, k, i;
+		i;
 	int
 		index;
-	DynIterator
-		it;
-	while (!component_isFullyLoaded (entity_getAs (x, "pattern")))
+
+	component_setLoadGoal (c, 1);
+
+	worldgenImprintGround (t, c);
+	if (!worldgenIsGroundFullyLoaded (g->wp))
+		return;
+
+
+	ground_bakeInternalTiles (x);
+	adjacent = wp_adjacent (g->wp, World->poleRadius);
+	i = 0;
+	while (i < 6)
 	{
-		fprintf (stderr, "cannot load ground component (%p): pattern component (%p) isn't loaded yet. (on entity #%d)\n", c, entity_getAs (x, "pattern"), entity_GUID (x));
+		adj = groundWorld_getGroundAt (adjacent[i]);
+		if (adj != NULL)
+		{
+			ground_bakeEdgeTiles (x, i, adj);
+		}
+		i++;
+	}
+	wp_destroyAdjacent (adjacent);
+
+	dynarr_push (World->loadedGrounds, x);
+	dynarr_sort (World->loadedGrounds, world_entwp_sort);
+	index = in_dynarr (World->partlyLoadedGrounds, x);
+	if (index >= 0)
+		dynarr_unset (World->partlyLoadedGrounds, index);
+
+	component_updateLoadAmount (c, 1);
+	component_setLoadComplete (c);
+
+/*
+	if (worldgenUnfinishedPatternsAt (g->wp))
+	{
+		INFO ("Can't load/render the ground at %s yet (#%d); there are patterns pending", wp_print (g->wp), entity_GUID (x));
 		return;
 	}
-	component_setLoadGoal (c, 1);
+
+	patterns = worldgenPatternsAt (g->wp);
+	it = dynIterator_create (patterns);
+	while (!dynIterator_done (it))
+	{
+		pat = *(PATTERN *)dynIterator_next (it);
+		worldgenImprintGround (c);
+	}
 
 	p = wp_getPole (g->wp);
 	wp_getCoords (g->wp, &r, &k, &i);
-
-	ground_initSize (g, World->groundRadius);
 
 	ground_fillFlat (g);
 	it = dynIterator_create (g->tiles);
@@ -801,51 +813,12 @@ void groundWorld_groundLoad (Component c)
 			//hexSetCornersRandom (hex);
 		}
 	}
-
-	ground_bakeInternalTiles (x);
-	adjacent = wp_adjacent (g->wp, World->poleRadius);
-	i = 0;
-	while (i < 6)
-	{
-		adj = groundWorld_getGroundAt (adjacent[i]);
-		if (adj != NULL)
-		{
-			ground_bakeEdgeTiles (x, i, adj);
-		}
-		i++;
-	}
-	wp_destroyAdjacent (adjacent);
-
-	dynarr_push (World->loadedGrounds, x);
-	dynarr_sort (World->loadedGrounds, world_entwp_sort);
-	index = in_dynarr (World->partlyLoadedGrounds, x);
-	if (index >= 0)
-		dynarr_unset (World->partlyLoadedGrounds, index);
-
-	component_updateLoadAmount (c, 1);
-	component_setLoadComplete (c);
+*/
 
 	//printf ("loaded ground at '%c'{%d %d %d}\n", p, r, k, i);
 	return;
 }
 
-unsigned char groundWorld_patternWeigh (Component c)
-{
-	worldPosition
-		w = ground_getWorldPos (component_getData (entity_getAs (groundWorld_getEntityOrigin (input_getPlayerEntity ()), "ground"))),
-		l = ground_getWorldPos (component_getData (entity_getAs (component_entityAttached (c), "ground")));
-	unsigned int
-		dd = groundWorld_getDrawDistance (),
-		d;
-	unsigned char
-		r;
-	if (w == NULL || l == NULL)
-		return 255;
-	d = wp_distance (l, w, World->poleRadius);
-	r = (dd - d) / (float)dd * 192 + 63;
-	//printf ("%s: weight %d on pattern %d distant (of %d) from origin\n", __FUNCTION__, r, d, dd);
-	return r;
-}
 
 unsigned char groundWorld_groundWeigh (Component c)
 {
@@ -856,8 +829,10 @@ unsigned char groundWorld_groundWeigh (Component c)
 		d;
 	unsigned char
 		r;
+/*
 	if (!component_isFullyLoaded (entity_getAs (component_entityAttached (c), "pattern")))
 		return 0;
+*/
 	if (w == NULL)
 		return 127;
 	d = wp_distance (ground_getWorldPos (component_getData (c)), w, World->poleRadius);
@@ -886,16 +861,15 @@ Entity groundWorld_queueGeneration (const worldPosition wp)
 	GroundMap
 		g;
 	Component
-		pattern,
 		ground;
 	//printf ("%s (%p)...\n", __FUNCTION__, wp);
-	component_instantiateOnEntity ("pattern", x);
 	component_instantiateOnEntity ("ground", x);
-	pattern = entity_getAs (x, "pattern");
 	ground = entity_getAs (x, "ground");
 	g = component_getData (ground);
 	ground_setWorldPos (g, dup);
-	component_setAsLoadable (pattern);
+	ground_initSize (g);
+	// do we really want to fill the ground? I guess it's got to happen at some point but here seems a little weird
+	ground_fillFlat (g);
 	component_setAsLoadable (ground);
 	// ^ or component_activateLoading or SOMETHING. the actual function just adds that component to the weighed list of COMPONENTS TO LOAD, which will be processed in any order.
 	// (the idea is that components are initialized to some base state (here) and then stream loaded from there (in a callback function; currently the groundWorld_[x]Load placeholders))
@@ -980,40 +954,4 @@ int component_ground (Object * obj, objMsg msg, void * a, void * b)
     default:
       return obj_pass ();
   }
-}
-
-// this is a placeholder
-int component_pattern (Object * obj, objMsg msg, void * a, void * b)
-{
-	switch (msg)
-	{
-		case OM_CLSNAME:
-			strncpy (a, "pattern", 32);
-			return EXIT_SUCCESS;
-		case OM_CLSINIT:
-		case OM_CLSFREE:
-		case OM_CLSVARS:
-		case OM_CREATE:
-			return EXIT_FAILURE;
-		default:
-		break;
-	}
-
-	switch (msg)
-	{
-		case OM_SHUTDOWN:
-		case OM_DESTROY:
-			obj_destroy (obj);
-			return EXIT_SUCCESS;
-
-		case OM_COMPONENT_GET_LOADER_CALLBACK:
-			*(void **)a = groundWorld_patternLoad;
-			return EXIT_SUCCESS;
-		case OM_COMPONENT_GET_WEIGH_CALLBACK:
-			*(void **)a = groundWorld_patternWeigh;
-			return EXIT_SUCCESS;
-
-		default:
-			return EXIT_FAILURE;
-	}
 }
