@@ -192,8 +192,8 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 			entitySubsystem_message ("ground", OM_START, NULL, NULL);
 			printf ("DONE W/ SYSTEM START:\n");
 			printf ("ARTIFICIALLY TRIGGERING WORLDGEN:\n");
-			worldgenAbsHocNihilo ();
 			system_setState (STATE_WORLDGEN);
+			worldgenAbsHocNihilo ();
 			return EXIT_SUCCESS;
 
 		case OM_UPDATE:

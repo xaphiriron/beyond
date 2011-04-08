@@ -17,9 +17,6 @@ struct world_position
 #define WORLD_POLE_SHIFT	0
 #define WORLD_CORNER_BITS	3
 #define WORLD_CORNER_SHIFT	3
-#define BIT_MASK(x)				((1 << x) - 1)
-#define SET_BITS(bits,field,shift)	((bits & BIT_MASK(field)) << shift)
-#define GET_BITS(bits,field,shift)	((bits & (BIT_MASK(field) << shift)) >> shift)
 
 enum world_poles
 {
@@ -102,6 +99,27 @@ worldPosition * wp_adjacent (const worldPosition pos, unsigned int poleRadius)
 	return r;
 }
 
+worldPosition * wp_adjacentSweep (const worldPosition pos, unsigned int poleRadius, unsigned int radius)
+{
+	int
+		o = 0,
+		max = hx (radius) - 1;
+	unsigned int
+		r = 1,
+		k = 0,
+		i = 0;
+	struct world_position
+		** adj = xph_alloc (sizeof (struct world_position *) * max);
+	//DEBUG ("%s: max is %d\n", __FUNCTION__, max);
+	while (o < max)
+	{
+		adj[o] = wp_fromRelativeOffset (pos, poleRadius, r, k, i);
+		o++;
+		hex_nextValidCoord (&r, &k, &i);
+	}
+	return adj;
+}
+
 worldPosition wp_create (char pole, unsigned int r, unsigned int k, unsigned int i)
 {
 	struct world_position
@@ -153,8 +171,8 @@ void wp_destroyAdjacent (worldPosition * adj)
 
 /***
  * returns the distance in coordinate steps between the two worldPositions,
- * and additionally sets xp and yp to the cartesian coordinate offset of b
- * from a, if they're not NULL
+ * and additionally sets xp and yp to the cartesian coordinate offset from a
+ * to b, if they're not NULL
  */
 unsigned int wp_pos2xy (const worldPosition a, const worldPosition b, unsigned int poleRadius, signed int * xp, signed int * yp)
 {
@@ -319,15 +337,18 @@ int wp_compare (const worldPosition a, const worldPosition b)
 	return a->t - b->t;
 }
 
-void wp_print (const worldPosition pos)
+char WpPrint[16];
+const char * wp_print (const worldPosition pos)
 {
 	int
 		corner = GET_BITS (pos->bits, WORLD_CORNER_BITS, WORLD_CORNER_SHIFT);
 	unsigned char
 		polestr = wp_getPole (pos);
-	printf ("[%c:%d %d %d]", polestr - 32, pos->r, corner, pos->t);
+	sprintf (WpPrint, "[%c:%d %d %d]", polestr - 32, pos->r, corner, pos->t);
+	return WpPrint;
 }
 
+// FIXME: this returns [abc] instead of [rgb]; to fix it would involve changing code in wp_pos2xy and wp_distance.
 unsigned char wp_getPole (const worldPosition pos)
 {
 	unsigned char

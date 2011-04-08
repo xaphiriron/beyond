@@ -28,6 +28,8 @@ unsigned int hex_linearCoord (unsigned int r, unsigned int k, unsigned int i);
 unsigned int hex_distanceBetween (signed int ax, signed int ay, signed int bx, signed int by);
 unsigned int hex_coordinateMagnitude (signed int x, signed int y);
 
+/* this calculates the x,y coordinate offset between the central hex of two adjacent grounds, both of radius {radius}, with the direction between the two being {dir} and the result set to {xp} and {yp}
+ */
 bool hexGround_centerDistanceCoord (unsigned int radius, unsigned int dir, signed int * xp, signed int * yp);
 
 unsigned char hex_dirHashFromYaw (float yaw);

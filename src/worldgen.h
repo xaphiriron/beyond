@@ -1,33 +1,39 @@
 #ifndef XPH_WORLDGEN_H
 #define XPH_WORLDGEN_H
 
+#include "bit.h"
 #include "entity.h"
 #include "world_position.h"
 #include "system.h"
 
-typedef struct worldgenPatternTemplate * PATTERNTEMPLATE;
+typedef struct worldgenTemplate * TEMPLATE;
 typedef struct worldgenFeature * FEATURE;
 typedef struct worldgenPattern * PATTERN;
 
-typedef struct worldTile * WORLDTILE;
+typedef struct worldHex * WORLDHEX;
 typedef struct groundList * GROUNDLIST;
 
-typedef union worldShapes WORLDSHAPE;
-typedef union worldEffects WORLDEFFECT;
+typedef union worldShapes * WORLDSHAPE;
+typedef union worldEffects * WORLDEFFECT;
+
+struct affectedHexes
+{
+	int
+		count;
+	unsigned int
+		* r,
+		* k,
+		* i;
+};
 
 enum worldShapeTypes
 {
-	WG_HEX,
-	WG_STRAIGHTLINE,	// WORLDTILE * s, WORLDTILE * f, VECTOR3 * d
-	WG_CIRCLE,			// WORLDTILE * c, float r
-	WG_ELIPSOID,		// WORLDTILE * a, WORLDTILE * b, ???
-	WG_BEZIERCURVE,		// ???
+	WGS_HEX,				// unsigned int radius
 };
 
 enum worldEffectTypes
 {
-	WG_HEIGHTSHARP,			// unsigned int height
-	WG_HEIGHTSLOPE,			// unsigned int height, unsigned int changePerTile
+	WGE_ELEVATION,			// signed int change
 };
 
 // START EVERYTHING
@@ -38,12 +44,19 @@ void worldgenExpandPatternGraph (PATTERN p, unsigned int depth);
 
 bool worldgenUnexpandedPatternsAt (const worldPosition wp);
 Dynarr worldgenGetUnimprintedPatternsAt (const worldPosition wp);
-void worldgenMarkPatternImprinted (const PATTERN p, const worldPosition wp);
+void worldgenMarkPatternImprinted (PATTERN p, const worldPosition wp);
 void worldgenImprintGround (TIMER t, Component c);
 bool worldgenIsGroundFullyLoaded (const worldPosition wp);
 
-PATTERN patternFromTemplate (const PATTERNTEMPLATE pt);
-PATTERNTEMPLATE patternTemplateFromSpecification (const char * spec);
+TEMPLATE templateCreate ();
+TEMPLATE templateFromSpecification (const char * spec);
+
+void templateSetShape (TEMPLATE template, WORLDSHAPE shape);
+void templateAddFeature (TEMPLATE template, const char * region, WORLDEFFECT effect);
+
+PATTERN templateInstantiateNear (const TEMPLATE template, const WORLDHEX whx);
+
+
 
 WORLDSHAPE worldgenShapeCreate (enum worldShapeTypes shape, ...);
 WORLDEFFECT worldgenEffectCreate (enum worldEffectTypes effect, ...);
@@ -51,8 +64,11 @@ WORLDEFFECT worldgenEffectCreate (enum worldEffectTypes effect, ...);
 void worldgenShapeDestroy (WORLDSHAPE shape);
 void worldgenEffectDestroy (WORLDEFFECT effect);
 
-GROUNDLIST worldgenCalculateShapeFootprint (const WORLDSHAPE shape);
-void worldgenImprint (Entity ground, WORLDSHAPE shape, WORLDEFFECT effect);
+
+WORLDHEX worldhex (const worldPosition, unsigned int r, unsigned int k, unsigned int i);
+
+GROUNDLIST worldgenCalculateShapeFootprint (const WORLDSHAPE shape, const WORLDHEX centre);
+struct affectedHexes * worldgenAffectedHexes (const PATTERN p, const worldPosition wp);
 
 GROUNDLIST groundlistUnion (const GROUNDLIST a, const GROUNDLIST b);
 GROUNDLIST groundlistIntersection (const GROUNDLIST a, const GROUNDLIST b);
