@@ -257,10 +257,10 @@ START_TEST (hexSlopeMinLimitTest)
 END_TEST
 */
 
-Suite * make_tile_suite (void)
+Suite * make_hex_suite (void)
 {
 	Suite
-		* s = suite_create ("Tile");
+		* s = suite_create ("Hex");
 	TCase
 		* tc_coord = tcase_create ("Coordinates");
 
@@ -297,7 +297,7 @@ int main (void)
 	int
 		number_failed = 0;
 	SRunner
-		* sr = srunner_create (make_tile_suite ());
+		* sr = srunner_create (make_hex_suite ());
 
 	srunner_add_suite (sr, makeHexSlopeSuite ());
 

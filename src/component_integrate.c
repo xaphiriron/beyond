@@ -19,7 +19,7 @@ void applyGravity (struct integrate_data * idata, float delta) {
 }
 
 void commitIntegration (Entity e, float delta) {
-  Component
+  EntComponent
     p = entity_getAs (e, "position"),
     i = entity_getAs (e, "integrate");
   struct position_data * pdata = NULL;
@@ -55,7 +55,7 @@ void commitIntegration (Entity e, float delta) {
 }
 
 void integrate (Entity e, float delta) {
-  Component
+  EntComponent
     p = entity_getAs (e, "position"),
     /*c = entity_getAs (e, "collide"),*/
     i = entity_getAs (e, "integrate");

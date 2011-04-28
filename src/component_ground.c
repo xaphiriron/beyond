@@ -55,9 +55,10 @@ static struct ground_world * groundWorld_create ()
 	struct ground_world
 		* w = xph_alloc (sizeof (struct ground_world));
 
-	w->poleRadius = 6;
+	w->poleRadius = 65535;
 	w->groundRadius = 8;
-	w->drawDistance = 4;
+	hexSystem_setRadii (w->poleRadius, w->groundRadius);
+	w->drawDistance = 3;
 	w->partialUnloadDistance = 2;
 	w->loadedUnloadDistance = 4;
 
@@ -89,7 +90,7 @@ void groundWorld_placePlayer ()
 
 	//printf ("%s...\n", __FUNCTION__);
 
-	wp = wp_create ('a', 0, 0, 0);
+	wp = wp_create ('a', 65535, 0, 0);
 	pole = groundWorld_loadGroundAt (wp);
 	World->origin = pole;
 	wp_destroy (wp);
@@ -116,6 +117,7 @@ void groundWorld_placePlayer ()
 		input_addEntity (player, INPUT_CONTROLLED);
 	}
 	component_instantiateOnEntity ("walking", player);
+	INFO ("Player entity created with ID #%d", entity_GUID (player));
 
 	camera = entity_create ();
 	component_instantiateOnEntity ("position", camera);
@@ -128,6 +130,7 @@ void groundWorld_placePlayer ()
 	{
 		input_addEntity (camera, INPUT_CONTROLLED);
 	}
+	INFO ("Camera entity created with ID #%d", entity_GUID (camera));
 
 	groundWorld_updateEntityOrigin (player, pole);
 	//printf ("...%s\n", __FUNCTION__);
@@ -225,7 +228,7 @@ void groundWorld_pruneDistantGrounds ()
 		distance;
 	Entity
 		x;
-	Component
+	EntComponent
 		c,
 		p;
 	GroundMap
@@ -404,7 +407,7 @@ Entity ground_bridgeConnections (const Entity groundEntity, Entity e)
 		x, y;
 	unsigned int
 		r, k, i;
-	Component
+	EntComponent
 		p = entity_getAs (e, "position");
 	positionComponent
 		pdata = component_getData (p);
@@ -414,37 +417,29 @@ Entity ground_bridgeConnections (const Entity groundEntity, Entity e)
 		newp;
 	Entity
 		adj;
-/*
-	struct ground_edge_traversal
-		* trav = NULL;
-*/
 	//printf ("%s: called\n", __FUNCTION__);
 	if (pdata == NULL)
 	{
-		fprintf (stderr, "%s (#%d, #%d): invalid entity[2] (no position data)\n", __FUNCTION__, entity_GUID (groundEntity), entity_GUID (e));
+		ERROR ("%s (#%d, #%d): invalid target entity; no position data\n", __FUNCTION__, entity_GUID (groundEntity), entity_GUID (e));
 		return NULL;
 	}
 	else if (g == NULL)
 	{
-		fprintf (stderr, "%s (#%d, #%d): invalid entity[1] (no ground data)\n", __FUNCTION__, entity_GUID (groundEntity), entity_GUID (e));
+		ERROR ("%s (#%d, #%d): invalid ground entity; no ground data)\n", __FUNCTION__, entity_GUID (groundEntity), entity_GUID (e));
 		return NULL;
 	}
 	hex_space2coord (&pdata->pos, &x, &y);
 	hex_xy2rki (x, y, &r, &k, &i);
 	if (r <= g->size)
+	{
+		INFO ("not bridging: target position still within ground (at {%d %d %d})", r, k, i);
 		return groundEntity;
+	}
 	newp = wp_fromRelativeOffset (g->wp, World->poleRadius, 1, k, 0);
 	adj = groundWorld_loadGroundAt (newp);
 	wp_destroy (newp);
 	newp = NULL;
-/*
-	trav = xph_alloc (sizeof (struct ground_edge_traversal));
-	trav->oldGroundEntity = groundEntity;
-	trav->newGroundEntity = adj;
-	trav->directionOfMovement = k;
-	component_messageEntity (p, "GROUND_EDGE_TRAVERSAL", trav);
-	xph_free (trav);
-*/
+	DEBUG ("bridging: got ground %p, #%d", adj, entity_GUID (adj));
 	return adj;
 
 }
@@ -455,18 +450,9 @@ bool ground_placeOnTile (Entity groundEntity, short r, short k, short i, Entity 
 		pdata = component_getData (entity_getAs (e, "position"));
 	GroundMap
 		map = component_getData (entity_getAs (groundEntity, "ground"));
-	struct ground_occupant
-		* o;
 	if (pdata == NULL || map == NULL || map->size < r)
 		return FALSE;
 	position_set (e, hex_coord2space (r, k, i), groundEntity);
-	o = xph_alloc (sizeof (struct ground_occupant));
-	o->occupant = e;
-	o->r = r;
-	o->k = k;
-	o->i = i;
-	//printf ("added entity #%d to ground\n", entity_GUID (e));
-	dynarr_push (map->occupants, o);
 	return TRUE;
 }
 
@@ -490,12 +476,36 @@ bool ground_removeOccupant (Entity groundEntity, const Entity e)
 		oc = *(struct ground_occupant **)dynarr_at (map->occupants, i);
 		if (oc->occupant == e)
 		{
+			INFO ("removed entity #%d from the ground at %s (#%d).", entity_GUID (e), wp_print (map->wp), entity_GUID (groundEntity));
+			xph_free (oc);
 			dynarr_unset (map->occupants, i);
 			dynarr_condense (map->occupants);
+			dynIterator_destroy (it);
 			return TRUE;
 		}
 	}
+	dynIterator_destroy (it);
+	WARNING ("entity #%d isn't an occupant of the ground at %s (#%d)", entity_GUID (e), wp_print (map->wp), entity_GUID (groundEntity));
 	return FALSE;
+}
+
+bool ground_addOccupant (Entity groundEntity, const Entity e) {
+	GroundMap
+		map;
+	struct ground_occupant
+		* o;
+	assert (groundEntity != NULL);
+	map = component_getData (entity_getAs (groundEntity, "ground"));
+	o = xph_alloc (sizeof (struct ground_occupant));
+	o->occupant = e;
+	o->r = 0;
+	o->k = 0;
+	o->i = 0;
+	//printf ("added entity #%d to ground\n", entity_GUID (e));
+	dynarr_push (map->occupants, o);
+
+	INFO ("adding entity #%d to the ground at %s (#%d).", entity_GUID (e), wp_print (map->wp), entity_GUID (groundEntity));
+	return TRUE;
 }
 
 void ground_bakeInternalTiles (Entity g_entity)
@@ -545,7 +555,7 @@ void ground_bakeInternalTiles (Entity g_entity)
 
 void ground_bakeEdgeTiles (Entity g_entity, unsigned int edge, Entity adj_entity)
 {
-	Component
+	EntComponent
 		c = entity_getAs (g_entity, "ground"),
 		a = entity_getAs (adj_entity, "ground");
 	GroundMap
@@ -622,25 +632,37 @@ static GroundMap ground_create () {
 }
 
 static void ground_destroy (GroundMap g)
-{
+{/*
 	DynIterator
-		it;
+		it;*/
 	struct ground_occupant
 		* o;
+	int
+		i;
 	if (g->occupants != NULL)
 	{
+		i = dynarr_size (g->occupants);
+		while (i-- > 0)
+		{
+			o = *(struct ground_occupant **)dynarr_at (g->occupants, i);
+			position_unset (o->occupant);
+		}
+		
+/*
 		it = dynIterator_create (g->occupants);
 		while (!dynIterator_done (it))
 		{
 			o = *(struct ground_occupant **)dynIterator_next (it);
 			//printf ("%s: unsetting position of entity #%d\n", __FUNCTION__, entity_GUID (o->occupant));
-			position_unset (o->occupant);
 		}
 		dynIterator_destroy (it);
+*/
 		dynarr_wipe (g->occupants, xph_free);
 		dynarr_destroy (g->occupants);
 	}
 	glDeleteLists (g->displayList, 1);
+	// when grounds are actually saved instead of regenerated from scratch we can drop this next line
+	worldgenMarkAllPatternsUnimprintedAt (g->wp);
 	wp_destroy (g->wp);
 	if (g->tiles == NULL)
 	{
@@ -720,7 +742,7 @@ unsigned int ground_entDistance (const Entity a, const Entity b)
 
 
 
-void groundWorld_groundLoad (TIMER t, Component c)
+void groundWorld_groundLoad (TIMER t, EntComponent c)
 {
 	worldPosition
 		* adjacent;
@@ -820,7 +842,7 @@ void groundWorld_groundLoad (TIMER t, Component c)
 }
 
 
-unsigned char groundWorld_groundWeigh (Component c)
+unsigned char groundWorld_groundWeigh (EntComponent c)
 {
 	worldPosition
 		w = ground_getWorldPos (component_getData (entity_getAs (groundWorld_getEntityOrigin (input_getPlayerEntity ()), "ground")));
@@ -860,7 +882,7 @@ Entity groundWorld_queueGeneration (const worldPosition wp)
 		dup = wp_duplicate (wp);
 	GroundMap
 		g;
-	Component
+	EntComponent
 		ground;
 	//printf ("%s (%p)...\n", __FUNCTION__, wp);
 	component_instantiateOnEntity ("ground", x);

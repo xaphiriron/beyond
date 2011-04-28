@@ -237,7 +237,7 @@ static int sym_search (const void * k, const void * d)
 
 bool plant_createRandom (Entity e)
 {
-	Component
+	EntComponent
 		plantComponent = entity_getAs (e, "plant");
 	struct plantData
 		* plantData = NULL;
@@ -248,14 +248,14 @@ bool plant_createRandom (Entity e)
 	plantComponent = entity_getAs (e, "plant");
 	plantData = component_getData (plantComponent);
 	// TODO: THIS IS NOT RANDOM AT ALL >:E
-	lsystem_addProduction (plantData->growthRules, 'R', "[-Y+TZR]['-Y+TTZR][''-Y+YTZR]");
+	lsystem_addProduction (plantData->growthRules, 'R', "[-Y+_TZR]['-Y+_TTZR][''-Y+_YTZR]");
 	lsystem_addProduction (plantData->growthRules, 'Y', "YY");
 	lsystem_addProduction (plantData->growthRules, 'Z', "Z");
 	lsystem_addProduction (plantData->growthRules, 'Z', ",");
 	lsystem_addProduction (plantData->growthRules, 'Z', ".");
 	lsystem_addProduction (plantData->growthRules, 'Z', "<");
 	lsystem_addProduction (plantData->growthRules, 'Z', ">");
-	plant_addSymbol (plantData->symbols, plant_specifySymbol ('G', BRANCH_MODIFIER, "grow", 1, 9));
+	plant_addSymbol (plantData->symbols, plant_specifySymbol ('G', BRANCH_MODIFIER, "grow", 1, 8));
 	plant_addSymbol (plantData->symbols, plant_specifySymbol ('T', BRANCH_MODIFIER, "grow", 1, 1));
 	plant_addSymbol (plantData->symbols, plant_specifySymbol ('Y', BRANCH_MODIFIER, "grow", 1, 1));
 	plant_addSymbol (plantData->symbols, plant_specifySymbol ('\'', POINTER_MODIFIER, "twist", 1, 120));
@@ -264,16 +264,17 @@ bool plant_createRandom (Entity e)
 	plant_addSymbol (plantData->symbols, plant_specifySymbol (',', POINTER_MODIFIER, "look", 1, -15));
 	plant_addSymbol (plantData->symbols, plant_specifySymbol ('.', POINTER_MODIFIER, "look", 1, 15));
 	plant_addSymbol (plantData->symbols, plant_specifySymbol ('-', POINTER_MODIFIER, "look", 1, -60));
+	plant_addSymbol (plantData->symbols, plant_specifySymbol ('_', POINTER_MODIFIER, "look", 1, -20));
 	plant_addSymbol (plantData->symbols, plant_specifySymbol ('+', POINTER_MODIFIER, "look", 1, 60));
 	plantData->growth = xph_alloc (4);
 	strcpy (plantData->growth, ":GR");
 	plantData->thickness = plant_generateBranchThickness (plantData->growth, plantData->symbols);
 	plantData->growthsTilDeath = 6;
-	plantData->growthThreshhold = 600;
+	plantData->growthThreshhold = 1200;
 	return TRUE;
 }
 
-void plant_update (Component pc)
+void plant_update (EntComponent pc)
 {
 	plantData
 		pd = component_getData (pc);

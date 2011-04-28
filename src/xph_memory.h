@@ -46,6 +46,7 @@ int memory_search (const void * key, const void * datum);
 #define xph_realloc(a, b)		realloc(a, b)
 //#define xph_free(a)				free(a)
 #define xph_free				free
+#define xph_isallocated(a)		NULL
 #endif /* MEM_DEBUG */
 
 #endif /* XPH_MEMORY_H */

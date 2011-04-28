@@ -33,8 +33,8 @@ void dynarr_destroy (Dynarr da);
  * (an option i'm considering is using a union as the function argument, but i
  * don't know if that would work or is even allowed)
  */
-void dynarr_assign (Dynarr da, int index, ...);
-void dynarr_push (Dynarr da, ...);
+int dynarr_assign (Dynarr da, int index, ...);
+int dynarr_push (Dynarr da, ...);
 char * dynarr_at (const Dynarr da, int index);
 char * dynarr_pop (Dynarr da);
 char * dynarr_front (Dynarr da);

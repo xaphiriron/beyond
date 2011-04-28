@@ -51,9 +51,7 @@ void position_setOrientation (Entity e, const QUAT q);
 void position_updateAxesFromOrientation (Entity e);
 void position_rotateOnMouseInput (Entity e, const struct input_event * ie);
 
-// (rotation around world y axis, which is "up")
-/* neither of these are used anymore (and the first was never really used); they are both relics from the days when grounds were connected in a graph
-bool position_rotateAroundGround (Entity e, float rotation);
+/* this isn't used anymore; it's a relic from the days when grounds were connected in a graph
 void position_updateOnEdgeTraversal (Entity e, struct ground_edge_traversal * t);
 */
 

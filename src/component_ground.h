@@ -89,6 +89,7 @@ void ground_setWorldPos (GroundMap g, worldPosition wp);
 Entity ground_bridgeConnections (const Entity groundEntity, Entity e);
 bool ground_placeOnTile (Entity groundEntity, short r, short k, short i, Entity e);
 bool ground_removeOccupant (Entity groundEntity, const Entity e);
+bool ground_addOccupant (Entity groundEntity, const Entity e);
 
 void ground_bakeInternalTiles (Entity g_entity);
 void ground_bakeEdgeTiles (Entity g_entity, unsigned int edge, Entity adj_entity);
@@ -104,8 +105,8 @@ bool ground_isValidRKI (const GroundMap g, short r, short k, short i);
 
 unsigned int ground_entDistance (const Entity a, const Entity b);
 
-void groundWorld_groundLoad (TIMER t, Component c);
-unsigned char groundWorld_groundWeigh (Component c);
+void groundWorld_groundLoad (TIMER t, EntComponent c);
+unsigned char groundWorld_groundWeigh (EntComponent c);
 
 bool groundWorld_groundFileExists (const worldPosition wp);
 Entity groundWorld_queueLoad (const worldPosition wp);

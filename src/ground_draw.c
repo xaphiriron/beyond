@@ -62,6 +62,7 @@ void cameraCache_update (const TIMER t)
 		wp;
 	signed int
 		newX, newY;
+	//DEBUG ("IN %s...", __FUNCTION__);
 /*
 	unsigned int
 		newR, newK, newI;
@@ -159,7 +160,7 @@ void cameraCache_setGroundEntityAsOrigin (Entity newOrigin)
 		//printf ("...%s (wipe)\n", __FUNCTION__);
 		return;
 	}
-	distance = wp_pos2xy (oldOriginPos, newOriginPos, groundWorld_getPoleRadius (), &x, &y);
+	distance = wp_pos2xy (oldOriginPos, newOriginPos, &x, &y);
 	if (distance > OriginCache->desiredExtent)
 	{
 		dynarr_wipe (OriginCache->cache, (void (*)(void *))ground_destroyLabel);
@@ -350,7 +351,7 @@ void ground_draw (Entity g_entity, Entity camera, CameraGroundLabel g_label) {
     i = 0;
   float
     red, green, blue;
-	Component
+	EntComponent
 		g_comp;
 	DynIterator
 		it;

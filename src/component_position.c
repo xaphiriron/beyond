@@ -1,9 +1,9 @@
 #include "component_position.h"
 
-static void position_messageGroundChange (const Component c, Entity oldGround, Entity newGround);
+static void position_messageGroundChange (const EntComponent c, Entity oldGround, Entity newGround);
 
 
-static void position_messageGroundChange (const Component c, Entity oldGround, Entity newGround)
+static void position_messageGroundChange (const EntComponent c, Entity oldGround, Entity newGround)
 {
 	struct ground_change
 		* g;
@@ -23,10 +23,11 @@ static void position_messageGroundChange (const Component c, Entity oldGround, E
 	{
 		oldPos = ground_getWorldPos (component_getData (entity_getAs (oldGround, "ground")));
 		newPos = ground_getWorldPos (component_getData (entity_getAs (newGround, "ground")));
-		wp_pos2xy (oldPos, newPos, groundWorld_getPoleRadius (), &x, &y);
+		wp_pos2xy (oldPos, newPos, &x, &y);
 		hex_xy2rki (-x, -y, &r, &k, &i);
 		if (r > 1)
 		{
+			INFO ("Apparently #%d is teleporting (moving from %s to %s, which is %d steps away)", entity_GUID (component_entityAttached (c)), wp_print (oldPos), wp_print (newPos), r);
 			g->dir = GROUND_FAR;
 		}
 		else
@@ -41,21 +42,24 @@ static void position_messageGroundChange (const Component c, Entity oldGround, E
 
 void position_unset (Entity e)
 {
-	Component
+	EntComponent
 		pc = entity_getAs (e, "position");
 	positionComponent
-		pdata = component_getData (pc);
+		pdata = component_getData (pc);/*
 	Entity
-		oldGround;
+		oldGround;*/
 	if (pdata == NULL)
-		return;
+		return;/*
+	oldGround = pdata->mapEntity;*/
+	//printf ("%s (#%d)...\n", __FUNCTION__, entity_GUID (e));
+	position_messageGroundChange (pc, pdata->mapEntity, NULL);
+	pdata->mapEntity = NULL;
+/*
 	if (pdata->mapEntity)
 	{
 		ground_removeOccupant (pdata->mapEntity, e);
 	}
-	oldGround = pdata->mapEntity;
-	pdata->mapEntity = NULL;
-	position_messageGroundChange (pc, oldGround, NULL);
+*/
 }
 
 void position_destroy (Entity e)
@@ -70,7 +74,7 @@ void position_destroy (Entity e)
 
 void position_set (Entity e, VECTOR3 pos, Entity mapEntity)
 {
-	Component
+	EntComponent
 		pc = entity_getAs (e, "position");
 	struct position_data
 		* pdata = component_getData (pc);
@@ -90,7 +94,7 @@ void position_set (Entity e, VECTOR3 pos, Entity mapEntity)
 
 bool position_move (Entity e, VECTOR3 move)
 {
-	Component
+	EntComponent
 		pc = entity_getAs (e, "position");
 	struct position_data
 		* pos = component_getData (pc);
@@ -112,11 +116,15 @@ bool position_move (Entity e, VECTOR3 move)
 		groundSize = 0;
 	if (pos == NULL)
 	{
+		ERROR ("Invalid move: entity #%d has no position.", entity_GUID (e));
 		return FALSE;
 	}
 	map = component_getData (entity_getAs (pos->mapEntity, "ground"));
 	if (map == NULL)
+	{
+		ERROR ("Invalid move: entity #%d's position isn't grounded or the ground is improper.", entity_GUID (e));
 		return FALSE;
+	}
 	groundSize = ground_getMapSize (map);
 	movedPos = vectorAdd (&pos->pos, &move);
 	hex_space2coord (&movedPos, &x, &y);
@@ -147,13 +155,13 @@ bool position_move (Entity e, VECTOR3 move)
 		if ((newMap = ground_bridgeConnections (pos->mapEntity, e)) == NULL)
 		{
 			// invalid move attempt: walked outside of ground into void or into ground edge wall, depending on the ground's settings. this should send off an entity message to e, but ihni what would pick it up. collision, i guess.
+			ERROR ("Invalid move: can't bridge grounds for some reason...?", NULL);
 			pos->pos = oldPos;
 			return FALSE;
 		}
 		else if (newMap != oldMap)
 		{
 			newMapData = component_getData (entity_getAs (newMap, "ground"));
-			pos->mapEntity = newMap;
 			newMapOrigin = hexGround_centerDistanceSpace (ground_getMapSize (newMapData), k);
 			//printf ("origin of new ground: %5.2f, %5.2f, %5.2f (k: %d); moved position: %5.2f, %5.2f, %5.2f\n", newMapOrigin.x, newMapOrigin.y, newMapOrigin.z, k, movedPos.x, movedPos.y, movedPos.z);
 			movedPos = vectorSubtract (&movedPos, &newMapOrigin);
@@ -292,47 +300,6 @@ void position_rotateOnMouseInput (Entity e, const struct input_event * ie)
 	//printf ("view quat: %7.2f, %7.2f, %7.2f, %7.2f\n", cdata->viewQuat.w, cdata->viewQuat.x, cdata->viewQuat.y, cdata->viewQuat.z);
 }
 
-
-// THESE CALCULATIONS WERE WRITTEN BEFORE THE ORIENTATION QUATERNION EXISTED. THIS FUNCTION WILL NOT WORK UNLESS IT IS UPDATED TO ROTATE THE ORIENTATION QUATERNION. DO NOT USE IT.
-bool position_rotateAroundGround (Entity e, float rotation)
-{
-	positionComponent pdata = component_getData (entity_getAs (e, "position"));
-	VECTOR3
-		new;
-	float
-		rad = rotation / 180.0 * M_PI,
-		m[16] =
-		{
-			cos (rad), 0, -sin (rad), 0,
-			0, 1, 0, 0,
-			sin (rad), 0, cos (rad), 0,
-			0, 0, 0, 1
-		};
-/*
-	QUAT
-		q;
-*/
-	if (pdata == NULL)
-	{
-		return FALSE;
-	}
-/*
-	q = quat_eulerToQuat (0, rotation, 0);
-	pdata->orientation = quat_multiply (&pdata->orientation, &q);
-	^ this might be a fix for orientation that works with quaternions
- */
-	//printf ("%s (#%d, %5.2f)\n", __FUNCTION__, entity_GUID (e), rotation);
-	new = vectorMultiplyByMatrix (&pdata->pos, m);
-	pdata->pos = new;
-	new = vectorMultiplyByMatrix (&pdata->view.front, m);
-	pdata->view.front = new;
-	new = vectorMultiplyByMatrix (&pdata->view.side, m);
-	pdata->view.side = new;
-	new = vectorMultiplyByMatrix (&pdata->view.up, m);
-	pdata->view.up = new;
-	return TRUE;
-}
-
 /*
 void position_updateOnEdgeTraversal (Entity e, struct ground_edge_traversal * t)
 {
@@ -445,6 +412,8 @@ Entity position_getGroundEntityR (const positionComponent p)
 
 int component_position (Object * obj, objMsg msg, void * a, void * b) {
   struct position_data ** cd = NULL;
+	struct ground_change
+		* change;
 	char
 		* message = NULL;
 	Entity
@@ -506,6 +475,14 @@ int component_position (Object * obj, objMsg msg, void * a, void * b) {
 			{
 				position_rotateOnMouseInput (e, b);
       		}
+			else if (!strcmp (message, "GROUND_CHANGE"))
+			{
+				change = b;
+				//printf ("moving from %p (#%d) to %p (#%d)...\n", change->oldGround, entity_GUID (change->oldGround), change->newGround, entity_GUID (change->newGround));
+				ground_removeOccupant (change->oldGround, e);
+				if (change->newGround != NULL)
+					ground_addOccupant (change->newGround, e);
+			}
 			return EXIT_FAILURE;
 
 		default:

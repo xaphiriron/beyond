@@ -20,6 +20,22 @@ float vectorDistance (const struct vector * a, const struct vector * b) {
   return sqrt (x * x + y * y + z * z);
 }
 
+float vectorAngleDifference (const struct vector * a, const struct vector * b) {
+  float
+    theta = acos ((a->x * b->x + a->y * b->y + a->z * b->z) / sqrt ((a->x * a->x + a->y * a->y + a->z * a->z) * (b->x * b->x + b->y * b->y + b->z * b->z)));
+  return theta;
+}
+
+/*
+import math
+def angle (a, b):
+	theta = math.acos ((a[0] * b[0] + a[1] * b[1]) / math.sqrt ((a[0] * a[0] + a[1] * a[1] + a[2] * a[2]) * (b[0] * b[0] + b[1] * b[1] + b[2] * b[2])));
+	return theta;
+
+
+
+*/
+
 struct vector vectorNormalize (const struct vector * v) {
   struct vector r;
   float t = vectorMagnitude (v);

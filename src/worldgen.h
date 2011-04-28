@@ -1,20 +1,20 @@
 #ifndef XPH_WORLDGEN_H
 #define XPH_WORLDGEN_H
 
-#include "bit.h"
+#include "bool.h"
+#include "timer.h"
 #include "entity.h"
 #include "world_position.h"
-#include "system.h"
 
 typedef struct worldgenTemplate * TEMPLATE;
 typedef struct worldgenFeature * FEATURE;
 typedef struct worldgenPattern * PATTERN;
 
-typedef struct worldHex * WORLDHEX;
 typedef struct groundList * GROUNDLIST;
 
 typedef union worldShapes * WORLDSHAPE;
 typedef union worldEffects * WORLDEFFECT;
+typedef union worldRegion * WORLDREGION;
 
 struct affectedHexes
 {
@@ -28,7 +28,8 @@ struct affectedHexes
 
 enum worldShapeTypes
 {
-	WGS_HEX,				// unsigned int radius
+	WGS_HEX,				// uint radius
+	WGS_HEXCHUNK,			// uint radius, uint substeps, uchar subhex, uchar subshrink
 };
 
 enum worldEffectTypes
@@ -45,7 +46,8 @@ void worldgenExpandPatternGraph (PATTERN p, unsigned int depth);
 bool worldgenUnexpandedPatternsAt (const worldPosition wp);
 Dynarr worldgenGetUnimprintedPatternsAt (const worldPosition wp);
 void worldgenMarkPatternImprinted (PATTERN p, const worldPosition wp);
-void worldgenImprintGround (TIMER t, Component c);
+void worldgenMarkAllPatternsUnimprintedAt (const worldPosition wp);
+void worldgenImprintGround (TIMER t, EntComponent c);
 bool worldgenIsGroundFullyLoaded (const worldPosition wp);
 
 TEMPLATE templateCreate ();
@@ -55,6 +57,8 @@ void templateSetShape (TEMPLATE template, WORLDSHAPE shape);
 void templateAddFeature (TEMPLATE template, const char * region, WORLDEFFECT effect);
 
 PATTERN templateInstantiateNear (const TEMPLATE template, const WORLDHEX whx);
+WORLDREGION worldgenGenerateRegion (const WORLDSHAPE shape, const WORLDHEX whx);
+GROUNDLIST worldgenCalculateRegionFootprint (const WORLDREGION);
 
 
 
@@ -65,9 +69,7 @@ void worldgenShapeDestroy (WORLDSHAPE shape);
 void worldgenEffectDestroy (WORLDEFFECT effect);
 
 
-WORLDHEX worldhex (const worldPosition, unsigned int r, unsigned int k, unsigned int i);
 
-GROUNDLIST worldgenCalculateShapeFootprint (const WORLDSHAPE shape, const WORLDHEX centre);
 struct affectedHexes * worldgenAffectedHexes (const PATTERN p, const worldPosition wp);
 
 GROUNDLIST groundlistUnion (const GROUNDLIST a, const GROUNDLIST b);

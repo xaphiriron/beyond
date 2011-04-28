@@ -1,6 +1,22 @@
 #include "system.h"
 
+#include "object.h"
+#include "video.h"
+#include "timer.h"
+#include "ui.h"
+
+#include "worldgen.h"
+#include "camera_draw.h"
+
+#include "component_plant.h"
+#include "component_input.h"
+#include "component_camera.h"
+#include "component_walking.h"
+#include "component_ground.h"
+
+
 Object * SystemObject = NULL;
+SYSTEM * System = NULL;
 
 static void system_update ();
 
@@ -16,14 +32,19 @@ SYSTEM * system_create () {
 	timerSetClock (t, s->clock);
 	timerSetScale (t, s->timer_mult);
   s->acc = accumulator_create (t, s->timestep);
-  s->state = STATE_INIT;
+	s->state = dynarr_create (4, sizeof (enum system_states));
+	dynarr_push (s->state, STATE_INIT);
 	s->updateFuncs = dynarr_create (2, sizeof (void (*)(TIMER)));
+	s->uiPanels = dynarr_create (2, sizeof (UIPANEL));
   return s;
 }
 
 void system_destroy (SYSTEM * s)
 {
+	dynarr_wipe (s->uiPanels, (void (*)(void *))uiDestroyPanel);
+	dynarr_destroy (s->uiPanels);
 	dynarr_destroy (s->updateFuncs);
+	dynarr_destroy (s->state);
 	accumulator_destroy (s->acc);
 	xtimerDestroyRegistry ();
 	clock_destroy (s->clock);
@@ -40,23 +61,87 @@ const TIMER system_getTimer ()
 	return s->acc->timer;
 }
 
-enum system_states system_getState (const SYSTEM * s)
+/***
+ * SYSTEM STATE
+ */
+
+enum system_states systemGetState ()
 {
-	if (s == NULL)
-		return 0;
-	return s->state;
+	SYSTEM
+		* s;
+	enum system_states
+		state;
+	if (SystemObject == NULL)
+		return STATE_ERROR;
+	s = obj_getClassData (SystemObject, "SYSTEM");
+	state = *(enum system_states *)dynarr_back (s->state);
+	return state;
 }
 
-bool system_setState (enum system_states state)
+bool systemPushState (enum system_states state)
 {
 	SYSTEM
 		* s;
 	if (SystemObject == NULL)
 		return FALSE;
 	s = obj_getClassData (SystemObject, "SYSTEM");
-	s->state = state;
+	dynarr_push (s->state, state);
 	return TRUE;
 }
+
+enum system_states systemPopState ()
+{
+	enum system_states
+		state;
+	if (System == NULL)
+		return STATE_ERROR;
+	dynarr_pop (System->state);
+	state = *(enum system_states *)dynarr_back (System->state);
+	return state;
+}
+
+bool systemClearStates ()
+{
+	SYSTEM
+		* s;
+	if (SystemObject == NULL)
+		return FALSE;
+	s = obj_getClassData (SystemObject, "SYSTEM");
+	dynarr_wipe (s->state, NULL);
+	return TRUE;
+}
+
+/***
+ * UI CONTROL FUNCTIONS
+ */
+
+UIPANEL systemPopUI ()
+{
+	if (System == NULL)
+		return NULL;
+	return *(UIPANEL *)dynarr_pop (System->uiPanels);
+}
+
+void systemPushUI (UIPANEL p)
+{
+	if (System == NULL)
+	{
+		ERROR ("Trying to push UI (%p) without a system", p);
+		return;
+	}
+	dynarr_push (System->uiPanels, p);
+}
+
+enum uiPanelTypes systemTopUIPanelType ()
+{
+	if (System == NULL)
+		return UI_NONE;
+	return uiGetPanelType (*(UIPANEL *)dynarr_back (System->uiPanels));
+}
+
+/***
+ * TIMED FUNCTIONS
+ */
 
 void system_registerTimedFunction (void (*func)(TIMER), unsigned char weight)
 {
@@ -76,6 +161,48 @@ void system_removeTimedFunction (void (*func)(TIMER))
 		return;
 	s = obj_getClassData (SystemObject, "SYSTEM");
 	dynarr_remove_condense (s->updateFuncs, func);
+}
+
+/***
+ * RENDERING
+ */
+
+void systemRender ()
+{
+	Entity
+		camera;
+	const float
+		* matrix;
+	int
+		i;
+
+	if (System == NULL)
+		return;
+	if (systemGetState (System) == STATE_INIT)
+		return;
+	camera = camera_getActiveCamera ();
+	matrix = camera_getMatrix (camera);
+	if (matrix == NULL)
+		glLoadIdentity ();
+	else
+		glLoadMatrixf (matrix);
+	ground_draw_fill (camera);
+	if (systemGetState (System) == STATE_FIRSTPERSONVIEW)
+		camera_drawCursor ();
+
+	if (dynarr_size (System->uiPanels))
+	{
+		glLoadIdentity ();
+		glDisable (GL_DEPTH_TEST);
+		i = 0;
+		while (i < dynarr_size (System->uiPanels))
+		{
+			// draw ui stuff
+			uiDrawPanel (*(UIPANEL *)dynarr_at (System->uiPanels, i));
+			i++;
+		}
+		glEnable (GL_DEPTH_TEST);
+	}
 }
 
 int system_handler (Object * o, objMsg msg, void * a, void * b)
@@ -156,6 +283,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
       s = system_create ();
       obj_addClassData (o, "SYSTEM", s);
       SystemObject = o;
+      System = s;
       return EXIT_SUCCESS;
 
     default:
@@ -165,7 +293,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
   switch (msg) {
     case OM_SHUTDOWN:
       s->quit = TRUE;
-      s->state = STATE_QUIT;
+		systemPushState (STATE_QUIT);
       return EXIT_SUCCESS;
     case OM_DESTROY:
       // this is post-order because if it was pre-order it wouldn't hit all its children due to an annoying issue I can't fix easily. When an entity is destroyed it detatches itself from the entity hierarchy, and since the *Entity globals are at the top of the entity tree, destroying them makes their children no longer siblings and thus unable to message each other. most likely I'll need to rework how messaging works internally, so I can ensure a message sent pre/post/in/whatever will hit all of the entities it should, at the moment the message was first sent (messages that change the entity tree that use the entity tree to flow are kind of a challenge, as you might imagine :/)
@@ -192,7 +320,8 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 			entitySubsystem_message ("ground", OM_START, NULL, NULL);
 			printf ("DONE W/ SYSTEM START:\n");
 			printf ("ARTIFICIALLY TRIGGERING WORLDGEN:\n");
-			system_setState (STATE_WORLDGEN);
+			systemClearStates ();
+			systemPushState (STATE_WORLDGEN);
 			worldgenAbsHocNihilo ();
 			return EXIT_SUCCESS;
 

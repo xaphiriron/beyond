@@ -351,7 +351,7 @@ void camera_updateTargetPositionData (Entity camera)
 
 void camera_setCameraOffset (Entity camera, float azimuth, float rotation, float distance)
 {
-	Component
+	EntComponent
 		cameraCamera = entity_getAs (camera, "camera");
 	cameraComponent
 		cdata = component_getData (cameraCamera);

@@ -162,6 +162,7 @@ START_TEST (test_worldpos_pole_cross)
 		dist;
 	unsigned int
 		r, k, i;
+	hexSystem_setRadii (1, 12);
 	wp = wp_fromRelativeOffset (o, 12, 1, 0, 0);
 	assert (wp_getPole (wp) == 'c');
 	wp_getCoords (wp, &r, &k, &i);

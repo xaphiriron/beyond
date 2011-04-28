@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-AM_CPPFLAGS = -Wall -Werror -fstrict-aliasing -O3
+AM_CPPFLAGS = -Wall -Werror -fstrict-aliasing -O3 -DMEM_DEBUG
 # AM_CPPFLAGS = -Wall -Werror -fprofile-generate -ftest-coverage
 # AM_LDFLAGS = -fprofile-generate -lgcov
 
@@ -12,7 +12,8 @@ TESTS = \
   check_object \
   check_entity \
   check_tiles \
-  check_worldpos
+  check_worldpos \
+	check_worldgen_graph
 check_PROGRAMS = \
   check_check \
   check_dynarr \
@@ -21,7 +22,8 @@ check_PROGRAMS = \
   check_object \
   check_entity \
   check_tiles \
-  check_worldpos
+  check_worldpos \
+	check_worldgen_graph
 
 check_check_SOURCES = \
   check_check.c \
@@ -36,6 +38,7 @@ check_check_SOURCES = \
 	$(top_builddir)/src/xph_log.c \
   $(top_builddir)/src/object.c \
   $(top_builddir)/src/timer.c \
+	$(top_builddir)/src/xph_memory.c \
   $(top_builddir)/src/video.c
 check_check_CFLAGS = @CHECK_CFLAGS@
 check_check_LDADD = \
@@ -56,6 +59,7 @@ check_lsystem_SOURCES = \
 	check_lsystem.c \
 	$(top_builddir)/src/dynarr.c \
 	$(top_builddir)/src/xph_log.c \
+	$(top_builddir)/src/xph_memory.c \
 	$(top_builddir)/src/lsystem.c
 check_lsystem_CFLAGS = @CHECK_CFLAGS@
 check_lsystem_LDADD = @CHECK_LIBS@
@@ -64,6 +68,7 @@ check_turtle3d_SOURCES = \
 	check_turtle3d.c \
 	$(top_builddir)/src/turtle3d.c \
 	$(top_builddir)/src/dynarr.c \
+	$(top_builddir)/src/xph_memory.c \
 	$(top_builddir)/src/xph_log.c
 check_turtle3d_CFLAGS = @CHECK_CFLAGS@
 check_turtle3d_LDADD = \
@@ -76,8 +81,9 @@ check_object_SOURCES = \
   check_object.c \
   object_debug.c \
   $(top_builddir)/src/object.c \
+	$(top_builddir)/src/dynarr.c \
 	$(top_builddir)/src/xph_log.c \
-  $(top_builddir)/src/dynarr.c
+	$(top_builddir)/src/xph_memory.c
 check_object_CFLAGS = @CHECK_CFLAGS@
 check_object_LDADD = @CHECK_LIBS@
 
@@ -86,6 +92,7 @@ check_entity_SOURCES = \
   component_debug.c \
   $(top_builddir)/src/dynarr.c \
 	$(top_builddir)/src/xph_log.c \
+	$(top_builddir)/src/xph_memory.c \
   $(top_builddir)/src/object.c \
   $(top_builddir)/src/timer.c \
   $(top_builddir)/src/entity.c
@@ -97,6 +104,7 @@ check_tiles_SOURCES = \
   $(top_builddir)/src/hex.c \
   $(top_builddir)/src/hex_utility.c \
   $(top_builddir)/src/dynarr.c \
+	$(top_builddir)/src/xph_memory.c \
 	$(top_builddir)/src/xph_log.c
 check_tiles_CFLAGS = @CHECK_CFLAGS@
 check_tiles_LDADD = \
@@ -104,12 +112,30 @@ check_tiles_LDADD = \
   $(top_builddir)/src/libfcmp.la \
   @CHECK_LIBS@
 
+
 check_worldpos_SOURCES = \
   check_worldpos.c \
   $(top_builddir)/src/world_position.c \
-  $(top_builddir)/src/hex_utility.c
+  $(top_builddir)/src/hex_utility.c \
+	$(top_builddir)/src/xph_log.c \
+	$(top_builddir)/src/xph_memory.c
 check_worldpos_CFLAGS = @CHECK_CFLAGS@
 check_worldpos_LDADD =  \
   $(top_builddir)/src/libvector.la \
   $(top_builddir)/src/libfcmp.la \
   @CHECK_LIBS@
+
+check_worldgen_graph_SOURCES = \
+	check_worldgen_graph.c \
+	$(top_builddir)/src/worldgen_graph.c \
+	$(top_builddir)/src/world_position.c \
+	$(top_builddir)/src/hex_utility.c \
+	$(top_builddir)/src/dynarr.c \
+	$(top_builddir)/src/xph_log.c \
+	$(top_builddir)/src/xph_memory.c
+check_worldgen_graph_CFLAGS = \
+	@CHECK_CFLAGS@
+check_worldgen_graph_LDADD = \
+	$(top_builddir)/src/libvector.la \
+	$(top_builddir)/src/libfcmp.la \
+	@CHECK_LIBS@

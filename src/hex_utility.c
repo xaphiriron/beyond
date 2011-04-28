@@ -57,6 +57,21 @@ const signed char XY [6][2] =
 	{1,-1},
 };
 
+static unsigned int
+	poleRadius = 65535,
+	groundRadius = 8;
+
+void hexSystem_setRadii (unsigned int pole, unsigned int ground)
+{
+	static bool
+		set = FALSE;
+	if (set)
+		return;
+	poleRadius = pole;
+	groundRadius = ground;
+	set = TRUE;
+}
+
 unsigned int hx (unsigned int n)
 {
 	return 3 * n * (n - 1) + 1;
@@ -196,12 +211,21 @@ unsigned int hex_coordinateMagnitude (signed int x, signed int y)
 		return abs (x + y);
 }
 
-bool hexGround_centerDistanceCoord (unsigned int radius, unsigned int dir, signed int * xp, signed int * yp)
+bool hexGround_centerDistanceCoord (unsigned int UNUSED, unsigned int dir, signed int * xp, signed int * yp)
 {
 	if (xp == NULL || yp == NULL)
 		return FALSE;
-	*xp = XY[dir][0] * (radius + 1) + XY[DIR1MOD6 (dir)][0] * radius;
-	*yp = XY[dir][1] * (radius + 1) + XY[DIR1MOD6 (dir)][1] * radius;
+	*xp = XY[dir][0] * (groundRadius + 1) + XY[DIR1MOD6 (dir)][0] * groundRadius;
+	*yp = XY[dir][1] * (groundRadius + 1) + XY[DIR1MOD6 (dir)][1] * groundRadius;
+	return TRUE;
+}
+
+bool hexPole_centerDistanceCoord (unsigned int dir, signed int * xp, signed int * yp)
+{
+	if (xp == NULL || yp == NULL)
+		return FALSE;
+	*xp = XY[dir][0] * (poleRadius + 1) + XY[DIR1MOD6 (dir)][0] * poleRadius;
+	*yp = XY[dir][1] * (poleRadius + 1) + XY[DIR1MOD6 (dir)][1] * poleRadius;
 	return TRUE;
 }
 
@@ -335,6 +359,17 @@ VECTOR3 hex_coord2space (unsigned int r, unsigned int k, unsigned int i)
 	return p;
 }
 
+VECTOR3 hex_xyCoord2Space (signed int x, signed int y)
+{
+	VECTOR3
+		p,
+		q;
+	p = hex_tileDistance (x, 0);
+	q = hex_tileDistance (y, 1);
+	q = vectorAdd (&p, &q);
+	return q;
+}
+
 /***
  * the magic numbers here are based on the x and y spacing of tiles. see the H
  * value above, or just assume this is correct: the x value is 15 and seen most
@@ -396,13 +431,26 @@ bool hex_space2coord (const VECTOR3 * space, signed int * xp, signed int * yp)
 	return TRUE;
 }
 
-VECTOR3 hexGround_centerDistanceSpace (unsigned int radius, unsigned int dir)
+VECTOR3 hexGround_centerDistanceSpace (unsigned int UNUSED, unsigned int dir)
 {
 	signed int
 		x, y;
 	VECTOR3
 		t, u;
-	hexGround_centerDistanceCoord (radius, dir, &x, &y);
+	hexGround_centerDistanceCoord (groundRadius, dir, &x, &y);
+	t = hex_tileDistance (x, 0);
+	u = hex_tileDistance (y, 1);
+	t = vectorAdd (&t, &u);
+	return t;
+}
+
+VECTOR3 hexPole_centerDistanceSpace (unsigned int dir)
+{
+	signed int
+		x, y;
+	VECTOR3
+		t, u;
+	hexPole_centerDistanceCoord (dir, &x, &y);
 	t = hex_tileDistance (x, 0);
 	u = hex_tileDistance (y, 1);
 	t = vectorAdd (&t, &u);

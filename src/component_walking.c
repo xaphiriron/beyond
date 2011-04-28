@@ -49,7 +49,7 @@ void walking_end_turn (Entity e, enum walk_turn w) {
 
 
 void walk_move (Entity e) {
-  Component
+  EntComponent
     p = NULL,
     i = NULL,
     w = NULL;
@@ -197,7 +197,7 @@ int component_walking (Object * o, objMsg msg, void * a, void * b)
 		* wd;
 	char
 		* message = NULL;
-	Component
+	EntComponent
 		c = NULL;
 	DynIterator
 		it = NULL;

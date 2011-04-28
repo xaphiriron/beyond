@@ -1,5 +1,6 @@
 #include "component_input.h"
 
+#include "video.h"
 #include "system.h"
 
 struct input
@@ -99,6 +100,7 @@ struct input * input_create ()
 	dynarr_assign (i->controlMap, IR_AVATAR_MOVE_BACKWARD, keys_create (1, SDLK_DOWN));
 	dynarr_assign (i->controlMap, IR_AVATAR_AUTOMOVE, keys_create (1, SDLK_q));
 	dynarr_assign (i->controlMap, IR_CAMERA_MODE_SWITCH, keys_create (1, SDLK_TAB));
+	dynarr_assign (i->controlMap, IR_WORLDMAP_SWITCH, keys_create (1, SDLK_SLASH));
 	return i;
 }
 
@@ -192,11 +194,12 @@ void input_sendGameEventMessage (const struct input_event * ie) {
 		i = 0;
 	Entity
 		e = NULL;
-	Component
+	EntComponent
 		c = NULL;
 	struct comp_message
 		* msg = NULL;
 	// CATCH AND HANDLE EVENTS THAT HAVE SYSTEM-WIDE REPERCUSSIONS
+	//DEBUG ("GOT INPUTEVENT TYPE %d", ie->ir);
 	switch (ie->ir)
 	{
 		case IR_QUIT:
@@ -211,6 +214,24 @@ void input_sendGameEventMessage (const struct input_event * ie) {
 			xph_free (msg->message);
 			xph_free (msg);
 			msg = NULL;
+			break;
+		case IR_WORLDMAP_SWITCH:
+			if (systemTopUIPanelType () == UI_WORLDMAP)
+			{
+				DEBUG ("Whoop removing worldmap ui", NULL);
+				uiDestroyPanel (systemPopUI ());
+				systemPopState ();
+			}
+			else if (systemTopUIPanelType () == UI_NONE)
+			{
+				DEBUG ("Whoop adding worldmap ui", NULL);
+				systemPushUI (uiCreatePanel (UI_WORLDMAP));
+				systemPushState (STATE_UI);
+			}
+			else
+			{
+				DEBUG ("Some other panel exists; let's not", NULL);
+			}
 			break;
 		default:
 			break;
@@ -255,6 +276,7 @@ void input_update (Object * d)
 		input_event;
 	DynIterator
 		it;
+	//DEBUG ("INPUT UPDATE HAPPENING NOW\n", NULL);
 	while (SDL_PollEvent (&Input->event))
 	{
 		input_event.ir = IR_NOTHING;
@@ -356,7 +378,7 @@ void input_update (Object * d)
 
 int component_input (Object * o, objMsg msg, void * a, void * b)
 {
-	Component
+	EntComponent
 		t = NULL;
 	char
 		* comp_msg = NULL;

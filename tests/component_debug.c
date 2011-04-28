@@ -54,7 +54,7 @@ int component_name_2_obj_func (Object * o, objMsg msg, void * a, void * b) {
 int component_message_tracker_obj_func (Object * o, objMsg msg, void * a, void * b) {
   struct comp_message * comp_msg = NULL;
   char * message = NULL;
-  Component
+  EntComponent
     from = NULL,
     to = NULL/*,
     * debug = NULL*/;
@@ -125,12 +125,12 @@ int component_message_tracker_obj_func (Object * o, objMsg msg, void * a, void *
   return EXIT_FAILURE;
 }
 
-bool debugComponent_messageReceived (Component c, char * message) {
+bool debugComponent_messageReceived (EntComponent c, char * message) {
 	struct dummy_struct
 		* data;
 	Entity
 		e = component_entityAttached (c);
-	Component
+	EntComponent
 		tracker = entity_getAs (e, "COMPONENT_MESSAGE_TRACKER");
 	if (tracker == NULL)
 		return FALSE;

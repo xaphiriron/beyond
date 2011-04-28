@@ -17,7 +17,7 @@ END_TEST
 
 START_TEST (test_component_attach) {
   Entity e = entity_create ();
-  Component cd = NULL;
+  EntComponent cd = NULL;
   cd = entity_getAs (e, "COMPONENT_NAME");
   fail_unless (
     cd == NULL,
@@ -36,7 +36,7 @@ END_TEST
 
 START_TEST (test_component_detach) {
   Entity e = entity_create ();
-  Component cd = NULL;
+  EntComponent cd = NULL;
   entity_registerComponentAndSystem (component_name_obj_func);
   component_instantiateOnEntity ("COMPONENT_NAME", e);
   cd = entity_getAs (e, "COMPONENT_NAME");

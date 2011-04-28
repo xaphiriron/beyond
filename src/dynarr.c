@@ -179,7 +179,7 @@ void dynarr_destroy (Dynarr da)
 	free (da);
 }
 
-void dynarr_assign (Dynarr da, int index,  ...)
+int dynarr_assign (Dynarr da, int index,  ...)
 {
 	va_list
 		ap;
@@ -196,9 +196,10 @@ void dynarr_assign (Dynarr da, int index,  ...)
 		da->used++;
 		dynarr_set_index (da, index);
 	}
+	return index;
 }
 
-void dynarr_push (Dynarr da, ...)
+int dynarr_push (Dynarr da, ...)
 {
 	va_list
 		ap;
@@ -214,6 +215,7 @@ void dynarr_push (Dynarr da, ...)
 	memcpy (da->items + index * da->size, &datum, da->size);
 	da->used++;
 	dynarr_set_index (da, index);
+	return index;
 }
 
 char * dynarr_at (const Dynarr da, int index)

@@ -13,6 +13,15 @@ struct world_position
 	// since t's max value is always r * 6 - 1, there's much more of a danger of t overflowing than of r overflowing. however, this issue can be resolved by using bitfields: two bytes are required to store the pole information, and three bytes are required to store a 'k' value for the polar coordinate, where the full phi value is k * 6 + t instead of just t. this constrains t to strictly < r in all cases and doesn't require adding any additional data to the position struct.
 };
 
+struct worldHex // WORLDHEX
+{
+	struct world_position
+		wp;
+	signed int
+		gx, gy;
+};
+
+
 #define WORLD_POLE_BITS		2
 #define WORLD_POLE_SHIFT	0
 #define WORLD_CORNER_BITS	3
@@ -21,9 +30,9 @@ struct world_position
 enum world_poles
 {
 	POLE_ERROR	= 0x00,
-	POLE_A		= 0x01,
-	POLE_B		= 0x02,
-	POLE_C		= 0x03,
+	POLE_R		= 0x01,
+	POLE_G		= 0x02,
+	POLE_B		= 0x03,
 };
 
 
@@ -67,14 +76,14 @@ worldPosition wp_fromRelativeOffset (const worldPosition pos, unsigned int poleR
 			// + 1 dir
 			pole = (pole + 1) & 0x03;
 			if (!pole)
-				pole = POLE_A;
+				pole = POLE_R;
 		}
 		else
 		{
 			// - 1 dir
 			pole = pole - 1;
 			if (!pole)
-				pole = POLE_C;
+				pole = POLE_B;
 		}
 		hex_xy2rki (globalX, globalY, &nr, &nk, &ni);
 	}
@@ -126,7 +135,23 @@ worldPosition wp_create (char pole, unsigned int r, unsigned int k, unsigned int
 		* wp = xph_alloc (sizeof (struct world_position));
 	unsigned char
 		pole_enum = (pole - 'a') + 1;
-	if (pole_enum < POLE_A || pole_enum > POLE_C)
+/*
+	switch (pole)
+	{
+		case 'b':
+			pole_enum = POLE_B;
+			break;
+		case 'g':
+			pole_enum = POLE_G;
+			break;
+		case 'r':
+			pole_enum = POLE_R;
+			break;
+		default:
+			pole_enum = POLE_ERROR;
+	}
+*/
+	if (pole_enum < POLE_R || pole_enum > POLE_B)
 		pole_enum = POLE_ERROR;
 	memset (&wp->bits, '\0', 1);
 	wp->bits |= SET_BITS (pole_enum, WORLD_POLE_BITS, WORLD_POLE_SHIFT);
@@ -174,7 +199,7 @@ void wp_destroyAdjacent (worldPosition * adj)
  * and additionally sets xp and yp to the cartesian coordinate offset from a
  * to b, if they're not NULL
  */
-unsigned int wp_pos2xy (const worldPosition a, const worldPosition b, unsigned int poleRadius, signed int * xp, signed int * yp)
+unsigned int wp_pos2xy (const worldPosition a, const worldPosition b, signed int * xp, signed int * yp)
 {
 	unsigned int
 		r, k, i,
@@ -218,21 +243,21 @@ unsigned int wp_pos2xy (const worldPosition a, const worldPosition b, unsigned i
 		dir[1] = 3;
 		dir[2] = 5;
 	}
-	hexGround_centerDistanceCoord (poleRadius, dir[0], &poleX, &poleY);
+	hexPole_centerDistanceCoord (dir[0], &poleX, &poleY);
 	gx = bx + poleX;
 	gy = by + poleY;
 	dx[0] = ax - gx;
 	dy[0] = ay - gy;
 	distance[0] = hex_coordinateMagnitude (dx[0], dy[0]);
 
-	hexGround_centerDistanceCoord (poleRadius, dir[1], &poleX, &poleY);
+	hexPole_centerDistanceCoord (dir[1], &poleX, &poleY);
 	gx = bx + poleX;
 	gy = by + poleY;
 	dx[1] = ax - gx;
 	dy[1] = ay - gy;
 	distance[1] = hex_coordinateMagnitude (dx[1], dy[1]);
 
-	hexGround_centerDistanceCoord (poleRadius, dir[2], &poleX, &poleY);
+	hexPole_centerDistanceCoord (dir[2], &poleX, &poleY);
 	gx = bx + poleX;
 	gy = by + poleY;
 	dx[2] = ax - gx;
@@ -337,22 +362,41 @@ int wp_compare (const worldPosition a, const worldPosition b)
 	return a->t - b->t;
 }
 
-char WpPrint[16];
+char WpPrint[32];
 const char * wp_print (const worldPosition pos)
 {
+	static unsigned char
+		t = 0;
 	int
 		corner = GET_BITS (pos->bits, WORLD_CORNER_BITS, WORLD_CORNER_SHIFT);
 	unsigned char
 		polestr = wp_getPole (pos);
-	sprintf (WpPrint, "[%c:%d %d %d]", polestr - 32, pos->r, corner, pos->t);
-	return WpPrint;
+	switch (polestr)
+	{
+		case 'a':
+			polestr = 'r';
+			break;
+		case 'b':
+			polestr = 'g';
+			break;
+		case 'c':
+			polestr = 'b';
+			break;
+		default:
+			polestr = '?';
+			break;
+	}
+	t ^= 1;
+	snprintf (WpPrint+t*16, 16, "[%c:%d %d %d]", polestr - 32, pos->r, corner, pos->t);
+	return WpPrint+t*16;
 }
+
 
 // FIXME: this returns [abc] instead of [rgb]; to fix it would involve changing code in wp_pos2xy and wp_distance.
 unsigned char wp_getPole (const worldPosition pos)
 {
 	unsigned char
-		r = (GET_BITS (pos->bits, WORLD_POLE_BITS, WORLD_POLE_SHIFT) + 'a') - POLE_A;
+		r = (GET_BITS (pos->bits, WORLD_POLE_BITS, WORLD_POLE_SHIFT) + 'a') - POLE_R;
 	if (r < 'a' || r > 'c')
 		r = '?';
 	return r;
@@ -366,4 +410,140 @@ bool wp_getCoords (const worldPosition pos, unsigned int * rp, unsigned int * kp
 	*kp = GET_BITS (pos->bits, WORLD_CORNER_BITS, WORLD_CORNER_SHIFT);
 	*ip = pos->t;
 	return TRUE;
+}
+
+/***
+ * WORLDHEX
+ */
+
+WORLDHEX worldhexFromPosition (const worldPosition wp, unsigned int r, unsigned int k, unsigned int i)
+{
+	WORLDHEX
+		whx = xph_alloc (sizeof (struct worldHex));
+	hex_rki2xy (r, k, i, &whx->gx, &whx->gy);
+	memcpy (&whx->wp, wp, sizeof (struct world_position));
+	return whx;
+}
+
+WORLDHEX worldhex (unsigned char pole, unsigned int pr, unsigned int pk, unsigned int pi, unsigned int gr, unsigned int gk, unsigned int gi)
+{
+	WORLDHEX
+		whx = xph_alloc (sizeof (struct worldHex));
+	worldPosition
+		wp = NULL;
+	switch (pole)
+	{
+		case 'r':
+			pole = 'a';
+			break;
+		case 'g':
+			pole = 'b';
+			break;
+		case 'b':
+			pole = 'c';
+			break;
+		default:
+			ERROR ("Invalid pole for worldhex; expecting one of ['r', 'g', 'b'] but got '%c' instead.", pole);
+			return NULL;
+	}
+	wp = wp_create (pole, pr, pk, pi);
+	hex_rki2xy (gr, gk, gi, &whx->gx, &whx->gy);
+	memcpy (&whx->wp, wp, sizeof (struct world_position));
+	wp_destroy (wp);
+	return whx;
+}
+
+WORLDHEX worldhexDuplicate (const WORLDHEX whx)
+{
+	WORLDHEX
+		new = xph_alloc (sizeof (struct worldHex));
+	memcpy (new, whx, sizeof (struct worldHex));
+	return new;
+}
+
+void worldhexDestroy (WORLDHEX whx)
+{
+	xph_free (whx);
+}
+
+const worldPosition worldhexAsWorldPosition (const WORLDHEX whx)
+{
+	return &whx->wp;
+}
+
+bool worldhexGroundOffset (const WORLDHEX whx, signed int * x, signed int * y)
+{
+	if (x == NULL || y == NULL)
+		return FALSE;
+	*x = whx->gx;
+	*y = whx->gy;
+	return TRUE;
+}
+
+static char WhxPrint[64];
+const char * whxPrint (const WORLDHEX whx)
+{
+	static unsigned char
+		t = 0;
+	int
+		corner = GET_BITS (whx->wp.bits, WORLD_CORNER_BITS, WORLD_CORNER_SHIFT);
+	unsigned char
+		polestr = wp_getPole (&whx->wp);
+	switch (polestr)
+	{
+		case 'a':
+			polestr = 'r';
+			break;
+		case 'b':
+			polestr = 'g';
+			break;
+		case 'c':
+			polestr = 'b';
+			break;
+		default:
+			polestr = '?';
+			break;
+	}
+
+	t ^= 1;
+	snprintf (WhxPrint+t*32, 32, "[%c:%d %d %d, %d %d]", polestr - 32, whx->wp.r, corner, whx->wp.t, whx->gx, whx->gy);
+	
+	return WhxPrint+t*32;
+}
+
+signed char whxPoleDifference (const WORLDHEX a, const WORLDHEX b)
+{
+	signed char
+		r = GET_BITS (a->wp.bits, WORLD_POLE_BITS, WORLD_POLE_SHIFT) - GET_BITS (b->wp.bits, WORLD_POLE_BITS, WORLD_POLE_SHIFT);
+	if (r == 2)
+		r = -1;
+	else if (r == -2)
+		r = 1;
+	return r;
+}
+
+VECTOR3 whxDistanceVector (const WORLDHEX a, const WORLDHEX b, unsigned char dir)
+{
+	signed int
+		bPoleXOffset = 0, bPoleYOffset = 0,
+		ax, ay,
+		bx, by;
+	unsigned int
+		ar, ak, ai,
+		br, bk, bi;
+	VECTOR3
+		r;
+	
+	wp_getCoords (&a->wp, &ar, &ak, &ai);
+	hex_rki2xy (ar, ak, ai, &ax, &ay);
+	if (dir < 6)
+		hexPole_centerDistanceCoord (dir, &bPoleXOffset, &bPoleYOffset);
+	wp_getCoords (&b->wp, &br, &bk, &bi);
+	hex_rki2xy (br, bk, bi, &bx, &by);
+	DEBUG ("a: %d,%d; b: %d,%d + (pole: %d,%d)", ax, ay, bx, by, bPoleXOffset, bPoleYOffset);
+	bx += bPoleXOffset;
+	by += bPoleYOffset;
+	r = hex_xyCoord2Space (bx - ax, by - ay);
+	DEBUG ("final spaced value: %.2f, %.2f, %.2f", r.x, r.y, r.z);
+	return r;
 }

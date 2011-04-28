@@ -17,7 +17,7 @@ typedef struct plantData * plantData;
 bool plant_createRandom (Entity e);
 bool plant_createHybrid (Dynarr parents);
 
-void plant_update (Component plant);
+void plant_update (EntComponent plant);
 void plant_grow (plantData plant);
 void plant_die (plantData plant);
 

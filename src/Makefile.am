@@ -42,8 +42,9 @@ beyond_SOURCES = \
   hex_draw.c hex_draw.h \
   ground_draw.c ground_draw.h \
   camera_draw.c camera_draw.h \
+	ui.c ui.h \
   system.c system.h	\
-  beyond.c beyond.h
+  beyond.c
 beyond_LDADD =	\
   libline.la	\
   libsph.la		\
