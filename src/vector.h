@@ -21,6 +21,7 @@ struct vector vectorSubtract (const struct vector * a, const struct vector * b);
 /* expects vector *, not vector like all the other functions */
 struct vector vectorAverage (int i, ...);
 struct vector vectorMultiplyByScalar (const struct vector * v, float m);
+VECTOR3 vectorDivideByScalar (const struct vector * v, float d);
 /* expects a 4x4 matrix in row-major order */
 struct vector vectorMultiplyByMatrix (const struct vector * v, float * m);
 struct vector vectorCross (const struct vector * a, const struct vector * b);

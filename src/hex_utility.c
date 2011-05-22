@@ -72,6 +72,20 @@ void hexSystem_setRadii (unsigned int pole, unsigned int ground)
 	set = TRUE;
 }
 
+unsigned int hexSystem_getPoleRadius ()
+{
+	return poleRadius;
+}
+
+unsigned int hexSystem_getGroundRadius ()
+{
+	return groundRadius;
+}
+
+/***
+ * this really ought to be 3 * n * (n + 1) + 1 instead, but so many fussy geometry functions depend on this that i'm afraid to change it
+ * (the reason why is +1 leads to a progression of 1 7 19 37 etc, whereas -1 leads to a progression of 1 1 7 19 etc., and that leads to having to count from 1 instead of from 0 )
+ */
 unsigned int hx (unsigned int n)
 {
 	return 3 * n * (n - 1) + 1;
@@ -159,13 +173,16 @@ void hex_xy2rki (signed int x, signed int y, unsigned int * rp, unsigned int * k
 		}
 		else
 		{
-			i = abs (kx) > abs (ky) ? abs (kx) : abs (ky);
+			i = abs (kx) > abs (ky)
+				? abs (kx)
+				: abs (ky);
 		}
 		if (r == i)
 		{
-			// without this, it calculates things like {1 1 0} as {1 0 1},
-			// since they resolve to the same tile (despite the latter being
-			// an invalid coordinate)
+			/* without this, the function calculates things like {1 1 0} as
+			 * {1 0 1}, since they resolve to the same tile (despite the
+			 * latter being an invalid coordinate)
+			 */
 			o++;
 			continue;
 		}
@@ -211,22 +228,23 @@ unsigned int hex_coordinateMagnitude (signed int x, signed int y)
 		return abs (x + y);
 }
 
-bool hexGround_centerDistanceCoord (unsigned int UNUSED, unsigned int dir, signed int * xp, signed int * yp)
+bool hex_centerDistanceCoord (unsigned int radius, unsigned int dir, signed int * xp, signed int * yp)
 {
 	if (xp == NULL || yp == NULL)
 		return FALSE;
-	*xp = XY[dir][0] * (groundRadius + 1) + XY[DIR1MOD6 (dir)][0] * groundRadius;
-	*yp = XY[dir][1] * (groundRadius + 1) + XY[DIR1MOD6 (dir)][1] * groundRadius;
+	*xp = XY[dir][0] * (radius + 1) + XY[DIR1MOD6 (dir)][0] * radius;
+	*yp = XY[dir][1] * (radius + 1) + XY[DIR1MOD6 (dir)][1] * radius;
 	return TRUE;
+}
+
+bool hexGround_centerDistanceCoord (unsigned int UNUSED, unsigned int dir, signed int * xp, signed int * yp)
+{
+	return hex_centerDistanceCoord (groundRadius, dir, xp, yp);
 }
 
 bool hexPole_centerDistanceCoord (unsigned int dir, signed int * xp, signed int * yp)
 {
-	if (xp == NULL || yp == NULL)
-		return FALSE;
-	*xp = XY[dir][0] * (poleRadius + 1) + XY[DIR1MOD6 (dir)][0] * poleRadius;
-	*yp = XY[dir][1] * (poleRadius + 1) + XY[DIR1MOD6 (dir)][1] * poleRadius;
-	return TRUE;
+	return hex_centerDistanceCoord (poleRadius, dir, xp, yp);
 }
 
 

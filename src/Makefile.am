@@ -28,29 +28,25 @@ beyond_SOURCES = \
   timer.c timer.h	\
   accumulator.c accumulator.h \
   entity.c entity.h	\
-  world_position.c world_position.h \
+	map.c map.h \
 	worldgen.c worldgen.h \
+	worldgen_graph.c worldgen_graph.h \
   component_position.c component_position.h	\
-  component_ground.c component_ground.h		\
   component_integrate.c component_integrate.h	\
   component_camera.c component_camera.h		\
   component_input.c component_input.h		\
   component_walking.c component_walking.h	\
   component_plant.c component_plant.h		\
   hex_utility.h hex_utility.c \
-  hex.c hex.h \
-  hex_draw.c hex_draw.h \
-  ground_draw.c ground_draw.h \
-  camera_draw.c camera_draw.h \
 	ui.c ui.h \
   system.c system.h	\
   beyond.c
-beyond_LDADD =	\
-  libline.la	\
-  libsph.la		\
-  libvector.la	\
-  libquat.la	\
-  libfcmp.la	\
+beyond_LDADD = \
+	libline.la \
+	libsph.la \
+	libvector.la \
+	libquat.la \
+	libfcmp.la \
   -lm -lGL -lSDL
 
 # logo_SOURCES = \

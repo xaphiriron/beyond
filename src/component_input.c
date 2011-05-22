@@ -378,10 +378,10 @@ void input_update (Object * d)
 
 int component_input (Object * o, objMsg msg, void * a, void * b)
 {
-	EntComponent
-		t = NULL;
+	Entity
+		e = NULL;
 	char
-		* comp_msg = NULL;
+		* message = NULL;
   switch (msg) {
     case OM_CLSNAME:
       strncpy (a, "input", 32);
@@ -401,21 +401,23 @@ int component_input (Object * o, objMsg msg, void * a, void * b)
       break;
   }
 
-  switch (msg) {
-    case OM_SHUTDOWN:
-    case OM_DESTROY:
-      obj_destroy (o);
-      return EXIT_SUCCESS;
+	switch (msg)
+	{
+		case OM_SHUTDOWN:
+		case OM_DESTROY:
+			obj_destroy (o);
+			return EXIT_SUCCESS;
 
-    case OM_UPDATE:
-      input_update (o);
-      return EXIT_SUCCESS;
-    case OM_COMPONENT_RECEIVE_MESSAGE:
-      t = ((struct comp_message *)a)->to;
-      comp_msg = ((struct comp_message *)a)->message;
-      return EXIT_FAILURE;
-    default:
-      return obj_pass ();
-  }
-  return EXIT_FAILURE;
+		case OM_UPDATE:
+			input_update (o);
+			return EXIT_SUCCESS;
+		case OM_COMPONENT_RECEIVE_MESSAGE:
+			message = ((struct comp_message *)a)->message;
+			e = component_entityAttached (((struct comp_message *)a)->to);
+
+			return EXIT_FAILURE;
+		default:
+			return obj_pass ();
+	}
+	return EXIT_FAILURE;
 }

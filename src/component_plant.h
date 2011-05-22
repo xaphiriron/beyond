@@ -10,18 +10,16 @@
 #include "turtle3d.h"
 #include "dynarr.h"
 
-#include "ground_draw.h"
-
-typedef struct plantData * plantData;
+typedef struct plantData * PLANT;
 
 bool plant_createRandom (Entity e);
 bool plant_createHybrid (Dynarr parents);
 
 void plant_update (EntComponent plant);
-void plant_grow (plantData plant);
-void plant_die (plantData plant);
+void plant_grow (PLANT plant);
+void plant_die (PLANT plant);
 
-void plant_draw (Entity e, CameraGroundLabel label);
+void plant_draw (Entity e);
 
 //void plant_pruneSegment (plantData plant, ??? segment);
 //aaah collision detection with plant segments to determine pruning??? D:

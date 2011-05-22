@@ -4,13 +4,14 @@
 #include "xph_memory.h"
 #include "dynarr.h"
 
-#include "world_position.h"
+#include "map.h"
 
 typedef struct xgraph * GRAPH;
 
-typedef struct xregion * REGION;
 typedef struct xedge * EDGE;
 typedef struct xvertex * VERTEX;
+
+#include "worldgen.h"
 
 enum graph_inits {
 	GRAPH_POLE_R = 0x01,
@@ -22,7 +23,7 @@ enum graph_inits {
  * region graph functions
  */
 
-GRAPH worldgenCreateBlankRegionGraph ();
+GRAPH worldgenCreateBlankGraph ();
 
 void graphWorldBase (GRAPH g, enum graph_inits seedPoints);
 /*
@@ -31,19 +32,20 @@ void graphCalcRegionEdges (GRAPH g);
 */
 void graphDestroy (GRAPH g);
 
-Dynarr graphGetRawEdges (GRAPH g);
 Dynarr graphGetRawVertices (GRAPH g);
-Dynarr graphGetRawRegions (GRAPH g);
-VERTEX graphGetVertex (GRAPH g, int i);
+Dynarr graphGetRawEdges (GRAPH g);
+VERTEX graphGetVertex (const GRAPH g, int i);
 EDGE graphGetEdge (GRAPH g, int i);
-REGION graphGetRegion (GRAPH g, int i);
 
-const WORLDHEX vertexPosition (const VERTEX v);
-
-int graphRegionCount (const GRAPH g);
 int graphVertexCount (const GRAPH g);
 int graphEdgeCount (const GRAPH g);
-
 bool graphHasOutside (const GRAPH g);
+
+
+void graphSetVertexArch (VERTEX v, ARCH a);
+
+const Dynarr vertexEdges (const VERTEX v);
+const WORLDHEX vertexPosition (const VERTEX v);
+const ARCH vertexArch (const VERTEX v);
 
 #endif /* XPH_WORLDGEN_GRAPH */

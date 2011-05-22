@@ -1,70 +1,52 @@
 #include "component_position.h"
 
-static void position_messageGroundChange (const EntComponent c, Entity oldGround, Entity newGround);
+struct position_data { // POSITION
+	AXES
+		view,
+		move;
+	QUAT
+		orientation;
+	VECTOR3
+		pos;		// distance from the center of {ground}
+	SUBHEX
+		ground;
+	float
+		sensitivity;
+	bool
+		dirty;		// view axes don't match the orientation quaternion
+};
 
 
-static void position_messageGroundChange (const EntComponent c, Entity oldGround, Entity newGround)
+static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround, SUBHEX newGround);
+
+static void position_updateAxesFromOrientation (POSITION pdata);
+
+static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround, SUBHEX newGround)
 {
-	struct ground_change
-		* g;
-	worldPosition
-		oldPos, newPos;
-	signed int
-		x, y;
-	unsigned int
-		r, k, i;
-	g = xph_alloc (sizeof (struct ground_change));
-	g->oldGround = oldGround;
-	g->newGround = newGround;
-	// update this g->dir check by first checking if one of the grounds is null or the distance between them is > 1 (use wp_distance()). if so, it's GROUND_FAR, otherwise do a check for adjacent world position direction (which i will have to write)
-	if (oldGround == NULL || newGround == NULL)
-		g->dir = GROUND_FAR;
-	else
-	{
-		oldPos = ground_getWorldPos (component_getData (entity_getAs (oldGround, "ground")));
-		newPos = ground_getWorldPos (component_getData (entity_getAs (newGround, "ground")));
-		wp_pos2xy (oldPos, newPos, &x, &y);
-		hex_xy2rki (-x, -y, &r, &k, &i);
-		if (r > 1)
-		{
-			INFO ("Apparently #%d is teleporting (moving from %s to %s, which is %d steps away)", entity_GUID (component_entityAttached (c)), wp_print (oldPos), wp_print (newPos), r);
-			g->dir = GROUND_FAR;
-		}
-		else
-		{
-			g->dir = k;
-		}
-	}
-	//printf ("GROUND DIR: %d\n", g->dir);
-	component_messageEntity (c, "GROUND_CHANGE", g);
-	xph_free (g);
+	static struct position_update
+		posUpdate;
+	posUpdate.oldGround = oldGround;
+	posUpdate.newGround = newGround;
+	posUpdate.difference = subhexVectorOffset (oldGround, newGround);
+	component_messageEntity (c, "positionUpdate", &posUpdate);
 }
 
 void position_unset (Entity e)
 {
 	EntComponent
 		pc = entity_getAs (e, "position");
-	positionComponent
-		pdata = component_getData (pc);/*
-	Entity
-		oldGround;*/
+	POSITION
+		pdata = component_getData (pc);
 	if (pdata == NULL)
-		return;/*
-	oldGround = pdata->mapEntity;*/
+		return;
 	//printf ("%s (#%d)...\n", __FUNCTION__, entity_GUID (e));
-	position_messageGroundChange (pc, pdata->mapEntity, NULL);
-	pdata->mapEntity = NULL;
-/*
-	if (pdata->mapEntity)
-	{
-		ground_removeOccupant (pdata->mapEntity, e);
-	}
-*/
+	pdata->ground = NULL;
+	position_messageGroundChange (pc, pdata->ground, NULL);
 }
 
 void position_destroy (Entity e)
 {
-	positionComponent
+	POSITION
 		pdata = component_getData (entity_getAs (e, "position"));
 	if (pdata == NULL)
 		return;
@@ -72,13 +54,13 @@ void position_destroy (Entity e)
 	xph_free (pdata);
 }
 
-void position_set (Entity e, VECTOR3 pos, Entity mapEntity)
+void position_set (Entity e, VECTOR3 pos, SUBHEX ground)
 {
 	EntComponent
 		pc = entity_getAs (e, "position");
-	struct position_data
-		* pdata = component_getData (pc);
-	Entity
+	POSITION
+		pdata = component_getData (pc);
+	SUBHEX
 		oldGround;
 	if (pdata == NULL)
 	{
@@ -86,102 +68,52 @@ void position_set (Entity e, VECTOR3 pos, Entity mapEntity)
 		return;
 	}
 	pdata->pos = pos;
-	oldGround = pdata->mapEntity;
-	pdata->mapEntity = mapEntity;
-	if (oldGround != mapEntity)
-		position_messageGroundChange (pc, oldGround, pdata->mapEntity);
+	oldGround = pdata->ground;
+	pdata->ground = ground;
+	if (oldGround != ground)
+		position_messageGroundChange (pc, oldGround, pdata->ground);
 }
 
 bool position_move (Entity e, VECTOR3 move)
 {
-	EntComponent
-		pc = entity_getAs (e, "position");
-	struct position_data
-		* pos = component_getData (pc);
-	GroundMap
-		map = NULL,
-		newMapData;
-	Entity
-		oldMap,
-		newMap;
+	POSITION
+		pdata = component_getData (entity_getAs (e, "position"));
 	VECTOR3
-		oldPos,
-		movedPos,
-		hexCenter,
-		newMapOrigin;
-	signed int
-		x, y;
-	unsigned int
-		r, k, i,
-		groundSize = 0;
-	if (pos == NULL)
+		newPosition,
+		subhexCentreDistance;
+	SUBHEX
+		newGround;
+	if (pdata == NULL)
 	{
-		ERROR ("Invalid move: entity #%d has no position.", entity_GUID (e));
+		ERROR ("Can't move: Entity #%d doesn't have a position component", entity_GUID (e));
 		return FALSE;
 	}
-	map = component_getData (entity_getAs (pos->mapEntity, "ground"));
-	if (map == NULL)
+	newPosition = vectorAdd (&pdata->pos, &move);
+	newGround = mapSubhexAtVectorOffset (pdata->ground, &newPosition);
+	if (newGround == pdata->ground)
 	{
-		ERROR ("Invalid move: entity #%d's position isn't grounded or the ground is improper.", entity_GUID (e));
-		return FALSE;
+		pdata->pos = newPosition;
+		return TRUE;
 	}
-	groundSize = ground_getMapSize (map);
-	movedPos = vectorAdd (&pos->pos, &move);
-	hex_space2coord (&movedPos, &x, &y);
-	hex_xy2rki (x, y, &r, &k, &i);
-	hexCenter = hex_coord2space (r, k, i);
-	oldMap = pos->mapEntity;
-	//printf ("%s: over tile {%d %d %d} (%d, %d) @ %5.2f, %5.2f, %5.2f; real pos (locally): %5.2f, %5.2f, %5.2f\n", __FUNCTION__, r, k, i, x, y, hexCenter.x, hexCenter.y, hexCenter.z, pos->pos.x, pos->pos.y, pos->pos.z);
-	oldPos = pos->pos;
-	pos->pos = movedPos;
-	if (r > groundSize)
-	{
-		//printf ("%s: outside ground boundary (%d tiles from center)\n", __FUNCTION__, r);
-		/* ground_bridgeConnections is kind of a legacy function from the days
-		 * when grounds were connected in a graph network instead of by the
-		 * world position system, when the edges of a ground could in fact lead
-		 * to nowhere. that being said, these days it still calculates the new
-		 * ground for the position to be over and returns it. It's conceptually
-		 * outdated; when grounds were arbitrarily connected by edges, the only
-		 * part that could fully calculate the direction between the two
-		 * grounds was right here, and that information needed to be
-		 * transmitted to the other components. now with the world position
-		 * system, in all cases except the most extreme (a poleradius of 0)
-		 * neighboring grounds can only be connected in one direction.
-		 * The most important part of this to note is that it requires the position component to have a position vector that's outside the bounds of the ground, but it doesn't do the position updating itself -- it shoots off a entity message, which is then used by position_updateOnEdgeTraversal() to update the position vector.
-		 * this really needs to be made simpler.
-		 *   - xph 2011-03-15/16
-		 */
-		if ((newMap = ground_bridgeConnections (pos->mapEntity, e)) == NULL)
-		{
-			// invalid move attempt: walked outside of ground into void or into ground edge wall, depending on the ground's settings. this should send off an entity message to e, but ihni what would pick it up. collision, i guess.
-			ERROR ("Invalid move: can't bridge grounds for some reason...?", NULL);
-			pos->pos = oldPos;
-			return FALSE;
-		}
-		else if (newMap != oldMap)
-		{
-			newMapData = component_getData (entity_getAs (newMap, "ground"));
-			newMapOrigin = hexGround_centerDistanceSpace (ground_getMapSize (newMapData), k);
-			//printf ("origin of new ground: %5.2f, %5.2f, %5.2f (k: %d); moved position: %5.2f, %5.2f, %5.2f\n", newMapOrigin.x, newMapOrigin.y, newMapOrigin.z, k, movedPos.x, movedPos.y, movedPos.z);
-			movedPos = vectorSubtract (&movedPos, &newMapOrigin);
-			position_set (e, movedPos, newMap);
-		}
-	}
+	if (subhexSpanLevel (pdata->ground) < subhexSpanLevel (newGround))
+		INFO ("Entity #%d has moved from span level %d to %d and lost resolution in the process.", entity_GUID (e), subhexSpanLevel (pdata->ground), subhexSpanLevel (newGround));
+	subhexCentreDistance = subhexVectorOffset (pdata->ground, newGround);
+	newPosition = vectorSubtract (&subhexCentreDistance, &newPosition);
+	position_set (e, newPosition, newGround);
 	return TRUE;
 }
 
 void position_copy (Entity target, const Entity source)
 {
-	const positionComponent
-		sData = component_getData (entity_getAs (source, "position"));
-	position_set (target, sData->pos, sData->mapEntity);
-	position_setOrientation (target, sData->orientation);
+	const POSITION
+		sourcePosition = component_getData (entity_getAs (source, "position"));
+	position_set (target, sourcePosition->pos, sourcePosition->ground);
+	position_setOrientation (target, sourcePosition->orientation);
 }
 
 void position_setOrientation (Entity e, const QUAT q)
 {
-	positionComponent
+	POSITION
 		pdata = component_getData (entity_getAs (e, "position"));
 	if (pdata == NULL)
 		return;
@@ -189,10 +121,8 @@ void position_setOrientation (Entity e, const QUAT q)
 	pdata->dirty = TRUE;	// we assume
 }
 
-void position_updateAxesFromOrientation (Entity e)
+static void position_updateAxesFromOrientation (POSITION pdata)
 {
-	positionComponent
-		pdata = component_getData (entity_getAs (e, "position"));
 	QUAT
 		r;
 	if (pdata == NULL || pdata->dirty == FALSE)
@@ -244,7 +174,7 @@ void position_updateAxesFromOrientation (Entity e)
 
 void position_rotateOnMouseInput (Entity e, const struct input_event * ie)
 {
-	positionComponent
+	POSITION
 		pdata = NULL;
 	QUAT
 		q;
@@ -303,7 +233,7 @@ void position_rotateOnMouseInput (Entity e, const struct input_event * ie)
 /*
 void position_updateOnEdgeTraversal (Entity e, struct ground_edge_traversal * t)
 {
-	positionComponent
+	POSITION
 		pdata = component_getData (entity_getAs (e, "position"));
 	GroundMap
 		newGround = component_getData (entity_getAs (t->newGroundEntity, "ground"));
@@ -334,7 +264,7 @@ float position_getRoll (const Entity e)
 /* NOTE: I HAVE NO IDEA IF THESE FUNCTIONS WORK RIGHT. AT ALL. SERIOUSLY. SORRY.
  *
  */
-float position_getHeadingR (const positionComponent p)
+float position_getHeadingR (const POSITION p)
 {
 	if (p == NULL)
 		return 0.0;
@@ -345,7 +275,7 @@ float position_getHeadingR (const positionComponent p)
 	return atan2 (-p->view.front.x, p->view.side.x);
 }
 
-float position_getPitchR (const positionComponent p)
+float position_getPitchR (const POSITION p)
 {
 	if (p == NULL)
 		return 0.0;
@@ -358,7 +288,7 @@ float position_getPitchR (const positionComponent p)
 	return asin (p->view.up.x);
 }
 
-float position_getRollR (const positionComponent p)
+float position_getRollR (const POSITION p)
 {
 	if (p == NULL)
 		return 0.0;
@@ -375,6 +305,12 @@ VECTOR3 position_getLocalOffset (const Entity e)
 		* pdata = component_getData (entity_getAs (e, "position"));
 	return position_getLocalOffsetR (pdata);
 }
+VECTOR3 position_getLocalOffsetR (const POSITION p)
+{
+	if (p == NULL)
+		return vectorCreate (0, 0, 0);
+	return p->pos;
+}
 
 QUAT position_getOrientation (const Entity e)
 {
@@ -382,42 +318,72 @@ QUAT position_getOrientation (const Entity e)
 		* pdata = component_getData (entity_getAs (e, "position"));
 	return position_getOrientationR (pdata);
 }
-
-Entity position_getGroundEntity (const Entity e)
-{
-	struct position_data
-		* pdata = component_getData (entity_getAs (e, "position"));
-	return position_getGroundEntityR (pdata);
-}
-VECTOR3 position_getLocalOffsetR (const positionComponent p)
-{
-	if (p == NULL)
-		return vectorCreate (0, 0, 0);
-	return p->pos;
-}
-QUAT position_getOrientationR (const positionComponent p)
+QUAT position_getOrientationR (const POSITION p)
 {
 	if (p == NULL)
 		return quat_create (1, 0, 0, 0);
 	return p->orientation;
 }
 
-Entity position_getGroundEntityR (const positionComponent p)
+SUBHEX position_getGround (const Entity e)
+{
+	struct position_data
+		* pdata = component_getData (entity_getAs (e, "position"));
+	return position_getGroundR (pdata);
+}
+SUBHEX position_getGroundR (const POSITION p)
 {
 	if (p == NULL)
 		return NULL;
-	return p->mapEntity;
+	return p->ground;
 }
+
+const AXES * const position_getViewAxes (const Entity e)
+{
+	POSITION
+		pdata = component_getData (entity_getAs (e, "position"));
+	return position_getViewAxesR (pdata);
+}
+
+const AXES * const position_getViewAxesR (const POSITION p)
+{
+	if (p->dirty)
+		position_updateAxesFromOrientation (p);
+	return &p->view;
+}
+
+const AXES * const position_getMoveAxes (const Entity e)
+{
+	POSITION
+		pdata = component_getData (entity_getAs (e, "position"));
+	return position_getMoveAxesR (pdata);
+}
+
+const AXES * const position_getMoveAxesR (const POSITION p)
+{
+	if (p->dirty)
+		position_updateAxesFromOrientation (p);
+	return &p->move;
+}
+
 
 
 int component_position (Object * obj, objMsg msg, void * a, void * b) {
   struct position_data ** cd = NULL;
+	POSITION
+		position = NULL;
+/*
 	struct ground_change
 		* change;
+*/
 	char
 		* message = NULL;
 	Entity
 		e = NULL;
+/*
+	GroundMap
+		ground;
+*/
   switch (msg) {
     case OM_CLSNAME:
       strncpy (a, "position", 32);
@@ -439,9 +405,10 @@ int component_position (Object * obj, objMsg msg, void * a, void * b) {
 
     case OM_COMPONENT_INIT_DATA:
       cd = a;
+		// this is literally the most tortous way to initialize this. why. why.
       *cd = xph_alloc (sizeof (struct position_data));
       (*cd)->pos = vectorCreate (0.0, 0.0, 0.0);
-      (*cd)->mapEntity = NULL;
+      (*cd)->ground = NULL;
       (*cd)->view.side = vectorCreate (1.0, 0.0, 0.0);
       (*cd)->move.side = vectorCreate (1.0, 0.0, 0.0);
       (*cd)->view.up = vectorCreate (0.0, 1.0, 0.0);
@@ -471,10 +438,15 @@ int component_position (Object * obj, objMsg msg, void * a, void * b) {
 		case OM_COMPONENT_RECEIVE_MESSAGE:
 			message = ((struct comp_message *)a)->message;
 			e = component_entityAttached (((struct comp_message *)a)->to);
+			position = component_getData (((struct comp_message *)a)->to);
+			
 			if (strcmp (message, "CONTROL_INPUT") == 0)
 			{
 				position_rotateOnMouseInput (e, b);
+				return EXIT_SUCCESS;
       		}
+/* this will be hypothetically useful when thinking about how the new subdivs handle occupants; right now there's no occupant list. (well, /right now/ the new subdivs don't even work, so...
+ * - xph 2011-05-21
 			else if (!strcmp (message, "GROUND_CHANGE"))
 			{
 				change = b;
@@ -482,6 +454,20 @@ int component_position (Object * obj, objMsg msg, void * a, void * b) {
 				ground_removeOccupant (change->oldGround, e);
 				if (change->newGround != NULL)
 					ground_addOccupant (change->newGround, e);
+			}
+*/
+			else if (!strcmp (message, "getWorldPosition"))
+			{
+				*(void **)b = subhexGeneratePosition (position->ground);
+				return EXIT_SUCCESS;
+/*
+				//DEBUG ("position: responding to message. (%p, %p)", a, b);
+				hex_space2coord (&position->pos, &x, &y);
+				hex_xy2rki (x, y, &r, &k, &i);
+				ground = component_getData (entity_getAs (position->mapEntity, "ground"));
+				*(void **)b = worldhexFromPosition (ground_getWorldPos (ground), r, k, i);
+				//DEBUG ("constructed %s", whxPrint (*(void **)b));
+*/
 			}
 			return EXIT_FAILURE;
 

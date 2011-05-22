@@ -3,16 +3,11 @@
 #include "entity.h"
 #include "system.h"
 
-#include "component_camera.h"
-#include "camera_draw.h"
-
-void render ();
-
 int main (int argc, char * argv[])
 {
 	SYSTEM
 		* sys = NULL;
-	logSetLevel (E_ALL);
+	logSetLevel (E_ALL & ~E_FUNCLABEL);
 	objPassEnable (FALSE);
 	objClass_init (system_handler, NULL, NULL, NULL);
 	sys = obj_getClassData (SystemObject, "SYSTEM");

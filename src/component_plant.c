@@ -1,5 +1,8 @@
 #include "component_plant.h"
 
+#include <SDL/SDL_opengl.h>
+#include "component_position.h"
+
 struct plantData
 {
 	char
@@ -239,44 +242,44 @@ bool plant_createRandom (Entity e)
 {
 	EntComponent
 		plantComponent = entity_getAs (e, "plant");
-	struct plantData
-		* plantData = NULL;
+	PLANT
+		plant = NULL;
 	if (plantComponent != NULL)
 		return FALSE;
 	component_instantiateOnEntity ("plant", e);
 	// ... this ought to initialize the plant data to an empty struct
 	plantComponent = entity_getAs (e, "plant");
-	plantData = component_getData (plantComponent);
+	plant = component_getData (plantComponent);
 	// TODO: THIS IS NOT RANDOM AT ALL >:E
-	lsystem_addProduction (plantData->growthRules, 'R', "[-Y+_TZR]['-Y+_TTZR][''-Y+_YTZR]");
-	lsystem_addProduction (plantData->growthRules, 'Y', "YY");
-	lsystem_addProduction (plantData->growthRules, 'Z', "Z");
-	lsystem_addProduction (plantData->growthRules, 'Z', ",");
-	lsystem_addProduction (plantData->growthRules, 'Z', ".");
-	lsystem_addProduction (plantData->growthRules, 'Z', "<");
-	lsystem_addProduction (plantData->growthRules, 'Z', ">");
-	plant_addSymbol (plantData->symbols, plant_specifySymbol ('G', BRANCH_MODIFIER, "grow", 1, 8));
-	plant_addSymbol (plantData->symbols, plant_specifySymbol ('T', BRANCH_MODIFIER, "grow", 1, 1));
-	plant_addSymbol (plantData->symbols, plant_specifySymbol ('Y', BRANCH_MODIFIER, "grow", 1, 1));
-	plant_addSymbol (plantData->symbols, plant_specifySymbol ('\'', POINTER_MODIFIER, "twist", 1, 120));
-	plant_addSymbol (plantData->symbols, plant_specifySymbol ('<', POINTER_MODIFIER, "turn", 1, -15));
-	plant_addSymbol (plantData->symbols, plant_specifySymbol ('>', POINTER_MODIFIER, "turn", 1, 15));
-	plant_addSymbol (plantData->symbols, plant_specifySymbol (',', POINTER_MODIFIER, "look", 1, -15));
-	plant_addSymbol (plantData->symbols, plant_specifySymbol ('.', POINTER_MODIFIER, "look", 1, 15));
-	plant_addSymbol (plantData->symbols, plant_specifySymbol ('-', POINTER_MODIFIER, "look", 1, -60));
-	plant_addSymbol (plantData->symbols, plant_specifySymbol ('_', POINTER_MODIFIER, "look", 1, -20));
-	plant_addSymbol (plantData->symbols, plant_specifySymbol ('+', POINTER_MODIFIER, "look", 1, 60));
-	plantData->growth = xph_alloc (4);
-	strcpy (plantData->growth, ":GR");
-	plantData->thickness = plant_generateBranchThickness (plantData->growth, plantData->symbols);
-	plantData->growthsTilDeath = 6;
-	plantData->growthThreshhold = 1200;
+	lsystem_addProduction (plant->growthRules, 'R', "[-Y+_TZR]['-Y+_TTZR][''-Y+_YTZR]");
+	lsystem_addProduction (plant->growthRules, 'Y', "YY");
+	lsystem_addProduction (plant->growthRules, 'Z', "Z");
+	lsystem_addProduction (plant->growthRules, 'Z', ",");
+	lsystem_addProduction (plant->growthRules, 'Z', ".");
+	lsystem_addProduction (plant->growthRules, 'Z', "<");
+	lsystem_addProduction (plant->growthRules, 'Z', ">");
+	plant_addSymbol (plant->symbols, plant_specifySymbol ('G', BRANCH_MODIFIER, "grow", 1, 8));
+	plant_addSymbol (plant->symbols, plant_specifySymbol ('T', BRANCH_MODIFIER, "grow", 1, 1));
+	plant_addSymbol (plant->symbols, plant_specifySymbol ('Y', BRANCH_MODIFIER, "grow", 1, 1));
+	plant_addSymbol (plant->symbols, plant_specifySymbol ('\'', POINTER_MODIFIER, "twist", 1, 120));
+	plant_addSymbol (plant->symbols, plant_specifySymbol ('<', POINTER_MODIFIER, "turn", 1, -15));
+	plant_addSymbol (plant->symbols, plant_specifySymbol ('>', POINTER_MODIFIER, "turn", 1, 15));
+	plant_addSymbol (plant->symbols, plant_specifySymbol (',', POINTER_MODIFIER, "look", 1, -15));
+	plant_addSymbol (plant->symbols, plant_specifySymbol ('.', POINTER_MODIFIER, "look", 1, 15));
+	plant_addSymbol (plant->symbols, plant_specifySymbol ('-', POINTER_MODIFIER, "look", 1, -60));
+	plant_addSymbol (plant->symbols, plant_specifySymbol ('_', POINTER_MODIFIER, "look", 1, -20));
+	plant_addSymbol (plant->symbols, plant_specifySymbol ('+', POINTER_MODIFIER, "look", 1, 60));
+	plant->growth = xph_alloc (4);
+	strcpy (plant->growth, ":GR");
+	plant->thickness = plant_generateBranchThickness (plant->growth, plant->symbols);
+	plant->growthsTilDeath = 6;
+	plant->growthThreshhold = 1200;
 	return TRUE;
 }
 
 void plant_update (EntComponent pc)
 {
-	plantData
+	PLANT
 		pd = component_getData (pc);
 	if (pd->growthThreshhold == 0)
 		return;
@@ -290,7 +293,7 @@ void plant_update (EntComponent pc)
 	}
 }
 
-void plant_grow (plantData plant)
+void plant_grow (PLANT plant)
 {
 	char
 		* t;
@@ -309,14 +312,12 @@ void plant_grow (plantData plant)
 */
 }
 
-void plant_draw (Entity e, CameraGroundLabel label)
+void plant_draw (Entity e)
 {
-	struct plantData
-		* pd = component_getData (entity_getAs (e, "plant"));
+	PLANT
+		pd = component_getData (entity_getAs (e, "plant"));
 	VECTOR3
-		offset = label_getOriginOffset (label),
 		loc = position_getLocalOffset (e),
-		total = vectorAdd (&offset, &loc),
 		lastPos,
 		pos;
 	int
@@ -340,9 +341,9 @@ void plant_draw (Entity e, CameraGroundLabel label)
 		glBegin (GL_LINE_STRIP);
 		lastPos = pos;
 		glVertex3f (
-			total.x + lastPos.x * growthConstant,
-			total.y + lastPos.y * growthConstant,
-			total.z + lastPos.z * growthConstant
+			loc.x + lastPos.x * growthConstant,
+			loc.y + lastPos.y * growthConstant,
+			loc.z + lastPos.z * growthConstant
 		);
 		//printf ("'%c'\n", c);
 		switch (c)
@@ -405,9 +406,9 @@ void plant_draw (Entity e, CameraGroundLabel label)
 				);
 */
 				glVertex3f (
-					total.x + pos.x * growthConstant,
-					total.y + pos.y * growthConstant,
-					total.z + pos.z * growthConstant
+					loc.x + pos.x * growthConstant,
+					loc.y + pos.y * growthConstant,
+					loc.z + pos.z * growthConstant
 				);
 		}
 		glEnd ();
@@ -419,7 +420,7 @@ void plant_draw (Entity e, CameraGroundLabel label)
 /*
 void plant_draw (Entity e, CameraGroundLabel label)
 {
-	struct plantData
+	struct PLANT
 		* pd = component_getData (entity_getAs (e, "plant"));
 	int
 		i = 0;
@@ -611,7 +612,7 @@ int component_plant (Object * obj, objMsg msg, void * a, void * b)
 {
 	Entity
 		e;
-	plantData
+	PLANT
 		pd;
 	DynIterator
 		it;
@@ -684,7 +685,7 @@ int component_plant (Object * obj, objMsg msg, void * a, void * b)
 			e = component_entityAttached (c_msg->to);
 			if (strcmp (c_msg->message, "RENDER") == 0)
 			{
-				plant_draw (e, b);
+				plant_draw (e);
 				return EXIT_SUCCESS;
 			}
 			else if (strcmp (c_msg->message, "PLANT_DEATH") == 0)

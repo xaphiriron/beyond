@@ -59,6 +59,9 @@ bool video_getDimensions (unsigned int * width, unsigned int * height);
 inline float video_pixelYMap (int y);
 inline float video_pixelXMap (int x);
 
+inline float video_pixelXOffset (signed int x);
+inline float video_pixelYOffset (signed int y);
+
 int video_handler (Object * e, objMsg msg, void * a, void * b);
 
 #endif /* VIDEO_H */

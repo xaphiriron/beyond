@@ -413,7 +413,13 @@ bool dynarr_isEmpty (const Dynarr da)
 DynIterator dynIterator_create (const Dynarr da)
 {
 	DynIterator
-		it = malloc (sizeof (struct dyn_iterator));
+		it;
+	if (da == NULL)
+	{
+		ERROR ("Canoot create iterator: array is NULL", NULL);
+		return NULL;
+	}
+	it = malloc (sizeof (struct dyn_iterator));
 	it->da = da;
 	it->indices = NULL;
 	it->checkedIndex = -1;

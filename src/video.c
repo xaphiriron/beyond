@@ -202,6 +202,24 @@ inline float video_pixelXMap (int x)
 	return (x - v->width / 2.0) * v->resolution;
 }
 
+inline float video_pixelXOffset (signed int x)
+{
+	const VIDEO
+		* v =  obj_getClassData (VideoObject, "video");
+	if (v == NULL)
+		return 0.0;
+	return x * v->resolution;
+}
+
+inline float video_pixelYOffset (signed int y)
+{
+	const VIDEO
+		* v =  obj_getClassData (VideoObject, "video");
+	if (v == NULL)
+		return 0.0;
+	return y * v->resolution;
+}
+
 int video_handler (Object * o, objMsg msg, void * a, void * b) {
   VIDEO * v = NULL;
 	char

@@ -88,6 +88,16 @@ struct vector vectorMultiplyByScalar (const struct vector * v, float m) {
   return r;
 }
 
+VECTOR3 vectorDivideByScalar (const struct vector * v, float d)
+{
+	struct vector
+		r;
+	r.x = v->x / d;
+	r.y = v->y / d;
+	r.z = v->z / d;
+	return r;
+}
+
 struct vector vectorMultiplyByMatrix (const struct vector * v, float * m) {
   struct vector r;
   r.x = v->x * m[0] +

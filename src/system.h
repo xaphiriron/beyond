@@ -5,6 +5,8 @@
 #include "object.h"
 #include "ui.h"
 
+#include "map.h"
+
 extern Object * SystemObject;
 
 enum system_states
@@ -55,6 +57,7 @@ enum uiPanelTypes systemTopUIPanelType ();
 void system_registerTimedFunction (void (*func)(TIMER), unsigned char weight);
 void system_removeTimedFunction (void (*func)(TIMER));
 
+void systemPlacePlayerAt (const SUBHEX subhex);
 void systemRender ();
 
 int system_handler (Object * o, objMsg msg, void * a, void * b);

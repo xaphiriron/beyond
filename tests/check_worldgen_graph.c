@@ -16,7 +16,9 @@ void
 
 void graphBlankCreate ()
 {
-	g = worldgenCreateBlankRegionGraph ();
+	mapSetSpanAndRadius (4, 8);
+	mapGeneratePoles (POLE_TRI);
+	g = worldgenCreateBlankGraph ();
 }
 
 START_TEST (graphCreateTest)
@@ -27,7 +29,7 @@ END_TEST
 
 void graphBlankCreateDestroy ()
 {
-	g = worldgenCreateBlankRegionGraph ();
+	g = worldgenCreateBlankGraph ();
 	e = graphGetRawEdges (g);
 	v = graphGetRawVertices (g);
 	graphDestroy (g);
@@ -58,27 +60,27 @@ END_TEST
  * graphWorldBase
  */
 
-START_TEST (graphWorldBaseInvalidRBaseTest)
+START_TEST (graphWorldBaseInitializeRTest)
 {
 	DEBUG ("%s", __FUNCTION__);
 	graphWorldBase (g, GRAPH_POLE_R);
-	fail_unless (graphVertexCount (g) == 0);
+	fail_unless (graphVertexCount (g) == 1);
 }
 END_TEST
 
-START_TEST (graphWorldBaseInvalidGBaseTest)
+START_TEST (graphWorldBaseInitializeGTest)
 {
 	DEBUG ("%s", __FUNCTION__);
 	graphWorldBase (g, GRAPH_POLE_G);
-	fail_unless (graphVertexCount (g) == 0);
+	fail_unless (graphVertexCount (g) == 1);
 }
 END_TEST
 
-START_TEST (graphWorldBaseInvalidBBaseTest)
+START_TEST (graphWorldBaseInitializeBTest)
 {
 	DEBUG ("%s", __FUNCTION__);
 	graphWorldBase (g, GRAPH_POLE_B);
-	fail_unless (graphVertexCount (g) == 0);
+	fail_unless (graphVertexCount (g) == 1);
 }
 END_TEST
 
@@ -176,17 +178,17 @@ Suite * makeGraphWorldBaseSuite ()
 	Suite
 		* s = suite_create ("graphWorldBase");
 	TCase
-		* tcInvalid = tcase_create ("Invalid initializations"),
+		* tcSole = tcase_create ("R/G/B initializations"),
 		* tcRGBase = tcase_create ("R-G initialization"),
 		* tcRBBase = tcase_create ("R-B initialization"),
 		* tcGBBase = tcase_create ("G-B initialization"),
 		* tcFullBase = tcase_create ("Full (R-G-B) initialization");
 
-	tcase_add_checked_fixture (tcInvalid, graphBlankCreate, NULL);
-	tcase_add_test (tcInvalid, graphWorldBaseInvalidRBaseTest);
-	tcase_add_test (tcInvalid, graphWorldBaseInvalidGBaseTest);
-	tcase_add_test (tcInvalid, graphWorldBaseInvalidBBaseTest);
-	suite_add_tcase (s, tcInvalid);
+	tcase_add_checked_fixture (tcSole, graphBlankCreate, NULL);
+	tcase_add_test (tcSole, graphWorldBaseInitializeRTest);
+	tcase_add_test (tcSole, graphWorldBaseInitializeGTest);
+	tcase_add_test (tcSole, graphWorldBaseInitializeBTest);
+	suite_add_tcase (s, tcSole);
 
 	tcase_add_checked_fixture (tcRGBase, graphBlankCreate, NULL);
 	tcase_add_test (tcRGBase, graphWorldBaseInitializeRGTest);
@@ -215,7 +217,7 @@ int main () {
 
 	srunner_add_suite (sr, makeGraphWorldBaseSuite ());
 
-	logSetLevel (E_ALL);
+	logSetLevel (E_ALL ^ E_DEBUG);
 
 	srunner_run_all (sr, CK_NORMAL);
 	number_failed = srunner_ntests_failed (sr);

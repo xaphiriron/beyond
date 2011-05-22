@@ -1,5 +1,7 @@
 #include "component_camera.h"
 
+#include <SDL/SDL_opengl.h>
+
 /***
  * the camera component exists simply to visualize the data already stored in
  * the position component. orientation is a property of the position component,
@@ -19,14 +21,14 @@ struct camera_data
 		rotation;
 	Entity
 		target;
-	CameraGroundLabel
-		l;
 	enum camera_modes
 		mode;
 };
 
 
-static Entity ActiveCamera = NULL;
+static Entity
+	ActiveCamera = NULL;
+
 static void camera_doControlInputResponse (Entity camera, const struct input_event * ie);
 static struct camera_data * camera_create ();
 
@@ -139,16 +141,6 @@ enum camera_modes camera_getMode (Entity camera)
 	return cd->mode;
 }
 
-const CameraGroundLabel camera_getLabel (Entity e)
-{
-	cameraComponent
-		cdata = component_getData (entity_getAs (e, "camera"));
-	if (cdata == NULL)
-		return NULL;
-	return cdata->l;
-}
-
-
 float camera_getHeading (Entity e)
 {
 	cameraComponent
@@ -193,7 +185,7 @@ void camera_attachToTarget (Entity camera, Entity target)
 {
 	cameraComponent
 		cd = component_getData (entity_getAs (camera, "camera"));
-	positionComponent
+	POSITION
 		targetPosition = component_getData (entity_getAs (target, "position"));
 	if (cd == NULL || targetPosition == NULL)
 		return;
@@ -205,14 +197,10 @@ void camera_setAsActive (Entity e)
 {
 	cameraComponent
 		cdata = component_getData (entity_getAs (e, "camera"));
-	positionComponent
+	POSITION
 		pdata = component_getData (entity_getAs (e, "position"));
-	Entity origin = NULL;
 	if (pdata == NULL || cdata == NULL)
 		return;
-	origin = position_getGroundEntityR (pdata);
-	cameraCache_setGroundEntityAsOrigin (origin);
-	cdata->l = cameraCache_getOriginLabel ();
 	camera_update (e);
 	ActiveCamera = e;
 }
@@ -295,21 +283,26 @@ void camera_updateTargetPositionData (Entity camera)
 {
 	cameraComponent
 		cdata = component_getData (entity_getAs (camera, "camera"));
-	positionComponent
+	POSITION
 		targetPosition;
+	const AXES
+		* targetView;
 	VECTOR3
-		groundOffset,
-		fullPos;
+		localOffset;
 	if (cdata == NULL || cdata->target == NULL)
 		return;
 	targetPosition = component_getData (entity_getAs (cdata->target, "position"));
-	position_updateAxesFromOrientation (cdata->target);
+	localOffset = position_getLocalOffsetR (targetPosition);
+	targetView = position_getViewAxesR (targetPosition);
 
-	groundOffset = label_getOriginOffset (cdata->l);
-
-	fullPos.x = targetPosition->pos.x + groundOffset.x;
-	fullPos.y = targetPosition->pos.y + groundOffset.y;
-	fullPos.z = targetPosition->pos.z + groundOffset.z;
+/* originally this calculated the local offset (vector offset of the target
+ * from the centre of the ground it's on) and ground offset (vector offset of
+ * the target's ground from the 'origin ground'; the ground being drawn at
+ * 0,0,0) but with the dissolution of the entire ground label system i don't
+ * /think/ the latter is needed anymore, since the ground the camera is on
+ * ought always be drawn at 0,0,0
+ *  - xph 2011-05-12
+ */
 
 /*
  * if you're not up on your matrix math, what we do here is generate a
@@ -320,31 +313,31 @@ void camera_updateTargetPositionData (Entity camera)
  * calling some sort of matrix multiplication function.
  *  - xph 2010-11-25
  */
-	cdata->targetMatrix[0] = targetPosition->view.side.x;
-	cdata->targetMatrix[1] = targetPosition->view.up.x;
-	cdata->targetMatrix[2] = targetPosition->view.front.x;
+	cdata->targetMatrix[0] = targetView->side.x;
+	cdata->targetMatrix[1] = targetView->up.x;
+	cdata->targetMatrix[2] = targetView->front.x;
 	cdata->targetMatrix[3] = 0;
-	cdata->targetMatrix[4] = targetPosition->view.side.y;
-	cdata->targetMatrix[5] = targetPosition->view.up.y;
-	cdata->targetMatrix[6] = targetPosition->view.front.y;
+	cdata->targetMatrix[4] = targetView->side.y;
+	cdata->targetMatrix[5] = targetView->up.y;
+	cdata->targetMatrix[6] = targetView->front.y;
 	cdata->targetMatrix[7] = 0;
-	cdata->targetMatrix[8] = targetPosition->view.side.z;
-	cdata->targetMatrix[9] = targetPosition->view.up.z;
-	cdata->targetMatrix[10] = targetPosition->view.front.z;
+	cdata->targetMatrix[8] = targetView->side.z;
+	cdata->targetMatrix[9] = targetView->up.z;
+	cdata->targetMatrix[10] = targetView->front.z;
 	cdata->targetMatrix[11] = 0.0;
 
 	cdata->targetMatrix[12] =
-		-fullPos.x * cdata->targetMatrix[0] +
-		-fullPos.y * cdata->targetMatrix[4] +
-		-fullPos.z * cdata->targetMatrix[8];
+		-localOffset.x * cdata->targetMatrix[0] +
+		-localOffset.y * cdata->targetMatrix[4] +
+		-localOffset.z * cdata->targetMatrix[8];
 	cdata->targetMatrix[13] =
-		-fullPos.x * cdata->targetMatrix[1] +
-		-fullPos.y * cdata->targetMatrix[5] +
-		-fullPos.z * cdata->targetMatrix[9];
+		-localOffset.x * cdata->targetMatrix[1] +
+		-localOffset.y * cdata->targetMatrix[5] +
+		-localOffset.z * cdata->targetMatrix[9];
 	cdata->targetMatrix[14] =
-		-fullPos.x * cdata->targetMatrix[2] +
-		-fullPos.y * cdata->targetMatrix[6] +
-		-fullPos.z * cdata->targetMatrix[10];
+		-localOffset.x * cdata->targetMatrix[2] +
+		-localOffset.y * cdata->targetMatrix[6] +
+		-localOffset.z * cdata->targetMatrix[10];
 	cdata->targetMatrix[15] = 1.0;
 
 }
@@ -383,80 +376,20 @@ void camera_setCameraOffset (Entity camera, float azimuth, float rotation, float
 	}
 }
 
-void camera_updateLabelsFromGroundChange (Entity camera, struct ground_change * ch)
-{
-	cameraComponent
-		cdata = component_getData (entity_getAs (camera, "camera"));
-	signed int
-		x, y,
-		lo = 0;
-	unsigned int
-		r, k, i,
-		drawDistance;
-	CameraGroundLabel
-		newLabel;
-	Entity
-		newOrigin;
-	if (cdata == NULL)
-		return;
-	if (ch->dir == GROUND_FAR)
-	{
-		// something something
-		WARNING ("ground change dir is _FAR; no way to handle this yet; ignoring (?!)", NULL);
-		return;
-	}
-	drawDistance = groundWorld_getDrawDistance ();
-	label_getXY (cdata->l, &x, &y);
-	x += XY[ch->dir][0];
-	y += XY[ch->dir][1];
-	hex_xy2rki (x, y, &r, &k, &i);
-	lo = hex_linearCoord (r, k, i);
-	newLabel = *(CameraGroundLabel *)dynarr_at (OriginCache->cache, lo);
-	if (newLabel == NULL || (label_getCoordinateDistanceFromOrigin (newLabel) >= (drawDistance / 3) && label_getCoordinateDistanceFromOrigin (newLabel) > 1))
-	{
-		if (newLabel == NULL)
-		{
-			WARNING ("%s (#%d, ...): Active camera has walked outside the visible world. This is going to be a bumpy update.\n", __FUNCTION__, entity_GUID (camera));
-			newOrigin = label_getGroundReference (cdata->l);
-		}
-		else
-		{
-			newOrigin = label_getGroundReference (newLabel);
-			lo = 0;
-		}
-		cameraCache_setGroundEntityAsOrigin (newOrigin);
-		//printf ("%s: resetting world origin to #%d (from #%d) \n", __FUNCTION__, entity_GUID (newOrigin), entity_GUID (w->groundOrigin));
-		groundWorld_updateEntityOrigin (camera, newOrigin);
-		if (newLabel == NULL)
-		{
-			x = XY[ch->dir][0];
-			y = XY[ch->dir][1];
-			hex_xy2rki (x, y, &r, &k, &i);
-			lo = hex_linearCoord (r, k, i);
-		}
-		newLabel = *(CameraGroundLabel *)dynarr_at (OriginCache->cache, lo);
-	}
-	//printf ("%s: updated camera label\n", __FUNCTION__);
-	//label_getXY (newLabel, &x, &y);
-	//newOffset = label_getOriginOffset (newLabel);
-	//printf ("\t@ %d,%d %5.2f, %5.2f, %5.2f\n", x, y, newOffset.x, newOffset.y, newOffset.z);
-	cdata->l = newLabel;
-}
-
 void camera_update (Entity e)
 {
 	cameraComponent
 		cdata = component_getData (entity_getAs (e, "camera"));
-	positionComponent
+	POSITION
 		pdata = component_getData (entity_getAs (e, "position"));
-	if (cdata == NULL || cdata->l == NULL)
+	if (cdata == NULL)
 	{
-		WARNING ("%s (#%d): entity has no camera data (%p) or camera data has no label (%p)\n", __FUNCTION__, entity_GUID (e), cdata, cdata == NULL ? NULL : cdata->l);
+		WARNING ("Cannot update camera: camera (#%d) has no camera component", entity_GUID (e));
 		return;
 	}
 	if (pdata == NULL)
 	{
-		//printf ("no position\n");
+		WARNING ("Cannot update camera: camera (#%d) has no position component", entity_GUID (e));
 		cdata->m[0] = cdata->m[5] = cdata->m[10] = cdata->m[15] = 1.0;
 		cdata->m[1] = cdata->m[2] = cdata->m[3] = cdata->m[4] = \
 		cdata->m[6] = cdata->m[7] = cdata->m[8] = cdata->m[9] = \
@@ -476,7 +409,6 @@ void camera_update (Entity e)
 		cdata->m[3], cdata->m[7], cdata->m[11], cdata->m[15]
 	);
 //*/
-
 }
 
 //*
@@ -569,12 +501,9 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 			strncpy (a, "camera", 32);
 			return EXIT_SUCCESS;
 		case OM_CLSINIT:
-			OriginCache = cameraCache_create ();
 			comp_entdata = dynarr_create (8, sizeof (Entity));
 			return EXIT_SUCCESS;
 		case OM_CLSFREE:
-			cameraCache_destroy (OriginCache);
-			OriginCache = NULL;
 			dynarr_destroy (comp_entdata);
 			comp_entdata = NULL;
 			return EXIT_SUCCESS;
@@ -625,10 +554,11 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 		case OM_COMPONENT_RECEIVE_MESSAGE:
 			message = ((struct comp_message *)a)->message;
 			e = component_entityAttached (((struct comp_message *)a)->to);
-			if (strcmp (message, "GROUND_CHANGE") == 0)
+			if (strcmp (message, "positionUpdate") == 0)
 			{
+				worldSetRenderCacheCentre (((POSITIONUPDATE)b)->newGround);
+				camera_update (e);
 				DEBUG ("Camera labels have updated", NULL);
-				camera_updateLabelsFromGroundChange (e, (struct ground_change *)b);
 			}
 			else if (strcmp (message, "CONTROL_INPUT") == 0)
 			{
@@ -640,4 +570,50 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 			return obj_pass ();
 	}
 	return EXIT_FAILURE;
+}
+
+
+void camera_drawCursor ()
+{
+	//cameraComponent
+	//	cdata = component_getData (entity_getAs (e, "camera"));
+	//Texture * t = camera_getCursorTexture (cdata);
+	unsigned int
+		height = 0,
+		width = 0,
+		centerHeight,
+		centerWidth,
+		halfTexHeight,
+		halfTexWidth;
+	float
+		zNear,
+		top, bottom,
+		left, right;
+/*
+	if (t == NULL)
+		return;
+*/
+	if (!video_getDimensions (&width, &height))
+		return;
+	zNear = video_getZnear () - 0.001;
+	centerHeight = height / 2;
+	centerWidth = width / 2;
+	halfTexHeight = 2;//texture_pxHeight (t) / 2;
+	halfTexWidth = 2;//texture_pxWidth (t) / 2;
+	top = video_pixelYMap (centerHeight + halfTexHeight);
+	bottom = video_pixelYMap (centerHeight - halfTexHeight);
+	left = video_pixelXMap (centerWidth - halfTexWidth);
+	right = video_pixelXMap (centerWidth + halfTexWidth);
+	//printf ("top: %7.2f; bottom: %7.2f; left: %7.2f; right: %7.2f\n", top, bottom, left, right);
+	glPushMatrix ();
+	glLoadIdentity ();
+	glColor3f (1.0, 1.0, 1.0);
+	//glBindTexture (GL_TEXTURE_2D, texture_glID (t));
+	glBegin (GL_TRIANGLE_STRIP);
+	glVertex3f (top, left, zNear);
+	glVertex3f (bottom, left, zNear);
+	glVertex3f (top, right, zNear);
+	glVertex3f (bottom, right, zNear);
+	glEnd ();
+	glPopMatrix ();
 }

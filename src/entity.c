@@ -420,44 +420,56 @@ void entity_destroySystem (const char * comp_name) {
 	//printf ("...%s\n", __FUNCTION__);
 }
 
-void entity_destroyEverything () {
-  EntSystem sys = NULL;
-  Entity e = NULL;
+void entity_destroyEverything ()
+{
+	EntSystem
+		sys = NULL;
+	Entity
+		e = NULL;
 	DynIterator
-		it = dynIterator_create (ExistantEntities);
-	//printf ("%s...\n", __FUNCTION__);
-	
-	while (!dynIterator_done (it))
+		it;
+	FUNCOPEN ();
+
+	if (ExistantEntities != NULL)
 	{
-		e = *(Entity *)dynIterator_next (it);
-    	entity_destroy (e);
+		it = dynIterator_create (ExistantEntities);
+		while (!dynIterator_done (it))
+		{
+			e = *(Entity *)dynIterator_next (it);
+			entity_destroy (e);
+		}
+		dynIterator_destroy (it);
+		it = NULL;
 	}
-	dynIterator_destroy (it);
-	it = NULL;
 	entity_purgeDestroyed (NULL);
-	dynarr_destroy (ToBeDestroyed);
-	ToBeDestroyed = NULL;
-  dynarr_destroy (ExistantEntities);
-  ExistantEntities = NULL;
+	if (ToBeDestroyed != NULL)
+	{
+		dynarr_destroy (ToBeDestroyed);
+		ToBeDestroyed = NULL;
+	}
+	if (ExistantEntities != NULL)
+	{
+		dynarr_destroy (ExistantEntities);
+		ExistantEntities = NULL;
+	}
 	if (DestroyedEntities != NULL)
 	{
 		dynarr_destroy (DestroyedEntities);
 		DestroyedEntities = NULL;
 	}
-  dynarr_destroy (SubsystemComponentStore);
-  SubsystemComponentStore = NULL;
-  if (SystemRegistry == NULL) {
-	//printf ("...%s (early)\n", __FUNCTION__);
-    return;
-  }
-  while (!dynarr_isEmpty (SystemRegistry)) {
-    sys = *(EntSystem *)dynarr_front (SystemRegistry);
-	DEBUG ("Destroying system \"%s\"", sys->comp_name);
-    entity_destroySystem (sys->comp_name);
-  }
-  dynarr_destroy (SystemRegistry);
-  SystemRegistry = NULL;
-	//printf ("...%s\n", __FUNCTION__);
+	dynarr_destroy (SubsystemComponentStore);
+	SubsystemComponentStore = NULL;
+	if (SystemRegistry == NULL)
+		return;
+	while (!dynarr_isEmpty (SystemRegistry))
+	{
+		sys = *(EntSystem *)dynarr_front (SystemRegistry);
+		DEBUG ("Destroying system \"%s\"", sys->comp_name);
+		entity_destroySystem (sys->comp_name);
+	}
+	dynarr_destroy (SystemRegistry);
+	SystemRegistry = NULL;
+	FUNCCLOSE ();
 }
 
 bool component_instantiateOnEntity (const char * comp_name, Entity e) {

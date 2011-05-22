@@ -7,9 +7,7 @@
 #include "object.h"
 #include "video.h"
 
-#include "ground_draw.h"
 #include "component_position.h"
-#include "component_ground.h"
 
 enum camera_modes
 {
@@ -22,7 +20,6 @@ enum camera_modes
 typedef struct camera_data * cameraComponent;
 
 const float * camera_getMatrix (Entity e);
-const CameraGroundLabel camera_getLabel (Entity e);
 enum camera_modes camera_getMode (Entity camera);
 float camera_getHeading (Entity e);
 float camera_getPitch (Entity e);
@@ -41,10 +38,11 @@ void camera_updateTargetPositionData (Entity camera);
 // in isometric mode azimuth is clamped to 45 (or maybe 30-60)
 void camera_setCameraOffset (Entity camera, float azimuth, float rotation, float distance);
 
-void camera_updateLabelsFromGroundChange (Entity camera, struct ground_change * ch);
-
 void camera_update (Entity e);
 void camera_updatePosition (Entity camera);
 int component_camera (Object * obj, objMsg msg, void * a, void * b);
+
+
+void camera_drawCursor ();
 
 #endif /* XPH_COMPONENT_CAMERA_H */

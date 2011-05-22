@@ -48,17 +48,21 @@ void walking_end_turn (Entity e, enum walk_turn w) {
 }
 
 
-void walk_move (Entity e) {
+void walk_move (Entity e)
+{
   EntComponent
     p = NULL,
     i = NULL,
     w = NULL;
-  struct position_data * pdata = NULL;
+	POSITION
+		pdata = NULL;
   struct integrate_data * idata = NULL;
   walkingComponent wdata = NULL;
   //const PHYSICS * physics = obj_getClassData (PhysicsObject, "physics");
 	const SYSTEM
 		* sys = obj_getClassData (SystemObject, "SYSTEM");
+	const AXES
+		* moveAxes;
 	VECTOR3
 		newpos,
 		move,
@@ -73,28 +77,27 @@ void walk_move (Entity e) {
   }
   pdata = component_getData (p);
   wdata = component_getData (w);
-	if (pdata->dirty)
-		position_updateAxesFromOrientation (e);
+	moveAxes = position_getMoveAxesR (pdata);
   //printf ("%s: updating entity #%d (w/ %5.2f, %5.2f, %5.2f)\n", __FUNCTION__, e->guid, wdata->dir.x, wdata->dir.y, wdata->dir.z);
   if (wdata->dirsActive == WALK_MOVE_NONE) {
     return;
   }
   if (wdata->dirsActive & WALK_MOVE_LEFT) {
-    move = vectorMultiplyByScalar (&pdata->move.side, -wdata->moveSpd);
+    move = vectorMultiplyByScalar (&moveAxes->side, -wdata->moveSpd);
     moveDirs = vectorAdd (&moveDirs, &move);
     dirs++;
   } else if (wdata->dirsActive & WALK_MOVE_RIGHT) {
-    move = vectorMultiplyByScalar (&pdata->move.side, wdata->moveSpd);
+    move = vectorMultiplyByScalar (&moveAxes->side, wdata->moveSpd);
     moveDirs = vectorAdd (&moveDirs, &move);
     dirs++;
   }
 
   if (wdata->dirsActive & WALK_MOVE_FORWARD) {
-    move = vectorMultiplyByScalar (&pdata->move.front, -wdata->moveSpd);
+    move = vectorMultiplyByScalar (&moveAxes->front, -wdata->moveSpd);
     moveDirs = vectorAdd (&moveDirs, &move);
     dirs++;
   } else if (wdata->dirsActive & WALK_MOVE_BACKWARD) {
-    move = vectorMultiplyByScalar (&pdata->move.front, wdata->moveSpd);
+    move = vectorMultiplyByScalar (&moveAxes->front, wdata->moveSpd);
     moveDirs = vectorAdd (&moveDirs, &move);
     dirs++;
   }

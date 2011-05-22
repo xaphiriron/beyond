@@ -6,13 +6,11 @@
 #include "ui.h"
 
 #include "worldgen.h"
-#include "camera_draw.h"
 
 #include "component_plant.h"
 #include "component_input.h"
 #include "component_camera.h"
 #include "component_walking.h"
-#include "component_ground.h"
 
 
 Object * SystemObject = NULL;
@@ -41,6 +39,7 @@ SYSTEM * system_create () {
 
 void system_destroy (SYSTEM * s)
 {
+	FUNCOPEN ();
 	dynarr_wipe (s->uiPanels, (void (*)(void *))uiDestroyPanel);
 	dynarr_destroy (s->uiPanels);
 	dynarr_destroy (s->updateFuncs);
@@ -49,6 +48,7 @@ void system_destroy (SYSTEM * s)
 	xtimerDestroyRegistry ();
 	clock_destroy (s->clock);
 	xph_free (s);
+	FUNCCLOSE ();
 }
 
 const TIMER system_getTimer ()
@@ -163,6 +163,17 @@ void system_removeTimedFunction (void (*func)(TIMER))
 	dynarr_remove_condense (s->updateFuncs, func);
 }
 
+void systemPlacePlayerAt (const SUBHEX subhex)
+{
+	FUNCOPEN ();
+	Entity
+		player = input_getPlayerEntity ();
+	VECTOR3
+		pos = vectorCreate (0.0, 0.0, 0.0);
+	position_set (player, pos, subhex);
+	FUNCCLOSE ();
+}
+
 /***
  * RENDERING
  */
@@ -186,7 +197,7 @@ void systemRender ()
 		glLoadIdentity ();
 	else
 		glLoadMatrixf (matrix);
-	ground_draw_fill (camera);
+	mapDraw ();
 	if (systemGetState (System) == STATE_FIRSTPERSONVIEW)
 		camera_drawCursor ();
 
@@ -204,6 +215,10 @@ void systemRender ()
 		glEnable (GL_DEPTH_TEST);
 	}
 }
+
+/***
+ * HANDLER
+ */
 
 int system_handler (Object * o, objMsg msg, void * a, void * b)
 {
@@ -225,7 +240,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 			//objClass_init (world_handler, NULL, NULL, NULL);
 			//printf ("registering components\n");
 			entity_registerComponentAndSystem (component_position);
-			entity_registerComponentAndSystem (component_ground);
+//			entity_registerComponentAndSystem (component_ground);
 //			entity_registerComponentAndSystem (component_integrate);
 			entity_registerComponentAndSystem (component_camera);
 //			entity_registerComponentAndSystem (component_collide);
@@ -244,7 +259,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 
 	// not really sure where these should go; they're going here for now.
 	system_registerTimedFunction (entity_purgeDestroyed, 0x7f);
-	system_registerTimedFunction (cameraCache_update, 0x7f);
+//	system_registerTimedFunction (cameraCache_update, 0x7f);
 	system_registerTimedFunction (component_runLoader, 0x7f);
 
 			//printf ("creating additional objects\n");
@@ -267,14 +282,14 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 #endif /* MEM_DEBUG */
 			printf ("DONE WITH SYSTEM CLASS INIT\n");
 			return EXIT_SUCCESS;
-    case OM_CLSFREE:
-      //printf ("%s[OM_CLSFREE]: calling entity_destroyEverything\n", __FUNCTION__);
-      entity_destroyEverything ();
-      //printf ("...done\n");
-      SDL_Quit ();
-      return EXIT_SUCCESS;
-    case OM_CLSVARS:
-      return EXIT_FAILURE;
+		case OM_CLSFREE:
+			LOG (E_FUNCLABEL, "%s[OM_CLSFREE]...", __FUNCTION__);
+			entity_destroyEverything ();
+			SDL_Quit ();
+			LOG (E_FUNCLABEL, "...%s[OM_CLSFREE]", __FUNCTION__);
+			return EXIT_SUCCESS;
+		case OM_CLSVARS:
+			return EXIT_FAILURE;
     case OM_CREATE:
       if (SystemObject != NULL) {
         obj_destroy (o);
@@ -296,6 +311,7 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 		systemPushState (STATE_QUIT);
       return EXIT_SUCCESS;
     case OM_DESTROY:
+			LOG (E_FUNCLABEL, "%s[OM_DESTROY]...", __FUNCTION__);
       // this is post-order because if it was pre-order it wouldn't hit all its children due to an annoying issue I can't fix easily. When an entity is destroyed it detatches itself from the entity hierarchy, and since the *Entity globals are at the top of the entity tree, destroying them makes their children no longer siblings and thus unable to message each other. most likely I'll need to rework how messaging works internally, so I can ensure a message sent pre/post/in/whatever will hit all of the entities it should, at the moment the message was first sent (messages that change the entity tree that use the entity tree to flow are kind of a challenge, as you might imagine :/)
       //printf ("%s[OM_DESTROY]\n", __FUNCTION__);
       //obj_messagePost (WorldObject, OM_DESTROY, NULL, NULL);
@@ -309,11 +325,12 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
       //printf ("%s[OM_DESTROY]: destroying system object\n", __FUNCTION__);
       obj_destroy (o);
       SystemObject = NULL;
+			LOG (E_FUNCLABEL, "...%s[OM_DESTROY]", __FUNCTION__);
       return EXIT_SUCCESS;
 
 		case OM_START:
 			// for the record, the VideoEntity calls SDL_Init; everything else calls SDL_InitSubSystem. so the video entity has to start first. If this becomes a problem, feel free to switch the SDL_Init call to somewhere where it will /really/ always be called first (the system entity seems like a good place) and make everything else use SDL_InitSubSystem.
-			printf ("SYSTEM START:\n");
+			LOG (E_FUNCLABEL, "%s[OM_START]...", __FUNCTION__);
 			obj_message (VideoObject, OM_START, NULL, NULL);
 			//obj_message (PhysicsObject, OM_START, NULL, NULL);
 			//obj_message (WorldObject, OM_START, NULL, NULL);
@@ -323,11 +340,14 @@ int system_handler (Object * o, objMsg msg, void * a, void * b)
 			systemClearStates ();
 			systemPushState (STATE_WORLDGEN);
 			worldgenAbsHocNihilo ();
+			LOG (E_FUNCLABEL, "...%s[OM_START]", __FUNCTION__);
 			return EXIT_SUCCESS;
 
 		case OM_UPDATE:
+			LOG (E_FUNCLABEL, "%s[OM_UPDATE]...", __FUNCTION__);
 			system_update ();
 			obj_halt ();
+			LOG (E_FUNCLABEL, "...%s[OM_UPDATE]", __FUNCTION__);
 			return EXIT_SUCCESS;
 
     default:

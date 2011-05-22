@@ -21,6 +21,8 @@ struct xvertex
 		position;
 	Dynarr
 		edges;		// size_t values that are offsets of xgraph->edges
+	ARCH
+		arch;
 };
 
 static void graphAddVertex (GRAPH g, WORLDHEX pos);
@@ -36,7 +38,7 @@ static float angleBetweenEdges (const GRAPH g, const signed int baseVertex, cons
  */
 
 
-GRAPH worldgenCreateBlankRegionGraph ()
+GRAPH worldgenCreateBlankGraph ()
 {
 	GRAPH
 		graph = xph_alloc (sizeof (struct xgraph));
@@ -51,9 +53,9 @@ void graphWorldBase (GRAPH g, enum graph_inits seedPoints)
 	WORLDHEX
 		whx;
 	int
-		i, j;
-	signed char
-		diff;
+		i, j, k;
+	signed int
+		* poleDirs;
 	struct xvertex
 		* v,
 		* w;
@@ -66,19 +68,19 @@ void graphWorldBase (GRAPH g, enum graph_inits seedPoints)
 */
 	if (seedPoints & GRAPH_POLE_R)
 	{
-		whx = worldhex ('r', 0, 0, 0, 0, 0, 0);
+		whx = subhexGeneratePosition (mapPole ('r'));
 		graphAddVertex (g, whx);
 		worldhexDestroy (whx);
 	}
 	if (seedPoints & GRAPH_POLE_G)
 	{
-		whx = worldhex ('g', 0, 0, 0, 0, 0, 0);
+		whx = subhexGeneratePosition (mapPole ('g'));
 		graphAddVertex (g, whx);
 		worldhexDestroy (whx);
 	}
 	if (seedPoints & GRAPH_POLE_B)
 	{
-		whx = worldhex ('b', 0, 0, 0, 0, 0, 0);
+		whx = subhexGeneratePosition (mapPole ('b'));
 		graphAddVertex (g, whx);
 		worldhexDestroy (whx);
 	}
@@ -90,33 +92,17 @@ void graphWorldBase (GRAPH g, enum graph_inits seedPoints)
 		while (--j >= 0)
 		{
 			w = graphGetVertex (g, j);
-			diff = whxPoleDifference (vertexPosition (v), vertexPosition (w));
-			if (!diff)
+			poleDirs = mapPoleConnections (worldhexPole (vertexPosition (v)), worldhexPole (vertexPosition (w)));
+			//poleDirs = mapPoleConnections (subhexPoleName (worldhexSubhex (vertexPosition (v))), subhexPoleName (worldhexSubhex (vertexPosition (w))));
+			k = 0;
+			while (poleDirs[k] != -1)
 			{
-				ERROR ("wow something is wrong here :( pole diff is apparently %d even though we just set them to different poles!", diff);
-				return;
+				graphConnectVertices (g, i, j, poleDirs[k]);
+				k++;
 			}
-			if (diff < 0)
-			{
-				// A -> C, B -> A, C -> B
-				// (or)
-				// R -> B, G -> R, B -> G
-				graphConnectVertices (g, i, j, 0);
-				graphConnectVertices (g, i, j, 2);
-				graphConnectVertices (g, i, j, 4);
-			}
-			else
-			{
-				// A -> B, B -> C, C -> A
-				// (or)
-				// R -> G, G -> B, B -> R
-				graphConnectVertices (g, i, j, 1);
-				graphConnectVertices (g, i, j, 3);
-				graphConnectVertices (g, i, j, 5);
-			}
+			xph_free (poleDirs);
 		}
 	}
-	//graphGenerateRegions (g);
 }
 
 /***
@@ -129,6 +115,7 @@ static void graphAddVertex (GRAPH g, WORLDHEX pos)
 		v = xph_alloc (sizeof (struct xvertex));
 	v->position = worldhexDuplicate (pos);
 	v->edges = dynarr_create (2, sizeof (size_t));
+	v->arch = NULL;
 	dynarr_push (g->vertices, v);
 }
 
@@ -414,7 +401,7 @@ Dynarr graphGetRawVertices (GRAPH g)
 }
 
 
-VERTEX graphGetVertex (GRAPH g, int i)
+VERTEX graphGetVertex (const GRAPH g, int i)
 {
 	return *(VERTEX *)dynarr_at (g->vertices, i);
 }
@@ -423,12 +410,6 @@ EDGE graphGetEdge (GRAPH g, int i)
 {
 	return *(EDGE *)dynarr_at (g->edges, i);
 }
-
-const WORLDHEX vertexPosition (const VERTEX v)
-{
-	return v->position;
-}
-
 
 int graphVertexCount (const GRAPH g)
 {
@@ -443,4 +424,29 @@ int graphEdgeCount (const GRAPH g)
 bool graphHasOutside (const GRAPH g)
 {
 	return FALSE;
+}
+
+
+/***
+ * VERTEX FUNCTIONS
+ */
+
+void graphSetVertexArch (VERTEX v, ARCH a)
+{
+	v->arch = a;
+}
+
+const Dynarr vertexEdges (const VERTEX v)
+{
+	return v->edges;
+}
+
+const WORLDHEX vertexPosition (const VERTEX v)
+{
+	return v->position;
+}
+
+const ARCH vertexArch (const VERTEX v)
+{
+	return v->arch;
 }

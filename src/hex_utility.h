@@ -15,9 +15,17 @@
 extern const signed short H [6][2];
 extern const signed char XY [6][2];
 
+enum XYenum
+{
+	X = 0,
+	Y = 1
+};
+
 #define		DIR1MOD6(x)		((x) + 1 >= 6 ? 0 : (x) + 1)
 
 void hexSystem_setRadii (unsigned int pole, unsigned int ground);
+unsigned int hexSystem_getPoleRadius ();
+unsigned int hexSystem_getGroundRadius ();
 
 unsigned int hx (unsigned int n);
 
@@ -32,6 +40,7 @@ unsigned int hex_coordinateMagnitude (signed int x, signed int y);
 
 /* this calculates the x,y coordinate offset between the central hex of two adjacent grounds, both of radius {radius}, with the direction between the two being {dir} and the result set to {xp} and {yp}
  */
+bool hex_centerDistanceCoord (unsigned int radius, unsigned int dir, signed int * xp, signed int * yp);
 bool hexGround_centerDistanceCoord (unsigned int radius, unsigned int dir, signed int * xp, signed int * yp);
 bool hexPole_centerDistanceCoord (unsigned int dir, signed int * xp, signed int * yp);
 
