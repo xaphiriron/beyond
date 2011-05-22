@@ -28,6 +28,7 @@ enum mapPoleTypes
 
 bool mapSetSpanAndRadius (const unsigned char span, const unsigned char radius);
 bool mapGeneratePoles (const enum mapPoleTypes type);
+bool worldExists ();
 
 signed int * mapPoleConnections (const char a, const char b);
 

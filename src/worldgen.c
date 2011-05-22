@@ -45,7 +45,6 @@ void worldgenAbsHocNihilo ()
 void worldgenExpandWorldGraph (TIMER t)
 {
 	FUNCOPEN ();
-
 /*
 	while ()
 	{
@@ -56,12 +55,15 @@ void worldgenExpandWorldGraph (TIMER t)
 	}
 */
 
+	// all the following should be in a system callback that's called when this finishes (so it can go in system.c and not worldgen.c)
 	system_removeTimedFunction (worldgenExpandWorldGraph);
 
-	systemPlacePlayerAt (mapPole ('r'));
+	systemCreatePlayer ();
+
+
 
 	systemClearStates();
-	systemPushState (STATE_FIRSTPERSONVIEW);
+	systemPushState (STATE_FREEVIEW);
 	FUNCCLOSE ();
 }
 

@@ -74,6 +74,7 @@ enum uiPanelTypes systemTopUIPanelType ();
 void system_registerTimedFunction (void (*func)(TIMER), unsigned char weight);
 void system_removeTimedFunction (void (*func)(TIMER));
 
+void systemCreatePlayer ();
 void systemPlacePlayerAt (const SUBHEX subhex);
 void systemRender ();
 

@@ -168,6 +168,37 @@ void system_removeTimedFunction (void (*func)(TIMER))
 	dynarr_remove_condense (s->updateFuncs, func);
 }
 
+void systemCreatePlayer ()
+{
+	Entity
+		player,
+		camera;
+	FUNCOPEN ();
+
+	player = entity_create ();
+	if (component_instantiateOnEntity ("input", player)) {
+		input_addEntity (player, INPUT_CONTROLLED);
+	}
+	if (component_instantiateOnEntity ("position", player))
+	{
+		systemPlacePlayerAt (mapPole ('r'));
+	}
+	component_instantiateOnEntity ("walking", player);
+
+	camera = entity_create ();
+	component_instantiateOnEntity ("position", camera);
+	if (component_instantiateOnEntity ("camera", camera))
+	{
+		camera_attachToTarget (camera, player);
+		camera_setAsActive (camera);
+	}
+	if (component_instantiateOnEntity ("input", camera))
+	{
+		input_addEntity (camera, INPUT_CONTROLLED);
+	}
+	FUNCCLOSE ();
+}
+
 void systemPlacePlayerAt (const SUBHEX subhex)
 {
 	FUNCOPEN ();
@@ -176,6 +207,7 @@ void systemPlacePlayerAt (const SUBHEX subhex)
 	VECTOR3
 		pos = vectorCreate (0.0, 0.0, 0.0);
 	position_set (player, pos, subhex);
+	worldSetRenderCacheCentre (subhex);
 	FUNCCLOSE ();
 }
 

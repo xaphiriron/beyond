@@ -125,6 +125,13 @@ bool mapGeneratePoles (const enum mapPoleTypes type)
 	return FALSE;
 }
 
+bool worldExists ()
+{
+	if (Poles == NULL || PoleNames == NULL)
+		return FALSE;
+	return TRUE;
+}
+
 signed int * mapPoleConnections (const char a, const char b)
 {
 	signed int
@@ -590,6 +597,11 @@ static bool coordinatesOverflow (const signed int x, const signed int y, const s
 
 unsigned char subhexSpanLevel (const SUBHEX subhex)
 {
+	if (subhex == NULL)
+	{
+		ERROR ("%s: Passed NULL subhex!", __FUNCTION__);
+		return 0;
+	}
 	if (subhex->type == HS_HEX)
 		return 0;
 	return subhex->sub.span;
@@ -744,14 +756,20 @@ struct hexWorldPosition // WORLDHEX
 
 WORLDHEX subhexGeneratePosition (const SUBHEX subhex)
 {
-	FUNCOPEN ();
 	WORLDHEX
-		whx = xph_alloc (sizeof (struct hexWorldPosition));
+		whx;
 	SUBHEX
 		pole;
 	signed int
 		i,
 		depth;
+	FUNCOPEN ();
+	if (subhex == NULL)
+	{
+		ERROR ("%s: Passed NULL subhex!", __FUNCTION__);
+		return NULL;
+	}
+	whx = xph_alloc (sizeof (struct hexWorldPosition));
 	whx->subhex = subhex;
 	depth = mapSpan - subhexSpanLevel (subhex);
 	whx->spanDepth = depth;
