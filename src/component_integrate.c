@@ -97,6 +97,7 @@ void integrate (Entity e, float delta) {
  * depending on colliding, too.
  */
 int component_integrate (Object * obj, objMsg msg, void * a, void * b) {
+/*
 	const SYSTEM
 		* sys = obj_getClassData (SystemObject, "SYSTEM");
   Entity e = NULL;
@@ -163,4 +164,6 @@ int component_integrate (Object * obj, objMsg msg, void * a, void * b) {
       return obj_pass ();
   }
   return EXIT_FAILURE;
+*/
+	return EXIT_FAILURE;
 }

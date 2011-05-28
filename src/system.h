@@ -7,8 +7,6 @@
 
 #include "map.h"
 
-extern Object * SystemObject;
-
 enum system_states
 {
 	STATE_ERROR				= 0x0000,
@@ -38,6 +36,8 @@ typedef struct system
 	bool
 		quit;
 } SYSTEM;
+
+extern SYSTEM * System;
 
 SYSTEM * system_create ();
 void system_destroy (SYSTEM *);
@@ -76,8 +76,11 @@ void system_removeTimedFunction (void (*func)(TIMER));
 
 void systemCreatePlayer ();
 void systemPlacePlayerAt (const SUBHEX subhex);
-void systemRender ();
 
-int system_handler (Object * o, objMsg msg, void * a, void * b);
+void systemStart (void);
+void systemUpdate (void);
+void systemRender (void);
+
+int system_message (objMsg msg, void * a, void * b);
 
 #endif /* SYSTEM_H */

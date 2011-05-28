@@ -203,7 +203,7 @@ void input_sendGameEventMessage (const struct input_event * ie) {
 	switch (ie->ir)
 	{
 		case IR_QUIT:
-			obj_message (SystemObject, OM_SHUTDOWN, NULL, NULL);
+			system_message (OM_SHUTDOWN, NULL, NULL);
 			break;
 		case IR_VIEW_WIREFRAME_SWITCH:
 			msg = xph_alloc (sizeof (struct comp_message));

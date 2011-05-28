@@ -60,7 +60,7 @@ void walk_move (Entity e)
   walkingComponent wdata = NULL;
   //const PHYSICS * physics = obj_getClassData (PhysicsObject, "physics");
 	const SYSTEM
-		* sys = obj_getClassData (SystemObject, "SYSTEM");
+		* const sys = System;
 	const AXES
 		* moveAxes;
 	VECTOR3
