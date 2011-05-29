@@ -298,224 +298,50 @@ START_TEST (mapPoleEdgeDirectionsMinusOne)
 }
 END_TEST
 
-/*
-START_TEST (mapCoordinateInnerTraversalTest)
+
+static const signed int
+	xDown[]	= {0, 3,-2,-5,-3, 2, 5,
+				2, 3, 3,  0, 0, 1, -2,-3,-2, -2,-3,-3,  0, 0,-1,  2, 3, 2},
+	yDown[]	= {0, 2, 5, 3,-2,-5,-3,
+				0, 0,-1,  2, 3, 2,  2, 3, 3,  0, 0, 1, -2,-3,-2, -2,-3,-3},
+	uGoal[]	= {0, 1, 2, 3, 4, 5, 6, 
+				0, 1, 6,  0, 2, 1,  0, 3, 2,  0, 4, 3,  0, 5, 4,  0, 6, 5},
+
+	xUp[]	= {0, 1, 0,-1,-1, 0, 1},
+	yUp[]	= {0, 0, 1, 1, 0,-1,-1},
+	dGoal[]	= {0, 1, 2, 3, 4, 5, 6};
+	
+
+START_TEST (mapCoordinateScaleUp)
 {
+	DEBUG ("%s:", __FUNCTION__);
 	signed int
-		ix = 2,
-		iy = 0,
-		expectedX = 2,
-		expectedY = 0,
-		x, y;
-	signed char
-		expectedDir = -1,
-		dir;
-	mapSetSpanAndRadius (4, 8);
-	mapBridge (ix, iy, &x, &y, &dir);
+		ux, uy;
+	mapSetSpanAndRadius (0, 2);
+	mapScaleCoordinates (1, xDown[_i], yDown[_i], &ux, &uy);
 	fail_unless
 	(
-		dir == expectedDir,
-		"Expected wrap direction to be %d (but it was %d instead)",
-		expectedDir,
-		dir
-	);
-	fail_unless
-	(
-		x == expectedX && y == expectedY,
-		"With initial coordinate %d,%d and radius of 8, the wrapped coordinate should be %d,%d (it was %d,%d instead)",
-		ix, iy,
-		expectedX, expectedY,
-		x, y
+		ux == xUp[uGoal[_i]] && uy == yUp[uGoal[_i]],
+		"Scaling up should round to the closest coordinate. Expected %d, %d, but got %d, %d.", xUp[uGoal[_i]], yUp[uGoal[_i]], ux, uy
 	);
 }
 END_TEST
 
-START_TEST (mapCoordinateEdge0TraversalTest)
+START_TEST (mapCoordinateScaleDown)
 {
+	DEBUG ("%s:", __FUNCTION__);
 	signed int
-		ix = 9,
-		iy = 0,
-		expectedX = -8,
-		expectedY = 8,
-		x, y;
-	signed char
-		expectedDir = 0,
-		dir;
-	mapSetSpanAndRadius (4, 8);
-	mapBridge (ix, iy, &x, &y, &dir);
+		dx, dy;
+	mapSetSpanAndRadius (0, 2);
+	mapScaleCoordinates (-1, xUp[_i], yUp[_i], &dx, &dy);
 	fail_unless
 	(
-		dir == expectedDir,
-		"Expected wrap direction to be %d (but it was %d instead)",
-		expectedDir,
-		dir
-	);
-	fail_unless
-	(
-		x == expectedX && y == expectedY,
-		"With initial coordinate %d,%d and radius of 8, the wrapped coordinate should be %d,%d (it was %d,%d instead)",
-		ix, iy,
-		expectedX, expectedY,
-		x, y
+		dx == xDown[dGoal[_i]] && dy == yDown[dGoal[_i]],
+		"Invalid downwards scale. Values %d, %d expanded one down should be %d, %d, but got %d, %d instead.", xUp[_i], yUp[_i], xDown[dGoal[_i]], yDown[dGoal[_i]], dx, dy
 	);
 }
 END_TEST
 
-START_TEST (mapCoordinateEdge1TraversalTest)
-{
-	signed int
-		ix = 0,
-		iy = 9,
-		expectedX = -8,
-		expectedY = 0,
-		x, y;
-	signed char
-		expectedDir = 1,
-		dir;
-	mapSetSpanAndRadius (4, 8);
-	mapBridge (ix, iy, &x, &y, &dir);
-	fail_unless
-	(
-		dir == expectedDir,
-		"Expected wrap direction to be %d (but it was %d instead)",
-		expectedDir,
-		dir
-	);
-	fail_unless
-	(
-		x == expectedX && y == expectedY,
-		"With initial coordinate %d,%d and radius of 8, the wrapped coordinate should be %d,%d (it was %d,%d instead)",
-		ix, iy,
-		expectedX, expectedY,
-		x, y
-	);
-}
-END_TEST
-
-START_TEST (mapCoordinateEdge2TraversalTest)
-{
-	signed int
-		ix = -9,
-		iy = 9,
-		expectedX = 0,
-		expectedY = -8,
-		x, y;
-	signed char
-		expectedDir = 2,
-		dir;
-	mapSetSpanAndRadius (4, 8);
-	mapBridge (ix, iy, &x, &y, &dir);
-	fail_unless
-	(
-		dir == expectedDir,
-		"Expected wrap direction to be %d (but it was %d instead)",
-		expectedDir,
-		dir
-	);
-	fail_unless
-	(
-		x == expectedX && y == expectedY,
-		"With initial coordinate %d,%d and radius of 8, the wrapped coordinate should be %d,%d (it was %d,%d instead)",
-		ix, iy,
-		expectedX, expectedY,
-		x, y
-	);
-}
-END_TEST
-
-START_TEST (mapCoordinateEdge3TraversalTest)
-{
-	signed int
-		ix = -9,
-		iy = 0,
-		expectedX = 8,
-		expectedY = -8,
-		x, y;
-	signed char
-		expectedDir = 3,
-		dir;
-	mapSetSpanAndRadius (4, 8);
-	mapBridge (ix, iy, &x, &y, &dir);
-	fail_unless
-	(
-		dir == expectedDir,
-		"Expected wrap direction to be %d (but it was %d instead)",
-		expectedDir,
-		dir
-	);
-	fail_unless
-	(
-		x == expectedX && y == expectedY,
-		"With initial coordinate %d,%d and radius of 8, the wrapped coordinate should be %d,%d (it was %d,%d instead)",
-		ix, iy,
-		expectedX, expectedY,
-		x, y
-	);
-}
-END_TEST
-
-START_TEST (mapCoordinateEdge4TraversalTest)
-{
-	signed int
-		ix = 0,
-		iy = -9,
-		expectedX = 8,
-		expectedY = 0,
-		x, y;
-	signed char
-		expectedDir = 4,
-		dir;
-	mapSetSpanAndRadius (4, 8);
-	mapBridge (ix, iy, &x, &y, &dir);
-	fail_unless
-	(
-		dir == expectedDir,
-		"Expected wrap direction to be %d (but it was %d instead)",
-		expectedDir,
-		dir
-	);
-	fail_unless
-	(
-		x == expectedX && y == expectedY,
-		"With initial coordinate %d,%d and radius of 8, the wrapped coordinate should be %d,%d (it was %d,%d instead)",
-		ix, iy,
-		expectedX, expectedY,
-		x, y
-	);
-}
-END_TEST
-
-START_TEST (mapCoordinateEdge5TraversalTest)
-{
-	signed int
-		ix = 9,
-		iy = -9,
-		expectedX = 0,
-		expectedY = 8,
-		x, y;
-	signed char
-		expectedDir = 5,
-		dir;
-	mapSetSpanAndRadius (4, 8);
-	mapBridge (ix, iy, &x, &y, &dir);
-	fail_unless
-	(
-		dir == expectedDir,
-		"Expected wrap direction to be %d (but it was %d instead)",
-		expectedDir,
-		dir
-	);
-	fail_unless
-	(
-		x == expectedX && y == expectedY,
-		"With initial coordinate %d,%d and radius of 8, the wrapped coordinate should be %d,%d (it was %d,%d instead)",
-		ix, iy,
-		expectedX, expectedY,
-		x, y
-	);
-}
-END_TEST
-*/
 
 Suite * makeMapInitSuite (void)
 {
@@ -560,15 +386,8 @@ Suite * makeMapTraversalSuite (void)
 	tcase_add_test (tcMovement, mapPoleEdgeDirectionsMinusOne);
 	suite_add_tcase (s, tcMovement);
 
-/*
-	tcase_add_test (tcCoordinates, mapCoordinateInnerTraversalTest);
-	tcase_add_test (tcCoordinates, mapCoordinateEdge0TraversalTest);
-	tcase_add_test (tcCoordinates, mapCoordinateEdge1TraversalTest);
-	tcase_add_test (tcCoordinates, mapCoordinateEdge2TraversalTest);
-	tcase_add_test (tcCoordinates, mapCoordinateEdge3TraversalTest);
-	tcase_add_test (tcCoordinates, mapCoordinateEdge4TraversalTest);
-	tcase_add_test (tcCoordinates, mapCoordinateEdge5TraversalTest);
-*/
+	tcase_add_loop_test (tcCoordinates, mapCoordinateScaleUp, 0, 24);
+	tcase_add_loop_test (tcCoordinates, mapCoordinateScaleDown, 0, 6);
 	suite_add_tcase (s, tcCoordinates);
 	return s;
 }

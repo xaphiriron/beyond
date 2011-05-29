@@ -463,6 +463,10 @@ bool mapScaleCoordinates (signed char relativeSpan, signed int x, signed int y, 
 {
 	signed int
 		* centres;
+	signed int
+		scaledX = 0,
+		scaledY = 0,
+		i = 0;
 	if (xp == NULL || yp == NULL)
 		return FALSE;
 	else if (relativeSpan == 0)
@@ -487,20 +491,42 @@ bool mapScaleCoordinates (signed char relativeSpan, signed int x, signed int y, 
 		if (coordinatesOverflow (x, y, centres))
 		{
 			ERROR ("\t(tried to shift %d span level%s down)", relativeSpan * -1, relativeSpan == -1 ? "" : "s");
+			*xp = 0;
+			*yp = 0;
 			return FALSE;
 		}
 		*xp = x * centres[0] + y * centres[2];
 		*yp = x * centres[1] + y * centres[3];
+		//DEBUG ("downscale values turns %d, %d into %d, %d", x, y, *xp, *yp);
 		return TRUE;
 	}
-	else
+	// step up in span, which means coordinate values gain range but lose resolution, and non-zero values get smaller and may be truncated.
+	centres = mapSpanCentres (relativeSpan);
+	while (i < 6)
 	{
-		// step up in span, which means coordinate values gain range but lose resolution, and non-zero values get smaller and may be truncated.
-		centres = mapSpanCentres (relativeSpan);
-		// TODO: write this.
+		/* there's a slight simplification that i'm not using here since
+		 * idk how to put it in a way that actually simplifies the code:
+		 * if index i can be subtracted, than either index i + 1 % 6 or
+		 * index i - 1 % 6 can also be subtracted, and no other values
+		 * can. since we iterate from 0..5, if 0 hits the other value may
+		 * be 1 OR 5; in all other cases if i is a hit then i + 1 % 6 is
+		 * the other hit
+		 *  - xph 2011-05-29
+		 */
+		while (hexMagnitude (x - centres[i * 2], y - centres[i * 2 + 1]) < hexMagnitude (x, y))
+		{
+			x -= centres[i * 2];
+			y -= centres[i * 2 + 1];
+			scaledX += XY[i][X];
+			scaledY += XY[i][Y];
+		}
+		i++;
 	}
-
-	return FALSE;
+	*xp = scaledX;
+	*yp = scaledY;
+	if (x || y)
+		INFO ("%s: lost %d,%d to rounding error at relative span %d", __FUNCTION__, x, y, relativeSpan);
+	return TRUE;
 }
 
 /***
@@ -539,11 +565,22 @@ signed int * const mapSpanCentres (const unsigned char span)
 		i = 0;
 		while (i < 6)
 		{
-			hex_centerDistanceCoord (mapRadius, 0, &first[i * 2], &first[i * 2 + 1]);
+			hex_centerDistanceCoord (mapRadius, i, &first[i * 2], &first[i * 2 + 1]);
 			i++;
 		}
 		dynarr_assign (centreCache, match, first);
 		match++;
+
+		/* vvv LOL DEBUG PRINTING vvv *
+		i = 0;
+		DEBUG ("Generated %d-th span level centre values:", match - 1);
+		while (i < 6)
+		{
+			DEBUG ("%d: %d,%d", i, first[i * 2], first[i * 2 + 1]);
+			i++;
+		}
+		 * ^^^ LOL DEBUG PRINTING ^^^ */
+
 	}
 	else
 		first = *(signed int **)dynarr_at (centreCache, 0);
@@ -575,6 +612,17 @@ signed int * const mapSpanCentres (const unsigned char span)
 		dynarr_assign (centreCache, match, s);
 		match++;
 		t = s;
+
+		/* vvv LOL DEBUG PRINTING vvv *
+		i = 0;
+		DEBUG ("Generated %d-th span level centre values:", match - 1);
+		while (i < 6)
+		{
+			DEBUG ("%d: %d,%d", i, s[i * 2], s[i * 2 + 1]);
+			i++;
+		}
+		 * ^^^ LOL DEBUG PRINTING ^^^ */
+
 	}
 	r = t;
 	return r;
@@ -582,8 +630,15 @@ signed int * const mapSpanCentres (const unsigned char span)
 
 static bool coordinatesOverflow (const signed int x, const signed int y, const signed int * const coords)
 {
-	if (x * coords[0] < x || x * coords[1] < x
-		|| y * coords[2] < y || y * coords[3] < y)
+	signed int
+		ax = abs (x),
+		ay = abs (y),
+		cxx = abs (coords[0]),
+		cxy = abs (coords[1]),
+		cyx = abs (coords[2]),
+		cyy = abs (coords[3]);
+	if (ax * cxx < ax || ax * cxy < ax
+		|| ay * cyx < ay || ay * cyy < ay)
 	{
 		ERROR ("Coordinate overflow while shifting coordinates %d, %d down; using axes %d,%d and %d,%d; coordinate not representable!", x, y, coords[0], coords[1], coords[2], coords[3]);
 		return TRUE;
