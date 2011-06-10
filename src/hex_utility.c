@@ -61,30 +61,9 @@ static unsigned int
 	poleRadius = 65535,
 	groundRadius = 8;
 
-void hexSystem_setRadii (unsigned int pole, unsigned int ground)
-{
-	static bool
-		set = FALSE;
-	if (set)
-		return;
-	poleRadius = pole;
-	groundRadius = ground;
-	set = TRUE;
-}
-
-unsigned int hexSystem_getPoleRadius ()
-{
-	return poleRadius;
-}
-
-unsigned int hexSystem_getGroundRadius ()
-{
-	return groundRadius;
-}
-
 /***
  * this really ought to be 3 * n * (n + 1) + 1 instead, but so many fussy geometry functions depend on this that i'm afraid to change it
- * (the reason why is +1 leads to a progression of 1 7 19 37 etc, whereas -1 leads to a progression of 1 1 7 19 etc., and that leads to having to count from 1 instead of from 0 )
+ * (the reason why is +1 leads to a progression of 1 7 19 37 etc, whereas -1 leads to a progression of 1 1 7 19 etc., and that leads to having to count from 1 instead of from 0)
  */
 unsigned int hx (unsigned int n)
 {
@@ -128,8 +107,8 @@ void hex_rki2xy (unsigned int r, unsigned int k, unsigned int i, signed int * xp
 		ival = (k + 2) % 6;
 	if (xp != NULL && yp != NULL)
 	{
-		*xp = XY[kval][0] * r + XY[ival][0] * i;
-		*yp = XY[kval][1] * r + XY[ival][1] * i;
+		*xp = XY[kval][X] * r + XY[ival][X] * i;
+		*yp = XY[kval][Y] * r + XY[ival][Y] * i;
 	}
 	//printf ("%s: returning {%d %d %d}/%d,%d\n", __FUNCTION__, r, k, i, XY[kval][0] * r + XY[ival][0] * i, XY[kval][1] * r + XY[ival][1] * i);
 }
@@ -159,8 +138,8 @@ void hex_xy2rki (signed int x, signed int y, unsigned int * rp, unsigned int * k
 	}
 	while (o < 6)
 	{
-		kx = x - XY[o][0] * r;
-		ky = y - XY[o][1] * r;
+		kx = x - XY[o][X] * r;
+		ky = y - XY[o][Y] * r;
 		k = o;
 		if (kx == 0 && ky == 0)
 		{
@@ -186,8 +165,8 @@ void hex_xy2rki (signed int x, signed int y, unsigned int * rp, unsigned int * k
 			o++;
 			continue;
 		}
-		ix = kx - XY[(o + 2) % 6][0] * i;
-		iy = ky - XY[(o + 2) % 6][1] * i;
+		ix = kx - XY[(o + 2) % 6][X] * i;
+		iy = ky - XY[(o + 2) % 6][Y] * i;
 		if (ix == 0 && iy == 0)
 		{
 			break;
@@ -215,10 +194,10 @@ unsigned int hex_distanceBetween (signed int ax, signed int ay, signed int bx, s
 	signed int
 		x = ax - bx,
 		y = ay - by;
-	return hex_coordinateMagnitude (x, y);
+	return hexMagnitude (x, y);
 }
 
-unsigned int hex_coordinateMagnitude (signed int x, signed int y)
+unsigned int hexMagnitude (signed int x, signed int y)
 {
 	if ((x ^ y) < 0)
 		return abs (x) > abs (y)
@@ -232,8 +211,8 @@ bool hex_centerDistanceCoord (unsigned int radius, unsigned int dir, signed int 
 {
 	if (xp == NULL || yp == NULL)
 		return FALSE;
-	*xp = XY[dir][0] * (radius + 1) + XY[DIR1MOD6 (dir)][0] * radius;
-	*yp = XY[dir][1] * (radius + 1) + XY[DIR1MOD6 (dir)][1] * radius;
+	*xp = XY[dir][X] * (radius + 1) + XY[DIR1MOD6 (dir)][X] * radius;
+	*yp = XY[dir][Y] * (radius + 1) + XY[DIR1MOD6 (dir)][Y] * radius;
 	return TRUE;
 }
 
@@ -394,6 +373,11 @@ VECTOR3 hex_xyCoord2Space (signed int x, signed int y)
  * often in the form 45 or 90 (since the x magnitude of each tile is 45 units).
  * the y value is 26 and seen most often in the form 26 or 52 (since the y
  * magnitude of each tile is 52 units)
+ *
+ * TODO: it's possible for space to be so large the conversion overflows the
+ * signed int type. in that case, it should return the maximal value (and raise
+ * a flag??? something idk)
+ *  - xph 2011-05-28
  */
 bool hex_space2coord (const VECTOR3 * space, signed int * xp, signed int * yp)
 {

@@ -17,6 +17,8 @@ typedef struct position_update
 	SUBHEX
 		oldGround,
 		newGround;
+	RELATIVEHEX
+		relPosition;
 	VECTOR3
 		difference;
 } * POSITIONUPDATE;

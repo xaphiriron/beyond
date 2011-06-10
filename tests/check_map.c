@@ -1,5 +1,6 @@
 #include <check.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include "../src/xph_log.h"
 #include "../src/xph_memory.h"
@@ -7,13 +8,20 @@
 #include "../src/map.h"
 #include "../src/hex_utility.h"
 
+void mapWorldDestroy (void)
+{
+	worldDestroy ();
+	//xph_audit ();
+}
+
+
 START_TEST (mapCreateThreePoleTest)
 {
-	DEBUG ("%s:", __FUNCTION__);
 	bool
 		r;
 	SUBHEX
 		poles[3];
+	LOG (E_FUNCLABEL, "%s:", __FUNCTION__);
 	mapSetSpanAndRadius (4, 8);
 	r = mapGeneratePoles (POLE_TRI);
 	poles[0] = mapPole ('r');
@@ -48,22 +56,26 @@ END_TEST
 
 START_TEST (mapForceSubdivideTest)
 {
-	DEBUG ("%s:", __FUNCTION__);
 	SUBHEX
 		poles[3],
 		child;
-	int
-		i = hx (4);
+	unsigned int
+		r = 0,
+		k = 0,
+		i = 0;
+	signed int
+		x, y;
+	LOG (E_FUNCLABEL, "%s:", __FUNCTION__);
 	mapSetSpanAndRadius (2, 4);
 	mapGeneratePoles (POLE_TRI);
 	poles[0] = mapPole ('r');
 	poles[1] = mapPole ('g');
 	poles[2] = mapPole ('b');
 	mapForceSubdivide (poles[0]);
-	while (i > 0)
+	while (r < 5)
 	{
-		i--;
-		child = subhexData (poles[0], i);
+		hex_rki2xy (r, k, i, &x, &y);
+		child = subhexData (poles[0], x, y);
 		fail_unless
 		(
 			child != NULL,
@@ -76,6 +88,7 @@ START_TEST (mapForceSubdivideTest)
 			"Expected child (at offset %d) to have span of 1; got %d instead",
 			i, subhexSpanLevel (child)
 		);
+		hex_nextValidCoord (&r, &k, &i);
 	}
 }
 END_TEST
@@ -89,15 +102,21 @@ END_TEST
  */
 START_TEST (mapGrowAroundSubhexTest)
 {
-	DEBUG ("%s:", __FUNCTION__);
 	SUBHEX
 		pole,
 		spanOne;
+	RELATIVEHEX
+		rel;
+	LOG (E_FUNCLABEL, "%s:", __FUNCTION__);
 	mapSetSpanAndRadius (4, 8);
 	mapGeneratePoles (POLE_TRI);
 	pole = mapPole ('r');
 	mapForceGrowAtLevelForDistance (pole, 1, 4);
-	spanOne = mapGetRelativePosition (pole, 4, 0, 0);
+
+	rel = mapRelativeSubhexWithCoordinateOffset (pole, -3, 0, 0);
+	spanOne = mapRelativeTarget (rel);
+	mapRelativeDestroy (rel);
+
 	fail_unless
 	(
 		spanOne != NULL
@@ -113,28 +132,17 @@ START_TEST (mapGrowAroundSubhexTest)
 END_TEST
 
 
-/***
- * things that code/tests have to be written for:
- *  - given two subhexes, calculate a direction vector (which is normalized)
- *    and a rough magnitude (which would cap out at some point as just "far")
- *    between them
- *  - given a subhex and a span/x/y offset, return the generated subhex closest
- *    (where 'closest' means 'smallest subhex that the specified position is
- *    inside') to the location, with an optional 'vagueness' parameter that
- *    would return the number of span levels above or below the target the
- *    returned subhex is
- *  - given a subhex and a span/x/y offset, return the target subhex,
- *    generating it if necessary.
- */
-
 START_TEST (mapCrossPoleTraversalTest)
 {
-	DEBUG ("%s:", __FUNCTION__);
 	SUBHEX
 		position,
 		adjacent;
+	RELATIVEHEX
+		rel;
 	signed int
 		x, y;
+	LOG (E_FUNCLABEL, "%s:", __FUNCTION__);
+
 	mapSetSpanAndRadius (4, 8);
 	mapGeneratePoles (POLE_TRI);
 	mapForceSubdivide (mapPole ('r'));
@@ -142,34 +150,195 @@ START_TEST (mapCrossPoleTraversalTest)
 	mapForceSubdivide (mapPole ('b'));
 
 	// get the subhex that's one level down and at the very edge of the pole's ground spread
-	position = mapGetRelativePosition (mapPole ('r'), -1, 8, 0);
+	rel = mapRelativeSubhexWithCoordinateOffset (mapPole ('r'), -1, 8, 0);
+	position = mapRelativeTarget (rel);
+	mapRelativeDestroy (rel);
 	// and then get the subhex that's one position more distant, which ought to cross the pole boundary
-	adjacent = mapGetRelativePosition (position, 0, 1, 0);
+	rel = mapRelativeSubhexWithCoordinateOffset (position, 0, 1, 0);
+	adjacent = mapRelativeTarget (rel);
+	mapRelativeDestroy (rel);
 	fail_unless
 	(
 		adjacent != NULL
 	);
 	fail_unless
 	(
-		subhexPoleName (adjacent) == 'g',
-		"Expected adjacent subhex to be inside the green pole, but instead got a pole value of '%c'",
+		subhexPoleName (adjacent) == 'b',
+		"Expected adjacent subhex to be inside the blue pole, but instead got a pole value of '%c'",
 		subhexPoleName (adjacent)
 	);
 	fail_unless
 	(
-		subhexParent (adjacent) == mapPole ('g'),
-		"Expected adjacent subhex's direct parent to be the green pole, but instead got subhex %p (which isn't)",
+		subhexParent (adjacent) == mapPole ('b'),
+		"Expected adjacent subhex's direct parent to be the blue pole, but instead got subhex %p (which isn't)",
 		subhexParent (adjacent)
 	);
 	subhexLocalCoordinates (adjacent, &x, &y);
 	fail_unless
 	(
-		x == -8 && y == 8,
-		"Expected adjacent subhex to be at coordinates -8,8, but instead got %d,%d.",
+		x == 0 && y == -8,
+		"Expected adjacent subhex to be at coordinates 0, -8; instead got %d,%d.",
 		x, y
 	);
 }
 END_TEST
+
+
+static char
+	pTopPoles[]	= {'r', 'g', 'b',};
+static signed int
+	pTopGoal[]	= {0,  2, 1, 2, 1, 2, 1,  1, 0, 2, 0, 1, 0, 2, 0, 1, 0, 2, 0},
+	pTopX[]		= {0,  1, 0,-1,-1, 0, 1,  2, 1, 0,-1,-2,-2,-2,-1, 0, 1, 2, 2},
+	pTopY[]		= {0,  0, 1, 1, 0,-1,-1,  0, 1, 2, 2, 2, 1, 0,-1,-2,-2,-2,-1};
+
+START_TEST (mapPoleTraversalTopology)
+{
+	SUBHEX
+		targetPole,
+		calc;
+	RELATIVEHEX
+		rel;
+	unsigned short
+		i = _i % 19,
+		poleID = _i / 19;
+	char
+		poleStart = pTopPoles[poleID],
+		poleGoal = pTopPoles[(poleID + pTopGoal[i]) % 3];
+
+	LOG (E_FUNCLABEL, "%s [%d (%d:%d)]:", __FUNCTION__, _i, poleID, i);
+	
+	mapSetSpanAndRadius (4, 8);
+	mapGeneratePoles (POLE_TRI);
+
+	rel = mapRelativeSubhexWithCoordinateOffset
+	(
+		mapPole (poleGoal), 0,
+		0, 0
+	);
+	targetPole = mapRelativeTarget (rel);
+	mapRelativeDestroy (rel);
+
+	rel = mapRelativeSubhexWithCoordinateOffset
+	(
+		mapPole (poleStart), 0,
+		pTopX[i], pTopY[i]
+	);
+	calc = mapRelativeTarget (rel);
+	mapRelativeDestroy (rel);
+
+	fail_unless
+	(
+		calc == targetPole && calc == mapPole (poleGoal),
+		"Movement across poles from '%c' @ %d, %d should end at pole '%c', but got '%c' instead", poleStart, pTopX[i], pTopY[i], poleGoal, subhexPoleName (calc)
+	);
+}
+END_TEST
+
+
+static char
+	poleStart[]	=  {'r', 'r', 'r', 'r', 'r', 'r', 'r',
+					'g', 'g', 'g', 'g', 'g', 'g', 'g',
+					'b', 'b', 'b', 'b', 'b', 'b', 'b'},
+	poleGoal[]	=  {'r', 'b', 'g', 'b', 'g', 'b', 'g',
+					'g', 'r', 'b', 'r', 'b', 'r', 'b',
+					'b', 'g', 'r', 'g', 'r', 'g', 'r'};
+static signed int
+	poleCI[]	=  {0, 1, 2, 3, 4, 5, 6,
+					0, 1, 2, 3, 4, 5, 6,
+					0, 1, 2, 3, 4, 5, 6},
+	poleX[]		=  {0, 9, -8,-17, -9,  8, 17},
+	poleY[]		=  {0, 8, 17,  9, -8,-17, -9};
+
+START_TEST (mapRelativeHexExactCrossPole)
+{
+	SUBHEX
+		targetPole,
+		calc;
+	RELATIVEHEX
+		rel;
+	signed int
+		x, y;
+
+	LOG (E_FUNCLABEL, "%s [%d]:", __FUNCTION__, _i);
+	
+	mapSetSpanAndRadius (4, 8);
+	mapGeneratePoles (POLE_TRI);
+	mapForceSubdivide (mapPole ('r'));
+	mapForceSubdivide (mapPole ('g'));
+	mapForceSubdivide (mapPole ('b'));
+
+	mark_point ();
+
+	rel = mapRelativeSubhexWithCoordinateOffset (mapPole (poleGoal[_i]), -1, 0, 0);
+	targetPole = mapRelativeTarget (rel);
+	mapRelativeDestroy (rel);
+
+	mark_point ();
+
+	rel = mapRelativeSubhexWithCoordinateOffset
+	(
+		mapPole (poleStart[_i]), -1,
+		poleX[poleCI[_i]], poleY[poleCI[_i]]
+	);
+	calc = mapRelativeTarget (rel);
+	mapRelativeDestroy (rel);
+
+	mark_point ();
+
+	subhexLocalCoordinates (calc, &x, &y);
+
+	fail_unless
+	(
+		calc == targetPole && subhexPoleName (calc) == poleGoal[_i] && x == 0 && y == 0 && subhexSpanLevel (calc) == 3,
+		"Movement from pole %c @ -1, %d, %d should end at the centre of pole %c. Expected '%c', 0, 0, 3; got '%c', %d, %d, %d instead.",
+		toupper (poleStart[_i]), poleX[poleCI[_i]], poleY[poleCI[_i]],
+		toupper (poleGoal[_i]), poleGoal[_i], subhexPoleName (calc), x, y, subhexSpanLevel (calc)
+	);
+}
+END_TEST
+
+/* TESTS STILL TO WRITE:
+ *  - check to make sure vector distance is calculated properly, in various
+ *    combinations of direction and span level
+ *  - any test whatsoever with mapAdjacentSubhexes (which should return a
+ *    dynarr of RELATIVEHEXes, each of which should have perfect coordinate
+ *    fidelity down to the centre subhex, even if the adjacent subhexes don't
+ *    exist in memory) (this is used while rendering)
+ *  - a test of mapRelativeSubhexWithVectorOffset, of what i'm not sure. right
+ *    now it'll fail if given a vector that condenses into a coordinate that's
+ *    outside the range of the signed int type, so maybe something that tests
+ *    that. this isn't super important, though, since it fails loudly and
+ *    catastrophically if that happens, so i'll definitely know if it actually
+ *    comes up in practice
+ *  - a test of mapRelativeSubhexWithSubhex, which is actually important!
+ *    since 1. the function hasn't been written yet and 2. it's used in the
+ *    actual game rendering code, so it's pretty important to get it working
+ *    right!!!
+ *  - check to make sure mapForceGrowAtLevelForDistance works right even if
+ *    the distance given is greater than the map radius (or more generally,
+ *    that it works even if it has to cross subhex edges to do so -- it
+ *    ultimately does its traversal calculations with
+ *    mapRelativeSubhexWithCoordinateOffset, so if the test fails then it's
+ *    due to that code not being right.
+ */
+
+/* TODO: a loop test for crossing at the corners of platters, that checks the remainder to see if it's the correct value. it's not finished yet - xph 2011 06 04
+
+
+START_TEST (mapRelativeHexExactEdgeCross)
+{
+
+	rel = mapRelativeSubhexWithCoordinateOffset
+	(
+		mapPole [poleStart[_i]], -1,
+		poleTopX[(_i % 6) + 1], poleTopY[(_i % 6) + 1]
+	);
+	calc = mapRelativeTarget (rel);
+	mapRelativeDestroy (rel)
+
+}
+END_TEST
+*/
 
 START_TEST (mapPoleEdgeDirectionsPlusOne)
 {
@@ -179,6 +348,7 @@ START_TEST (mapPoleEdgeDirectionsPlusOne)
 		* edgesBR;
 	int
 		i = 0;
+	LOG (E_FUNCLABEL, "%s:", __FUNCTION__);
 	mapGeneratePoles (POLE_TRI);
 	edgesRG = mapPoleConnections ('r', 'g'),
 	edgesGB = mapPoleConnections ('g', 'b'),
@@ -243,6 +413,7 @@ START_TEST (mapPoleEdgeDirectionsMinusOne)
 		* edgesBG;
 	int
 		i = 0;
+	LOG (E_FUNCLABEL, "%s:", __FUNCTION__);
 	mapGeneratePoles (POLE_TRI);
 	edgesRB = mapPoleConnections ('r', 'b'),
 	edgesGR = mapPoleConnections ('g', 'r'),
@@ -314,11 +485,13 @@ static const signed int
 
 START_TEST (mapCoordinateScaleUp)
 {
-	DEBUG ("%s:", __FUNCTION__);
 	signed int
 		ux, uy;
+
+	LOG (E_FUNCLABEL, "%s [%d]:", __FUNCTION__, _i);
+
 	mapSetSpanAndRadius (0, 2);
-	mapScaleCoordinates (1, xDown[_i], yDown[_i], &ux, &uy);
+	mapScaleCoordinates (1, xDown[_i], yDown[_i], &ux, &uy, NULL, NULL);
 	fail_unless
 	(
 		ux == xUp[uGoal[_i]] && uy == yUp[uGoal[_i]],
@@ -329,11 +502,13 @@ END_TEST
 
 START_TEST (mapCoordinateScaleDown)
 {
-	DEBUG ("%s:", __FUNCTION__);
 	signed int
 		dx, dy;
+
+	LOG (E_FUNCLABEL, "%s [%d]:", __FUNCTION__, _i);
+
 	mapSetSpanAndRadius (0, 2);
-	mapScaleCoordinates (-1, xUp[_i], yUp[_i], &dx, &dy);
+	mapScaleCoordinates (-1, xUp[_i], yUp[_i], &dx, &dy, NULL, NULL);
 	fail_unless
 	(
 		dx == xDown[dGoal[_i]] && dy == yDown[dGoal[_i]],
@@ -365,9 +540,11 @@ Suite * makeMapGenerationSuite (void)
 		* tcSubdivision = tcase_create ("Forced subhex subdivision"),
 		* tcRadialGrowth = tcase_create ("Subdividing around subhexes");
 
+	tcase_add_checked_fixture (tcSubdivision, NULL, mapWorldDestroy);
 	tcase_add_test (tcSubdivision, mapForceSubdivideTest);
 	suite_add_tcase (s, tcSubdivision);
 
+	tcase_add_checked_fixture (tcRadialGrowth, NULL, mapWorldDestroy);
 	tcase_add_test (tcRadialGrowth, mapGrowAroundSubhexTest);
 	suite_add_tcase (s, tcRadialGrowth);
 	return s;
@@ -378,16 +555,19 @@ Suite * makeMapTraversalSuite (void)
 	Suite
 		* s = suite_create ("Map Traversal");
 	TCase
-		* tcMovement = tcase_create ("Cross-pole movement"),
+		* tcPole = tcase_create ("Cross-pole movement"),
 		* tcCoordinates = tcase_create ("Coordinate math");
 
-	tcase_add_test (tcMovement, mapCrossPoleTraversalTest);
-	tcase_add_test (tcMovement, mapPoleEdgeDirectionsPlusOne);
-	tcase_add_test (tcMovement, mapPoleEdgeDirectionsMinusOne);
-	suite_add_tcase (s, tcMovement);
+	tcase_add_checked_fixture (tcPole, NULL, mapWorldDestroy);
+	tcase_add_loop_test (tcPole, mapPoleTraversalTopology, 0, 57);
+	tcase_add_loop_test (tcPole, mapRelativeHexExactCrossPole, 0, 21);
+	tcase_add_test (tcPole, mapCrossPoleTraversalTest);
+	suite_add_tcase (s, tcPole);
 
 	tcase_add_loop_test (tcCoordinates, mapCoordinateScaleUp, 0, 24);
 	tcase_add_loop_test (tcCoordinates, mapCoordinateScaleDown, 0, 6);
+	tcase_add_test (tcCoordinates, mapPoleEdgeDirectionsPlusOne);
+	tcase_add_test (tcCoordinates, mapPoleEdgeDirectionsMinusOne);
 	suite_add_tcase (s, tcCoordinates);
 	return s;
 }
@@ -398,8 +578,8 @@ int main () {
 	SRunner
 		* sr = srunner_create (makeMapInitSuite ());
 
-	srunner_add_suite (sr, makeMapGenerationSuite ());
 	srunner_add_suite (sr, makeMapTraversalSuite ());
+	srunner_add_suite (sr, makeMapGenerationSuite ());
 	//srunner_add_suite (sr,  ());
 
 	logSetLevel (E_ALL);

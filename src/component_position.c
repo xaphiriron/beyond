@@ -16,19 +16,62 @@ struct position_data { // POSITION
 		dirty;		// view axes don't match the orientation quaternion
 };
 
+static RELATIVEHEX
+	groundChange = NULL;
 
 static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround, SUBHEX newGround);
-
 static void position_updateAxesFromOrientation (POSITION pdata);
 
 static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround, SUBHEX newGround)
 {
+/*
 	static struct position_update
 		posUpdate;
+	bool
+		usedCache = FALSE;
 	posUpdate.oldGround = oldGround;
 	posUpdate.newGround = newGround;
-	posUpdate.difference = subhexVectorOffset (oldGround, newGround);
+	if (groundChange)
+	{
+		posUpdate.relPosition = groundChange;
+		usedCache = TRUE;
+	}
+	else
+	{
+		WARNING ("mapRelativeSubhexWithSubhex doesn't work yet; the game is probably about to crash due to a NULL RELATIVEHEX value", NULL);
+		posUpdate.relPosition = NULL;
+		//posUpdate.relPosition = mapRelativeSubhexWithSubhex (oldGround, newGround);
+	}
+	groundChange = NULL;
+	posUpdate.difference = mapRelativeDistance (posUpdate.relPosition);
 	component_messageEntity (c, "positionUpdate", &posUpdate);
+	if (!usedCache)
+		mapRelativeDestroy (posUpdate.relPosition);
+	memset (&posUpdate, '\0', sizeof (struct position_update));
+*/
+
+	static struct position_update
+		posUpdate;
+	bool
+		usedCache = FALSE;
+	// the above commented-out code is correct; this iteration is just to avoid messaging with an invalid RELATIVEHEX (which crashes the program)
+	if (groundChange == NULL)
+		return;
+	posUpdate.oldGround = oldGround;
+	posUpdate.newGround = newGround;
+	if (groundChange)
+	{
+		posUpdate.relPosition = groundChange;
+		usedCache = TRUE;
+	}
+	else
+		posUpdate.relPosition = mapRelativeSubhexWithSubhex (oldGround, newGround);
+	groundChange = NULL;
+	posUpdate.difference = mapRelativeDistance (posUpdate.relPosition);
+	component_messageEntity (c, "positionUpdate", &posUpdate);
+	if (!usedCache)
+		mapRelativeDestroy (posUpdate.relPosition);
+	memset (&posUpdate, '\0', sizeof (struct position_update));
 }
 
 void position_unset (Entity e)
@@ -56,6 +99,8 @@ void position_destroy (Entity e)
 
 void position_set (Entity e, VECTOR3 pos, SUBHEX ground)
 {
+	FUNCOPEN ();
+
 	EntComponent
 		pc = entity_getAs (e, "position");
 	POSITION
@@ -72,15 +117,21 @@ void position_set (Entity e, VECTOR3 pos, SUBHEX ground)
 	pdata->ground = ground;
 	if (oldGround != ground)
 		position_messageGroundChange (pc, oldGround, pdata->ground);
+
+	FUNCCLOSE ();
 }
 
 bool position_move (Entity e, VECTOR3 move)
 {
+	FUNCOPEN ();
+
 	POSITION
 		pdata = component_getData (entity_getAs (e, "position"));
 	VECTOR3
 		newPosition,
 		subhexCentreDistance;
+	RELATIVEHEX
+		rel;
 	SUBHEX
 		newGround;
 	if (pdata == NULL)
@@ -89,17 +140,26 @@ bool position_move (Entity e, VECTOR3 move)
 		return FALSE;
 	}
 	newPosition = vectorAdd (&pdata->pos, &move);
-	newGround = mapSubhexAtVectorOffset (pdata->ground, &newPosition);
+	// TODO: this rel would be the exact same as used for a _messageGroundChange message; if it's calculated here there's no need to recalculate it in position_set -> position_messageGroundChange, but i don't see how to shuttle the memory address over there in a reasonable way - xph 2011 06 06
+	rel = mapRelativeSubhexWithVectorOffset (pdata->ground, &newPosition);
+	if (groundChange != NULL)
+		ERROR ("Ground change cache already set when calling position_move; we're about to overwrite address %p with the new value of %p; this is a memory leak probably :(", groundChange, rel);
+	groundChange = rel;
+	newGround = mapRelativeTarget (rel);
 	if (newGround == pdata->ground)
 	{
 		pdata->pos = newPosition;
+		mapRelativeDestroy (rel);
+		FUNCCLOSE ();
 		return TRUE;
 	}
 	if (subhexSpanLevel (pdata->ground) < subhexSpanLevel (newGround))
 		INFO ("Entity #%d has moved from span level %d to %d and lost resolution in the process.", entity_GUID (e), subhexSpanLevel (pdata->ground), subhexSpanLevel (newGround));
-	subhexCentreDistance = subhexVectorOffset (pdata->ground, newGround);
+	subhexCentreDistance = mapRelativeDistance (rel);
 	newPosition = vectorSubtract (&subhexCentreDistance, &newPosition);
 	position_set (e, newPosition, newGround);
+	mapRelativeDestroy (rel);
+	FUNCCLOSE ();
 	return TRUE;
 }
 

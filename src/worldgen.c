@@ -60,8 +60,6 @@ void worldgenExpandWorldGraph (TIMER t)
 
 	systemCreatePlayer ();
 
-
-
 	systemClearStates();
 	systemPushState (STATE_FREEVIEW);
 	FUNCCLOSE ();

@@ -153,6 +153,11 @@ void systemCreatePlayer ()
 	Entity
 		player,
 		camera;
+	RELATIVEHEX
+		rel;
+	SUBHEX
+		pole;
+
 	FUNCOPEN ();
 
 	player = entity_create ();
@@ -161,7 +166,15 @@ void systemCreatePlayer ()
 	}
 	if (component_instantiateOnEntity ("position", player))
 	{
-		systemPlacePlayerAt (mapPole ('r'));
+		/* NOTE: this is a placeholder; player positioning in the generated world is a worldgen thing, not a system thing. maybe this entire function is misguided, idk.
+		 *  - xph 2011 06 09
+		 */
+		pole = mapPole ('r');
+		mapForceGrowAtLevelForDistance (pole, 1, 1);
+		rel = mapRelativeSubhexWithCoordinateOffset (pole, -7, 0, 0);
+		pole = mapRelativeTarget (rel);
+		mapRelativeDestroy (rel);
+		systemPlacePlayerAt (pole);
 	}
 	component_instantiateOnEntity ("walking", player);
 
@@ -185,7 +198,7 @@ void systemPlacePlayerAt (const SUBHEX subhex)
 	Entity
 		player = input_getPlayerEntity ();
 	VECTOR3
-		pos = vectorCreate (0.0, 0.0, 0.0);
+		pos = vectorCreate (0.0, 90.0, 0.0);
 	position_set (player, pos, subhex);
 	worldSetRenderCacheCentre (subhex);
 	FUNCCLOSE ();

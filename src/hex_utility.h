@@ -23,10 +23,6 @@ enum XYenum
 
 #define		DIR1MOD6(x)		((x) + 1 >= 6 ? 0 : (x) + 1)
 
-void hexSystem_setRadii (unsigned int pole, unsigned int ground);
-unsigned int hexSystem_getPoleRadius ();
-unsigned int hexSystem_getGroundRadius ();
-
 unsigned int hx (unsigned int n);
 
 void hex_nextValidCoord (unsigned int * rp, unsigned int * kp, unsigned int * ip);
@@ -36,7 +32,7 @@ void hex_xy2rki (signed int x, signed int y, unsigned int * rp, unsigned int * k
 
 unsigned int hex_linearCoord (unsigned int r, unsigned int k, unsigned int i);
 unsigned int hex_distanceBetween (signed int ax, signed int ay, signed int bx, signed int by);
-unsigned int hex_coordinateMagnitude (signed int x, signed int y);
+unsigned int hexMagnitude (signed int x, signed int y);
 
 /* this calculates the x,y coordinate offset between the central hex of two adjacent grounds, both of radius {radius}, with the direction between the two being {dir} and the result set to {xp} and {yp}
  */
