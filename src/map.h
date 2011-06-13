@@ -81,6 +81,7 @@ void mapRelativeDestroy (RELATIVEHEX rel);
 
 
 VECTOR3 mapDistanceFromSubhexCentre (const unsigned char spanLevel, const signed int x, const signed int y);
+bool mapVectorOverrunsPlatter (const unsigned char span, const VECTOR3 * vector);
 bool mapScaleCoordinates (signed char relativeSpan, signed int x, signed int y, signed int * xp, signed int * yp, signed int * xRemainder, signed int * yRemainder);
 /* bool mapBridge (const signed int x, const signed int y, signed int * xp, signed int * yp, signed char * dir); */
 signed int * const mapSpanCentres (const unsigned char span);

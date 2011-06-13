@@ -16,6 +16,10 @@ struct position_data { // POSITION
 		dirty;		// view axes don't match the orientation quaternion
 };
 
+
+/* this groundChange var is used to cache a RELATIVEHEX calculated in position_move and reused in a later position_messageGroundChange call; this might not be the most elegant way to do things but it avoids pointlessly recalculating a RELATIVEHEX in many cases
+ * - xph 2011 06 12
+ */
 static RELATIVEHEX
 	groundChange = NULL;
 
@@ -140,25 +144,32 @@ bool position_move (Entity e, VECTOR3 move)
 		return FALSE;
 	}
 	newPosition = vectorAdd (&pdata->pos, &move);
-	// TODO: this rel would be the exact same as used for a _messageGroundChange message; if it's calculated here there's no need to recalculate it in position_set -> position_messageGroundChange, but i don't see how to shuttle the memory address over there in a reasonable way - xph 2011 06 06
-	rel = mapRelativeSubhexWithVectorOffset (pdata->ground, &newPosition);
-	if (groundChange != NULL)
-		ERROR ("Ground change cache already set when calling position_move; we're about to overwrite address %p with the new value of %p; this is a memory leak probably :(", groundChange, rel);
-	groundChange = rel;
-	newGround = mapRelativeTarget (rel);
-	if (newGround == pdata->ground)
+
+	/* NOTE: WARNING: okay look i don't know if this violates the "don't do any calculation of internals outside the related code" precept but there's just /got/ to be an easy way to only call this code when the player steps over a span-1 platter boundary, not /every tile/, and it looks like this function is the place to put it, at least for the time being.
+	 * (this could be a violation since supposedly the position code shouldn't care at all about the way the map system is coded, but, well, look at the below code all full of calculations using the map code. sigh.)
+	 * - xph 2011 06 12
+	 */
+	if (mapVectorOverrunsPlatter (1, &newPosition))
 	{
-		pdata->pos = newPosition;
+		rel = mapRelativeSubhexWithVectorOffset (pdata->ground, &newPosition);
+		if (groundChange != NULL)
+			ERROR ("Ground change cache already set when calling position_move; we're about to overwrite address %p with the new value of %p; this is a memory leak probably :(", groundChange, rel);
+		groundChange = rel;
+		newGround = mapRelativeTarget (rel);
+		if (subhexSpanLevel (pdata->ground) < subhexSpanLevel (newGround))
+			WARNING ("Entity #%d has moved from span level %d to %d and lost resolution in the process.", entity_GUID (e), subhexSpanLevel (pdata->ground), subhexSpanLevel (newGround));
+		else if (subhexSpanLevel (pdata->ground) != subhexSpanLevel (newGround))
+			WARNING ("Entity #%d has moved from span level %d to %d and GAINED resolution in the process.", entity_GUID (e), subhexSpanLevel (pdata->ground), subhexSpanLevel (newGround));
+		subhexCentreDistance = mapRelativeDistance (rel);
+		newPosition = vectorSubtract (&subhexCentreDistance, &newPosition);
+		position_set (e, newPosition, newGround);
+		DEBUG ("new position: %f, %f, %f relative to new subhex", newPosition.x, newPosition.y, newPosition.z);
 		mapRelativeDestroy (rel);
-		FUNCCLOSE ();
-		return TRUE;
 	}
-	if (subhexSpanLevel (pdata->ground) < subhexSpanLevel (newGround))
-		INFO ("Entity #%d has moved from span level %d to %d and lost resolution in the process.", entity_GUID (e), subhexSpanLevel (pdata->ground), subhexSpanLevel (newGround));
-	subhexCentreDistance = mapRelativeDistance (rel);
-	newPosition = vectorSubtract (&subhexCentreDistance, &newPosition);
-	position_set (e, newPosition, newGround);
-	mapRelativeDestroy (rel);
+	else
+	{
+		position_set (e, newPosition, pdata->ground);
+	}
 	FUNCCLOSE ();
 	return TRUE;
 }
@@ -167,8 +178,8 @@ void position_copy (Entity target, const Entity source)
 {
 	const POSITION
 		sourcePosition = component_getData (entity_getAs (source, "position"));
-	position_set (target, sourcePosition->pos, sourcePosition->ground);
 	position_setOrientation (target, sourcePosition->orientation);
+	position_set (target, sourcePosition->pos, sourcePosition->ground);
 }
 
 void position_setOrientation (Entity e, const QUAT q)

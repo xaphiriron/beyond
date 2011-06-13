@@ -171,8 +171,10 @@ void systemCreatePlayer ()
 		 */
 		pole = mapPole ('r');
 		mapForceGrowAtLevelForDistance (pole, 1, 1);
-		rel = mapRelativeSubhexWithCoordinateOffset (pole, -7, 0, 0);
+		rel = mapRelativeSubhexWithCoordinateOffset (pole, -6, 0, 0);
 		pole = mapRelativeTarget (rel);
+		DEBUG ("target span: %d", subhexSpanLevel (pole));
+		assert (subhexSpanLevel (pole) == 1);
 		mapRelativeDestroy (rel);
 		systemPlacePlayerAt (pole);
 	}

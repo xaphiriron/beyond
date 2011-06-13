@@ -276,7 +276,6 @@ void camera_switchMode (Entity camera, enum camera_modes mode)
 	}
 	//DEBUG ("updating position:", NULL);
 	camera_updatePosition (camera);
-	//ERROR ("%s does nothing! yet! (but it was called with entity #%d and mode %d)", __FUNCTION__, entity_GUID (camera), mode);
 }
 
 void camera_updateTargetPositionData (Entity camera)
@@ -558,7 +557,7 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 			{
 				worldSetRenderCacheCentre (((POSITIONUPDATE)b)->newGround);
 				camera_update (e);
-				DEBUG ("Camera labels have updated", NULL);
+				DEBUG ("Render cache has updated", NULL);
 			}
 			else if (strcmp (message, "CONTROL_INPUT") == 0)
 			{

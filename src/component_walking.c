@@ -77,11 +77,12 @@ void walk_move (Entity e)
   }
   pdata = component_getData (p);
   wdata = component_getData (w);
+	//printf ("%s: updating entity #%d (w/ %5.2f, %5.2f, %5.2f)\n", __FUNCTION__, e->guid, wdata->dir.x, wdata->dir.y, wdata->dir.z);
+	if (wdata->dirsActive == WALK_MOVE_NONE)
+	{
+		return;
+	}
 	moveAxes = position_getMoveAxesR (pdata);
-  //printf ("%s: updating entity #%d (w/ %5.2f, %5.2f, %5.2f)\n", __FUNCTION__, e->guid, wdata->dir.x, wdata->dir.y, wdata->dir.z);
-  if (wdata->dirsActive == WALK_MOVE_NONE) {
-    return;
-  }
   if (wdata->dirsActive & WALK_MOVE_LEFT) {
     move = vectorMultiplyByScalar (&moveAxes->side, -wdata->moveSpd);
     moveDirs = vectorAdd (&moveDirs, &move);

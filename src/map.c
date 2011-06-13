@@ -45,6 +45,8 @@ struct hexTile
 		edgeBase[12];
 	unsigned char
 		corners[3];
+	bool
+		light;
 };
 
 union hexOrSubdiv		// SUBHEX is union hexOrSubdiv *
@@ -302,6 +304,8 @@ SUBHEX mapHexCreate (const SUBHEX parent, signed int x, signed int y)
 {
 	SUBHEX
 		sh;
+	unsigned int
+		r, k, i;
 	if (hexMagnitude (x, y) > mapRadius)
 	{
 		ERROR ("Can't create subhex child: coordinates given were %d, %d, which are %d step%s out of bounds.", x, y, hexMagnitude (x, y) - mapRadius, hexMagnitude (x, y) - mapRadius == 1 ? "" : "s");
@@ -316,6 +320,8 @@ SUBHEX mapHexCreate (const SUBHEX parent, signed int x, signed int y)
 		subhexSetData (parent, x, y, sh);
 	sh->hex.x = x;
 	sh->hex.y = y;
+	hex_xy2rki (x, y, &r, &k, &i);
+	sh->hex.light = r % 2 ^ i % 2 ^ k % 2;
 
 	return sh;
 }
@@ -609,9 +615,10 @@ RELATIVEHEX mapRelativeSubhexWithVectorOffset (const SUBHEX subhex, const VECTOR
 	}
 	else if (valid)
 	{
-		span = 1 - subhexSpanLevel (subhex);
-		DEBUG ("%s: converted to coordinates %d, %d at span level 1, or %d relative to the span %d of the subhex %p", __FUNCTION__, x, y, span, subhexSpanLevel (subhex), subhex);
-		return mapRelativeSubhexWithCoordinateOffset (subhex, span, x, y);
+		// hex_space2coord translates into individual hex coordinates, i.e., span-0 platters.
+		span = subhexSpanLevel (subhex);
+		DEBUG ("%s: converted %.2f, %.2f, %.2f to coordinates %d, %d at span level 0 (%d relative to the span %d of the subhex %p)", __FUNCTION__, offset->x, offset->y, offset->z, x, y, -span, span, subhex);
+		return mapRelativeSubhexWithCoordinateOffset (subhex, -span, x, y);
 	}
 	/* TODO: (see also the TODO in hex_space2coord) it's possible that the offset vector could overflow the signed int type; in that case the x and y axis of the span 2 coordinates needs to be calculated (with any remainder using the span 1 cordinates), and that process repeats until the xy values have been specified with maximum specifity. if the values /don't/ overflow, though, this becomes much more simple: convert values and pass to the CoordinateOffset version. */
 	ERROR ("Could not convert vector %f,%f,%f into coordinates.", offset->x, offset->y, offset->z);
@@ -669,10 +676,11 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 
 	rel->minSpan = subhexSpanLevel (subhex);
 	rel->maxSpan = rel->minSpan;
+	DEBUG ("native span of %d w/ relative span req. of %d", rel->minSpan, spanDiff);
 	if (spanDiff < 0)
-		rel->minSpan = rel->maxSpan + spanDiff + 1;
+		rel->minSpan = rel->maxSpan + spanDiff;
 	else
-		rel->maxSpan = rel->minSpan + spanDiff + 1;
+		rel->maxSpan = rel->minSpan + spanDiff;
 	DEBUG ("set min/max span to %d/%d, w/ a range of %d", rel->minSpan, rel->maxSpan, spanRange);
 
 	while (spanDiff < 0)
@@ -793,8 +801,8 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 	i = 0;
 	while (i < spanRange)
 	{
-		DEBUG ("iterating on %d to calculate vector distance (@ span %d: %d, %d)", i, rel->minSpan + i, distX[i], distY[i]);
 		dirTemp = mapDistanceFromSubhexCentre (rel->minSpan + i, distX[i], distY[i]);
+		DEBUG ("iterating on %d to calculate vector distance (@ span %d: %d, %d); for this step: %.2f, %.2f, %.2f", i, rel->minSpan + i, distX[i], distY[i], dirTemp.x, dirTemp.y, dirTemp.z);
 		rel->distance = vectorAdd (&rel->distance, &dirTemp);
 		i++;
 	}
@@ -941,6 +949,20 @@ VECTOR3 mapDistanceFromSubhexCentre (const unsigned char spanLevel, const signed
 	);
 }
 
+/* BUG: this only works right when span == 1; the coordinates need to be converted recursively if span is otherwise, and that's not done yet
+ *  - xph 2011 06 12
+ */
+bool mapVectorOverrunsPlatter (const unsigned char span, const VECTOR3 * vector)
+{
+	signed int
+		x = 0,
+		y = 0;
+	hex_space2coord (vector, &x, &y);
+	if (hexMagnitude (x, y) > mapRadius)
+		return TRUE;
+	return FALSE;
+}
+
 /***
  * given a set of coordinates (the values x and y), translate the values to a
  * different span level (denoted by relativeSpan) and change the values *xp
@@ -1053,17 +1075,27 @@ signed int * const mapSpanCentres (const unsigned char span)
 		* t,
 		x, y;
 	unsigned short
-		match = span - 1,
+		match = span,
 		i;
 	LOG (E_FUNCLABEL, "%s (%d)...", __FUNCTION__, span);
 	if (centreCache == NULL)
-		centreCache = dynarr_create (span, sizeof (signed int **));
-	if ((r = *(signed int **)dynarr_at (centreCache, span - 1)) != NULL)
+		centreCache = dynarr_create (span + 1, sizeof (signed int **));
+	if ((r = *(signed int **)dynarr_at (centreCache, span)) != NULL)
 		return r;
 	while (match > 0 && (s = *(signed int **)dynarr_at (centreCache, match)) == NULL)
 		match--;
-	if (match == 0)
+	if (match <= 1)
 	{
+		// we care about the 1:1 span-0 mapping because it makes this function consistant; calling it with 0 will lead to expected behavior instead of crashing or errors
+		s = xph_alloc (sizeof (signed int) * 12);
+		i = 0;
+		while (i < 12)
+		{
+			s[i] = XY[i/2][i%2];
+			i++;
+		}
+		dynarr_assign (centreCache, 0, s);
+
 		DEBUG ("generating first centres", NULL);
 		first = xph_alloc (sizeof (signed int) * 12);
 		i = 0;
@@ -1072,8 +1104,8 @@ signed int * const mapSpanCentres (const unsigned char span)
 			hex_centerDistanceCoord (mapRadius, i, &first[i * 2], &first[i * 2 + 1]);
 			i++;
 		}
-		dynarr_assign (centreCache, match, first);
-		match++;
+		dynarr_assign (centreCache, 1, first);
+		match = 2;
 
 		/* vvv LOL DEBUG PRINTING vvv *
 		i = 0;
@@ -1087,7 +1119,7 @@ signed int * const mapSpanCentres (const unsigned char span)
 
 	}
 	else
-		first = *(signed int **)dynarr_at (centreCache, 0);
+		first = *(signed int **)dynarr_at (centreCache, 1);
 	t = first;
 	s = NULL;
 	while (match < span)
@@ -1142,8 +1174,10 @@ static bool coordinatesOverflow (const signed int x, const signed int y, const s
 		cxy = abs (coords[1]),
 		cyx = abs (coords[2]),
 		cyy = abs (coords[3]);
-	if (ax * cxx < ax || ax * cxy < ax
-		|| ay * cyx < ay || ay * cyy < ay)
+	if ((cxx && ax * cxx < ax)
+		|| (cxy && ax * cxy < ax)
+		|| (cyx && ay * cyx < ay)
+		|| (cyy && ay * cyy < ay))
 	{
 		ERROR ("Coordinate overflow while shifting coordinates %d, %d down; using axes %d,%d and %d,%d; coordinate not representable!", x, y, coords[0], coords[1], coords[2], coords[3]);
 		return TRUE;
@@ -1377,19 +1411,27 @@ int __v, __n;
 
 static Dynarr
 	RenderCache = NULL;
+SUBHEX
+	RenderOrigin = NULL;
 static unsigned char
 	AbsoluteViewLimit = 8;
 
 
 void worldSetRenderCacheCentre (SUBHEX origin)
 {
+	if (origin == RenderOrigin)
+	{
+		INFO ("%s called with repeat origin (%p). already set; ignoring", origin);
+		return;
+	}
+	assert (subhexSpanLevel (origin) == 1);
 	if (subhexSpanLevel (origin) == 0)
 	{
 		WARNING ("The rendering origin is a specific tile; using its parent instead", NULL);
 		origin = subhexParent (origin);
 	}
 	else if (subhexSpanLevel (origin) != 1)
-		WARNING ("The rendering origin isn't at maximum resolution; this may be a problem", NULL);
+		ERROR ("The rendering origin isn't at maximum resolution; this may be a problem", NULL);
 	if (RenderCache != NULL)
 	{
 		dynarr_wipe (RenderCache, (void (*)(void *))mapRelativeDestroy);
@@ -1466,7 +1508,7 @@ void subhexDraw (const SUBDIV sub, const VECTOR3 offset)
 		i = 0,
 		max = hx (mapRadius + 1);
 
-	FUNCOPEN ();
+	//FUNCOPEN ();
 	assert (sub->data != NULL);
 	while (i < max)
 	{
@@ -1475,12 +1517,12 @@ void subhexDraw (const SUBDIV sub, const VECTOR3 offset)
 		hexDraw (&hex->hex, offset);
 		i++;
 	}
-	FUNCCLOSE ();
+	//FUNCCLOSE ();
 }
 
 void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 {
-	FUNCOPEN ();
+	//FUNCOPEN ();
 
 	VECTOR3
 		hexOffset = hex_xyCoord2Space (hex->x, hex->y),
@@ -1497,23 +1539,20 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 	signed int
 		i, j;
 
+	if (hex->light)
+		glColor3f (1.0, 1.0, 1.0);
+	else
+		glColor3f (0.7, 0.7, 0.7);
+
 	//DEBUG ("drawing hex based at %.2f, %.2f, %.2f", totalOffset.x, hex->centre * HEX_SIZE_4, totalOffset.z);
 	glBegin (GL_TRIANGLE_FAN);
-	glColor3f (0.0, 0.0, 0.0);
 	glVertex3f (totalOffset.x, hex->centre * HEX_SIZE_4, totalOffset.z);
-	glColor3f (0.0, 0.0, 1.0);
 	glVertex3f (totalOffset.x + H[0][0], corners[0] * HEX_SIZE_4, totalOffset.z + H[0][1]);
-	glColor3f (0.0, 1.0, 0.0);
 	glVertex3f (totalOffset.x + H[5][0], corners[5] * HEX_SIZE_4, totalOffset.z + H[5][1]);
-	glColor3f (0.0, 1.0, 1.0);
 	glVertex3f (totalOffset.x + H[4][0], corners[4] * HEX_SIZE_4, totalOffset.z + H[4][1]);
-	glColor3f (1.0, 0.0, 0.0);
 	glVertex3f (totalOffset.x + H[3][0], corners[3] * HEX_SIZE_4, totalOffset.z + H[3][1]);
-	glColor3f (1.0, 0.0, 1.0);
 	glVertex3f (totalOffset.x + H[2][0], corners[2] * HEX_SIZE_4, totalOffset.z + H[2][1]);
-	glColor3f (1.0, 1.0, 0.0);
 	glVertex3f (totalOffset.x + H[1][0], corners[1] * HEX_SIZE_4, totalOffset.z + H[1][1]);
-	glColor3f (1.0, 1.0, 1.0);
 	glVertex3f (totalOffset.x + H[0][0], corners[0] * HEX_SIZE_4, totalOffset.z + H[0][1]);
 	glEnd ();
 	i = 0;
@@ -1536,5 +1575,5 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 		i++;
 		j = (i + 1) % 6;
 	}
-	FUNCCLOSE ();
+	//FUNCCLOSE ();
 }
