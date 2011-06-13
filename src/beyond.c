@@ -5,7 +5,7 @@
 
 int main (int argc, char * argv[])
 {
-	logSetLevel (E_ALL & ~E_FUNCLABEL);
+	logSetLevel (E_ALL & ~(E_FUNCLABEL | E_DEBUG));
 	objPassEnable (FALSE);
 	system_message (OM_CLSINIT, NULL, NULL);
 	systemStart ();

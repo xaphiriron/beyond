@@ -1,6 +1,8 @@
 ## Process this file with automake to produce Makefile.in
 
-AM_CPPFLAGS = -Wall -Werror -fstrict-aliasing -O3 -DMEM_DEBUG
+AM_CPPFLAGS = -Wall -Werror -fstrict-aliasing -O3
+#AM_CPPFLAGS = -Wall -Werror -fstrict-aliasing -O3 -DMEM_DEBUG
+
 #AM_CPPFLAGS = -Wall -Werror -fprofile-generate -ftest-coverage
 #AM_LDFLAGS = -fprofile-generate -lgcov
 

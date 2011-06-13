@@ -60,7 +60,10 @@ static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround
 		usedCache = FALSE;
 	// the above commented-out code is correct; this iteration is just to avoid messaging with an invalid RELATIVEHEX (which crashes the program)
 	if (groundChange == NULL)
+	{
+		ERROR ("CAN'T HANDLE THIS; NEED TO GENERATE A RELATIVEHEX FROM SCRATCH BUT CAN'T AAA", NULL);
 		return;
+	}
 	posUpdate.oldGround = oldGround;
 	posUpdate.newGround = newGround;
 	if (groundChange)
@@ -119,6 +122,8 @@ void position_set (Entity e, VECTOR3 pos, SUBHEX ground)
 	pdata->pos = pos;
 	oldGround = pdata->ground;
 	pdata->ground = ground;
+
+	entity_speak (e, "positionUpdate", NULL);
 	if (oldGround != ground)
 		position_messageGroundChange (pc, oldGround, pdata->ground);
 
@@ -298,6 +303,7 @@ void position_rotateOnMouseInput (Entity e, const struct input_event * ie)
 	);
 	pdata->orientation = quat_multiply (&pdata->orientation, &q);
 	pdata->dirty = TRUE;
+	entity_speak (e, "orientationUpdate", NULL);
 	//printf ("view quat: %7.2f, %7.2f, %7.2f, %7.2f\n", cdata->viewQuat.w, cdata->viewQuat.x, cdata->viewQuat.y, cdata->viewQuat.z);
 }
 

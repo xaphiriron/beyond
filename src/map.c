@@ -45,7 +45,7 @@ struct hexTile
 		edgeBase[12];
 	unsigned char
 		corners[3];
-	bool
+	unsigned char
 		light;
 };
 
@@ -321,7 +321,7 @@ SUBHEX mapHexCreate (const SUBHEX parent, signed int x, signed int y)
 	sh->hex.x = x;
 	sh->hex.y = y;
 	hex_xy2rki (x, y, &r, &k, &i);
-	sh->hex.light = r % 2 ^ i % 2 ^ k % 2;
+	sh->hex.light = (k % 2) << 0 | (r % 2 ^ k % 2) << 1 | (!i && r) << 2;
 
 	return sh;
 }
@@ -1465,9 +1465,9 @@ void mapDraw ()
 	SUBHEX
 		sub;
 	unsigned int
-		tier1Detail = hx (AbsoluteViewLimit / 4),
+		tier1Detail = hx (AbsoluteViewLimit + 1),/*
 		tier2Detail = hx (AbsoluteViewLimit / 2),
-		tier3Detail = hx (AbsoluteViewLimit),
+		tier3Detail = hx (AbsoluteViewLimit),*/
 		i = 0;
 	if (RenderCache == NULL)
 	{
@@ -1489,7 +1489,7 @@ void mapDraw ()
 			continue;
 		}
 		subhexDraw (&sub->sub, centreOffset);
-	}
+	}/*
 	while (i < tier2Detail)
 	{
 		i++;
@@ -1497,7 +1497,7 @@ void mapDraw ()
 	while (i < tier3Detail)
 	{
 		i++;
-	}
+	}*/
 }
 
 void subhexDraw (const SUBDIV sub, const VECTOR3 offset)
@@ -1527,6 +1527,10 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 	VECTOR3
 		hexOffset = hex_xyCoord2Space (hex->x, hex->y),
 		totalOffset = vectorAdd (&centreOffset, &hexOffset);
+	float
+		lR = 0.0,
+		lG = 0.0,
+		lB = 0.0;
 	unsigned int
 		corners[6] = {
 			FULLHEIGHT (hex, 0),
@@ -1539,10 +1543,13 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 	signed int
 		i, j;
 
-	if (hex->light)
-		glColor3f (1.0, 1.0, 1.0);
-	else
-		glColor3f (0.7, 0.7, 0.7);
+	// light will be a value between 0 and 7
+	
+	lR = 0.5 + (0.1428 * 0.5 * ((hex->light & 0x01) + (hex->light & 0x02)));
+	lG = 0.5 + (0.1428 * 0.5 * ((hex->light & 0x02) + (hex->light & 0x04)));
+	lB = 0.5 + (0.1428 * 0.5 * ((hex->light & 0x01) + (hex->light & 0x04)));
+
+	glColor3f (lR, lG, lB);
 
 	//DEBUG ("drawing hex based at %.2f, %.2f, %.2f", totalOffset.x, hex->centre * HEX_SIZE_4, totalOffset.z);
 	glBegin (GL_TRIANGLE_FAN);

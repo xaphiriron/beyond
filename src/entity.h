@@ -11,6 +11,8 @@ typedef struct ent_system * EntSystem;
 typedef struct ent_component * EntComponent;
 
 struct comp_message {
+	Entity
+		entFrom;
   EntComponent
     from,
     to;
@@ -23,7 +25,7 @@ void entity_purgeDestroyed (TIMER t);
 void entity_destroy (Entity e);
 bool entity_exists (unsigned int guid);
 
-bool entity_message (Entity e, char * message, void * arg);
+bool entity_message (Entity e, Entity from, char * message, void * arg);
 
 unsigned int entity_GUID (const Entity e);
 EntComponent entity_getAs (Entity e, const char * comp_name);
@@ -50,6 +52,11 @@ bool entitySubsystem_unstore (const char * comp_name);
 bool entitySubsystem_runOnStored (objMsg);
 void entitySubsystem_clearStored ();
 
+
+
+void entity_subscribe (Entity listener, Entity target);
+void entity_unsubscribe (Entity listener, Entity target);
+void entity_speak (const Entity speaker, char * message, void * arg);
 
 
 void component_setLoadGoal (EntComponent c, unsigned int m);

@@ -287,7 +287,7 @@ void plant_update (EntComponent pc)
 	{
 		pd->growthTimer -= pd->growthThreshhold;
 		if (++pd->growthsTotal > pd->growthsTilDeath)
-			entity_message (component_entityAttached (pc), "PLANT_DEATH", NULL);
+			entity_message (component_entityAttached (pc), NULL, "PLANT_DEATH", NULL);
 		else
 			plant_grow (pd);
 	}

@@ -189,7 +189,10 @@ void camera_attachToTarget (Entity camera, Entity target)
 		targetPosition = component_getData (entity_getAs (target, "position"));
 	if (cd == NULL || targetPosition == NULL)
 		return;
+	if (cd->target != NULL)
+		entity_unsubscribe (camera, cd->target);
 	cd->target = target;
+	entity_subscribe (camera, target);
 	camera_updatePosition (camera);
 }
 
@@ -488,10 +491,15 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 {
 	struct camera_data
 		** cd = NULL;
+	cameraComponent
+		cdata = NULL;
+/*
 	DynIterator
 		it = NULL;
+*/
 	Entity
-		e = NULL;
+		e = NULL,
+		from = NULL;
 	char
 		* message = NULL;
 	switch (msg)
@@ -538,6 +546,7 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 			return EXIT_SUCCESS;
 
 		case OM_UPDATE:
+			/* don't do this -- have the camera listen to messages from its target and update when its target sends the positionUpdate message
 			it = dynIterator_create (comp_entdata);
 			while (!dynIterator_done (it))
 			{
@@ -545,6 +554,7 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 				camera_update (e);
 			}
 			dynIterator_destroy (it);
+			*/
 			return EXIT_SUCCESS;
 
 		case OM_POSTUPDATE:
@@ -552,10 +562,26 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 
 		case OM_COMPONENT_RECEIVE_MESSAGE:
 			message = ((struct comp_message *)a)->message;
+			cdata = component_getData (((struct comp_message *)a)->to);
 			e = component_entityAttached (((struct comp_message *)a)->to);
+			from = ((struct comp_message *)a)->entFrom;
+			if (from == cdata->target)
+			{
+				/* there's probably a way to do this so it only has to update one cached matrix instead of all of them
+				 *  - xph 2011 06 12
+				 */
+				//DEBUG ("GOT A MESSAGE FROM THE CAMERA TARGET", NULL);
+				if (!strcmp (message, "positionUpdate"))
+					camera_update (e);
+				else if (!strcmp (message, "orientationUpdate"))
+					camera_update (e);
+			
+				return EXIT_SUCCESS;
+			}
 			if (strcmp (message, "positionUpdate") == 0)
 			{
-				worldSetRenderCacheCentre (((POSITIONUPDATE)b)->newGround);
+				if (b != NULL)
+					worldSetRenderCacheCentre (((POSITIONUPDATE)b)->newGround);
 				camera_update (e);
 				DEBUG ("Render cache has updated", NULL);
 			}

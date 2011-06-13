@@ -200,7 +200,7 @@ void uiDrawWorldmap (const UIPANEL p)
 
 	player = input_getPlayerEntity ();
 	//printf ("&position: %p\n", &position);
-	entity_message (player, "getWorldPosition", &position);
+	entity_message (player, NULL, "getWorldPosition", &position);
 	uiPositionVector = uiTransformWorldToUI (position);
 
 	glColor3f (1.0, 1.0, 1.0);

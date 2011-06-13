@@ -5,6 +5,9 @@ struct entity {
 
   // this is a local variable to make fetching components from a specific entity faster. It stores the same data as a EntSystem->entities vector, which is to say EntComponents (something todo: this is named "components" whereas the system vector is named "entities". this is confusing and dumb.)
   Dynarr components;
+
+	Dynarr
+		listeners;
 };
 
 struct messageTrigger
@@ -148,6 +151,7 @@ Entity entity_create () {
     e->guid = ++EntityGUIDs;
   }
   e->components = dynarr_create (2, sizeof (EntComponent));
+	e->listeners = dynarr_create (2, sizeof (Entity));
   if (ExistantEntities == NULL) {
     ExistantEntities = dynarr_create (128, sizeof (Entity));
   }
@@ -196,6 +200,7 @@ void entity_purgeDestroyed (TIMER t)
 			component_removeFromEntity (c->reg->comp_name, e);
 		}
 		dynarr_destroy (e->components);
+		dynarr_destroy (e->listeners);
 		//printf ("adding #%d to the destroyed list, to be reused\n", e->guid);
 		if (DestroyedEntities == NULL)
 		{
@@ -219,7 +224,7 @@ bool entity_exists (unsigned int guid) {
   return TRUE;
 }
 
-bool entity_message (Entity e, char * message, void * arg)
+bool entity_message (Entity e, Entity from, char * message, void * arg)
 {
 	EntComponent
 		t;
@@ -231,6 +236,7 @@ bool entity_message (Entity e, char * message, void * arg)
 	if (e == NULL)
 		return FALSE;
 	//msg = xph_alloc (sizeof (struct comp_message));
+	msg.entFrom = from;
 	msg.from = NULL;
 	msg.to = NULL;
 	msg.message = message;
@@ -558,6 +564,7 @@ bool component_messageEntity (EntComponent comp, char * message, void * arg)
 		t = NULL;
 	int
 		i = 0;
+	msg.entFrom = component_entityAttached (comp);
 	msg.from = comp;
 	msg.to = NULL;
 	msg.message = message;
@@ -645,9 +652,37 @@ void entitySubsystem_clearStored () {
   }
 }
 
+/***
+ * SUBSCRIBING
+ */
+
+void entity_subscribe (Entity listener, Entity target)
+{
+	dynarr_push (target->listeners, listener);
+}
+
+void entity_unsubscribe (Entity listener, Entity target)
+{
+	dynarr_remove_condense (target->listeners, listener);
+}
+
+void entity_speak (const Entity speaker, char * message, void * arg)
+{
+	Entity
+		listener;
+	int
+		i = 0;
+	while ((listener = *(Entity *)dynarr_at (speaker->listeners, i++)) != NULL)
+	{
+		entity_message (listener, speaker, message, arg);
+	}
+}
 
 
 
+/***
+ * LOADING (old and terrible)
+ */
 
 void component_setLoadGoal (EntComponent c, unsigned int m)
 {
