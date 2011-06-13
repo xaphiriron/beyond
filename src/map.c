@@ -300,12 +300,18 @@ void mapForceGrowAtLevelForDistance (SUBHEX subhex, unsigned char spanLevel, uns
  * SIMPLE CREATION AND INITIALIZATION FUNCTIONS
  */
 
+unsigned int
+	hexColouring = 0;
+
 SUBHEX mapHexCreate (const SUBHEX parent, signed int x, signed int y)
 {
 	SUBHEX
 		sh;
 	unsigned int
 		r, k, i;
+	unsigned char
+		channel = 0,
+		aspect = 0;
 	if (hexMagnitude (x, y) > mapRadius)
 	{
 		ERROR ("Can't create subhex child: coordinates given were %d, %d, which are %d step%s out of bounds.", x, y, hexMagnitude (x, y) - mapRadius, hexMagnitude (x, y) - mapRadius == 1 ? "" : "s");
@@ -321,8 +327,67 @@ SUBHEX mapHexCreate (const SUBHEX parent, signed int x, signed int y)
 	sh->hex.x = x;
 	sh->hex.y = y;
 	hex_xy2rki (x, y, &r, &k, &i);
-	sh->hex.light = (k % 2) << 0 | (r % 2 ^ k % 2) << 1 | (!i && r) << 2;
 
+	sh->hex.light = 0;
+	while (channel < 6)
+	{
+		aspect = (hexColouring & (0x0f << (channel * 3))) >> (channel * 3);
+		switch (aspect)
+		{
+			default:
+			case 0:
+				// alternating concentric hexes
+				sh->hex.light |= (r % 2) << channel;
+				break;
+			case 1:
+				// division into 3 triangles
+				sh->hex.light |= (k % 2) << channel;
+				break;
+			case 2:
+				sh->hex.light |= (i % 2) << channel;
+				break;
+			case 3:
+				// 3 spiral
+				sh->hex.light |= (r % 2 ^ k % 2) << channel;
+				break;
+			case 4:
+				sh->hex.light |= (r % 2 ^ i % 2) << channel;
+				break;
+			case 5:
+				sh->hex.light |= (k % 2 ^ i % 2) << channel;
+				break;
+			case 6:
+				sh->hex.light |= (r % 2 ^ k % 2 ^ i % 2) << channel;
+				break;
+			case 7:
+				sh->hex.light |= (((r + 5) % 6) == ((6 - k) % 6)) << channel;
+				break;
+			case 8:
+				sh->hex.light |= ((r % 6) == ((6 - k) % 6)) << channel;
+				break;
+			case 9:
+				sh->hex.light |= (((r + 1) % 6) == ((6 - k) % 6)) << channel;
+				break;
+			case 10:
+				break;
+			case 11:
+				channel++;
+				break;
+			case 12:
+				sh->hex.light |= 0x01 << channel;
+				break;
+			case 13:
+				sh->hex.light |= ((!i && r) || i == mapRadius / 2) << channel;
+				break;
+			case 14:
+				sh->hex.light |= ((r > mapRadius / 2) ^ k % 2) << channel;
+				break;
+			case 15:
+				sh->hex.light |= ((r > mapRadius / 2) ^ (i % 2 | !r)) << channel;
+				break;
+		}
+		channel++;
+	}
 	return sh;
 }
 
@@ -359,7 +424,10 @@ SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 
 	// a span-one subdiv is REQUIRED to have all its hexes generated
 	if (sh->sub.span == 1)
+	{
+		hexColouring = rand ();
 		mapForceSubdivide (sh);
+	}
 
 	return sh;
 }
@@ -1543,11 +1611,9 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 	signed int
 		i, j;
 
-	// light will be a value between 0 and 7
-	
-	lR = 0.5 + (0.1428 * 0.5 * ((hex->light & 0x01) + (hex->light & 0x02)));
-	lG = 0.5 + (0.1428 * 0.5 * ((hex->light & 0x02) + (hex->light & 0x04)));
-	lB = 0.5 + (0.1428 * 0.5 * ((hex->light & 0x01) + (hex->light & 0x04)));
+	lR = 0.30 + (0.46 * ((hex->light & 0x01 && 1) + ((hex->light & 0x02 && 1) * .5)));
+	lG = 0.20 + (0.46 * ((hex->light & 0x04 && 1) + ((hex->light & 0x08 && 1) * .5)));
+	lB = 0.30 + (0.46 * ((hex->light & 0x10 && 1) + ((hex->light & 0x20 && 1) * .5)));
 
 	glColor3f (lR, lG, lB);
 
