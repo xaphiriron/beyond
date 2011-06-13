@@ -221,6 +221,7 @@ static void camera_doControlInputResponse (Entity camera, const struct input_eve
 		case IR_CAMERA_MODE_SWITCH:
 			newMode = cd->mode + 1 == 4 ? 1 : cd->mode + 1;
 			camera_switchMode (camera, newMode);
+			camera_update (camera);
 			break;
 		default:
 			return;
