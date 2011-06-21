@@ -544,7 +544,7 @@ int main (void)
 	SRunner
 		* sr = srunner_create (make_object_suite ());
 
-	logSetLevel (E_OFF);
+	logSetLevel (E_NONE);
   srunner_run_all (sr, CK_NORMAL);
   number_failed = srunner_ntests_failed (sr);
   srunner_free (sr);

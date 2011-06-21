@@ -37,6 +37,8 @@ static bool dynarr_index_used (const Dynarr da, int index)
 	int
 		j = index / CHAR_BIT,
 		k = index % CHAR_BIT;
+	if (j > da->capacity / CHAR_BIT) // overrun
+		return FALSE;
 	return (da->indicesUsed[j] & (0x01 << k))
 		? TRUE
 		: FALSE;
@@ -47,6 +49,8 @@ static void dynarr_set_index (Dynarr da, int index)
 	int
 		j = index / CHAR_BIT,
 		k = index % CHAR_BIT;
+	if (j > da->capacity / CHAR_BIT) // overrun
+		return;
 	da->indicesUsed[j] |= (0x01 << k);
 }
 
@@ -199,6 +203,38 @@ int dynarr_assign (Dynarr da, int index,  ...)
 	return index;
 }
 
+int dynarrInsertInPlace (Dynarr da, int index, ...)
+{
+	va_list
+		ap;
+	size_t
+		i = index;
+	char
+		* datum,
+		* replaced = NULL;
+	va_start (ap, index);
+	datum = va_arg (ap, char *);
+	va_end (ap);
+	if (index >= da->capacity)
+		dynarr_resize (da, index);
+	/* this passes the three tests i wrote for it, but I wouldn't trust it until it's been tested through use or got better test coverage
+	 * - xph 2011 06 16
+	 */
+	while (dynarr_index_used (da, i))
+	{
+		replaced = *(void **)dynarr_at (da, index);
+		*(void **)(da->items + da->size * index) = *(void **)(da->items + da->size * i);
+		*(void **)(da->items + da->size * i) = replaced;
+		i++;
+	}
+	// ihni; originally this was dynarr_assign (da, i, replaced); but replaced isn't the right value at this point since it's [i-1] and we want [i], so i don't know if replaced is the right value for the ifcheck at all (it isn't) or what
+	//  - xph 2011 06 16
+	if (replaced != NULL)
+		dynarr_assign (da, i, *(void **)dynarr_at (da, index));
+	dynarr_assign (da, index, datum);
+	return index;
+}
+
 int dynarr_push (Dynarr da, ...)
 {
 	va_list
@@ -316,6 +352,48 @@ void dynarr_sort (Dynarr da, int (*sort) (const void *, const void *))
 	if (da->used != dynarr_index_final (da) - 1)
 		dynarr_condense (da);
 	qsort (da->items, da->used, da->size, sort);
+}
+
+void dynarrSortFinal (Dynarr da, int (*sort) (const void *, const void *), int amount)
+{
+	size_t
+		end,
+		start,
+		match;
+	void
+		** dataAddr,
+		* data;
+	if (da->used != dynarr_index_final (da) - 1)
+		dynarr_condense (da);
+	end = dynarr_index_final (da);
+	start = end - amount;
+	if (amount == 1)
+	{
+		dataAddr = (void **)dynarr_at (da, end);
+		data = *dataAddr;
+		match = 0;
+		while (match < end && sort (dataAddr, dynarr_at (da, match)) > 0)
+			match++;
+		if (match == end)
+			return;
+		dynarr_pop (da);
+		dynarrInsertInPlace (da, match, data);
+		return;
+	}
+	// sort final [amount] items
+	qsort (da->items + start * da->size, amount + 1, da->size, sort);
+	// 'mergesort'
+	match = 0;
+	while (start <= end)
+	{
+		dataAddr = (void **)dynarr_at (da, start);
+		data = *dataAddr;
+		while (match < end && sort (dataAddr, dynarr_at (da, match)) > 0)
+			match++;
+		dynarr_unset (da, start);
+		dynarrInsertInPlace (da, match, data);
+		start++;
+	}
 }
 
 char * dynarr_search (const Dynarr da, int (*search) (const void *, const void *), ...)

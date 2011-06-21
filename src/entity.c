@@ -180,14 +180,16 @@ void entity_destroy (Entity e)
 
 void entity_purgeDestroyed (TIMER t)
 {
-	//printf ("%s ()...\n", __FUNCTION__);
 	struct ent_component
 		* c = NULL;
 	Entity
 		e;
-	//DEBUG ("IN %s...", __FUNCTION__);
+	FUNCOPEN ();
 	if (ToBeDestroyed == NULL)
+	{
+		FUNCCLOSE ();
 		return;
+	}
 	while ((e = entity_get (*(unsigned int *)dynarr_pop (ToBeDestroyed))) != NULL)
 	{
 		DEBUG ("Destroying entity #%d", entity_GUID (e));
@@ -215,6 +217,7 @@ void entity_purgeDestroyed (TIMER t)
 			return;
 	}
 	//printf ("...%s ()\n", __FUNCTION__);
+	FUNCCLOSE ();
 }
 
 bool entity_exists (unsigned int guid) {
@@ -816,8 +819,7 @@ void component_runLoader (const TIMER t)
 		c;
 	float
 		timeElapsed;
-	//DEBUG ("IN %s...", __FUNCTION__);
-	//printf ("%s...\n", __FUNCTION__);
+	FUNCOPEN ();
 	if (ComponentLoader == NULL)
 		ComponentLoader = dynarr_create (8, sizeof (EntComponent));
 	if (ComponentLoaderUnsorted == TRUE)
@@ -837,7 +839,7 @@ void component_runLoader (const TIMER t)
 		}
 		c->reg->loaderCallback (t, c);
 	}
-	//printf ("...%s\n", __FUNCTION__);
+	FUNCCLOSE ();
 }
 
 static int comp_weight_sort (const void * a, const void * b)

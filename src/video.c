@@ -45,13 +45,24 @@ void video_enableSDLmodules () {
   //SDL_WM_GrabInput (SDL_GRAB_ON);
 }
 
-void video_enableGLmodules () {
-  glClearColor (0.0, 0.0, 0.0, 0.0);
-  glClearDepth (1.0);
-  glEnable (GL_DEPTH_TEST);
-  glEnable (GL_CULL_FACE);
-  glPolygonMode (GL_FRONT, GL_FILL);
-  //glPolygonMode (GL_BACK, GL_LINE);
+void video_enableGLmodules ()
+{
+	//glClearColor (0.20, 0.03, 0.12, 0.0); // dark purple
+	//glClearColor (0.29, 0.10, 0.19, 0.0); // slightly lighter purple
+	glClearColor (0.84, 0.98, 0.68, 0.0);
+	glClearDepth (1.0);
+
+	glEnable (GL_DEPTH_TEST);
+	glEnable (GL_CULL_FACE);
+	glPolygonMode (GL_FRONT, GL_FILL);
+	//glPolygonMode (GL_BACK, GL_LINE);
+
+	glEnable (GL_TEXTURE_2D);
+	glEnable (GL_BLEND);
+	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glShadeModel (GL_FLAT);
+	//glEnable (GL_POLYGON_SMOOTH);
 }
 
 
@@ -217,7 +228,7 @@ inline float video_pixelYOffset (signed int y)
 		* v =  obj_getClassData (VideoObject, "video");
 	if (v == NULL)
 		return 0.0;
-	return y * v->resolution;
+	return y * -v->resolution;
 }
 
 int video_handler (Object * o, objMsg msg, void * a, void * b) {

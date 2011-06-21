@@ -67,6 +67,21 @@ bool systemPushState (enum system_states state);
 enum system_states systemPopState ();	// returns the new current state
 bool systemClearStates ();				// entirely wipes the state stack
 
+/* this function should:
+ *  1. set (not push; reset and add) the state to STATE_LOADING
+ *  2. initialize/clear a system global loading struct
+ *  3. add the loader function to the timed functions run each tick
+ *  4. store finishCallback to be called when loading completes (see below)
+ */
+void systemLoad (void (*initialize)(void), void (*loader)(TIMER), void (*finishCallback)(void));
+void loadSetGoal (unsigned int goal);
+void loadSetLoaded (unsigned int loaded);
+void loadSetText (char * displayText);
+
+/* the system should render the loading data however applicable (e.g., progress bar; informational text) and continue calling the loader function (via the system timed functions feature) until it signals that it's done (presumably by setting the loading data to 100%) at which point the system should remove the loader from the timed functions and call the finish callback function, which is responsible for getting the system into a reasonable state before the next tick (i.e., immediately)
+ *  - xph 2011 06 16
+ */
+
 UIPANEL systemPopUI ();
 void systemPushUI (UIPANEL p);
 enum uiPanelTypes systemTopUIPanelType ();

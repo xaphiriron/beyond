@@ -661,6 +661,145 @@ START_TEST (test_dynarr_assign_floatptr)
 }
 END_TEST
 
+/***
+ * In-order insertion tests
+ */
+
+void insertSetup ()
+{
+	da = dynarr_create (2, sizeof (signed int));
+	dynarr_assign (da, 0, 5);
+	dynarr_assign (da, 1, 10);
+	dynarr_assign (da, 2, 15);
+	dynarr_assign (da, 3, 20);
+	dynarr_assign (da, 4, 25);
+}
+
+void insertTeardown ()
+{
+	dynarr_destroy (da);
+	da = NULL;
+}
+
+START_TEST (dynarrInsertFirst)
+{
+	int
+		i = 0,
+		match[6] = {4, 5, 10, 15, 20, 25};
+	dynarrInsertInPlace (da, 0, 4);
+	fail_unless (dynarr_size (da) == 6);
+	while (i < 6)
+	{
+		fail_unless (
+			*(signed int *)dynarr_at (da, i) == match[i],
+			"In-order insertion should push existing values down. At index %d expected %d, got %d", i, match[i], *(signed int *)dynarr_at (da, i)
+		);
+		i++;
+	}
+}
+END_TEST
+
+START_TEST (dynarrInsertLast)
+{
+	int
+		i = 0,
+		match[6] = {5, 10, 15, 20, 25, 30};
+	dynarrInsertInPlace (da, 5, 30);
+	fail_unless (dynarr_size (da) == 6);
+	while (i < 6)
+	{
+		fail_unless (
+			*(signed int *)dynarr_at (da, i) == match[i],
+			"In-order insertion should correctly set the final value. At index %d expected %d, got %d", i, match[i], *(signed int *)dynarr_at (da, i)
+		);
+		i++;
+	}
+}
+END_TEST
+
+START_TEST (dynarrInsertStandard)
+{
+	int
+		i = 0,
+		match[6] = {5, 10, 0, 15, 20, 25};
+	dynarrInsertInPlace (da, 2, 0);
+	fail_unless (dynarr_size (da) == 6);
+	while (i < 6)
+	{
+		fail_unless (
+			*(signed int *)dynarr_at (da, i) == match[i],
+			"In-order insertion should push existing values down. At index %d expected %d, got %d", i, match[i], *(signed int *)dynarr_at (da, i)
+		);
+		i++;
+	}
+}
+END_TEST
+
+int intCmp (const void * a, const void * b)
+{
+	return *(int *)a - *(int *)b;
+}
+
+START_TEST (dynarrSortFinalInsertion)
+{
+	int
+		i = 0,
+		last = 0,
+		now = 0;
+	dynarr_push (da, 12);
+	dynarrSortFinal (da, intCmp, 1);
+	fail_unless
+	(
+		dynarr_size (da) == 6,
+		"Expected array to have 6 entries, but it has %d instead",
+		dynarr_size (da)
+	);
+	while (i < dynarr_size (da))
+	{
+		last = now;
+		now = *(signed int *)dynarr_at (da, i);
+		fail_unless (
+			last < now,
+			"dynarrSortFinal should return the array in a fully-sorted state, assuming it was sorted to begin with (failed at [%d]%d vs [%d]%d)",
+			i - 1, last, i, now
+		);
+		i++;
+	}
+}
+END_TEST
+
+START_TEST (dynarrSortFinalMerge)
+{
+	int
+		i = 0,
+		last = 0,
+		now = 0;
+	dynarr_push (da, 12);
+	dynarr_push (da, 17);
+	dynarr_push (da, 500);
+	dynarr_push (da, 2);
+	dynarr_push (da, 21);
+	dynarrSortFinal (da, intCmp, 5);
+	fail_unless
+	(
+		dynarr_size (da) == 10,
+		"Expected array to have 10 entries, but it has %d instead",
+		dynarr_size (da)
+	);
+	while (i < dynarr_size (da))
+	{
+		last = now;
+		now = *(signed int *)dynarr_at (da, i);
+		fail_unless (
+			last < now,
+			"dynarrSortFinal should return the array in a fully-sorted state, assuming it was sorted to begin with (failed at [%d]%d vs [%d]%d)",
+			i - 1, last, i, now
+		);
+		i++;
+	}
+}
+END_TEST
+
 
 Suite * make_dynarr_suite (void)
 {
@@ -674,7 +813,8 @@ Suite * make_dynarr_suite (void)
 		* tc_stack = tcase_create ("Pushing & Popping"),
 		* tc_search = tcase_create ("Searching"),
 		* tc_iterate = tcase_create ("Iteration"),
-		* tc_poly = tcase_create ("Type Polymorphism");
+		* tc_poly = tcase_create ("Type Polymorphism"),
+		* tcInsert = tcase_create ("In-place insertion");
 
 	tcase_add_checked_fixture (tc_init, init_setup, init_teardown);
 	tcase_add_test (tc_init, test_dynarr_create);
@@ -732,17 +872,27 @@ Suite * make_dynarr_suite (void)
 	tcase_add_test (tc_poly, test_dynarr_assign_floatptr);
 	suite_add_tcase (s, tc_poly);
 
+	tcase_add_checked_fixture (tcInsert, insertSetup, insertTeardown);
+	tcase_add_test (tcInsert, dynarrInsertFirst);
+	tcase_add_test (tcInsert, dynarrInsertLast);
+	tcase_add_test (tcInsert, dynarrInsertStandard);
+	tcase_add_test (tcInsert, dynarrSortFinalInsertion);
+	tcase_add_test (tcInsert, dynarrSortFinalMerge);
+	suite_add_tcase (s, tcInsert);
+
 	return s;
 }
 
 int main () {
-  int number_failed = 0;
-  SRunner * sr = srunner_create (make_dynarr_suite ());
+	int
+		number_failed = 0;
+	SRunner
+		* sr = srunner_create (make_dynarr_suite ());
 
-  srunner_run_all (sr, CK_NORMAL);
-  number_failed = srunner_ntests_failed (sr);
-  srunner_free (sr);
-  return (number_failed == 0)
-    ? EXIT_SUCCESS
-    : EXIT_FAILURE;
+	srunner_run_all (sr, CK_NORMAL);
+	number_failed = srunner_ntests_failed (sr);
+	srunner_free (sr);
+	return (number_failed == 0)
+		? EXIT_SUCCESS
+		: EXIT_FAILURE;
 }

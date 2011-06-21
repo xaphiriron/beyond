@@ -31,6 +31,7 @@ struct affectedHexes
 
 // START EVERYTHING
 void worldgenAbsHocNihilo ();
+void worldgenFinalizeCreation ();
 void worldgenExpandWorldGraph (TIMER t);
 void worldgenExpandArchGraph (ARCH p, unsigned int depth);
 

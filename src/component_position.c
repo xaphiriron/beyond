@@ -21,77 +21,62 @@ struct position_data { // POSITION
  * - xph 2011 06 12
  */
 static RELATIVEHEX
-	groundChange = NULL;
+	GroundChange = NULL;
 
 static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround, SUBHEX newGround);
 static void position_updateAxesFromOrientation (POSITION pdata);
 
 static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround, SUBHEX newGround)
 {
-/*
 	static struct position_update
 		posUpdate;
 	bool
 		usedCache = FALSE;
+	FUNCOPEN ();
 	posUpdate.oldGround = oldGround;
 	posUpdate.newGround = newGround;
-	if (groundChange)
+	if (GroundChange)
 	{
-		posUpdate.relPosition = groundChange;
+		posUpdate.relPosition = GroundChange;
 		usedCache = TRUE;
 	}
 	else
 	{
-		WARNING ("mapRelativeSubhexWithSubhex doesn't work yet; the game is probably about to crash due to a NULL RELATIVEHEX value", NULL);
-		posUpdate.relPosition = NULL;
-		//posUpdate.relPosition = mapRelativeSubhexWithSubhex (oldGround, newGround);
-	}
-	groundChange = NULL;
-	posUpdate.difference = mapRelativeDistance (posUpdate.relPosition);
-	component_messageEntity (c, "positionUpdate", &posUpdate);
-	if (!usedCache)
-		mapRelativeDestroy (posUpdate.relPosition);
-	memset (&posUpdate, '\0', sizeof (struct position_update));
-*/
-
-	static struct position_update
-		posUpdate;
-	bool
-		usedCache = FALSE;
-	// the above commented-out code is correct; this iteration is just to avoid messaging with an invalid RELATIVEHEX (which crashes the program)
-	if (groundChange == NULL)
-	{
-		ERROR ("CAN'T HANDLE THIS; NEED TO GENERATE A RELATIVEHEX FROM SCRATCH BUT CAN'T AAA", NULL);
-		return;
-	}
-	posUpdate.oldGround = oldGround;
-	posUpdate.newGround = newGround;
-	if (groundChange)
-	{
-		posUpdate.relPosition = groundChange;
-		usedCache = TRUE;
-	}
-	else
 		posUpdate.relPosition = mapRelativeSubhexWithSubhex (oldGround, newGround);
-	groundChange = NULL;
+		if (posUpdate.relPosition == NULL)
+		{
+			ERROR ("CAN'T HANDLE THIS; NEED TO GENERATE A RELATIVEHEX FROM SCRATCH BUT CAN'T AAA (one that connects %p to %p", oldGround, newGround);
+			FUNCCLOSE ();
+			return;
+		}
+	}
+	GroundChange = NULL;
 	posUpdate.difference = mapRelativeDistance (posUpdate.relPosition);
 	component_messageEntity (c, "positionUpdate", &posUpdate);
 	if (!usedCache)
 		mapRelativeDestroy (posUpdate.relPosition);
 	memset (&posUpdate, '\0', sizeof (struct position_update));
+	FUNCCLOSE ();
 }
 
 void position_unset (Entity e)
 {
+	FUNCOPEN ();
+
 	EntComponent
 		pc = entity_getAs (e, "position");
+	SUBHEX
+		oldGround;
 	POSITION
 		pdata = component_getData (pc);
 	if (pdata == NULL)
 		return;
 	//printf ("%s (#%d)...\n", __FUNCTION__, entity_GUID (e));
+	oldGround = pdata->ground;
 	pdata->ground = NULL;
-	position_messageGroundChange (pc, pdata->ground, NULL);
+	position_messageGroundChange (pc, oldGround, NULL);
+
+	FUNCCLOSE ();
 }
 
 void position_destroy (Entity e)
@@ -117,6 +102,7 @@ void position_set (Entity e, VECTOR3 pos, SUBHEX ground)
 	if (pdata == NULL)
 	{
 		fprintf (stderr, "%s (#%d, ...): entity without position component\n", __FUNCTION__, entity_GUID (e));
+		FUNCCLOSE ();
 		return;
 	}
 	pdata->pos = pos;
@@ -137,38 +123,77 @@ bool position_move (Entity e, VECTOR3 move)
 	POSITION
 		pdata = component_getData (entity_getAs (e, "position"));
 	VECTOR3
-		newPosition,
-		subhexCentreDistance;
-	RELATIVEHEX
-		rel;
+		newRawPosition,
+		newPosition;
 	SUBHEX
-		newGround;
+		newGround = NULL;
+/*
+	signed int
+		sx = 0,sy = 0,fx = 0,fy = 0;
+*/
+
 	if (pdata == NULL)
 	{
 		ERROR ("Can't move: Entity #%d doesn't have a position component", entity_GUID (e));
+		FUNCCLOSE ();
 		return FALSE;
 	}
-	newPosition = vectorAdd (&pdata->pos, &move);
+	newRawPosition = vectorAdd (&pdata->pos, &move);
+
+	if (mapMove (pdata->ground, &newRawPosition, &newGround, &newPosition))
+	{
+/*
+		subhexLocalCoordinates (pdata->ground, &sx, &sy);
+		subhexLocalCoordinates (newGround, &fx, &fy);
+*/
+		newPosition.y = 90.0;
+		/*
+		DEBUG ("moving from %p (%d, %d) // %.2f,%.2f,%.2f to %p (%d, %d) // %.2f,%.2f,%.2f", pdata->ground, sx, sy, newRawPosition.x, newRawPosition.y, newRawPosition.z, newGround, fx, fy, newPosition.x, newPosition.y, newPosition.z);
+		*/
+		position_set (e, newPosition, newGround);
+		FUNCCLOSE ();
+		return TRUE;
+	}
+	else if (newGround != NULL)
+	{
+		newPosition.y = 90.0;
+		if (subhexSpanLevel (pdata->ground) < subhexSpanLevel (newGround))
+			INFO ("Entity #%d's move has lost resolution: moving to span-%d platter from span-%d platter", entity_GUID (e), subhexSpanLevel (newGround), subhexSpanLevel (pdata->ground));
+		position_set (e, newPosition, newGround);
+		FUNCCLOSE ();
+		return TRUE;
+	}
+	ERROR ("Entity #%d's move has gone awry somehow???", entity_GUID (e));
+	FUNCCLOSE ();
+	return FALSE;
 
 	/* NOTE: WARNING: okay look i don't know if this violates the "don't do any calculation of internals outside the related code" precept but there's just /got/ to be an easy way to only call this code when the player steps over a span-1 platter boundary, not /every tile/, and it looks like this function is the place to put it, at least for the time being.
 	 * (this could be a violation since supposedly the position code shouldn't care at all about the way the map system is coded, but, well, look at the below code all full of calculations using the map code. sigh.)
 	 * - xph 2011 06 12
 	 */
+	// the '1' in this function call should be the span level of the current platter
+/*
 	if (mapVectorOverrunsPlatter (1, &newPosition))
 	{
+		hex_space2coord (&newPosition, &x, &y);
+		DEBUG ("position vector out of bounds (at %d, %d); changing entity #%d's platter", x, y, entity_GUID (e));
+		x = y = 0;
+		
 		rel = mapRelativeSubhexWithVectorOffset (pdata->ground, &newPosition);
-		if (groundChange != NULL)
-			ERROR ("Ground change cache already set when calling position_move; we're about to overwrite address %p with the new value of %p; this is a memory leak probably :(", groundChange, rel);
-		groundChange = rel;
-		newGround = mapRelativeTarget (rel);
+		if (GroundChange != NULL)
+			ERROR ("Ground change cache already set when calling position_move; we're about to overwrite address %p with the new value of %p; this is a memory leak probably :(", GroundChange, rel);
+		GroundChange = rel;
+		newGround = mapRelativeSpanTarget (rel, 1);
 		if (subhexSpanLevel (pdata->ground) < subhexSpanLevel (newGround))
 			WARNING ("Entity #%d has moved from span level %d to %d and lost resolution in the process.", entity_GUID (e), subhexSpanLevel (pdata->ground), subhexSpanLevel (newGround));
 		else if (subhexSpanLevel (pdata->ground) != subhexSpanLevel (newGround))
 			WARNING ("Entity #%d has moved from span level %d to %d and GAINED resolution in the process.", entity_GUID (e), subhexSpanLevel (pdata->ground), subhexSpanLevel (newGround));
+		// this /isn't/ the distance to the centre of the new subhex; the vector offset is done with fidelity 0 and so it's accurate down to the individual hex but what we want is, well, the vector distance to the centre of the adjacent subhex. the funny thing is we can calculate /that/ easily from the position vector (i think??? convert to hex and then upscale one step); we only need to do the traversal to get the new subhex struct. but this should be as a map function, not part of the position code, because come on that is just too much map calculation to have to do externally
 		subhexCentreDistance = mapRelativeDistance (rel);
-		newPosition = vectorSubtract (&subhexCentreDistance, &newPosition);
+		newPosition = vectorSubtract (&newPosition, &subhexCentreDistance);
+		subhexLocalCoordinates (newGround, &x, &y);
+		DEBUG ("new position: %f, %f, %f relative to new subhex (%p) at local coordinates %d, %d", newPosition.x, newPosition.y, newPosition.z, newGround, x, y);
 		position_set (e, newPosition, newGround);
-		DEBUG ("new position: %f, %f, %f relative to new subhex", newPosition.x, newPosition.y, newPosition.z);
 		mapRelativeDestroy (rel);
 	}
 	else
@@ -177,6 +202,7 @@ bool position_move (Entity e, VECTOR3 move)
 	}
 	FUNCCLOSE ();
 	return TRUE;
+*/
 }
 
 void position_copy (Entity target, const Entity source)

@@ -2,8 +2,9 @@
 
 AM_CPPFLAGS = -Wall -Werror -O3
 #AM_CPPFLAGS = -Wall -Werror -O3 -DMEM_DEBUG
-# AM_CPPFLAGS = -Wall -Werror -fprofile-generate -ftest-coverage
-# AM_LDFLAGS = -fprofile-generate -lgcov
+
+#AM_CPPFLAGS = -Wall -Werror -fprofile-generate -ftest-coverage
+#AM_LDFLAGS = -fprofile-generate -lgcov
 
 lib_LTLIBRARIES = libfcmp.la libvector.la libquat.la libline.la libsph.la
 libfcmp_la_SOURCES = fcmp.c fcmp.h
@@ -19,8 +20,10 @@ bin_PROGRAMS = beyond
 beyond_SOURCES = \
   xph_memory.c xph_memory.h \
 	xph_log.c xph_log.h \
+	path.c path.h \
   shapes.c shapes.h \
 	turtle3d.c turtle3d.h \
+	texture.c texture.h \
   dynarr.c dynarr.h \
   lsystem.c lsystem.h \
   object.c object.h	\
@@ -38,16 +41,18 @@ beyond_SOURCES = \
   component_walking.c component_walking.h	\
   component_plant.c component_plant.h		\
   hex_utility.h hex_utility.c \
+	sprite.c sprite.h \
+	font.c font.h \
 	ui.c ui.h \
-  system.c system.h	\
-  beyond.c
+	system.c system.h \
+	beyond.c
 beyond_LDADD = \
+	-lm -lGL -lSDL -lglpng \
 	libline.la \
 	libsph.la \
 	libvector.la \
 	libquat.la \
-	libfcmp.la \
-  -lm -lGL -lSDL
+	libfcmp.la
 
 # logo_SOURCES = \
 #   xph_memory.c xph_memory.h \

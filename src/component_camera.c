@@ -571,6 +571,11 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 				/* there's probably a way to do this so it only has to update one cached matrix instead of all of them
 				 *  - xph 2011 06 12
 				 */
+				/* the obnoxious thing about this is that within this context we have the RELATIVEHEX we'll need to use for the position update, but by the time we call camera_update -> camera_updatePosition -> position_copy -> position_set it's no longer in the current scope.
+				 * although that /does/ assume that the camera will always be in the same exact position as its target prior to this step
+				 * anyway, suffice to say, it's annoying that we have to recalculate the RELATIVEHEX since that's an (relatively speaking) expensive step
+				 *  - xph 2011 06 14
+				 */
 				//DEBUG ("GOT A MESSAGE FROM THE CAMERA TARGET", NULL);
 				if (!strcmp (message, "positionUpdate"))
 					camera_update (e);

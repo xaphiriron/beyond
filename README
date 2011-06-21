@@ -4,6 +4,6 @@ autoreconf --install
 autoconf
 ./configure
 make check
-./src/beyond
+src/beyond
 
 But if one of those steps fails, you're probably doomed.

@@ -27,7 +27,8 @@ struct hexSubdivided
 	SUBHEX
 		* data;
 
-	/* actual map data goes here */
+	struct mapData
+		* mapInfo;
 };
 
 struct hexTile
@@ -47,6 +48,20 @@ struct hexTile
 		corners[3];
 	unsigned char
 		light;
+};
+
+struct mapData
+{
+	Dynarr
+		entries;
+};
+
+struct mapDataEntry
+{
+	char
+		type[32];
+	float
+		value;
 };
 
 union hexOrSubdiv		// SUBHEX is union hexOrSubdiv *
@@ -107,6 +122,13 @@ static bool coordinatesOverflow (const signed int x, const signed int y, const s
 
 static void subhexInitData (SUBHEX subhex);
 static void subhexSetData (SUBHEX subhex, signed int x, signed int y, SUBHEX child);
+
+static struct mapData * mapDataCreate ();
+static struct mapData * mapDataCopy (const struct mapData * md);
+static void mapDataDestroy (struct mapData * mb);
+
+
+
 
 bool mapSetSpanAndRadius (const unsigned char span, const unsigned char radius)
 {
@@ -318,6 +340,7 @@ SUBHEX mapHexCreate (const SUBHEX parent, signed int x, signed int y)
 		return NULL;
 	}
 	sh = xph_alloc (sizeof (union hexOrSubdiv));
+	memset (sh, 0, sizeof (union hexOrSubdiv));
 	sh->type = HS_HEX;
 	sh->hex.parent = parent;
 	if (parent == NULL)
@@ -418,9 +441,13 @@ SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 	{
 		sh->sub.span = parent->sub.span - 1;
 		subhexSetData (parent, x, y, sh);
+		sh->sub.mapInfo = mapDataCopy (parent->sub.mapInfo);
 	}
 	else
+	{
 		sh->sub.span = mapSpan;
+		sh->sub.mapInfo = mapDataCreate ();
+	}
 
 	// a span-one subdiv is REQUIRED to have all its hexes generated
 	if (sh->sub.span == 1)
@@ -480,6 +507,7 @@ void subhexDestroy (SUBHEX subhex)
 			xph_free (subhex->sub.data);
 			subhex->sub.data = NULL;
 		}
+		mapDataDestroy (subhex->sub.mapInfo);
 	}
 	else if (subhex->type == HS_HEX)
 	{
@@ -495,6 +523,53 @@ void subhexDestroy (SUBHEX subhex)
 /***
  * MAP TRAVERSAL FUNCTIONS
  */
+
+bool mapMove (const SUBHEX start, const VECTOR3 * const position, SUBHEX * finish, VECTOR3 * newPosition)
+{
+	signed int
+		x = 0,
+		y = 0;
+	RELATIVEHEX
+		rel;
+	SUBHEX
+		target = NULL;
+	VECTOR3
+		newSubhexCentre;
+	*finish = NULL;
+	*newPosition = vectorCreate (0, 0, 0);
+	if (start == NULL || position == NULL)
+	{
+		ERROR ("Can't calculate map movement; starting subhex (%p) or position vector (%p) are NULL", start, position);
+		return FALSE;
+	}
+
+	hex_space2coord (position, &x, &y);
+	if (hexMagnitude (x, y) <= mapRadius)
+	{
+		*finish = start;
+		*newPosition = *position;
+		return TRUE;
+	}
+	mapScaleCoordinates (1, x, y, &x, &y, NULL, NULL);
+	newSubhexCentre = mapDistanceFromSubhexCentre (1, x, y);
+	*newPosition = vectorSubtract (position, &newSubhexCentre);
+
+	rel = mapRelativeSubhexWithVectorOffset (start, position);
+	target = mapRelativeSpanTarget (rel, 1);
+	if (target == NULL)
+	{
+		*finish = mapRelativeTarget (rel);
+		mapRelativeDestroy (rel);
+		INFO ("Can't get span-1 fidelity for map movement from %p @ %.2f, %.2f, %.2f; got span-%d instead (addr: %p)", start, position->x, position->y, position->z, subhexSpanLevel (*finish), *finish);
+		return FALSE;
+	}
+	*finish = target;
+	mapRelativeDestroy (rel);
+	return TRUE;
+}
+
+
+
 
 SUBHEX mapPole (const char poleName)
 {
@@ -706,8 +781,10 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 		i,
 		goalMarker;
 	signed int
-		* distX = NULL,
-		* distY = NULL;
+		* startX = NULL,
+		* startY = NULL,
+		* goalX = NULL,
+		* goalY = NULL;
 	signed char
 		spanDiff = relativeSpan;
 	short int
@@ -718,8 +795,6 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 		trav;
 	RELATIVEHEX
 		rel = xph_alloc (sizeof (struct hexRelativePosition));
-	Dynarr
-		subhexStack = NULL;
 	VECTOR3
 		dirTemp;
 
@@ -729,10 +804,16 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 	rel->target = NULL;
 
 	// to minorly and uselessly reduce fragmentation this could allocate one address, double the size, and set -> to the halfway point. - xph 2011 06 02
-	rel->x = xph_alloc (sizeof (signed int) * spanRange);
-	rel->y = xph_alloc (sizeof (signed int) * spanRange);
-	memset (rel->x, '\0', sizeof (signed int) * spanRange);
-	memset (rel->y, '\0', sizeof (signed int) * spanRange);
+	rel->x = xph_alloc (sizeof (signed int) * mapSpan);
+	rel->y = xph_alloc (sizeof (signed int) * mapSpan);
+	memset (rel->x, 0, sizeof (signed int) * mapSpan);
+	memset (rel->y, 0, sizeof (signed int) * mapSpan);
+
+	startX = xph_alloc (sizeof (signed int) * mapSpan * 4);
+	startY = startX + mapSpan;
+	goalX = startY + mapSpan;
+	goalY = goalX + mapSpan;
+	memset (startX, 0, sizeof (signed int) * mapSpan * 4);
 	/* DEBUG ("allocated %d entr%s for coordinates", abs (spanDiff) + 1, spanDiff == 0 ? "y" : "ies"); */
 
 	cX = x;
@@ -788,11 +869,15 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 	netX = lX + cX;
 	netY = lY + cY;
 
+	startX[0] = lX;
+	startY[0] = lY;
+	goalX[0] = cX;
+	goalY[0] = cY;
+
 	DEBUG (" @ %p: local: %d, %d; move: %d, %d; net: %d, %d", start, lX, lY, cX, cY, netX, netY);
 
 	// and now we hit the main bulk of the function: (this requires recursively traversing the subhex hierarchy if subhex edges are passed)
 
-	subhexStack = dynarr_create (abs (spanDiff) + 2, sizeof (SUBHEX));
 	i = 0;
 	goal = NULL;
 	while (hexMagnitude (netX, netY) > mapRadius)
@@ -800,85 +885,44 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 		DEBUG ("iterating on %d up the span hierarchy", i);
 		assert (i < spanRange);
 		if (subhexSpanLevel (start) == mapSpan)
-		{
 			break;
-		}
 		mapScaleCoordinates (1, netX, netY, &cX, &cY, &xRemainder, &yRemainder);
 		DEBUG ("condensed coordinates %d, %d to %d, %d (with remainder %d, %d at index %d)", netX, netY, cX, cY, xRemainder, yRemainder, i);
 
-		// these two values should be the remainder of the scale conversion (i think)
-		rel->x[i] = xRemainder;
-		rel->y[i] = yRemainder;
-
-		i++;
-		dynarr_push (subhexStack, start);
+		rel->x[i] = goalX[i] = xRemainder;
+		rel->y[i] = goalY[i] = yRemainder;
+		subhexLocalCoordinates (start, &startX[i], &startY[i]);
 
 		start = subhexParent (start);
-		/* DEBUG ("got parent %p; using that", start); */
 		subhexLocalCoordinates (start, &lX, &lY);
 		netX = lX + cX;
 		netY = lY + cY;
+
+		i++;
 	}
 	DEBUG ("broke from traversal loop with a value of %p", start);
 	DEBUG ("current x,y: %d, %d; local:  %d, %d; net: %d, %d", cX, cY, lX, lY, netX, netY);
 
-	rel->x[i] = netX;
-	rel->y[i] = netY;
+	rel->x[i] = goalX[i] = netX;
+	rel->y[i] = goalY[i] = netY;
+	subhexLocalCoordinates (start, &startX[i], &startY[i]);
 	if (subhexSpanLevel (start) == mapSpan)
 	{
 		// at this point, no matter the magnitude, the target can be found since there are no data structures to overrun this high up
 		goal = mapPole (mapPoleTraversal (subhexPoleName (start), netX, netY));
 	}
 	else
+	{
 		goal = subhexData (subhexParent (start), netX, netY);
-	/* TODO: i don't think this value is strictly necessary; i think the value is effectively stored in the span level of the goal value. maybe? the thing is that since the goal can be calculated from a bunch of different values i don't know if "the number of down-traverse loops" is the right value is strictly correct; it might actually be "the span level of the goal" and then this usage would be doubly wrong
+	}
+	/* TODO: i don't think this [goalMarker] value is strictly necessary; i think the value is effectively stored in the span level of the goal value. maybe? the thing is that since the goal can be calculated from a bunch of different values i don't know if "the number of down-traverse loops" as the right value is strictly correct; it might actually be "the span level of the goal" and then this usage would be doubly wrong
 	 * that being said this is used in the goal traversal loop near the bottom to line up the rel->x/y value index to the proper span level
 	 *  - xph 2011 06 04
 	 */
-	goalMarker = i;
-
-	/* we're using a seperate distX/Y instead of rel->x/y because if we change the rel values it becomes impossible to generate the target subhex from a low-precision RELATIVEHEX, since the rel-> values map directly to subhex local coordinates
-	 * also we're doing this calculation seperately from the actual goal traversal step, below, because while we don't care if the goal is at low-resolution, it's pretty vitally important that we always have the coordinate and distance information set for every RELATIVEHEX
-	 * - xph 2011 06 04
+	/* okay i have no clue what this value represents at all ;_;
+	 *  - xph 2011 06 14
 	 */
-	distX = xph_alloc (sizeof (signed int) * spanRange * 2);
-	distY = distX + spanRange;
-	memcpy (distX, rel->x, sizeof (signed int) * spanRange);
-	memcpy (distY, rel->y, sizeof (signed int) * spanRange);
-	while (i > 0)
-	{
-		i--;
-		DEBUG ("saved remainder coordinates: %d, %d", rel->x[i], rel->y[i]);
-		trav = *(SUBHEX *)dynarr_pop (subhexStack);
-
-		subhexLocalCoordinates (trav, &cX, &cY);
-		if (i >= abs (spanDiff))
-			mapScaleCoordinates (-1, netX, netY, &lX, &lY, NULL, NULL);
-		else
-			mapScaleCoordinates (-1, distX[i + 1], distY[i + 1], &lX, &lY, NULL, NULL);
-		lX += distX[i];
-		lY += distY[i];
-		/* DEBUG ("goal distance from start center: %d, %d; start distance from start center: %d, %d", lX, lY, cX, cY);
-		DEBUG ("net distance: %d, %d", lX - cX, lY - cY);*/
-		// i don't know if this actually works right when there's more than one level of traversing going on here, but i /think/ it's right
-		distX[i] = lX - cX;
-		distY[i] = lY - cY;
-	}
-
-	rel->distance = vectorCreate (0.0, 0.0, 0.0);
-	i = 0;
-	while (i < spanRange)
-	{
-		dirTemp = mapDistanceFromSubhexCentre (rel->minSpan + i, distX[i], distY[i]);
-		DEBUG ("iterating on %d to calculate vector distance (@ span %d: %d, %d); for this step: %.2f, %.2f, %.2f", i, rel->minSpan + i, distX[i], distY[i], dirTemp.x, dirTemp.y, dirTemp.z);
-		rel->distance = vectorAdd (&rel->distance, &dirTemp);
-		i++;
-	}
-	DEBUG ("final distance measure: %f, %f, %f", rel->distance.x, rel->distance.y, rel->distance.z);
-	dynarr_destroy (subhexStack);
-	xph_free (distX);
-
-
+	goalMarker = i;
 
 	if (goal == NULL)
 	{
@@ -901,12 +945,159 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 			goal = trav;
 		}
 	}
-
 	rel->target = goal;
+
+	/* we're using a seperate distX/Y instead of rel->x/y because if we change the rel values it becomes impossible to generate the target subhex from a low-precision RELATIVEHEX, since the rel-> values map directly to subhex local coordinates
+	 * also we're doing this calculation seperately from the actual goal traversal step, above, because while we don't care if the goal is at low-resolution, it's pretty vitally important that we always have the coordinate and distance information set for every RELATIVEHEX
+	 * - xph 2011 06 04
+	 */
+	/* mentally replace every instance of 'distX/Y' in the above with 'goalX/Y'; also this code never worked right so what i wrote before is mostly meaningless
+	 * (the intent is for all the code below to be spun off into its own function so it can be reused for SubhexWithSubhex, below. but before that will work I need to isolate the variables needed-- ideally it should just require the start/goalX/Y pointers, but i still don't know what's the deal with the i-value and whatever is needed to get that if/else involving mapScaleCoordinates to work right)
+	 *  - xph 2011 06 18
+	 */
+	i = spanRange;
+	DEBUG ("*** BEGINNING RELATIVE DISTANCE CALCULATIONS (%d) ***", i);
+	while (i > 0)
+	{
+		i--;
+
+		DEBUG ("index %d:", i);
+		DEBUG ("goal remainder: %d, %d; start coordinates: %d, %d", goalX[i], goalY[i], startX[i], startY[i]);
+
+		DEBUG ("i: %d, spanRange: %d", i, spanRange);
+		DEBUG ("netX/Y: %d, %d", netX, netY);
+		/* FIXME: this won't work in all cases. specifically when crossing a pole this will overrun and then no one will be happy (except it won't, because i is set to spanRange and that's always < mapSpan, but spanRange isn't the right value to use AT ALL, like, categorically, it's just an arbitrary vaue that happens to be large enough to work in most cases; the right value would have something to do with the number of up-traversals required. also i don't really know how well this whole scheme works if we're not trying to calculate a span 0 position, since it seems like a lot of this code will fail if i doesn't match the current span level OH GOD EVERYTHING IS SO COMPLICATED)
+		 *  - xph 2011 06 18
+		 */
+		mapScaleCoordinates (-1, goalX[i + 1], goalY[i + 1], &lX, &lY, NULL, NULL);
+/*
+		if (i > spanRange)
+			mapScaleCoordinates (-1, netX, netY, &lX, &lY, NULL, NULL);
+		else
+			mapScaleCoordinates (-1, goalX[i + 1], goalY[i + 1], &lX, &lY, NULL, NULL);
+*/
+		lX += goalX[i];
+		lY += goalY[i];
+
+		DEBUG ("goal distance from start center: %d, %d", lX, lY);
+		DEBUG ("net distance (%d): %d, %d", i, lX - startX[i], lY - startY[i]);
+		// i don't know if this actually works right when there's more than one level of traversing going on here, but i /think/ it's right
+		goalX[i] = lX - startX[i];
+		goalY[i] = lY - startY[i];
+	}
+
+	rel->distance = vectorCreate (0.0, 0.0, 0.0);
+	i = 0;
+	DEBUG ("*** BEGINNING VECTOR CALCULATIONS (%d) ***", spanRange);
+	while (i < spanRange)
+	{
+		dirTemp = mapDistanceFromSubhexCentre (rel->minSpan + i, goalX[i], goalY[i]);
+		DEBUG ("iterating on %d to calculate vector distance (@ span %d: %d, %d); for this step: %.2f, %.2f, %.2f", i, rel->minSpan + i, goalX[i], goalY[i], dirTemp.x, dirTemp.y, dirTemp.z);
+		rel->distance = vectorAdd (&rel->distance, &dirTemp);
+		i++;
+	}
+	DEBUG ("final distance measure: %f, %f, %f", rel->distance.x, rel->distance.y, rel->distance.z);
+
+	xph_free (startX);
+
+
+
+
 	FUNCCLOSE ();
 	return rel;
 }
 
+RELATIVEHEX mapRelativeSubhexWithSubhex (const SUBHEX start, const SUBHEX goal)
+{
+	SUBHEX
+		sTrav = start,
+		gTrav = goal;
+	signed int
+		x = 0,
+		y = 0,
+		* startX,
+		* startY,
+		* goalX,
+		* goalY,
+		i = 0;
+	unsigned char
+		levelSpan;
+	RELATIVEHEX
+		rel;
+
+	if (start == NULL || goal == NULL)
+	{
+		ERROR ("Can't calculate subhex offset: passed NULL subhex! (got %p and %p)", start, goal);
+		return NULL;
+	}
+
+	rel = xph_alloc (sizeof (struct hexRelativePosition));
+	rel->origin = start;
+	rel->target = goal;
+	rel->x = xph_alloc (sizeof (signed int) * mapSpan);
+	rel->y = xph_alloc (sizeof (signed int) * mapSpan);
+
+	// is this shared memory really necessary
+	//     or even correct?
+	startX = xph_alloc (sizeof (signed int) * mapSpan * 4);
+	startY = startX + mapSpan;
+	goalX = startY + mapSpan;
+	goalY = goalX + mapSpan;
+	memset (startX, 0, sizeof (signed int) * mapSpan * 4);
+
+	if (subhexSpanLevel (sTrav) < subhexSpanLevel (gTrav))
+	{
+		levelSpan = subhexSpanLevel (gTrav);
+		while (subhexSpanLevel (sTrav) < levelSpan)
+		{
+			subhexLocalCoordinates (sTrav, &x, &y);
+			startX[i] = x;
+			startY[i] = y;
+			sTrav = subhexParent (sTrav);
+			i++;
+		}
+	}
+	else
+	{
+		levelSpan = subhexSpanLevel (sTrav);
+		while (subhexSpanLevel (gTrav) < levelSpan)
+		{
+			subhexLocalCoordinates (gTrav, &x, &y);
+			rel->x[i] = x;
+			rel->y[i] = y;
+			gTrav = subhexParent (gTrav);
+			i++;
+		}
+	}
+
+	// don't reset [i]; the values already stored in the x/y array are important
+	while (gTrav != sTrav)
+	{
+		subhexLocalCoordinates (sTrav, &x, &y);
+		startX[i] = x;
+		startY[i] = y;
+		subhexLocalCoordinates (gTrav, &x, &y);
+		rel->x[i] = x;
+		rel->y[i] = y;
+		if (subhexSpanLevel (sTrav) == mapSpan)
+		{
+			ERROR ("%s: traversal hit pole level; it's trivial to make this work right but i haven't yet; sorry (got poles %c and %c)", subhexPoleName (sTrav), subhexPoleName (gTrav));
+			break;
+		}
+		sTrav = subhexParent (sTrav);
+		gTrav = subhexParent (gTrav);
+	}
+
+	memcpy (goalX, rel->x, sizeof (signed int) * mapSpan);
+	memcpy (goalY, rel->y, sizeof (signed int) * mapSpan);
+	// resolve the relative distance between the two subhexes
+	i = subhexSpanLevel (sTrav);
+	
+
+	DEBUG ("returning probably-broken relativehex %p", rel);
+	return rel;
+}
+/*
 RELATIVEHEX mapRelativeSubhexWithSubhex (const SUBHEX subhex, const SUBHEX target)
 {
 	SUBHEX
@@ -972,12 +1163,29 @@ RELATIVEHEX mapRelativeSubhexWithSubhex (const SUBHEX subhex, const SUBHEX targe
 	
 	return NULL;
 }
+*/
 
 
 SUBHEX mapRelativeTarget (const RELATIVEHEX relativePosition)
 {
 	assert (relativePosition != NULL);
 	return relativePosition->target;
+}
+
+SUBHEX mapRelativeSpanTarget (const RELATIVEHEX relPos, unsigned char span)
+{
+	SUBHEX
+		target;
+	assert (relPos != NULL);
+	target = relPos->target;
+	while (subhexSpanLevel (target) < span)
+		target = subhexParent (target);
+	if (subhexSpanLevel (target) != span)
+	{
+		ERROR ("Using relativehex %p; couldn't get span-%d target (lowest target: %d)", relPos, span, subhexSpanLevel (relPos->target));
+		return NULL;
+	}
+	return target;
 }
 
 VECTOR3 mapRelativeDistance (const RELATIVEHEX relPos)
@@ -1254,6 +1462,113 @@ static bool coordinatesOverflow (const signed int x, const signed int y, const s
 }
 
 /***
+ * MAP DATA LAYER FUNCTIONS
+ */
+
+static int mapIntrCmp (const void * a, const void * b);
+static int mapExtrCmp (const void * k, const void * d);
+
+static struct mapData * mapDataCreate ()
+{
+	struct mapData
+		* md = xph_alloc (sizeof (struct mapData));
+	md->entries = dynarr_create (2, sizeof (struct mapDataEntry *));
+	return md;
+}
+
+static struct mapData * mapDataCopy (const struct mapData * md)
+{
+	int
+		i = 0;
+	struct mapData
+		* cpy = mapDataCreate ();
+	struct mapDataEntry
+		* base,
+		* cpyEntry;
+	while ((base = *(struct mapDataEntry **)dynarr_at (md->entries, i)) != NULL)
+	{
+		cpyEntry = xph_alloc (sizeof (struct mapDataEntry));
+		memcpy (cpyEntry, base, sizeof (struct mapDataEntry));
+		dynarr_push (cpy->entries, cpyEntry);
+		i++;
+	}
+	return cpy;
+}
+
+static void mapDataDestroy (struct mapData * md)
+{
+	dynarr_wipe (md->entries, xph_free);
+	dynarr_destroy (md->entries);
+	xph_free (md);
+}
+
+void mapDataSet (SUBHEX at, char * type, float amount)
+{
+	struct mapDataEntry
+		* match;
+	if (subhexSpanLevel (at) == 0)
+	{
+		ERROR ("Can't set map data (\"%s\", %f) of specific tile %p", type, amount, at);
+		return;
+	}
+	match = *(struct mapDataEntry **)dynarr_search (at->sub.mapInfo->entries, mapExtrCmp, type);
+	if (match == NULL)
+	{
+		mapDataAdd (at, type, amount);
+		return;
+	}
+	match->value = amount;
+}
+
+float mapDataAdd (SUBHEX at, char * type, float amount)
+{
+	struct mapDataEntry
+		* match;
+	if (subhexSpanLevel (at) == 0)
+	{
+		ERROR ("Can't set map data (\"%s\", %f) of specific tile %p", type, amount, at);
+		return 0.0;
+	}
+	match = *(struct mapDataEntry **)dynarr_search (at->sub.mapInfo->entries, mapExtrCmp, type);
+	if (match == NULL)
+	{
+		match = xph_alloc (sizeof (struct mapDataEntry));
+		strncpy (match->type, type, 32);
+		match->value = 0.0;
+		dynarr_push (at->sub.mapInfo->entries, match);
+		dynarrSortFinal (at->sub.mapInfo->entries, mapIntrCmp, 1);
+	}
+	match->value += amount;
+	return match->value;
+}
+
+float mapDataGet (SUBHEX at, char * type)
+{
+	struct mapDataEntry
+		* match;
+	if (subhexSpanLevel (at) == 0)
+	{
+		ERROR ("Can't get map data (\"%s\") of specific tile %p", type, at);
+		return 0.0;
+	}
+	match = *(struct mapDataEntry **)dynarr_search (at->sub.mapInfo->entries, mapExtrCmp, type);
+	if (match == NULL)
+		return 0.0;
+	return match->value;
+}
+
+
+static int mapIntrCmp (const void * a, const void * b)
+{
+	return strcmp ((*(struct mapDataEntry **)a)->type, (*(struct mapDataEntry **)b)->type);
+}
+
+static int mapExtrCmp (const void * k, const void * d)
+{
+	return strcmp (k, (*(struct mapDataEntry **)d)->type);
+}
+
+/***
  * INFORMATIONAL / GETTER FUNCTIONS
  */
 
@@ -1489,10 +1804,10 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 {
 	if (origin == RenderOrigin)
 	{
-		INFO ("%s called with repeat origin (%p). already set; ignoring", origin);
+		INFO ("%s called with repeat origin (%p). already set; ignoring", __FUNCTION__, origin);
 		return;
 	}
-	assert (subhexSpanLevel (origin) == 1);
+	//assert (subhexSpanLevel (origin) == 1);
 	if (subhexSpanLevel (origin) == 0)
 	{
 		WARNING ("The rendering origin is a specific tile; using its parent instead", NULL);
@@ -1542,6 +1857,7 @@ void mapDraw ()
 		ERROR ("Cannot draw map: Render cache is uninitialized.", NULL);
 		return;
 	}
+	glBindTexture (GL_TEXTURE_2D, 0);
 	while (i < tier1Detail)
 	{
 		rel = *(RELATIVEHEX *)dynarr_at (RenderCache, i);
@@ -1553,7 +1869,7 @@ void mapDraw ()
 		i++;
 		if (sub == NULL || subhexSpanLevel (sub) != 1)
 		{
-			DEBUG ("skipping value; subhex is NULL (%p) or span level isn't 1 (%p)", sub, sub == NULL ? -1 : subhexSpanLevel (sub));
+			//DEBUG ("skipping value; subhex is NULL (%p) or span level isn't 1 (%d)", sub, sub == NULL ? -1 : subhexSpanLevel (sub));
 			continue;
 		}
 		subhexDraw (&sub->sub, centreOffset);
@@ -1611,9 +1927,9 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 	signed int
 		i, j;
 
-	lR = 0.30 + (0.46 * ((hex->light & 0x01 && 1) + ((hex->light & 0x02 && 1) * .5)));
-	lG = 0.20 + (0.46 * ((hex->light & 0x04 && 1) + ((hex->light & 0x08 && 1) * .5)));
-	lB = 0.30 + (0.46 * ((hex->light & 0x10 && 1) + ((hex->light & 0x20 && 1) * .5)));
+	lR = 0.25 + (0.5 * (!!(hex->light & 0x01) + (!!(hex->light & 0x02) * .5)));
+	lG = 0.25 + (0.5 * (!!(hex->light & 0x04) + (!!(hex->light & 0x08) * .5)));
+	lB = 0.25 + (0.5 * (!!(hex->light & 0x10) + (!!(hex->light & 0x20) * .5)));
 
 	glColor3f (lR, lG, lB);
 

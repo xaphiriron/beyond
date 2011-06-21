@@ -3,6 +3,8 @@
 #include "object.h"
 #include "video.h"
 #include "timer.h"
+
+#include "font.h"
 #include "ui.h"
 
 #include "worldgen.h"
@@ -12,9 +14,26 @@
 #include "component_camera.h"
 #include "component_walking.h"
 
+#define LOADERTEXTBUFFERSIZE 128
+struct loadingdata
+{
+	void (*finishCallback)(void);
+	void (*loaderFunc)(TIMER);
+	unsigned int
+		goal,
+		loaded;
+	float
+		percentage;
+	char
+		displayText[LOADERTEXTBUFFERSIZE];
+};
+
+static struct loadingdata SysLoader;
+
 static void systemInitialize (void);
 
 SYSTEM * System = NULL;
+
 
 SYSTEM * system_create () {
 	SYSTEM
@@ -30,6 +49,8 @@ SYSTEM * system_create () {
 	timerSetClock (t, s->clock);
 	timerSetScale (t, s->timer_mult);
 	s->acc = accumulator_create (t, s->timestep);
+	// this ought to force the update code to run once the first time through - xph 2011 06 17
+	s->acc->accumulated = s->timestep * 1.1;
 
 	s->state = dynarr_create (4, sizeof (enum system_states));
 	dynarr_push (s->state, STATE_LOADING);
@@ -103,6 +124,69 @@ bool systemClearStates ()
 }
 
 /***
+ * SYSTEM LOADING
+ */
+
+static void systemCheckLoadState (const TIMER t);
+
+void systemLoad (void (*initialize)(void), void (*loader)(TIMER), void (*finishCallback)(void))
+{
+	systemClearStates ();
+	systemPushState (STATE_LOADING);
+	memset (&SysLoader, 0, sizeof (struct loadingdata));
+
+	system_registerTimedFunction (loader, 255);
+	system_registerTimedFunction (systemCheckLoadState, 1);
+	SysLoader.finishCallback = finishCallback;
+	SysLoader.loaderFunc = loader;
+	initialize ();
+}
+
+static void systemCheckLoadState (const TIMER t)
+{
+	FUNCOPEN ();
+	if (SysLoader.loaded < SysLoader.goal)
+		return;
+
+	system_removeTimedFunction (SysLoader.loaderFunc);
+	system_removeTimedFunction (systemCheckLoadState);
+
+	systemClearStates ();
+	SysLoader.finishCallback ();
+	FUNCCLOSE ();
+}
+
+void loadSetGoal (unsigned int goal)
+{
+	if (systemGetState () != STATE_LOADING)
+	{
+		WARNING ("Loader function called outside of loading context?!", NULL);
+		return;
+	}
+	SysLoader.goal = goal;
+}
+
+void loadSetLoaded (unsigned int loaded)
+{
+	if (systemGetState () != STATE_LOADING)
+	{
+		WARNING ("Loader function called outside of loading context?!", NULL);
+		return;
+	}
+	SysLoader.loaded = loaded;
+}
+
+void loadSetText (char * displayText)
+{
+	if (systemGetState () != STATE_LOADING)
+	{
+		WARNING ("Loader function called outside of loading context?!", NULL);
+		return;
+	}
+	strncpy (SysLoader.displayText, displayText, LOADERTEXTBUFFERSIZE);
+}
+
+/***
  * UI CONTROL FUNCTIONS
  */
 
@@ -148,6 +232,8 @@ void system_removeTimedFunction (void (*func)(TIMER))
 	dynarr_remove_condense (System->updateFuncs, func);
 }
 
+
+
 void systemCreatePlayer ()
 {
 	Entity
@@ -155,8 +241,6 @@ void systemCreatePlayer ()
 		camera;
 	RELATIVEHEX
 		rel;
-	SUBHEX
-		pole;
 
 	FUNCOPEN ();
 
@@ -169,14 +253,9 @@ void systemCreatePlayer ()
 		/* NOTE: this is a placeholder; player positioning in the generated world is a worldgen thing, not a system thing. maybe this entire function is misguided, idk.
 		 *  - xph 2011 06 09
 		 */
-		pole = mapPole ('r');
-		mapForceGrowAtLevelForDistance (pole, 1, 3);
-		rel = mapRelativeSubhexWithCoordinateOffset (pole, -6, 0, 0);
-		pole = mapRelativeTarget (rel);
-		DEBUG ("target span: %d", subhexSpanLevel (pole));
-		assert (subhexSpanLevel (pole) == 1);
+		rel = mapRelativeSubhexWithCoordinateOffset (mapPole ('r'), -6, 0, 0);
+		systemPlacePlayerAt (mapRelativeTarget (rel));
 		mapRelativeDestroy (rel);
-		systemPlacePlayerAt (pole);
 	}
 	component_instantiateOnEntity ("walking", player);
 
@@ -236,7 +315,7 @@ static void systemInitialize (void)
 	entity_registerComponentAndSystem (component_plant);
 	// this order DOES matter, since this is the order they're updated later.
 	entitySubsystem_store ("position");
-	entitySubsystem_store ("ground");
+	//entitySubsystem_store ("ground");
 	entitySubsystem_store ("plant");
 	entitySubsystem_store ("walking");
 //	entitySubsystem_store ("integrate");
@@ -262,6 +341,8 @@ static void systemInitialize (void)
 	return;
 }
 
+#include <GL/glpng.h>
+#include "texture.h"
 void systemStart (void)
 {
 	/* for the record, the VideoEntity calls SDL_Init; everything else
@@ -275,13 +356,13 @@ void systemStart (void)
 	obj_message (VideoObject, OM_START, NULL, NULL);
 	//obj_message (PhysicsObject, OM_START, NULL, NULL);
 	//obj_message (WorldObject, OM_START, NULL, NULL);
-	entitySubsystem_message ("ground", OM_START, NULL, NULL);
+	//entitySubsystem_message ("ground", OM_START, NULL, NULL);
+	loadFont ("../img/default.png");
+	
 	printf ("DONE W/ SYSTEM START:\n");
 	printf ("ARTIFICIALLY TRIGGERING WORLDGEN:\n");
-	systemClearStates ();
-	systemPushState (STATE_LOADING);
-	// register worldgen loading %/note callback here
-	worldgenAbsHocNihilo ();
+	systemLoad (worldgenAbsHocNihilo, worldgenExpandWorldGraph, worldgenFinalizeCreation);
+
 	LOG (E_FUNCLABEL, "...%s", __FUNCTION__);
 }
 
@@ -321,6 +402,7 @@ void systemUpdate (void)
 		}
 		entitySubsystem_runOnStored (OM_UPDATE);
 		entitySubsystem_runOnStored (OM_POSTUPDATE);
+		//printf ("done w/ one iteration\n");
 	}
 	FUNCCLOSE ();
 }
@@ -337,13 +419,27 @@ void systemRender (void)
 		* matrix;
 	int
 		i;
+	unsigned int
+		width,
+		height;
 
 	if (System == NULL)
 		return;
+	video_getDimensions (&width, &height);
 	obj_messagePre (VideoObject, OM_PRERENDER, NULL, NULL);
 	if (systemGetState (System) == STATE_LOADING)
 	{
-		// presumably draw loading screen + loading text
+		glDisable (GL_DEPTH_TEST);
+		glColor3f (0.0, 0.0, 0.0);
+		glBegin (GL_QUADS);
+		glVertex3f (video_pixelXMap (0), video_pixelYMap (0), video_getZnear ());
+		glVertex3f (video_pixelXMap (0), video_pixelYMap (height), video_getZnear ());
+		glVertex3f (video_pixelXMap (width), video_pixelYMap (height), video_getZnear ());
+		glVertex3f (video_pixelXMap (width), video_pixelYMap (0), video_getZnear ());
+		glEnd ();
+		glColor3f (1.0, 1.0, 1.0);
+		drawLine ("loading...", width/2, height/2);
+		glEnable (GL_DEPTH_TEST);
 	}
 
 	if (worldExists ())
@@ -372,6 +468,16 @@ void systemRender (void)
 		}
 		glEnable (GL_DEPTH_TEST);
 	}
+	glLoadIdentity ();
+	glDisable (GL_DEPTH_TEST);
+	glColor3f (0.0, 0.0, 0.0);
+	drawLine ("farther from you every day", 8, 8);
+/*
+	drawLine ("hello again why so old wasn't time your friend i must be told hello again it seems so long since we last met how has it gone", 0, 0);
+	drawLine ("shining bright in a sea of fools; oh i can sing you out of this cave shake your mermaid blues", 0, 0);
+	drawLine ("we are breathing we are seething we are hardly underway we have high hopes like the old popes even st. peter's bones decay", 0, 18);
+*/
+	glEnable (GL_DEPTH_TEST);
 	obj_messagePre (VideoObject, OM_POSTRENDER, NULL, NULL);
 }
 

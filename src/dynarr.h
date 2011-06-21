@@ -18,6 +18,18 @@ typedef struct dyn_iterator * DynIterator;
 Dynarr dynarr_create (int indices, size_t size);
 void dynarr_destroy (Dynarr da);
 
+/*
+typedef union
+{
+	unsigned char
+		c[32];
+	float
+		f;
+	double
+		d;
+} DYNARG;
+*/
+
 /* NOTE: this uses some kind of type punning to store arbitrary types. This
  * type punning fails in certain cases. Specifically, when the value being
  * stored is larger than the size of a pointer, or if the value being stored
@@ -31,9 +43,11 @@ void dynarr_destroy (Dynarr da);
  * having to store a value and then cast it, and even then that raises
  * compiler errors from impossible casting.)
  * (an option i'm considering is using a union as the function argument, but i
- * don't know if that would work or is even allowed)
+ * don't know if that would work or is even allowed; i suspect it would
+ * require casting in either case)
  */
 int dynarr_assign (Dynarr da, int index, ...);
+int dynarrInsertInPlace (Dynarr da, int index, ...);
 int dynarr_push (Dynarr da, ...);
 char * dynarr_at (const Dynarr da, int index);
 char * dynarr_pop (Dynarr da);
@@ -46,6 +60,7 @@ void dynarr_wipe (Dynarr da, void free_func (void *));
 
 void dynarr_condense (Dynarr da);
 void dynarr_sort (Dynarr da, int (*sort) (const void *, const void *));
+void dynarrSortFinal (Dynarr da, int (*sort) (const void *, const void *), int amount);
 char * dynarr_search (const Dynarr da, int (*search) (const void *, const void *), ...);
 
 void dynarr_remove_condense (Dynarr da, ...);

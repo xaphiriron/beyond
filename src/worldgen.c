@@ -37,31 +37,42 @@ void worldgenAbsHocNihilo ()
 
 	worldgenBuildArch (WorldGraph, graphGetVertex (WorldGraph, 1), firstPattern);
 
-	// register loading function
-	system_registerTimedFunction (worldgenExpandWorldGraph, 0xff);
+	FUNCCLOSE ();
+}
+
+void worldgenFinalizeCreation ()
+{
+	SUBHEX
+		pole;
+
+	FUNCOPEN ();
+
+	pole = mapPole ('r');
+	mapForceGrowAtLevelForDistance (pole, 1, 3);
+
+	systemCreatePlayer ();
+
+	systemClearStates();
+	systemPushState (STATE_FREEVIEW);
 	FUNCCLOSE ();
 }
 
 void worldgenExpandWorldGraph (TIMER t)
 {
 	FUNCOPEN ();
-/*
-	while ()
+
+	loadSetGoal (1);
+
+	while (0)
 	{
 		if (outOfTime (t))
 		{
 			return;
 		}
 	}
-*/
 
-	// all the following should be in a system callback that's called when this finishes (so it can go in system.c and not worldgen.c)
-	system_removeTimedFunction (worldgenExpandWorldGraph);
+	loadSetLoaded (1);
 
-	systemCreatePlayer ();
-
-	systemClearStates();
-	systemPushState (STATE_FREEVIEW);
 	FUNCCLOSE ();
 }
 

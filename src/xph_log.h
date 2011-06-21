@@ -16,7 +16,7 @@
 
 typedef enum logLevels
 {
-	E_OFF = 0x00,
+	E_NONE = 0x00,
 
 	E_ERR = 0x01,
 	E_WARN = 0x02,

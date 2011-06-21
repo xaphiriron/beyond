@@ -49,6 +49,12 @@ void subhexDestroy (SUBHEX subhex);
  * MAP TRAVERSAL FUNCTIONS
  */
 
+/* returns TRUE if finish can be set to a span-1 subhex; FALSE otherwise
+ *  (including on error, in which finish will be set NULL and newPosition will
+ *  be set to the origin)
+ */
+bool mapMove (const SUBHEX start, const VECTOR3 * const position, SUBHEX * finish, VECTOR3 * newPosition);
+
 SUBHEX mapPole (const char poleName);
 
 /* FIXME: the two functions below both calculate pole-level connections (i.e., how the poles are connected to each other; which edge of each of them abuts which other edge) but they do it in two different ways, which could lead to havoc if one of them is altered but not the other
@@ -74,6 +80,7 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 RELATIVEHEX mapRelativeSubhexWithSubhex (const SUBHEX subhex, const SUBHEX target);
 
 SUBHEX mapRelativeTarget (const RELATIVEHEX relativePosition);
+SUBHEX mapRelativeSpanTarget (const RELATIVEHEX relativePosition, unsigned char span);
 VECTOR3 mapRelativeDistance (const RELATIVEHEX relPos);
 /* do the coordinate values match up with the span of the target; i.e., has the best-match subhex actually been loaded */
 bool isPerfectFidelity (const RELATIVEHEX relPos);
@@ -85,6 +92,14 @@ bool mapVectorOverrunsPlatter (const unsigned char span, const VECTOR3 * vector)
 bool mapScaleCoordinates (signed char relativeSpan, signed int x, signed int y, signed int * xp, signed int * yp, signed int * xRemainder, signed int * yRemainder);
 /* bool mapBridge (const signed int x, const signed int y, signed int * xp, signed int * yp, signed char * dir); */
 signed int * const mapSpanCentres (const unsigned char span);
+
+/***
+ * MAP DATA LAYER FUNCTIONS
+ */
+
+void mapDataSet (SUBHEX at, char * type, float amount);
+float mapDataAdd (SUBHEX at, char * type, float amount);
+float mapDataGet (SUBHEX at, char * type);
 
 /***
  * INFORMATIONAL / GETTER FUNCTIONS

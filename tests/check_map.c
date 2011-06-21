@@ -7,6 +7,7 @@
 
 #include "../src/map.h"
 #include "../src/hex_utility.h"
+#include "../src/vector.h"
 
 void mapWorldDestroy (void)
 {
@@ -469,6 +470,61 @@ START_TEST (mapPoleEdgeDirectionsMinusOne)
 }
 END_TEST
 
+static const signed int
+	StartX[] = {8, 0,-8,-8, 0, 8, 0},
+	StartY[] = {0, 8, 8, 0,-8,-8, 0},
+	MoveX[] = {1, 0,-1,-1, 0, 1},
+	MoveY[] = {0, 1, 1, 0,-1,-1};
+static const unsigned int
+	slookup[] = {6, 6, 6, 6, 6, 6, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5},
+	mlookup[] = {0, 1, 2, 3, 4, 5, 0, 5, 1, 0, 2, 1, 3, 2, 4, 3, 5, 4};
+
+START_TEST (mapRelativeDistanceSpan0Edge)
+{
+	RELATIVEHEX
+		start,
+		adj;
+	SUBHEX
+		startHex;
+	VECTOR3
+		adjDistance,
+		distance;
+
+	logSetLevel (E_ALL);
+	LOG (E_ERR, "%s [%d]:", __FUNCTION__, _i);
+
+	mapSetSpanAndRadius (2, 8);
+	mapGeneratePoles (POLE_TRI);
+	mapForceGrowAtLevelForDistance (mapPole ('r'), 1, 1);
+
+	ERROR ("GETTING INITIAL HEX (at %d, %d)", StartX[slookup[_i]], StartY[slookup[_i]]);
+	start = mapRelativeSubhexWithCoordinateOffset (mapPole ('r'), -2, StartX[slookup[_i]], StartY[slookup[_i]]);
+	startHex = mapRelativeTarget (start);
+	fail_unless
+	(
+		subhexSpanLevel (startHex) == 0 && startHex != NULL,
+		"Expected valid subhex with span level 0; got %p/%d instead",
+		startHex, subhexSpanLevel (startHex)
+	);
+
+	ERROR ("GETTING ADJACENT HEX (at %d,%d distant from start)", MoveX[mlookup[_i]], MoveY[mlookup[_i]]);
+	adj = mapRelativeSubhexWithCoordinateOffset (startHex, 0, MoveX[mlookup[_i]], MoveY[mlookup[_i]]);
+
+	distance = mapRelativeDistance (adj);
+
+	adjDistance = hex_xyCoord2Space (MoveX[mlookup[_i]], MoveY[mlookup[_i]]);
+	fail_unless
+	(
+		vector_cmp (&distance, &adjDistance),
+		"Got distance vector of %.2f,%.2f,%.2f; expected %.2f,%.2f,%.2f",
+		distance.x, distance.y, distance.z,
+		adjDistance.x, adjDistance.y, adjDistance.z
+	);
+
+	logSetLevel (E_NONE);
+}
+END_TEST
+
 
 static const signed int
 	xDown[]	= {0, 3,-2,-5,-3, 2, 5,
@@ -556,7 +612,8 @@ Suite * makeMapTraversalSuite (void)
 		* s = suite_create ("Map Traversal");
 	TCase
 		* tcPole = tcase_create ("Cross-pole movement"),
-		* tcCoordinates = tcase_create ("Coordinate math");
+		* tcCoordinates = tcase_create ("Coordinate math"),
+		* tcVector = tcase_create ("Relative distance between hexes");
 
 	tcase_add_checked_fixture (tcPole, NULL, mapWorldDestroy);
 	tcase_add_loop_test (tcPole, mapPoleTraversalTopology, 0, 57);
@@ -569,6 +626,11 @@ Suite * makeMapTraversalSuite (void)
 	tcase_add_test (tcCoordinates, mapPoleEdgeDirectionsPlusOne);
 	tcase_add_test (tcCoordinates, mapPoleEdgeDirectionsMinusOne);
 	suite_add_tcase (s, tcCoordinates);
+
+	// this should be 18 really
+	tcase_add_loop_test (tcVector, mapRelativeDistanceSpan0Edge, 0, 18);
+	suite_add_tcase (s, tcVector);
+
 	return s;
 }
 
@@ -582,7 +644,7 @@ int main () {
 	srunner_add_suite (sr, makeMapGenerationSuite ());
 	//srunner_add_suite (sr,  ());
 
-	logSetLevel (E_ALL);
+	logSetLevel (E_NONE);
 
 	srunner_run_all (sr, CK_NORMAL);
 	number_failed = srunner_ntests_failed (sr);
