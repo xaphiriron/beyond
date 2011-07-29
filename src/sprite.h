@@ -42,6 +42,7 @@ void sheetDestroy (SPRITESHEET s);
 
 void sheetGetTextureSize (const SPRITESHEET s, int * width, int * height);
 int sheetGetGBaselineOffset (const SPRITESHEET);
+int sheetGetHeightRange (const SPRITESHEET s);
 
 SPRITE sheetGetSpriteViaOffset (const SPRITESHEET s, int offset);
 SPRITE sheetGetSpriteViaCoordinate (const SPRITESHEET s, int column, int row);

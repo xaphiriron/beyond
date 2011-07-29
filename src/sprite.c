@@ -47,7 +47,8 @@ struct spriteSheet
     spriteCount,
     * spritesPerRow,
     fMax, fMin, fVariance,
-    gMax, gMin, gVariance;	/* the highest, lowest, and range of g values */
+    gMax, gMin, gVariance,	/* the highest, lowest, and range of g values */
+	maxHeightBelowG;
 	Dynarr
 		sprites;
 };
@@ -252,6 +253,7 @@ void sheetConstantInitialize (SPRITESHEET s, const char * path, va_list args) {
   s->sprites = NULL;
   s->fMax = s->fMin = s->fVariance = 0;
   s->gMax = s->gMin = s->gVariance = 0;
+	s->maxHeightBelowG = 0;
   px = sheetPixelCoordinate (s, 0, 0);
   if (px.a == 0) {
     s->texture = textureLoad (path, PNG_NOMIPMAP, PNG_ALPHA, GL_CLAMP, GL_LINEAR, GL_NEAREST);
@@ -329,6 +331,7 @@ void sheetLoadSpriteData (SPRITESHEET s, const char * path) {
 	DEBUG ("set transparency or stenciling", NULL);
   s->fMax = s->gMax = INT_MIN;
   s->fMin = s->gMin = INT_MAX;
+  s->maxHeightBelowG = INT_MIN;
 
   lastCorner.x = lastCorner.y = 0;
   pos.x = pos.y = 0;
@@ -599,6 +602,9 @@ void sheetLoadSpriteData (SPRITESHEET s, const char * path) {
         } else if (pngColourCmp (&c, &spec[SPEC_GUIDE]) != 0) {
           state = SEEKING_NEXT_HORIZ_CORNER;
           sprite->h = pos.y - sprite->y;
+          if ((signed int)(sprite->h - sprite->g) > s->maxHeightBelowG) {
+            s->maxHeightBelowG = sprite->h - sprite->g;
+          }
           pos = lastCorner;
           move.x = 1;
           move.y = 0;
@@ -608,6 +614,9 @@ void sheetLoadSpriteData (SPRITESHEET s, const char * path) {
         if (pngColourCmp (&c, &spec[SPEC_GUIDE]) != 0) {
           state = SEEKING_NEXT_HORIZ_CORNER;
           sprite->h = pos.y - sprite->y;
+          if ((signed int)(sprite->h - sprite->g) > s->maxHeightBelowG) {
+            s->maxHeightBelowG = sprite->h - sprite->g;
+          }
           pos = lastCorner;
           move.x = 1;
           move.y = 0;
@@ -619,6 +628,9 @@ void sheetLoadSpriteData (SPRITESHEET s, const char * path) {
           state = SEEKING_NEXT_HORIZ_CORNER;
           sprite->h = pos.y - sprite->y;
           sprite->g = sprite->h / 2;
+          if ((signed int)(sprite->h - sprite->g) > s->maxHeightBelowG) {
+            s->maxHeightBelowG = sprite->h - sprite->g;
+          }
           pos = lastCorner;
           move.x = 1;
           move.y = 0;
@@ -641,6 +653,9 @@ void sheetLoadSpriteData (SPRITESHEET s, const char * path) {
           if (s->gMin > sprite->g) {
            s->gMin = sprite->g;
           }
+          if ((signed int)(sprite->h - sprite->g) > s->maxHeightBelowG) {
+            s->maxHeightBelowG = sprite->h - sprite->g;
+          }
           pos = lastCorner;
           move.x = 1;
           move.y = 0;
@@ -662,6 +677,9 @@ void sheetLoadSpriteData (SPRITESHEET s, const char * path) {
           if (s->gMin > sprite->g) {
            s->gMin = sprite->g;
           }
+          if ((signed int)(sprite->h - sprite->g) > s->maxHeightBelowG) {
+            s->maxHeightBelowG = sprite->h - sprite->g;
+          }
 /*
           logLine (E_DEBUG, "reached ext. balance on sprite %d: set to %d; %d - %d", s->sprites->offset, sprite->g, pos.y, sprite->y);
 */
@@ -676,6 +694,9 @@ void sheetLoadSpriteData (SPRITESHEET s, const char * path) {
           }
           if (s->gMin > sprite->g) {
            s->gMin = sprite->g;
+          }
+          if ((signed int)(sprite->h - sprite->g) > s->maxHeightBelowG) {
+            s->maxHeightBelowG = sprite->h - sprite->g;
           }
           pos = lastCorner;
           move.x = 1;
@@ -732,6 +753,11 @@ int sheetGetGBaselineOffset (const SPRITESHEET s)
 {
 	assert (s != NULL);
 	return s->gMax;
+}
+
+int sheetGetHeightRange (const SPRITESHEET s)
+{
+	return s->gMax + s->maxHeightBelowG;
 }
 
 SPRITE sheetGetSpriteViaOffset (const SPRITESHEET s, int offset) {

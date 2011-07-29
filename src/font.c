@@ -24,10 +24,12 @@ void drawLine (const char * line, signed int x, signed int y)
 		glX = video_pixelXMap (x),
 		glY = video_pixelYMap (y),
 		glLetterSpacing = video_pixelXOffset (1),// how many px of space between letters
+		glLineSpacing = 0,// how many px of space between lines; set below
 		glLetterWidth = 0,
 		glLetterHeight = 0,
 		glLetterHeightOffset = 0,
 		glNear = video_getZnear (),
+		leftMargin = glX,
 		tx, ty, tw, th;
 	signed int
 		lx, ly,
@@ -41,6 +43,7 @@ void drawLine (const char * line, signed int x, signed int y)
 		letter;
 	sheetGetTextureSize (SystemFont, &sheetWidth, &sheetHeight);
 	glY += video_pixelYOffset (sheetGetGBaselineOffset (SystemFont));
+	glLineSpacing = video_pixelYOffset (sheetGetHeightRange (SystemFont) + 1);
 
 	glBindTexture (GL_TEXTURE_2D, sheetGetTexture (SystemFont)->id);
 	glBegin (GL_QUADS);
@@ -48,6 +51,14 @@ void drawLine (const char * line, signed int x, signed int y)
 	while (*c != 0)
 	{
 		letter = sheetGetSpriteViaOffset (SystemFont, *c);
+
+		if (*c == '\n')
+		{
+			glX = leftMargin;
+			glY += glLineSpacing;
+			c++;
+			continue;
+		}
 		//DEBUG ("got sprite %p (for '%c')", letter, *c);
 		spriteGetXY (letter, &lx, &ly);
 		spriteGetWH (letter, &lw, &lh);
@@ -70,15 +81,6 @@ void drawLine (const char * line, signed int x, signed int y)
 		glVertex3f (glX + glLetterWidth, glY + glLetterHeightOffset + glLetterHeight, glNear);
 		glTexCoord2f (tx + tw, ty);
 		glVertex3f (glX + glLetterWidth, glY + glLetterHeightOffset, glNear);
-/*
-		glTexCoord2f (tx, ty + th);
-		glVertex3f (glX, glY + glLetterHeightOffset, glNear);
-		glTexCoord2f (tx + tw, ty + th);
-		glVertex3f (glX + glLetterWidth, glY + glLetterHeightOffset, glNear);
-		glTexCoord2f (tx + tw, ty);
-		glVertex3f (glX + glLetterWidth, glY + glLetterHeightOffset + glLetterHeight, glNear);
-		glTexCoord2f (tx, ty);
-		glVertex3f (glX, glY + glLetterHeightOffset + glLetterHeight, glNear);*/
 
 
 		glX += (glLetterWidth + glLetterSpacing);

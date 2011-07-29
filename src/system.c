@@ -471,8 +471,10 @@ void systemRender (void)
 	glLoadIdentity ();
 	glDisable (GL_DEPTH_TEST);
 	glColor3f (0.0, 0.0, 0.0);
-	drawLine ("farther from you every day", 8, 8);
+	drawLine ("don't you want to come with me\ndon't you want to feel my bones\non your bones", 8, 8);
 /*
+	drawLine ("are you listening?", 8, 8);
+	drawLine ("farther from you every day", 8, 8);
 	drawLine ("hello again why so old wasn't time your friend i must be told hello again it seems so long since we last met how has it gone", 0, 0);
 	drawLine ("shining bright in a sea of fools; oh i can sing you out of this cave shake your mermaid blues", 0, 0);
 	drawLine ("we are breathing we are seething we are hardly underway we have high hopes like the old popes even st. peter's bones decay", 0, 18);
