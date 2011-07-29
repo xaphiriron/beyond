@@ -418,6 +418,20 @@ char * dynarr_search (const Dynarr da, int (*search) (const void *, const void *
 	return match;
 }
 
+void dynarr_map (Dynarr da, void map_func (void *))
+{
+	DynIterator
+		it = dynIterator_create (da);
+	void
+		* val;
+	while (!dynIterator_done (it))
+	{
+		val = *(void **)dynIterator_next (it);
+		map_func (val);
+	}
+	dynIterator_destroy (it);
+}
+
 void dynarr_remove_condense (Dynarr da, ...)
 {
 	va_list

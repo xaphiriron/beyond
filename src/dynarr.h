@@ -63,6 +63,8 @@ void dynarr_sort (Dynarr da, int (*sort) (const void *, const void *));
 void dynarrSortFinal (Dynarr da, int (*sort) (const void *, const void *), int amount);
 char * dynarr_search (const Dynarr da, int (*search) (const void *, const void *), ...);
 
+void dynarr_map (Dynarr da, void map_func (void *));
+
 void dynarr_remove_condense (Dynarr da, ...);
 
 int in_dynarr (const Dynarr da, ...);
