@@ -32,13 +32,19 @@ struct affectedHexes
 // START EVERYTHING
 void worldgenAbsHocNihilo ();
 void worldgenFinalizeCreation ();
-void worldgenExpandWorldGraph (TIMER t);
-void worldgenExpandArchGraph (ARCH p, unsigned int depth);
 
+void worldgenExpandWorldGraph (TIMER t);
+
+ARCH worldgenBuildArch (ARCH parent, unsigned int subid, PATTERN pattern);
+ARCH worldgenCreateArch (PATTERN pattern, SUBHEX base);
+
+
+void worldgenExpandArchGraph (ARCH p, unsigned int depth);
+/*
 void worldgenBuildArch (GRAPH g, VERTEX v, PATTERN p);
 
 const GRAPH worldgenWorldGraph ();
-
+*/
 
 PATTERN patternCreate ();
 

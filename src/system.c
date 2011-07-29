@@ -436,19 +436,26 @@ void systemRender (void)
 		glVertex3f (video_pixelXMap (0), video_pixelYMap (height), video_getZnear ());
 		glVertex3f (video_pixelXMap (width), video_pixelYMap (height), video_getZnear ());
 		glVertex3f (video_pixelXMap (width), video_pixelYMap (0), video_getZnear ());
+
+		glColor3f (0.0, 0.0, 1.0);
+		glVertex3f (0, 0, video_getZnear ());
+		glVertex3f (5, 0, video_getZnear ());
+		glVertex3f (5, 5, video_getZnear ());
+		glVertex3f (0, 5, video_getZnear ());
+
 		glEnd ();
 		glColor3f (1.0, 1.0, 1.0);
 		drawLine ("loading...", width/2, height/2);
 		glEnable (GL_DEPTH_TEST);
+		obj_messagePre (VideoObject, OM_POSTRENDER, NULL, NULL);
+		return;
 	}
 
 	if (worldExists ())
 	{
 		camera = camera_getActiveCamera ();
 		matrix = camera_getMatrix (camera);
-		if (matrix == NULL)
-			glLoadIdentity ();
-		else
+		if (matrix != NULL)
 			glLoadMatrixf (matrix);
 		mapDraw ();
 		if (systemGetState (System) == STATE_FREEVIEW)
@@ -471,11 +478,14 @@ void systemRender (void)
 	glLoadIdentity ();
 	glDisable (GL_DEPTH_TEST);
 	glColor3f (0.0, 0.0, 0.0);
-	drawLine ("don't you want to come with me\ndon't you want to feel my bones\non your bones", 8, 8);
+	drawLine ("oh have you ever felt so god damn strong\nhow come it takes some people so damn long", 8, 8);
 /*
-	drawLine ("are you listening?", 8, 8);
+	drawLine ("open up and keep on climbing\nhigher and higher and higher", 8, 8);
+	drawLine ("don't you want to come with me\ndon't you want to feel my bones\non your bones", 8, 8);
+	drawLine ("are you listening? sing it back", 8, 8);
 	drawLine ("farther from you every day", 8, 8);
 	drawLine ("hello again why so old wasn't time your friend i must be told hello again it seems so long since we last met how has it gone", 0, 0);
+	drawLine ("i pledge allegiance to gasoline and bulletproof limosines and leans on the property of the poor and every night i pray to the lords of war", 0, 0);
 	drawLine ("shining bright in a sea of fools; oh i can sing you out of this cave shake your mermaid blues", 0, 0);
 	drawLine ("we are breathing we are seething we are hardly underway we have high hopes like the old popes even st. peter's bones decay", 0, 18);
 */

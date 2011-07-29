@@ -13,8 +13,14 @@ struct worldgenPattern
 	
 };
 
+/*
 struct worldgenArch // ARCH
 {
+	SUBHEX
+		centred;
+	
+
+
 	PATTERN
 		pattern;
 	bool
@@ -23,32 +29,37 @@ struct worldgenArch // ARCH
 		subpatterns;	// ???
 	// ???
 };
+*/
+
+struct worldgenArch // ARCH
+{
+	SUBHEX
+		centre;
+
+	VECTOR3
+		position;
+	unsigned int
+		height;
+
+};
 
 void worldgenAbsHocNihilo ()
 {
 	FUNCOPEN ();
+/*
 	PATTERN
 		firstPattern = patternCreate ();	// from patterns file
+*/
 	
 	mapSetSpanAndRadius (7, 8);
 	mapGeneratePoles (POLE_TRI);
-	WorldGraph = worldgenCreateBlankGraph ();
-	graphWorldBase (WorldGraph, GRAPH_POLE_R | GRAPH_POLE_G | GRAPH_POLE_B);
-
-	worldgenBuildArch (WorldGraph, graphGetVertex (WorldGraph, 1), firstPattern);
 
 	FUNCCLOSE ();
 }
 
 void worldgenFinalizeCreation ()
 {
-	SUBHEX
-		pole;
-
 	FUNCOPEN ();
-
-	pole = mapPole ('r');
-	mapForceGrowAtLevelForDistance (pole, 1, 3);
 
 	systemCreatePlayer ();
 
@@ -59,27 +70,70 @@ void worldgenFinalizeCreation ()
 
 void worldgenExpandWorldGraph (TIMER t)
 {
+	static SUBHEX
+		pole = NULL,
+		base = NULL;
+	SUBHEX
+		active = NULL;
+	RELATIVEHEX
+		rel = NULL;
 	FUNCOPEN ();
 
-	loadSetGoal (1);
+	loadSetGoal (2);
 
-	while (0)
+	if (!pole)
+		pole = mapPole ('r');
+
+	if (!base)
 	{
-		if (outOfTime (t))
-		{
-			return;
-		}
+		mapForceGrowAtLevelForDistance (pole, 1, 3);
+		rel = mapRelativeSubhexWithCoordinateOffset (pole, -6, 0, 0);
+		base = mapRelativeTarget (rel);
+		mapRelativeDestroy (rel);
 	}
 
 	loadSetLoaded (1);
 
+	active = base;
+
+	while (1)
+	{
+		// place a single arch on the pole and break
+		worldgenCreateArch (NULL, active);
+		break;
+		if (outOfTime (t))
+			return;
+	}
+
+	loadSetLoaded (2);
+
 	FUNCCLOSE ();
+}
+
+ARCH worldgenBuildArch (ARCH parent, unsigned int subid, PATTERN pattern)
+{
+	return NULL;
+}
+
+ARCH worldgenCreateArch (PATTERN pattern, SUBHEX base)
+{
+	ARCH
+		arch = xph_alloc (sizeof (struct worldgenArch));
+	memset (arch, '\0', sizeof (struct worldgenArch));
+
+	arch->centre = base;
+
+	// do the pattern setup here!!!
+
+	mapArchSet (base, arch);
+	return arch;
 }
 
 void worldgenExpandArchGraph (ARCH p, unsigned int depth)
 {
 }
 
+/*
 void worldgenBuildArch (GRAPH g, VERTEX v, PATTERN p)
 {
 	FUNCOPEN ();
@@ -97,6 +151,7 @@ const GRAPH worldgenWorldGraph ()
 {
 	return WorldGraph;
 }
+*/
 
 /***
  * PATTERN FUNCTIONS

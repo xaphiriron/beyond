@@ -189,6 +189,14 @@ unsigned int hex_linearCoord (unsigned int r, unsigned int k, unsigned int i)
 		: hx (r) + (k * r) + i;
 }
 
+unsigned int hex_linearXY (signed int x, signed int y)
+{
+	unsigned int
+		r, k, i;
+	hex_xy2rki (x, y, &r, &k, &i);
+	return hex_linearCoord (r, k, i);
+}
+
 unsigned int hex_distanceBetween (signed int ax, signed int ay, signed int bx, signed int by)
 {
 	signed int
@@ -246,7 +254,7 @@ unsigned char hex_dirHashFromYaw (float yaw)
 unsigned char hex_dirHashFromCoord (signed int x, signed int y)
 {
 	unsigned int
-		r, k, i;
+		r = 0, k = 0, i = 0;
 	unsigned char
 		h = 0;
 	float

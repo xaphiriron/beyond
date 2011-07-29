@@ -13,6 +13,8 @@ typedef struct hexTile * HEX;
 typedef struct hexWorldPosition * WORLDHEX;
 typedef struct hexRelativePosition * RELATIVEHEX;
 
+#include "worldgen.h"
+
 enum hexOrSubdivType
 {
 	HS_HEX = 1,
@@ -79,6 +81,9 @@ RELATIVEHEX mapRelativeSubhexWithVectorOffset (const SUBHEX subhex, const VECTOR
 RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const signed char relativeSpan, const signed int x, const signed int y);
 RELATIVEHEX mapRelativeSubhexWithSubhex (const SUBHEX subhex, const SUBHEX target);
 
+/* this does exactly what mapRelativeSubhexWithCoordinateOffset does only it returns the target or NULL if no perfect target and automatically destroys the relativehex */
+SUBHEX mapHexAtCoordinateAuto (const SUBHEX subhex, const signed int x, const signed int y);
+
 SUBHEX mapRelativeTarget (const RELATIVEHEX relativePosition);
 SUBHEX mapRelativeSpanTarget (const RELATIVEHEX relativePosition, unsigned char span);
 VECTOR3 mapRelativeDistance (const RELATIVEHEX relPos);
@@ -100,6 +105,10 @@ signed int * const mapSpanCentres (const unsigned char span);
 void mapDataSet (SUBHEX at, char * type, float amount);
 float mapDataAdd (SUBHEX at, char * type, float amount);
 float mapDataGet (SUBHEX at, char * type);
+
+void mapArchSet (SUBHEX at, ARCH arch);
+
+void mapImprintAllArches (SUBHEX at);
 
 /***
  * INFORMATIONAL / GETTER FUNCTIONS
@@ -125,6 +134,8 @@ char worldhexPole (const WORLDHEX whx);
 /***
  * RENDERING FUNCTIONS
  */
+
+void mapBakeHexes (SUBHEX subhex);
 
 void worldSetRenderCacheCentre (SUBHEX origin);
 void mapDraw ();

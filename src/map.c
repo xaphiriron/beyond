@@ -29,6 +29,8 @@ struct hexSubdivided
 
 	struct mapData
 		* mapInfo;
+	Dynarr
+		arches;
 };
 
 struct hexTile
@@ -127,7 +129,8 @@ static struct mapData * mapDataCreate ();
 static struct mapData * mapDataCopy (const struct mapData * md);
 static void mapDataDestroy (struct mapData * mb);
 
-
+static void mapRelativeTargetImprint (void * rel_v);
+static void mapRelativeTargetBake (void * rel_v);
 
 
 bool mapSetSpanAndRadius (const unsigned char span, const unsigned char radius)
@@ -429,6 +432,7 @@ SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 	sh->sub.x = x;
 	sh->sub.y = y;
 	sh->sub.data = NULL;
+	sh->sub.arches = dynarr_create (1, sizeof (ARCH));
 	if (parent != NULL && parent->type != HS_SUB)
 	{
 		ERROR ("Given invalid parent (%p); cannot use a hex as a parent of a subdiv!", parent);
@@ -701,6 +705,11 @@ char mapPoleTraversal (char p, signed int x, signed int y)
 }
 
 /* NOTE: this has been coded but not tested; don't assume it works right
+ *
+ * (okay this has been 'tested' in that it's a critical part of the current
+ * rendering code but that doesn't necessarily mean it doesn't have a critical
+ * flaw somewhere)
+ *   - xph 2011 07 28
  */
 Dynarr mapAdjacentSubhexes (const SUBHEX subhex, unsigned int distance)
 {
@@ -825,12 +834,12 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 
 	rel->minSpan = subhexSpanLevel (subhex);
 	rel->maxSpan = rel->minSpan;
-	DEBUG ("native span of %d w/ relative span req. of %d", rel->minSpan, spanDiff);
+	//DEBUG ("native span of %d w/ relative span req. of %d", rel->minSpan, spanDiff);
 	if (spanDiff < 0)
 		rel->minSpan = rel->maxSpan + spanDiff;
 	else
 		rel->maxSpan = rel->minSpan + spanDiff;
-	DEBUG ("set min/max span to %d/%d, w/ a range of %d", rel->minSpan, rel->maxSpan, spanRange);
+	//DEBUG ("set min/max span to %d/%d, w/ a range of %d", rel->minSpan, rel->maxSpan, spanRange);
 
 	while (spanDiff < 0)
 	{
@@ -874,7 +883,7 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 	goalX[0] = cX;
 	goalY[0] = cY;
 
-	DEBUG (" @ %p: local: %d, %d; move: %d, %d; net: %d, %d", start, lX, lY, cX, cY, netX, netY);
+	//DEBUG (" @ %p: local: %d, %d; move: %d, %d; net: %d, %d", start, lX, lY, cX, cY, netX, netY);
 
 	// and now we hit the main bulk of the function: (this requires recursively traversing the subhex hierarchy if subhex edges are passed)
 
@@ -882,12 +891,12 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 	goal = NULL;
 	while (hexMagnitude (netX, netY) > mapRadius)
 	{
-		DEBUG ("iterating on %d up the span hierarchy", i);
+		//DEBUG ("iterating on %d up the span hierarchy", i);
 		assert (i < spanRange);
 		if (subhexSpanLevel (start) == mapSpan)
 			break;
 		mapScaleCoordinates (1, netX, netY, &cX, &cY, &xRemainder, &yRemainder);
-		DEBUG ("condensed coordinates %d, %d to %d, %d (with remainder %d, %d at index %d)", netX, netY, cX, cY, xRemainder, yRemainder, i);
+		//DEBUG ("condensed coordinates %d, %d to %d, %d (with remainder %d, %d at index %d)", netX, netY, cX, cY, xRemainder, yRemainder, i);
 
 		rel->x[i] = goalX[i] = xRemainder;
 		rel->y[i] = goalY[i] = yRemainder;
@@ -900,8 +909,8 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 
 		i++;
 	}
-	DEBUG ("broke from traversal loop with a value of %p", start);
-	DEBUG ("current x,y: %d, %d; local:  %d, %d; net: %d, %d", cX, cY, lX, lY, netX, netY);
+	//DEBUG ("broke from traversal loop with a value of %p", start);
+	//DEBUG ("current x,y: %d, %d; local:  %d, %d; net: %d, %d", cX, cY, lX, lY, netX, netY);
 
 	rel->x[i] = goalX[i] = netX;
 	rel->y[i] = goalY[i] = netY;
@@ -956,16 +965,16 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 	 *  - xph 2011 06 18
 	 */
 	i = spanRange;
-	DEBUG ("*** BEGINNING RELATIVE DISTANCE CALCULATIONS (%d) ***", i);
+	//DEBUG ("*** BEGINNING RELATIVE DISTANCE CALCULATIONS (%d) ***", i);
 	while (i > 0)
 	{
 		i--;
 
-		DEBUG ("index %d:", i);
-		DEBUG ("goal remainder: %d, %d; start coordinates: %d, %d", goalX[i], goalY[i], startX[i], startY[i]);
+		//DEBUG ("index %d:", i);
+		//DEBUG ("goal remainder: %d, %d; start coordinates: %d, %d", goalX[i], goalY[i], startX[i], startY[i]);
 
-		DEBUG ("i: %d, spanRange: %d", i, spanRange);
-		DEBUG ("netX/Y: %d, %d", netX, netY);
+		//DEBUG ("i: %d, spanRange: %d", i, spanRange);
+		//DEBUG ("netX/Y: %d, %d", netX, netY);
 		/* FIXME: this won't work in all cases. specifically when crossing a pole this will overrun and then no one will be happy (except it won't, because i is set to spanRange and that's always < mapSpan, but spanRange isn't the right value to use AT ALL, like, categorically, it's just an arbitrary vaue that happens to be large enough to work in most cases; the right value would have something to do with the number of up-traversals required. also i don't really know how well this whole scheme works if we're not trying to calculate a span 0 position, since it seems like a lot of this code will fail if i doesn't match the current span level OH GOD EVERYTHING IS SO COMPLICATED)
 		 *  - xph 2011 06 18
 		 */
@@ -979,8 +988,8 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 		lX += goalX[i];
 		lY += goalY[i];
 
-		DEBUG ("goal distance from start center: %d, %d", lX, lY);
-		DEBUG ("net distance (%d): %d, %d", i, lX - startX[i], lY - startY[i]);
+		//DEBUG ("goal distance from start center: %d, %d", lX, lY);
+		//DEBUG ("net distance (%d): %d, %d", i, lX - startX[i], lY - startY[i]);
 		// i don't know if this actually works right when there's more than one level of traversing going on here, but i /think/ it's right
 		goalX[i] = lX - startX[i];
 		goalY[i] = lY - startY[i];
@@ -988,15 +997,15 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 
 	rel->distance = vectorCreate (0.0, 0.0, 0.0);
 	i = 0;
-	DEBUG ("*** BEGINNING VECTOR CALCULATIONS (%d) ***", spanRange);
+	//DEBUG ("*** BEGINNING VECTOR CALCULATIONS (%d) ***", spanRange);
 	while (i < spanRange)
 	{
 		dirTemp = mapDistanceFromSubhexCentre (rel->minSpan + i, goalX[i], goalY[i]);
-		DEBUG ("iterating on %d to calculate vector distance (@ span %d: %d, %d); for this step: %.2f, %.2f, %.2f", i, rel->minSpan + i, goalX[i], goalY[i], dirTemp.x, dirTemp.y, dirTemp.z);
+		//DEBUG ("iterating on %d to calculate vector distance (@ span %d: %d, %d); for this step: %.2f, %.2f, %.2f", i, rel->minSpan + i, goalX[i], goalY[i], dirTemp.x, dirTemp.y, dirTemp.z);
 		rel->distance = vectorAdd (&rel->distance, &dirTemp);
 		i++;
 	}
-	DEBUG ("final distance measure: %f, %f, %f", rel->distance.x, rel->distance.y, rel->distance.z);
+	//DEBUG ("final distance measure: %f, %f, %f", rel->distance.x, rel->distance.y, rel->distance.z);
 
 	xph_free (startX);
 
@@ -1097,73 +1106,22 @@ RELATIVEHEX mapRelativeSubhexWithSubhex (const SUBHEX start, const SUBHEX goal)
 	DEBUG ("returning probably-broken relativehex %p", rel);
 	return rel;
 }
-/*
-RELATIVEHEX mapRelativeSubhexWithSubhex (const SUBHEX subhex, const SUBHEX target)
+
+
+SUBHEX mapHexAtCoordinateAuto (const SUBHEX subhex, const signed int x, const signed int y)
 {
+	RELATIVEHEX
+		rel = mapRelativeSubhexWithCoordinateOffset (subhex, -1, x, y);
 	SUBHEX
-		trav;
-	const SUBHEX
-		* smaller;
-	unsigned char
-		spanGoal,
-		spanDiff,
-		i;
-	signed int
-		* subnormalX,
-		* subnormalY;
-	if (subhex == NULL || target == NULL)
+		target = mapRelativeTarget (rel);
+	if (isPerfectFidelity (rel))
 	{
-		ERROR ("Can't calculate subhex offset: passed NULL subhex!", NULL);
-		return NULL;
+		mapRelativeDestroy (rel);
+		return target;
 	}
-	spanDiff = abs (subhexSpanLevel (target) - subhexSpanLevel (subhex));
-	if (spanDiff > 0)
-	{
-		if (subhexSpanLevel (subhex) < subhexSpanLevel (target))
-		{
-			smaller = &subhex;
-			spanGoal = subhexSpanLevel (target);
-		}
-		else
-		{
-			smaller = &target;
-			spanGoal = subhexSpanLevel (subhex);
-			spanDiff = subhexSpanLevel (subhex) - subhexSpanLevel (target);
-		}
-		subnormalX = xph_alloc (sizeof (signed int) * spanDiff);
-		subnormalY = xph_alloc (sizeof (signed int) * spanDiff);
-		trav = *smaller;
-		i = spanDiff;
-		while (i > 0)
-		{
-			i--;
-			subhexLocalCoordinates (trav, &subnormalX[i], &subnormalY[i]);
-			trav = subhexParent (trav);
-		}
-	}
-
-
-
-	// LOL THIS IS DEBUG TEXT; IGNORE THIS
-	if (spanDiff)
-	{
-		INFO ("the subhexes started at span level %d and %d, but now both are at %d", subhexSpanLevel (subhex), subhexSpanLevel (target), subhexSpanLevel (*smaller));
-		i = 0;
-		INFO ("Subnormal offsets for the smaller subhex are as follows:", NULL);
-		while (i < spanDiff)
-		{
-			INFO ("span %d: %d, %d", spanGoal - (i + 1), subnormalX[i], subnormalY[i]);
-			i++;
-		}
-	}
-	else
-	{
-		INFO ("the two subhexes are at the same initial span level (%d)", subhexSpanLevel (subhex));
-	}
-	
+	mapRelativeDestroy (rel);
 	return NULL;
 }
-*/
 
 
 SUBHEX mapRelativeTarget (const RELATIVEHEX relativePosition)
@@ -1557,7 +1515,6 @@ float mapDataGet (SUBHEX at, char * type)
 	return match->value;
 }
 
-
 static int mapIntrCmp (const void * a, const void * b)
 {
 	return strcmp ((*(struct mapDataEntry **)a)->type, (*(struct mapDataEntry **)b)->type);
@@ -1566,6 +1523,62 @@ static int mapIntrCmp (const void * a, const void * b)
 static int mapExtrCmp (const void * k, const void * d)
 {
 	return strcmp (k, (*(struct mapDataEntry **)d)->type);
+}
+
+
+
+
+void mapArchSet (SUBHEX at, ARCH arch)
+{
+	if (subhexSpanLevel (at) < 1)
+	{
+		ERROR ("Can't set arch (%p) on platter (%p) with span of %d; Arc not set", arch, at, subhexSpanLevel (at));
+		return;
+	}
+	dynarr_push (at->sub.arches, arch);
+}
+
+
+/* i don't know how to get arch info and i don't know when to call this function since there's no loading infrastructure still */
+void mapImprintAllArches (SUBHEX at)
+{
+	SUBHEX
+		hex;
+	signed int
+		cX, cY,
+		x, y,
+		height;
+	unsigned int
+		r, k, i;
+
+	if (subhexSpanLevel (at) != 1)
+		return;
+
+	r = rand () % (mapRadius + 1);
+	k = rand () % 6;
+	i = rand () % mapRadius;
+	hex_rki2xy (r, k, i, &cX, &cY);
+	hex = mapHexAtCoordinateAuto (at, cX, cY);
+	height = (rand () & 0x0f) + 5;
+	hex->hex.centre = height;
+	k = i = 0;
+	r = 1;
+	while (r < height)
+	{
+		hex_rki2xy (r, k, i, &x, &y);
+		x += cX;
+		y += cY;
+		hex = mapHexAtCoordinateAuto (at, x, y);
+		if (hex == NULL)
+		{
+			hex_nextValidCoord (&r, &k, &i);
+			continue;
+		}
+		if (hex->hex.centre < height - r)
+			hex->hex.centre = height - r;
+		hex_nextValidCoord (&r, &k, &i);
+	}
+
 }
 
 /***
@@ -1822,6 +1835,27 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 	}
 	RenderCache = mapAdjacentSubhexes (origin, AbsoluteViewLimit);
 	DEBUG ("set render cache to %p", RenderCache);
+
+	/* i really don't know if this is the right place for the imprinting code
+	 * -- it obviously has /something/ to do with rendering, but when we're
+	 * actually loading and saving platters instead of re-imprinting every
+	 * time the platter becomes visible i suspect this will pose a problem.
+	 * maybe???
+	 *   - xph 2011 07 28
+	 */
+	dynarr_map (RenderCache, mapRelativeTargetImprint);
+	dynarr_map (RenderCache, mapRelativeTargetBake);
+	
+}
+
+static void mapRelativeTargetImprint (void * rel_v)
+{
+	mapImprintAllArches (mapRelativeTarget (rel_v));
+}
+
+static void mapRelativeTargetBake (void * rel_v)
+{
+	mapBakeHexes (mapRelativeTarget (rel_v));
 }
 
 /*
@@ -1838,6 +1872,41 @@ void worldUpdateRenderCache (Entity player)
 	RenderCache = mapAdjacentSubhexes (PlayerSubhex, AbsoluteViewLimit);
 }
 */
+
+void mapBakeHexes (SUBHEX subhex)
+{
+	HEX
+		hex,
+		adj;
+	int
+		offset = 0,
+		dir = 0;
+	signed int
+		ax, ay;
+	if (subhexSpanLevel (subhex) != 1)
+		return;
+	while (offset < hx (mapRadius + 1))
+	{
+		hex = &subhex->sub.data[offset]->hex;
+		dir = 0;
+		while (dir < 6)
+		{
+			// i have reason to believe i should be using (dir + 1) % 6 here instead of dir
+			ax = hex->x + XY[(dir + 1) % 6][0];
+			ay = hex->y + XY[(dir + 1) % 6][1];
+			adj = &mapHexAtCoordinateAuto (hex->parent, ax, ay)->hex;
+			if (adj == NULL)
+			{
+				dir++;
+				continue;
+			}
+			hex->edgeBase[dir * 2] = FULLHEIGHT (adj, (dir + 4) % 6);
+			hex->edgeBase[dir * 2 + 1] = FULLHEIGHT (adj, (dir + 3) % 6);
+			dir++;
+		}
+		offset++;
+	}
+}
 
 void mapDraw ()
 {
@@ -1946,6 +2015,8 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 	glEnd ();
 	i = 0;
 	j = 1;
+
+	glColor3f (lR * .9, lG * .9, lB * .9);
 	while (i < 6)
 	{
 		if (hex->edgeBase[i * 2] >= corners[i] &&

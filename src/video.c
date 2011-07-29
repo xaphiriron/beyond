@@ -281,6 +281,7 @@ int video_handler (Object * o, objMsg msg, void * a, void * b) {
        */
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
       glMatrixMode (GL_MODELVIEW);
+		glLoadIdentity ();
       return EXIT_SUCCESS;
     case OM_POSTRENDER:
       glFlush();
