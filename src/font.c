@@ -43,7 +43,7 @@ void drawLine (const char * line, signed int x, signed int y)
 		letter;
 	sheetGetTextureSize (SystemFont, &sheetWidth, &sheetHeight);
 	glY += video_pixelYOffset (sheetGetGBaselineOffset (SystemFont));
-	glLineSpacing = video_pixelYOffset (sheetGetHeightRange (SystemFont) + 1);
+	glLineSpacing = video_pixelYOffset (sheetGetHeightRange (SystemFont));
 
 	glBindTexture (GL_TEXTURE_2D, sheetGetTexture (SystemFont)->id);
 	glBegin (GL_QUADS);
