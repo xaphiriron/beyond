@@ -1184,21 +1184,13 @@ bool mapScaleCoordinates (signed char relativeSpan, signed int x, signed int y, 
 	return TRUE;
 }
 
-/***
- * ??? what was the point of this function anyway; it seems like it'd be useful for calculating out of bound coordinates but only up to one step away, at which point it would being silently returning the wrong values since it can only return a single direction value, not the higher-span coordinates.
- */
-/*
-bool mapBridge (const signed int x, const signed int y, signed int * xp, signed int * yp, signed char * dir)
-{
-	return FALSE;
-}
-*/
-
 
 /* FIXME: this crashes when an attempt is made to get mapSpanCentres (0)
  * this is mostly useless; the values returned would be the same values as are
  * stored in XY in hex_utility.c. but it should still work right, since it is
  * called that way in practice quite frequently
+ * I'M PRETTY SURE I FIXED THIS WHY DIDN'T I UPDATE THIS NOTE???
+ *   - XPH 2011 07 29
  */
 static Dynarr
 	centreCache =  NULL;
@@ -1440,47 +1432,14 @@ void mapArchSet (SUBHEX at, ARCH arch)
 	dynarr_push (at->sub.arches, arch);
 }
 
-
-/* i don't know how to get arch info and i don't know when to call this function since there's no loading infrastructure still */
-void mapImprintAllArches (SUBHEX at)
+ARCH mapArchGet (SUBHEX at, int offset)
 {
-	SUBHEX
-		hex;
-	signed int
-		cX, cY,
-		x, y,
-		height;
-	unsigned int
-		r, k, i;
-
-	if (subhexSpanLevel (at) != 1)
-		return;
-
-	r = rand () % (mapRadius + 1);
-	k = rand () % 6;
-	i = rand () % mapRadius;
-	hex_rki2xy (r, k, i, &cX, &cY);
-	hex = mapHexAtCoordinateAuto (at, cX, cY);
-	height = (rand () & 0x0f) + 5;
-	hex->hex.centre = height;
-	k = i = 0;
-	r = 1;
-	while (r < height)
+	if (subhexSpanLevel (at) < 1)
 	{
-		hex_rki2xy (r, k, i, &x, &y);
-		x += cX;
-		y += cY;
-		hex = mapHexAtCoordinateAuto (at, x, y);
-		if (hex == NULL)
-		{
-			hex_nextValidCoord (&r, &k, &i);
-			continue;
-		}
-		if (hex->hex.centre < height - r)
-			hex->hex.centre = height - r;
-		hex_nextValidCoord (&r, &k, &i);
+		ERROR ("Can't get arches from platter (%p) with span on %d", at, subhexSpanLevel (at));
+		return NULL;
 	}
-
+	return *(ARCH *)dynarr_at (at->sub.arches, offset);
 }
 
 /***
@@ -1737,7 +1696,7 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 
 static void mapRelativeTargetImprint (void * rel_v)
 {
-	mapImprintAllArches (mapRelativeTarget (rel_v));
+	worldgenImprintAllArches (mapRelativeTarget (rel_v));
 }
 
 static void mapRelativeTargetBake (void * rel_v)

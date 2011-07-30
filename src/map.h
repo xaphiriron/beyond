@@ -107,8 +107,7 @@ float mapDataAdd (SUBHEX at, char * type, float amount);
 float mapDataGet (SUBHEX at, char * type);
 
 void mapArchSet (SUBHEX at, ARCH arch);
-
-void mapImprintAllArches (SUBHEX at);
+ARCH mapArchGet (SUBHEX at, int offset);
 
 /***
  * INFORMATIONAL / GETTER FUNCTIONS
