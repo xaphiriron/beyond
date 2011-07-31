@@ -1868,16 +1868,32 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 		if (hex->edgeBase[i * 2] >= corners[i] &&
 			hex->edgeBase[i * 2 + 1] >= corners[j])
 		{
-			i++;
-			j = (i + 1) % 6;
-			continue;
 		}
-		glBegin (GL_TRIANGLE_STRIP);
-		glVertex3f (totalOffset.x + H[i][0], corners[i] * HEX_SIZE_4, totalOffset.z + H[i][1]);
-		glVertex3f (totalOffset.x + H[j][0], corners[j] * HEX_SIZE_4, totalOffset.z + H[j][1]);
-		glVertex3f (totalOffset.x + H[i][0], (hex->edgeBase[i * 2]) * HEX_SIZE_4, totalOffset.z + H[i][1]);
-		glVertex3f (totalOffset.x + H[j][0], (hex->edgeBase[i * 2 + 1]) * HEX_SIZE_4, totalOffset.z + H[j][1]);
-		glEnd ();
+		else if (hex->edgeBase[i * 2] >= corners[i])
+		{
+			glBegin (GL_TRIANGLES);
+			glVertex3f (totalOffset.x + H[i][0], corners[i] * HEX_SIZE_4, totalOffset.z + H[i][1]);
+			glVertex3f (totalOffset.x + H[j][0], corners[j] * HEX_SIZE_4, totalOffset.z + H[j][1]);
+			glVertex3f (totalOffset.x + H[j][0], hex->edgeBase[i * 2 + 1] * HEX_SIZE_4, totalOffset.z + H[j][1]);
+			glEnd ();
+		}
+		else if (hex->edgeBase[i * 2 + 1] >= corners[j])
+		{
+			glBegin (GL_TRIANGLES);
+			glVertex3f (totalOffset.x + H[i][0], corners[i] * HEX_SIZE_4, totalOffset.z + H[i][1]);
+			glVertex3f (totalOffset.x + H[j][0], corners[j] * HEX_SIZE_4, totalOffset.z + H[j][1]);
+			glVertex3f (totalOffset.x + H[i][0], hex->edgeBase[i * 2] * HEX_SIZE_4, totalOffset.z + H[i][1]);
+			glEnd ();
+		}
+		else
+		{
+			glBegin (GL_TRIANGLE_STRIP);
+			glVertex3f (totalOffset.x + H[i][0], corners[i] * HEX_SIZE_4, totalOffset.z + H[i][1]);
+			glVertex3f (totalOffset.x + H[j][0], corners[j] * HEX_SIZE_4, totalOffset.z + H[j][1]);
+			glVertex3f (totalOffset.x + H[i][0], (hex->edgeBase[i * 2]) * HEX_SIZE_4, totalOffset.z + H[i][1]);
+			glVertex3f (totalOffset.x + H[j][0], (hex->edgeBase[i * 2 + 1]) * HEX_SIZE_4, totalOffset.z + H[j][1]);
+			glEnd ();
+		}
 		i++;
 		j = (i + 1) % 6;
 	}
