@@ -45,7 +45,12 @@ bool hexPole_centerDistanceCoord (unsigned int dir, signed int * xp, signed int 
 /* draw a line between the centre of hex :x,:y and the centre of hex 0,0.
  * return the x,y coordinate (in *xp / *yp) of the :steps-th hex the line passes
  * through, or 0,0 if there aren't that many hexes
- * (this doesn't actually work right)
+ * actual return value is the number of steps left before 0,0 is reached, which
+ * may be negative if 0,0 has been reached
+ * (this doesn't work right: coordinates are returned in such a way as to
+ * generate a continuous line from the original x,y to the origin, but the
+ * path as calculated isn't the same as the hexes touched by a line from :x,:y
+ * to 0,0)
  */
 signed int hex_stepLineToOrigin (signed int x, signed int y, unsigned int steps, signed int * xp, signed int * yp);
 

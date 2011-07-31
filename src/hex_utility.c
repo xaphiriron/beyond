@@ -234,16 +234,15 @@ bool hexPole_centerDistanceCoord (unsigned int dir, signed int * xp, signed int 
 	return hex_centerDistanceCoord (poleRadius, dir, xp, yp);
 }
 
-
-/* okay i don't really know the right way to code this. the wrong way would be
- * to convert the x,y coord to a vector and subtract 52 from its magnitude,
- * then convert it back to a x,y coord. but i'm sure there's a better way of
- * doing this.
- *   - xph 2011 07 29
- * (of course this doesn't actually work right because there's no guarantee
- * that blindly subtracting the average diameter of a hex will line up with
- * the actual hex layout on any specific vector line)
- *   - still xph 2011 07 29
+/* draw a line between the centre of hex :x,:y and the centre of hex 0,0.
+ * return the x,y coordinate (in *xp / *yp) of the :steps-th hex the line passes
+ * through, or 0,0 if there aren't that many hexes.
+ * actual return value is the number of steps left before 0,0 is reached, which
+ * may be negative if 0,0 has been reached
+ * (this doesn't work right: coordinates are returned in such a way as to
+ * generate a continuous line from the original x,y to the origin, but the
+ * path as calculated isn't the same as the hexes touched by a line from :x,:y
+ * to 0,0)
  */
 signed int hex_stepLineToOrigin (signed int x, signed int y, unsigned int steps, signed int * xp, signed int * yp)
 {
@@ -258,7 +257,7 @@ signed int hex_stepLineToOrigin (signed int x, signed int y, unsigned int steps,
 		{
 			*xp = 0;
 			*yp = 0;
-			return -1;
+			return -steps;
 		}
 		r--;
 		if (i >= r / 2 && i > 0)
@@ -266,7 +265,7 @@ signed int hex_stepLineToOrigin (signed int x, signed int y, unsigned int steps,
 		steps--;
 	}
 	hex_rki2xy (r, k, i, xp, yp);
-	return 1;
+	return r;
 }
 
 unsigned char hex_dirHashFromYaw (float yaw)
