@@ -42,9 +42,19 @@ bool hex_centerDistanceCoord (unsigned int radius, unsigned int dir, signed int 
 bool hexGround_centerDistanceCoord (unsigned int radius, unsigned int dir, signed int * xp, signed int * yp);
 bool hexPole_centerDistanceCoord (unsigned int dir, signed int * xp, signed int * yp);
 
+/* draw a line between the centre of hex :x,:y and the centre of hex 0,0.
+ * return the x,y coordinate (in *xp / *yp) of the :steps-th hex the line passes
+ * through, or 0,0 if there aren't that many hexes
+ * (this doesn't actually work right)
+ */
+signed int hex_stepLineToOrigin (signed int x, signed int y, unsigned int steps, signed int * xp, signed int * yp);
+
+unsigned char hex_dir (const signed int x, const signed int y);
+
 unsigned char hex_dirHashFromYaw (float yaw);
 unsigned char hex_dirHashFromCoord (signed int x, signed int y);
 unsigned char hex_dirHashCmp (unsigned char a, unsigned char b);
+
 
 /***
  * generic hex functions involving vectors:

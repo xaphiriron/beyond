@@ -235,6 +235,77 @@ bool hexPole_centerDistanceCoord (unsigned int dir, signed int * xp, signed int 
 }
 
 
+/* okay i don't really know the right way to code this. the wrong way would be
+ * to convert the x,y coord to a vector and subtract 52 from its magnitude,
+ * then convert it back to a x,y coord. but i'm sure there's a better way of
+ * doing this.
+ *   - xph 2011 07 29
+ * (of course this doesn't actually work right because there's no guarantee
+ * that blindly subtracting the average diameter of a hex will line up with
+ * the actual hex layout on any specific vector line)
+ *   - still xph 2011 07 29
+ */
+signed int hex_stepLineToOrigin (signed int x, signed int y, unsigned int steps, signed int * xp, signed int * yp)
+{
+/*
+	unsigned int
+		r, k, i;
+	if (xp == NULL || yp == NULL)
+		return -1;
+	hex_xy2rki (x, y, &r, &k, &i);
+	if (r == 0)
+	{
+		*xp = 0;
+		*yp = 0;
+		return 0;
+	}
+	if (i != 0)
+	{
+		if (rand () & 0x01)
+			i--;
+		else
+			r--;
+	}
+	else
+		r--;
+	hex_rki2xy (r, k, i, xp, yp);
+	return 1;
+*/
+	VECTOR3
+		sp = hex_xyCoord2Space (x, y);
+	signed int
+		nx = 0,
+		ny = 0,
+		totalSteps,
+		stepsLeft;
+	float
+		mag;
+	if (xp == NULL || yp == NULL)
+		return -1;
+	totalSteps = (vectorMagnitude (&sp) / 42);
+	while (steps > 0 && (mag = vectorMagnitude (&sp)) > 30)
+	{
+		stepsLeft = mag / 42.0;
+		sp = vectorMultiplyByScalar (&sp, (float)(stepsLeft - 1) / stepsLeft);
+		hex_space2coord (&sp, &nx, &ny);
+		steps--;
+	}
+	*xp = nx;
+	*yp = ny;
+	if (steps)
+		return -1;
+	return 0;
+}
+
+
+unsigned char hex_dir (const signed int x, const signed int y)
+{
+	unsigned int
+		r = 0, k = 0, i = 0;
+	hex_xy2rki (x, y, &r,&k, &i);
+	return k;
+}
+
 
 unsigned char hex_dirHashFromYaw (float yaw)
 {
