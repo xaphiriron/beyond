@@ -247,65 +247,27 @@ bool hexPole_centerDistanceCoord (unsigned int dir, signed int * xp, signed int 
  */
 signed int hex_stepLineToOrigin (signed int x, signed int y, unsigned int steps, signed int * xp, signed int * yp)
 {
-/*
 	unsigned int
 		r, k, i;
 	if (xp == NULL || yp == NULL)
 		return -1;
 	hex_xy2rki (x, y, &r, &k, &i);
-	if (r == 0)
+	while (steps > 0)
 	{
-		*xp = 0;
-		*yp = 0;
-		return 0;
-	}
-	if (i != 0)
-	{
-		if (rand () & 0x01)
-			i--;
-		else
-			r--;
-	}
-	else
+		if (r == 0)
+		{
+			*xp = 0;
+			*yp = 0;
+			return -1;
+		}
 		r--;
-	hex_rki2xy (r, k, i, xp, yp);
-	return 1;
-*/
-	VECTOR3
-		sp = hex_xyCoord2Space (x, y);
-	signed int
-		nx = 0,
-		ny = 0,
-		totalSteps,
-		stepsLeft;
-	float
-		mag;
-	if (xp == NULL || yp == NULL)
-		return -1;
-	totalSteps = (vectorMagnitude (&sp) / 42);
-	while (steps > 0 && (mag = vectorMagnitude (&sp)) > 30)
-	{
-		stepsLeft = mag / 42.0;
-		sp = vectorMultiplyByScalar (&sp, (float)(stepsLeft - 1) / stepsLeft);
-		hex_space2coord (&sp, &nx, &ny);
+		if (i >= r / 2 && i > 0)
+			i--;
 		steps--;
 	}
-	*xp = nx;
-	*yp = ny;
-	if (steps)
-		return -1;
-	return 0;
+	hex_rki2xy (r, k, i, xp, yp);
+	return 1;
 }
-
-
-unsigned char hex_dir (const signed int x, const signed int y)
-{
-	unsigned int
-		r = 0, k = 0, i = 0;
-	hex_xy2rki (x, y, &r,&k, &i);
-	return k;
-}
-
 
 unsigned char hex_dirHashFromYaw (float yaw)
 {
