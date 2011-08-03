@@ -7,6 +7,11 @@
 
 #include "map.h"
 
+enum system_toggle_states
+{
+	SYS_DEBUG = 1,
+};
+
 enum system_states
 {
 	STATE_ERROR				= 0x0000,
@@ -34,7 +39,8 @@ typedef struct system
 		* acc;
 
 	bool
-		quit;
+		quit,
+		debug;
 } SYSTEM;
 
 extern SYSTEM * System;
@@ -95,6 +101,8 @@ void systemPlacePlayerAt (const SUBHEX subhex);
 void systemStart (void);
 void systemUpdate (void);
 void systemRender (void);
+
+bool systemToggleAttr (enum system_toggle_states toggle);
 
 int system_message (objMsg msg, void * a, void * b);
 

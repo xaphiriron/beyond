@@ -28,20 +28,27 @@ struct loadingdata
 		displayText[LOADERTEXTBUFFERSIZE];
 };
 
+#define DEBUGLEN	256
+char
+	debugDisplay[DEBUGLEN];
+
 static struct loadingdata SysLoader;
 
 static void systemInitialize (void);
+static void systemUpdateDebugStr (void);
 
 SYSTEM * System = NULL;
 
 
-SYSTEM * system_create () {
+SYSTEM * system_create ()
+{
 	SYSTEM
 		* s = xph_alloc (sizeof (SYSTEM));
 	TIMER
 		t = timerCreate ();
 
 	s->quit = FALSE;
+	s->debug = FALSE;
 
 	s->clock = clock_create ();
 	s->timer_mult = 1.0;
@@ -50,7 +57,7 @@ SYSTEM * system_create () {
 	timerSetScale (t, s->timer_mult);
 	s->acc = accumulator_create (t, s->timestep);
 	// this ought to force the update code to run once the first time through - xph 2011 06 17
-	s->acc->accumulated = s->timestep * 1.1;
+	s->acc->accumulated = s->timestep * 1.01;
 
 	s->state = dynarr_create (4, sizeof (enum system_states));
 	dynarr_push (s->state, STATE_LOADING);
@@ -478,19 +485,68 @@ void systemRender (void)
 	glLoadIdentity ();
 	glDisable (GL_DEPTH_TEST);
 	glColor3f (0.0, 0.0, 0.0);
-	drawLine ("oh have you ever felt so god damn strong\nhow come it takes some people so damn long", 8, 8);
-/*
-	drawLine ("open up and keep on climbing\nhigher and higher and higher", 8, 8);
-	drawLine ("don't you want to come with me\ndon't you want to feel my bones\non your bones", 8, 8);
-	drawLine ("are you listening? sing it back", 8, 8);
-	drawLine ("farther from you every day", 8, 8);
-	drawLine ("hello again why so old wasn't time your friend i must be told hello again it seems so long since we last met how has it gone", 0, 0);
-	drawLine ("i pledge allegiance to gasoline and bulletproof limosines and leans on the property of the poor and every night i pray to the lords of war", 0, 0);
-	drawLine ("shining bright in a sea of fools; oh i can sing you out of this cave shake your mermaid blues", 0, 0);
-	drawLine ("we are breathing we are seething we are hardly underway we have high hopes like the old popes even st. peter's bones decay", 0, 18);
-*/
+	if (System->debug)
+	{
+		systemUpdateDebugStr ();
+		drawLine (debugDisplay, 8, 8);
+	}
+	else
+	{
+		drawLine ("oh have you ever felt so god damn strong\nhow come it takes some people so damn long", 8, 8);
+		/*
+		drawLine ("open up and keep on climbing\nhigher and higher and higher", 8, 8);
+		drawLine ("don't you want to come with me\ndon't you want to feel my bones\non your bones", 8, 8);
+		drawLine ("are you listening? sing it back", 8, 8);
+		drawLine ("farther from you every day", 8, 8);
+		drawLine ("hello again why so old wasn't time your friend i must be told hello again it seems so long since we last met how has it gone", 0, 0);
+		drawLine ("i pledge allegiance to gasoline and bulletproof limosines and leans on the property of the poor and every night i pray to the lords of war", 0, 0);
+		drawLine ("we are breathing we are seething we are hardly underway we have high hopes like the old popes even st. peter's bones decay", 0, 18);
+		drawLine ("shining bright in a sea of fools; oh i can sing you out of this cave shake your mermaid blues", 0, 0);
+	*/
+	}
 	glEnable (GL_DEPTH_TEST);
 	obj_messagePre (VideoObject, OM_POSTRENDER, NULL, NULL);
+}
+
+bool systemToggleAttr (enum system_toggle_states toggle)
+{
+	switch (toggle)
+	{
+		case SYS_DEBUG:
+			System->debug ^= 1;
+			return System->debug;
+		default:
+			break;
+	}
+	return FALSE;
+}
+
+static void systemUpdateDebugStr (void)
+{
+	signed int
+		x = 0,
+		y = 0,
+		len = 0;
+	Entity
+		player = input_getPlayerEntity ();
+	SUBHEX
+		trav = position_getGround (player);
+	char
+		buffer[64];
+	
+	memset (debugDisplay, 0, DEBUGLEN);
+	len = snprintf (buffer, 63, "Player Entity: #%d\nCamera Entity: #%d\n\nPosition\n", entity_GUID (player), entity_GUID (camera_getActiveCamera ()));
+	strncpy (debugDisplay, buffer, len);
+	len += snprintf (buffer, 63, "World\n\tSpan: %d\n\tRadius: %d\n", mapGetSpan (), mapGetRadius ());
+	strncat (debugDisplay, buffer, DEBUGLEN - len);
+	
+	while (trav != NULL)
+	{
+		subhexLocalCoordinates (trav, &x, &y);
+		len += snprintf (buffer, 63, "\t%d: %d, %d\n", subhexSpanLevel (trav), x, y);
+		strncat (debugDisplay, buffer, DEBUGLEN - len);
+		trav = subhexParent (trav);
+	}
 }
 
 /***

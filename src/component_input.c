@@ -101,6 +101,8 @@ struct input * input_create ()
 	dynarr_assign (i->controlMap, IR_AVATAR_AUTOMOVE, keys_create (1, SDLK_q));
 	dynarr_assign (i->controlMap, IR_CAMERA_MODE_SWITCH, keys_create (1, SDLK_TAB));
 	dynarr_assign (i->controlMap, IR_WORLDMAP_SWITCH, keys_create (1, SDLK_SLASH));
+
+	dynarr_assign (i->controlMap, IR_DEBUG_SWITCH, keys_create (1, SDLK_F3));
 	return i;
 }
 
@@ -232,6 +234,9 @@ void input_sendGameEventMessage (const struct input_event * ie) {
 			{
 				DEBUG ("Some other panel exists; let's not", NULL);
 			}
+			break;
+		case IR_DEBUG_SWITCH:
+			systemToggleAttr (SYS_DEBUG);
 			break;
 		default:
 			break;

@@ -44,6 +44,7 @@ enum input_responses {
   IR_VIEW_WIREFRAME_SWITCH,
 
 	IR_WORLDMAP_SWITCH,
+	IR_DEBUG_SWITCH,
   IR_QUIT,
 
   IR_FINAL

@@ -48,6 +48,16 @@ bool mapSetSpanAndRadius (const unsigned char span, const unsigned char radius)
 	return TRUE;
 }
 
+unsigned char mapGetSpan ()
+{
+	return MapSpan;
+}
+
+unsigned char mapGetRadius ()
+{
+	return MapRadius;
+}
+
 bool mapGeneratePoles (const enum mapPoleTypes type)
 {
 	int
