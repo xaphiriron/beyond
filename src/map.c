@@ -1121,7 +1121,8 @@ bool mapScaleCoordinates (signed char relativeSpan, signed int x, signed int y, 
 	signed int
 		scaledX = 0,
 		scaledY = 0,
-		i = 0;
+		i = 0,
+		failedDirections = 0;
 	if (xRemainder)
 		*xRemainder = 0;
 	if (yRemainder)
@@ -1162,27 +1163,41 @@ bool mapScaleCoordinates (signed char relativeSpan, signed int x, signed int y, 
 	}
 	// step up in span, which means coordinate values gain range but lose resolution, and non-zero values get smaller and may be truncated.
 	centres = mapSpanCentres (relativeSpan);
-	while (i < 6)
+
+
+	/* there's a slight simplification that i'm not using here since idk how
+	 * to put it in a way that actually simplifies the code: if index i can be
+	 * subtracted, then either index i + 1 % 6 or index i - 1 % 6 can also be
+	 * subtracted, and no other values can. since we iterate from 0..5, if 0
+	 * hits the other value may be 1 OR 5; in all other cases if i is a hit
+	 * then i + 1 % 6 is the other hit
+	 *  - xph 2011-05-29
+	 */
+	/* see above; there's a categorical way to do this that's not just "keep
+	 * going until every direction fails" but i don't know how to write it
+	 * yet.
+	 *   - xph 2011 08 06
+	 */
+	while (failedDirections < 6)
 	{
-		/* there's a slight simplification that i'm not using here since
-		 * idk how to put it in a way that actually simplifies the code:
-		 * if index i can be subtracted, then either index i + 1 % 6 or
-		 * index i - 1 % 6 can also be subtracted, and no other values
-		 * can. since we iterate from 0..5, if 0 hits the other value may
-		 * be 1 OR 5; in all other cases if i is a hit then i + 1 % 6 is
-		 * the other hit
-		 *  - xph 2011-05-29
-		 */
-		while (hexMagnitude (x - centres[i * 2], y - centres[i * 2 + 1]) < hexMagnitude (x, y))
+		failedDirections = 0;
+		i = 0;
+		while (i < 6)
 		{
-			x -= centres[i * 2];
-			y -= centres[i * 2 + 1];
-			scaledX += XY[i][X];
-			scaledY += XY[i][Y];
-			/* DEBUG ("scaled to %d, %d w/ rem %d, %d", scaledX, scaledY, x, y); */
+			if (hexMagnitude (x - centres[i * 2], y - centres[i * 2 + 1]) < hexMagnitude (x, y))
+			{
+				x -= centres[i * 2];
+				y -= centres[i * 2 + 1];
+				scaledX += XY[i][X];
+				scaledY += XY[i][Y];
+				DEBUG ("scaled to %d, %d w/ rem %d, %d", scaledX, scaledY, x, y);
+			}
+			else
+				failedDirections++;
+			i++;
 		}
-		i++;
 	}
+
 	*xp = scaledX;
 	*yp = scaledY;
 	if (xRemainder)
