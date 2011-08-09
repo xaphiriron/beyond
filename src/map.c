@@ -868,43 +868,24 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 	}
 	rel->target = goal;
 
-	/* we're using a seperate distX/Y instead of rel->x/y because if we change the rel values it becomes impossible to generate the target subhex from a low-precision RELATIVEHEX, since the rel-> values map directly to subhex local coordinates
+	/* we're using a seperate goalX/Y instead of rel->x/y because if we change the rel values it becomes impossible to generate the target subhex from a low-precision RELATIVEHEX, since the rel-> values map directly to subhex local coordinates
 	 * also we're doing this calculation seperately from the actual goal traversal step, above, because while we don't care if the goal is at low-resolution, it's pretty vitally important that we always have the coordinate and distance information set for every RELATIVEHEX
 	 * - xph 2011 06 04
+	 * (as such this code should be spun out into its own function so it can
+	 * be reused in other map traversal code)
+	 * FIXME: i'm almost certain this will fail when crossing a pole
+	 *  - xph 2011 08 09
 	 */
-	/* mentally replace every instance of 'distX/Y' in the above with 'goalX/Y'; also this code never worked right so what i wrote before is mostly meaningless
-	 * (the intent is for all the code below to be spun off into its own function so it can be reused for SubhexWithSubhex, below. but before that will work I need to isolate the variables needed-- ideally it should just require the start/goalX/Y pointers, but i still don't know what's the deal with the i-value and whatever is needed to get that if/else involving mapScaleCoordinates to work right)
-	 *  - xph 2011 06 18
-	 */
-	i = spanRange;
-	//DEBUG ("*** BEGINNING RELATIVE DISTANCE CALCULATIONS (%d) ***", i);
+	DEBUG ("*** BEGINNING RELATIVE DISTANCE CALCULATIONS (%d) ***", i);
+	i = MapSpan - 1;
 	while (i > 0)
 	{
+		mapScaleCoordinates (-1, goalX[i], goalY[i], &lX, &lY, NULL, NULL);
+
 		i--;
 
-		//DEBUG ("index %d:", i);
-		//DEBUG ("goal remainder: %d, %d; start coordinates: %d, %d", goalX[i], goalY[i], startX[i], startY[i]);
-
-		//DEBUG ("i: %d, spanRange: %d", i, spanRange);
-		//DEBUG ("netX/Y: %d, %d", netX, netY);
-		/* FIXME: this won't work in all cases. specifically when crossing a pole this will overrun and then no one will be happy (except it won't, because i is set to spanRange and that's always < MapSpan, but spanRange isn't the right value to use AT ALL, like, categorically, it's just an arbitrary vaue that happens to be large enough to work in most cases; the right value would have something to do with the number of up-traversals required. also i don't really know how well this whole scheme works if we're not trying to calculate a span 0 position, since it seems like a lot of this code will fail if i doesn't match the current span level OH GOD EVERYTHING IS SO COMPLICATED)
-		 *  - xph 2011 06 18
-		 */
-		mapScaleCoordinates (-1, goalX[i + 1], goalY[i + 1], &lX, &lY, NULL, NULL);
-/*
-		if (i > spanRange)
-			mapScaleCoordinates (-1, netX, netY, &lX, &lY, NULL, NULL);
-		else
-			mapScaleCoordinates (-1, goalX[i + 1], goalY[i + 1], &lX, &lY, NULL, NULL);
-*/
-		lX += goalX[i];
-		lY += goalY[i];
-
-		//DEBUG ("goal distance from start center: %d, %d", lX, lY);
-		//DEBUG ("net distance (%d): %d, %d", i, lX - startX[i], lY - startY[i]);
-		// i don't know if this actually works right when there's more than one level of traversing going on here, but i /think/ it's right
-		goalX[i] = lX - startX[i];
-		goalY[i] = lY - startY[i];
+		goalX[i] += lX - startX[i];
+		goalY[i] += lY - startY[i];
 	}
 
 	rel->distance = vectorCreate (0.0, 0.0, 0.0);
