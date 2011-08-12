@@ -13,7 +13,7 @@ struct walkmove_data {
 walkingComponent walking_create (float move, float turn)
 {
 	walkingComponent w = xph_alloc (sizeof (struct walkmove_data));
-	w->moveSpd = fabs (move) * 60.0;
+	w->moveSpd = fabs (move) * 52.0;
 	w->turnSpd = fabs (turn);
 	w->dirsActive = 0;
 	w->automoveActive = FALSE;
@@ -235,7 +235,7 @@ int component_walking (Object * o, objMsg msg, void * a, void * b)
 		case OM_COMPONENT_INIT_DATA:
 			e = (Entity)b;
 			wd = a;
-			*wd = walking_create (3.0, 2.0);
+			*wd = walking_create (5.0, 2.0);
 			dynarr_push (comp_entdata, e);
 			return EXIT_SUCCESS;
 		case OM_COMPONENT_DESTROY_DATA:
