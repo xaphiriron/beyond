@@ -465,7 +465,7 @@ void systemRender (void)
 		if (matrix != NULL)
 			glLoadMatrixf (matrix);
 		mapDraw ();
-		if (systemGetState (System) == STATE_FREEVIEW)
+		if (systemGetState (System) == STATE_FREEVIEW && camera_getMode (camera) == CAMERA_FIRST_PERSON)
 			camera_drawCursor ();
 	}
 
