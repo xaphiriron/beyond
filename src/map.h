@@ -93,7 +93,6 @@ VECTOR3 mapRelativeDistance (const RELATIVEHEX relPos);
 bool isPerfectFidelity (const RELATIVEHEX relPos);
 void mapRelativeDestroy (RELATIVEHEX rel);
 
-
 VECTOR3 mapDistanceFromSubhexCentre (const unsigned char spanLevel, const signed int x, const signed int y);
 bool mapVectorOverrunsPlatter (const unsigned char span, const VECTOR3 * vector);
 bool mapScaleCoordinates (signed char relativeSpan, signed int x, signed int y, signed int * xp, signed int * yp, signed int * xRemainder, signed int * yRemainder);
@@ -104,9 +103,9 @@ signed int * const mapSpanCentres (const unsigned char span);
  * MAP DATA LAYER FUNCTIONS
  */
 
-void mapDataSet (SUBHEX at, char * type, float amount);
-float mapDataAdd (SUBHEX at, char * type, float amount);
-float mapDataGet (SUBHEX at, char * type);
+void mapDataSet (SUBHEX at, char * type, signed int amount);
+signed int mapDataAdd (SUBHEX at, char * type, signed int amount);
+signed int mapDataGet (SUBHEX at, char * type);
 
 void mapArchSet (SUBHEX at, ARCH arch);
 ARCH mapArchGet (SUBHEX at, int offset);

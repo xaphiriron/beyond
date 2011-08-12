@@ -1360,7 +1360,7 @@ static void mapDataDestroy (struct mapData * md)
 	xph_free (md);
 }
 
-void mapDataSet (SUBHEX at, char * type, float amount)
+void mapDataSet (SUBHEX at, char * type, signed int amount)
 {
 	struct mapDataEntry
 		* match;
@@ -1378,21 +1378,21 @@ void mapDataSet (SUBHEX at, char * type, float amount)
 	match->value = amount;
 }
 
-float mapDataAdd (SUBHEX at, char * type, float amount)
+signed int mapDataAdd (SUBHEX at, char * type, signed int amount)
 {
 	struct mapDataEntry
 		* match;
 	if (subhexSpanLevel (at) == 0)
 	{
 		ERROR ("Can't set map data (\"%s\", %f) of specific tile %p", type, amount, at);
-		return 0.0;
+		return 0;
 	}
 	match = *(struct mapDataEntry **)dynarr_search (at->sub.mapInfo->entries, mapExtrCmp, type);
 	if (match == NULL)
 	{
 		match = xph_alloc (sizeof (struct mapDataEntry));
 		strncpy (match->type, type, 32);
-		match->value = 0.0;
+		match->value = 0;
 		dynarr_push (at->sub.mapInfo->entries, match);
 		dynarrSortFinal (at->sub.mapInfo->entries, mapIntrCmp, 1);
 	}
@@ -1400,29 +1400,34 @@ float mapDataAdd (SUBHEX at, char * type, float amount)
 	return match->value;
 }
 
-float mapDataGet (SUBHEX at, char * type)
+signed int mapDataGet (SUBHEX at, char * type)
 {
 	struct mapDataEntry
 		* match;
-	if (subhexSpanLevel (at) == 0)
+	if (at == NULL || subhexSpanLevel (at) == 0)
 	{
-		ERROR ("Can't get map data (\"%s\") of specific tile %p", type, at);
-		return 0.0;
+		INFO ("Can't get map data (\"%s\") of specific tile/non-existant subhex %p", type, at);
+		return 0;
 	}
 	match = *(struct mapDataEntry **)dynarr_search (at->sub.mapInfo->entries, mapExtrCmp, type);
 	if (match == NULL)
-		return 0.0;
+	{
+		INFO ("No such map data (\"%s\") exists on subhex %p", type, at);
+		return 0;
+	}
 	return match->value;
 }
 
 static int mapIntrCmp (const void * a, const void * b)
 {
+	//DEBUG ("%s: \"%s\" vs. \"%s\"", __FUNCTION__, (*(struct mapDataEntry **)a)->type, (*(struct mapDataEntry **)b)->type);
 	return strcmp ((*(struct mapDataEntry **)a)->type, (*(struct mapDataEntry **)b)->type);
 }
 
 static int mapExtrCmp (const void * k, const void * d)
 {
-	return strcmp (k, (*(struct mapDataEntry **)d)->type);
+	//DEBUG ("%s: \"%s\" vs. \"%s\"", __FUNCTION__, *(char **)k, (*(struct mapDataEntry **)d)->type);
+	return strcmp (*(char **)k, (*(struct mapDataEntry **)d)->type);
 }
 
 
@@ -1672,6 +1677,7 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 		INFO ("%s called with repeat origin (%p). already set; ignoring", __FUNCTION__, origin);
 		return;
 	}
+	RenderOrigin = origin;
 	//assert (subhexSpanLevel (origin) == 1);
 	if (subhexSpanLevel (origin) == 0)
 	{
@@ -1696,32 +1702,23 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 	 *   - xph 2011 07 28
 	 */
 	dynarr_map (RenderCache, mapRelativeTargetImprint);
-	dynarr_map (RenderCache, mapRelativeTargetBake);
+	//dynarr_map (RenderCache, mapRelativeTargetBake);
 	
 }
 
 static void mapRelativeTargetImprint (void * rel_v)
 {
-	worldgenImprintAllArches (mapRelativeTarget (rel_v));
-}
-
-static void mapRelativeTargetBake (void * rel_v)
-{
-	mapBakeHexes (mapRelativeTarget (rel_v));
+	if (isPerfectFidelity (rel_v))
+	{
+		worldgenImprintMapData (mapRelativeTarget (rel_v));
+		worldgenImprintAllArches (mapRelativeTarget (rel_v));
+	}
 }
 
 /*
-void worldUpdateRenderCache (Entity player)
+static void mapRelativeTargetBake (void * rel_v)
 {
-	SUBHEX
-		new = position_getGround (player);
-	if (PlayerSubhex == new)
-		return;
-	if (subhexSpanLevel (new) != 1)
-		WARNING ("The player's location isn't at maximum resolution; this may be a problem", NULL);
-	if (RenderCache != NULL)
-		dynarr_destroy (RenderCache);
-	RenderCache = mapAdjacentSubhexes (PlayerSubhex, AbsoluteViewLimit);
+	mapBakeHexes (mapRelativeTarget (rel_v));
 }
 */
 
@@ -1782,9 +1779,14 @@ void mapDraw ()
 	while (i < tier1Detail)
 	{
 		rel = *(RELATIVEHEX *)dynarr_at (RenderCache, i);
-		//DEBUG ("trying to render the subhex %d-th in the cache (relativehex val: %p)", i, rel);
+		if (!isPerfectFidelity (rel))
+		{
+			i++;
+			continue;
+		}
+		DEBUG ("trying to render the subhex %d-th in the cache (relativehex val: %p)", i, rel);
 		centreOffset = mapRelativeDistance (rel);
-		//DEBUG (" - centre offset: %f %f %f", centreOffset.x, centreOffset.y, centreOffset.z);
+		DEBUG (" - centre offset: %f %f %f", centreOffset.x, centreOffset.y, centreOffset.z);
 		sub = mapRelativeTarget (rel);
 		//DEBUG (" - target: %p", sub);
 		i++;

@@ -48,6 +48,7 @@ const GRAPH worldgenWorldGraph ();
 
 PATTERN patternCreate ();
 
+void worldgenImprintMapData (SUBHEX at);
 void worldgenImprintAllArches (SUBHEX at);
 
 #endif /* XPH_WORLDGEN_H */

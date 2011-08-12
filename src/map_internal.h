@@ -58,7 +58,7 @@ struct mapDataEntry
 {
 	char
 		type[32];
-	float
+	signed int
 		value;
 };
 
