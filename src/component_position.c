@@ -402,6 +402,31 @@ float position_getRollR (const POSITION p)
 	return atan2 (p->view.up.z, p->view.up.x);
 }
 
+
+
+bool position_getCoordOffset (const Entity e, signed int * xp, signed int * yp)
+{
+	struct position_data
+		* pdata = component_getData (entity_getAs (e, "position"));
+	return position_getCoordOffsetR (pdata, xp, yp);
+}
+
+bool position_getCoordOffsetR (const POSITION p, signed int * xp, signed int * yp)
+{
+	if (p == NULL)
+	{
+		if (xp)
+			*xp = 0;
+		if (yp)
+			*yp = 0;
+		return FALSE;
+	}
+	hex_space2coord (&p->pos, xp, yp);
+	return TRUE;
+}
+
+
+
 VECTOR3 position_getLocalOffset (const Entity e)
 {
 	struct position_data

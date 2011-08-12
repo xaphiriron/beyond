@@ -542,6 +542,10 @@ static void systemUpdateDebugStr (void)
 	strncpy (debugDisplay, buffer, len);
 	len += snprintf (buffer, 63, "World\n\tSpan: %d\n\tRadius: %d\n", mapGetSpan (), mapGetRadius ());
 	strncat (debugDisplay, buffer, DEBUGLEN - len);
+
+	position_getCoordOffset (player, &x, &y);
+	len += snprintf (buffer, 63, "\t0: %d, %d\n", x, y);
+	strncat (debugDisplay, buffer, DEBUGLEN - len);
 	
 	while (trav != NULL)
 	{

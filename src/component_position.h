@@ -53,6 +53,8 @@ float position_getHeadingR (const POSITION p);
 float position_getPitchR (const POSITION p);
 float position_getRollR (const POSITION p);
 
+bool position_getCoordOffset (const Entity e, signed int * xp, signed int * yp);
+bool position_getCoordOffsetR (const POSITION p, signed int * xp, signed int * yp);
 VECTOR3 position_getLocalOffset (const Entity e);
 VECTOR3 position_getLocalOffsetR (const POSITION p);
 QUAT position_getOrientation (const Entity e);
