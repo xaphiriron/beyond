@@ -18,6 +18,27 @@ void loadFont (const char * path)
 	SystemFont = sheetCreate (path, SHEET_MULTISIZE);
 }
 
+static enum textAlignType
+	TextAlign = ALIGN_LEFT;
+enum textAlignType textAlign (enum textAlignType align)
+{
+	switch (align)
+	{
+		case ALIGN_LEFT:
+		case ALIGN_RIGHT:
+/*
+		case ALIGN_CENTRE:
+		case ALIGN_JUSTIFY:
+*/
+			TextAlign = align;
+			break;
+		default:
+			WARNING ("Can't set text alignment: Invalid type (%d)", align);
+			break;
+	}
+	return TextAlign;
+}
+
 void drawLine (const char * line, signed int x, signed int y)
 {
 	float
@@ -29,7 +50,7 @@ void drawLine (const char * line, signed int x, signed int y)
 		glLetterHeight = 0,
 		glLetterHeightOffset = 0,
 		glNear = video_getZnear (),
-		leftMargin = glX,
+		startingLine = glX,
 		tx, ty, tw, th;
 	signed int
 		lx, ly,
@@ -48,15 +69,26 @@ void drawLine (const char * line, signed int x, signed int y)
 	glBindTexture (GL_TEXTURE_2D, sheetGetTexture (SystemFont)->id);
 	glBegin (GL_QUADS);
 
-	while (*c != 0)
+	if (TextAlign == ALIGN_RIGHT)
+		c = line + (strlen (line) - 1);
+	else
+		c = line;
+
+	while (
+		(TextAlign == ALIGN_LEFT && *c != 0) ||
+		(TextAlign == ALIGN_RIGHT && c >= line)
+	)
 	{
 		letter = sheetGetSpriteViaOffset (SystemFont, *c);
 
 		if (*c == '\n')
 		{
-			glX = leftMargin;
+			glX = startingLine;
 			glY += glLineSpacing;
-			c++;
+			if (TextAlign == ALIGN_LEFT)
+				c++;
+			else if (TextAlign == ALIGN_RIGHT)
+				c--;
 			continue;
 		}
 		//DEBUG ("got sprite %p (for '%c')", letter, *c);
@@ -73,6 +105,9 @@ void drawLine (const char * line, signed int x, signed int y)
 		
 		//DEBUG ("height offset of %c: %d", *c, lg);
 
+		if (TextAlign == ALIGN_RIGHT)
+			glX -= (glLetterWidth + glLetterSpacing);
+
 		glTexCoord2f (tx, ty);
 		glVertex3f (glX, glY + glLetterHeightOffset, glNear);
 		glTexCoord2f (tx, ty + th);
@@ -82,9 +117,15 @@ void drawLine (const char * line, signed int x, signed int y)
 		glTexCoord2f (tx + tw, ty);
 		glVertex3f (glX + glLetterWidth, glY + glLetterHeightOffset, glNear);
 
-
-		glX += (glLetterWidth + glLetterSpacing);
-		c++;
+		if (TextAlign == ALIGN_LEFT)
+		{
+			glX += (glLetterWidth + glLetterSpacing);
+			c++;
+		}
+		else if (TextAlign == ALIGN_RIGHT)
+		{
+			c--;
+		}
 	}
 	glEnd ();
 }

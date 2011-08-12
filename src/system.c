@@ -488,11 +488,11 @@ void systemRender (void)
 	if (System->debug)
 	{
 		systemUpdateDebugStr ();
+		textAlign (ALIGN_LEFT);
 		drawLine (debugDisplay, 8, 8);
-	}
-	else
-	{
-		drawLine ("oh have you ever felt so god damn strong\nhow come it takes some people so damn long", 8, 8);
+
+		textAlign (ALIGN_RIGHT);
+		drawLine ("oh have you ever felt so god damn strong\nhow come it takes some people so damn long", width-8, 8);
 		/*
 		drawLine ("open up and keep on climbing\nhigher and higher and higher", 8, 8);
 		drawLine ("don't you want to come with me\ndon't you want to feel my bones\non your bones", 8, 8);
@@ -503,6 +503,9 @@ void systemRender (void)
 		drawLine ("we are breathing we are seething we are hardly underway we have high hopes like the old popes even st. peter's bones decay", 0, 18);
 		drawLine ("shining bright in a sea of fools; oh i can sing you out of this cave shake your mermaid blues", 0, 0);
 	*/
+	}
+	else
+	{
 	}
 	glEnable (GL_DEPTH_TEST);
 	obj_messagePre (VideoObject, OM_POSTRENDER, NULL, NULL);
