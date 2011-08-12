@@ -804,7 +804,6 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 	while (hexMagnitude (netX, netY) > MapRadius)
 	{
 		//DEBUG ("iterating on %d up the span hierarchy", i);
-		assert (i < spanRange);
 		if (subhexSpanLevel (start) == MapSpan)
 			break;
 		mapScaleCoordinates (1, netX, netY, &cX, &cY, &xRemainder, &yRemainder);
