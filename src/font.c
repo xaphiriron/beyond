@@ -59,7 +59,8 @@ void drawLine (const char * line, signed int x, signed int y)
 		sheetWidth,
 		sheetHeight;
 	const char
-		* c = line;
+		* c = line,
+		* nextLine = line;
 	SPRITE
 		letter;
 	sheetGetTextureSize (SystemFont, &sheetWidth, &sheetHeight);
@@ -69,10 +70,15 @@ void drawLine (const char * line, signed int x, signed int y)
 	glBindTexture (GL_TEXTURE_2D, sheetGetTexture (SystemFont)->id);
 	glBegin (GL_QUADS);
 
-	if (TextAlign == ALIGN_RIGHT)
-		c = line + (strlen (line) - 1);
-	else
+	if (TextAlign == ALIGN_LEFT)
 		c = line;
+	else if (TextAlign == ALIGN_RIGHT)
+	{
+		c = (nextLine = strchr (nextLine + 1, '\n')) == NULL
+			? line + strlen (line)
+			: nextLine;
+		c--;
+	}
 
 	while (
 		(TextAlign == ALIGN_LEFT && *c != 0) ||
@@ -81,14 +87,11 @@ void drawLine (const char * line, signed int x, signed int y)
 	{
 		letter = sheetGetSpriteViaOffset (SystemFont, *c);
 
-		if (*c == '\n')
+		if (TextAlign == ALIGN_LEFT && *c == '\n')
 		{
 			glX = startingLine;
 			glY += glLineSpacing;
-			if (TextAlign == ALIGN_LEFT)
-				c++;
-			else if (TextAlign == ALIGN_RIGHT)
-				c--;
+			c++;
 			continue;
 		}
 		//DEBUG ("got sprite %p (for '%c')", letter, *c);
@@ -124,6 +127,16 @@ void drawLine (const char * line, signed int x, signed int y)
 		}
 		else if (TextAlign == ALIGN_RIGHT)
 		{
+			if (*c == '\n' || c == line)
+			{
+				if (nextLine == NULL)
+					break;
+				glX = startingLine;
+				glY += glLineSpacing;
+				c = (nextLine = strchr (nextLine + 1, '\n')) == NULL
+					? line + strlen (line)
+					: nextLine;
+			}
 			c--;
 		}
 	}
