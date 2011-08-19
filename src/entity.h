@@ -10,6 +10,8 @@ typedef struct entity * Entity;
 typedef struct ent_system * EntSystem;
 typedef struct ent_component * EntComponent;
 
+typedef void (compFunc) (EntComponent);
+
 struct comp_message {
 	Entity
 		entFrom;
@@ -45,10 +47,27 @@ void entity_speak (const Entity speaker, char * message, void * arg);
 bool entity_message (Entity e, Entity from, char * message, void * arg);
 
 
+/***
+ * COMPONENTS
+ */
+
+bool component_instantiate (const char * comp_name, Entity e);
+bool component_remove (const char * comp_name, Entity e);
+
+EntComponent entity_getAs (Entity e, const char * comp_name);
+Entity component_entityAttached (EntComponent c);
+
+void * component_getData (EntComponent c);
+
+bool component_registerResponse (const char * comp_name, const char * message, compFunc * function);
+bool component_clearResponses (const char * comp_name, const char * message);
+
+
+
+
 
 void entity_purgeDestroyed (TIMER t);
 
-EntComponent entity_getAs (Entity e, const char * comp_name);
 
 bool entity_registerComponentAndSystem (objHandler func);
 Dynarr entity_getEntitiesWithComponent (int n, ...);
@@ -57,11 +76,7 @@ EntSystem entity_getSystemByName (const char * comp_name);
 void entity_destroySystem (const char * comp_name);
 void entity_destroyEverything ();
 
-void * component_getData (EntComponent c);
-Entity component_entityAttached (EntComponent c);
 
-bool component_instantiateOnEntity (const char * comp_name, Entity e);
-bool component_removeFromEntity (const char * comp_name, Entity e);
 
 bool entitySubsystem_store (const char * comp_name);
 bool entitySubsystem_unstore (const char * comp_name);
@@ -85,12 +100,5 @@ void component_setAsLoadable (EntComponent c);
 bool component_isLoaderActive ();
 void component_forceRunLoader (unsigned int load);
 void component_runLoader (const TIMER t);
-
-
-typedef void (compFunc) (EntComponent);
-
-bool entitySubsystem_registerMessageResponse (const char * comp_name, const char * message, compFunc * function);
-bool entitySubsystem_clearMessageResponses (const char * comp_name, const char * message);
-void component_sendMessage (const char * message, EntComponent c);
 
 #endif /* XPH_ENTITY_H */

@@ -246,7 +246,7 @@ bool plant_createRandom (Entity e)
 		plant = NULL;
 	if (plantComponent != NULL)
 		return FALSE;
-	component_instantiateOnEntity ("plant", e);
+	component_instantiate ("plant", e);
 	// ... this ought to initialize the plant data to an empty struct
 	plantComponent = entity_getAs (e, "plant");
 	plant = component_getData (plantComponent);
@@ -692,7 +692,7 @@ int component_plant (Object * obj, objMsg msg, void * a, void * b)
 			{
 				// FIXME: if there is ever something that is a plant in addition to being other things, this is not a good thing to do
 				position_unset (e);
-				component_removeFromEntity ("plant", e);
+				component_remove ("plant", e);
 				entity_destroy (e);
 				return EXIT_SUCCESS;
 			}

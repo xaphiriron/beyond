@@ -197,6 +197,8 @@ Entity entity_get (unsigned int guid)
  * MESSAGING
  */
 
+static void component_sendMessage (const char * message, EntComponent c);
+
 void entity_subscribe (Entity listener, Entity target)
 {
 	dynarr_push (target->listeners, listener);
@@ -225,8 +227,8 @@ bool entity_message (Entity e, Entity from, char * message, void * arg)
 		t;
 	struct comp_message
 		msg;
-	DynIterator
-		it;
+	int
+		i = 0;
 	//printf ("%s (#%d, \"%s\", %p)\n", __FUNCTION__, entity_GUID (e), message, arg);
 	if (e == NULL)
 		return FALSE;
@@ -235,17 +237,146 @@ bool entity_message (Entity e, Entity from, char * message, void * arg)
 	msg.from = NULL;
 	msg.to = NULL;
 	msg.message = message;
-	it = dynIterator_create (e->components);
-	while (!dynIterator_done (it))
+	while ((t = *(EntComponent *)dynarr_at (e->components, i++)) != NULL)
 	{
-		t = *(EntComponent *)dynIterator_next (it);
 		msg.to = t;
+		/* this does two separate things to received messages (sending an
+		 * object system message and checking the component message triggers)
+		 * because the entity system is currently in a strange
+		 * half-transitioned state, moving away from the object system.
+		 * Eventually all the 'object' code will be removed and old components
+		 * will be rewritten to use message triggers instead of a monolithic
+		 * object system, but in the mean time both potential responses are
+		 * messaged here
+		 *  - xph 2011 08 19 */
 		obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, &msg, arg);
 		component_sendMessage (message, t);
 	}
-	dynIterator_destroy (it);
 	return TRUE;
 }
+
+static void component_sendMessage (const char * message, EntComponent c)
+{
+	struct messageTrigger
+		* mt = *(struct messageTrigger **)dynarr_search (c->reg->messageTriggers, mt_search, message);
+	int
+		i = 0;
+	if (mt == NULL)
+		return;
+	while (i < dynarr_size (mt->funcs))
+	{
+		(*(compFunc **)dynarr_at (mt->funcs, i++))(c);
+	}
+}
+
+/***
+ * COMPONENTS
+ */
+
+bool component_instantiate (const char * comp_name, Entity e)
+{
+	EntSystem
+		sys = entity_getSystemByName (comp_name);
+	struct ent_component
+		* instance = NULL;
+	if (sys == NULL)
+		return FALSE;
+	instance = xph_alloc (sizeof (struct ent_component));
+	instance->e = e;
+	instance->reg = sys;
+	instance->comp_guid = ++ComponentGUIDs;
+	instance->comp_data = NULL;
+	instance->loaded = FALSE;
+	instance->loader = NULL;
+	// we care less about enforcing uniqueness of component guids than we do about entities.
+	dynarr_push (sys->entities, instance);
+	dynarr_push (e->components, instance);
+	dynarr_sort (sys->entities, comp_sort);
+	dynarr_sort (e->components, comp_sort);
+	obj_message (sys->system, OM_COMPONENT_INIT_DATA, &instance->comp_data, e);
+	return TRUE;
+}
+
+bool component_remove (const char * comp_name, Entity e)
+{
+	EntSystem
+		sys = entity_getSystemByName (comp_name);
+	EntComponent
+		comp = NULL;
+
+	if (sys == NULL)
+		return FALSE;
+	//printf ("%s: removing component \"%s\" from entity #%d\n", __FUNCTION__, comp_name, entity_GUID (e));
+	comp = *(EntComponent *)dynarr_search (sys->entities, comp_search, e);
+	if (comp == NULL)
+	{
+		WARNING ("Entity #%d doesn't have component \"%s\"", e->guid, comp_name);
+		return FALSE;
+	}
+	obj_message (sys->system, OM_COMPONENT_DESTROY_DATA, &comp->comp_data, e);
+	dynarr_remove_condense (sys->entities, comp);
+	dynarr_remove_condense (e->components, comp);
+	if (comp->loader != NULL)
+		xph_free (comp->loader);
+	xph_free (comp);
+	return TRUE;
+}
+
+Entity component_entityAttached (EntComponent c)
+{
+	if (c == NULL)
+		return NULL;
+	return c->e;
+}
+
+void * component_getData (EntComponent c)
+{
+	if (c == NULL)
+		return NULL;
+	return c->comp_data;
+}
+
+
+bool component_registerResponse (const char * comp_name, const char * message, compFunc * function)
+{
+	EntSystem
+		sys = entity_getSystemByName (comp_name);
+	struct messageTrigger
+		* mt;
+	if (sys == NULL)
+		return FALSE;
+	mt = *(struct messageTrigger **)dynarr_search (sys->messageTriggers, mt_search, message);
+	if (mt == NULL)
+	{
+		mt = mt_create (message);
+		dynarr_push (sys->messageTriggers, mt);
+		dynarr_sort (sys->messageTriggers, mt_sort);
+	}
+	// TODO: this allows for registering the same function multiple times. this should iterate over the set functions and only push if function isn't already set.
+	dynarr_push (mt->funcs, function);
+	return TRUE;
+}
+
+bool component_clearResponses (const char * comp_name, const char * message)
+{
+	EntSystem
+		sys = entity_getSystemByName (comp_name);
+	struct messageTrigger
+		* mt;
+	if (sys == NULL)
+		return FALSE;
+	// TODO: this is yet another place that would be served by the existance of dynarr_searchAndReturnIndex or w/e
+	mt = *(struct messageTrigger **)dynarr_search (sys->messageTriggers, mt_search, message);
+	if (mt == NULL)
+		return TRUE;
+	dynarr_remove_condense (sys->messageTriggers, mt);
+	mt_destroy (mt);
+	return TRUE;
+}
+
+
+
+
 
 
 
@@ -270,7 +401,7 @@ void entity_purgeDestroyed (TIMER t)
 			//printf ("%d component%s.\n", dynarr_size (e->components), (dynarr_size (e->components) == 1 ? "" : "s"));
 			c = *(struct ent_component **)dynarr_front (e->components);
 			DEBUG ("Destroying #%d:\"%s\"", e->guid, c->reg->comp_name);
-			component_removeFromEntity (c->reg->comp_name, e);
+			component_remove (c->reg->comp_name, e);
 		}
 		dynarr_destroy (e->components);
 		dynarr_destroy (e->listeners);
@@ -445,7 +576,7 @@ void entity_destroySystem (const char * comp_name) {
 		WARNING ("EntComponent system \"%s\" still has %d entit%s with instantiations while being destroyed.", sys->comp_name, dynarr_size (sys->entities), dynarr_size (sys->entities) == 1 ? "y" : "ies");
 		while (!dynarr_isEmpty (sys->entities)) {
 			c = *(EntComponent *)dynarr_front (sys->entities);
-			component_removeFromEntity (sys->comp_name, c->e);
+			component_remove (sys->comp_name, c->e);
 		}
 	}
 	dynarr_wipe (sys->messageTriggers, (void (*)(void *))mt_destroy);
@@ -456,6 +587,25 @@ void entity_destroySystem (const char * comp_name) {
   objClass_destroy (sys->comp_name);
   xph_free (sys);
 	//printf ("...%s\n", __FUNCTION__);
+}
+
+
+EntComponent entity_getAs (Entity e, const char * comp_name)
+{
+	EntSystem
+		sys = entity_getSystemByName (comp_name);
+	EntComponent
+		comp = NULL;
+
+	if (e == NULL || sys == NULL)
+		return NULL;
+	comp = *(EntComponent *)dynarr_search (sys->entities, comp_search, e);
+	if (comp == NULL)
+	{
+		WARNING ("Entity #%d doesn't have component \"%s\"", entity_GUID (e), comp_name);
+		return NULL;
+	}
+	return comp;
 }
 
 void entity_destroyEverything ()
@@ -510,76 +660,6 @@ void entity_destroyEverything ()
 	FUNCCLOSE ();
 }
 
-bool component_instantiateOnEntity (const char * comp_name, Entity e) {
-  EntSystem sys = entity_getSystemByName (comp_name);
-  if (sys == NULL) {
-    return FALSE;
-  }
-	struct ent_component * instance = xph_alloc (sizeof (struct ent_component));
-  instance->e = e;
-  instance->reg = sys;
-  instance->comp_guid = ++ComponentGUIDs;
-	instance->comp_data = NULL;
-	instance->loaded = FALSE;
-	instance->loader = NULL;
-  // we care less about enforcing uniqueness of component guids than we do about entities.
-  dynarr_push (sys->entities, instance);
-  dynarr_push (e->components, instance);
-  dynarr_sort (sys->entities, comp_sort);
-  dynarr_sort (e->components, comp_sort);
-  obj_message (sys->system, OM_COMPONENT_INIT_DATA, &instance->comp_data, e);
-  return TRUE;
-}
-
-bool component_removeFromEntity (const char * comp_name, Entity e) {
-  EntSystem sys = entity_getSystemByName (comp_name);
-  EntComponent comp = NULL;
-  if (sys == NULL) {
-    return FALSE;
-  }
-	//printf ("%s: removing component \"%s\" from entity #%d\n", __FUNCTION__, comp_name, entity_GUID (e));
-  comp = *(EntComponent *)dynarr_search (sys->entities, comp_search, e);
-	if (comp == NULL)
-	{
-		WARNING ("Entity #%d doesn't have component \"%s\"", e->guid, comp_name);
-		return FALSE;
-	}
-  obj_message (sys->system, OM_COMPONENT_DESTROY_DATA, &comp->comp_data, e);
-  dynarr_remove_condense (sys->entities, comp);
-  dynarr_remove_condense (e->components, comp);
-	if (comp->loader != NULL)
-		xph_free (comp->loader);
-  xph_free (comp);
-  return TRUE;
-}
-
-EntComponent entity_getAs (Entity e, const char * comp_name) {
-  EntSystem sys = entity_getSystemByName (comp_name);
-  EntComponent comp = NULL;
-  if (e == NULL || sys == NULL) {
-    return NULL;
-  }
-  comp = *(EntComponent *)dynarr_search (sys->entities, comp_search, e);
-  if (comp == NULL) {
-	WARNING ("Entity #%d doesn't have component \"%s\"", entity_GUID (e), comp_name);
-    return NULL;
-  }
-  return comp;
-}
-
-void * component_getData (EntComponent c) {
-  if (c == NULL) {
-    return NULL;
-  }
-  return c->comp_data;
-}
-
-Entity component_entityAttached (EntComponent c) {
-  if (c == NULL) {
-    return NULL;
-  }
-  return c->e;
-}
 
 bool entitySubsystem_store (const char * comp_name) {
   EntSystem s = NULL;
@@ -842,53 +922,3 @@ static int mt_search (const void * k, const void * d)
 	);
 }
 
-bool entitySubsystem_registerMessageResponse (const char * comp_name, const char * message, compFunc * function)
-{
-	EntSystem
-		sys = entity_getSystemByName (comp_name);
-	struct messageTrigger
-		* mt;
-	if (sys == NULL)
-		return FALSE;
-	mt = *(struct messageTrigger **)dynarr_search (sys->messageTriggers, mt_search, message);
-	if (mt == NULL)
-	{
-		mt = mt_create (message);
-		dynarr_push (sys->messageTriggers, mt);
-		dynarr_sort (sys->messageTriggers, mt_sort);
-	}
-	// TODO: this allows for registering the same function multiple times. this should iterate over the set functions and only push if function isn't already set.
-	dynarr_push (mt->funcs, function);
-	return TRUE;
-}
-
-bool entitySubsystem_clearMessageResponses (const char * comp_name, const char * message)
-{
-	EntSystem
-		sys = entity_getSystemByName (comp_name);
-	struct messageTrigger
-		* mt;
-	if (sys == NULL)
-		return FALSE;
-	// TODO: this is yet another place that would be served by the existance of dynarr_searchAndReturnIndex or w/e
-	mt = *(struct messageTrigger **)dynarr_search (sys->messageTriggers, mt_search, message);
-	if (mt == NULL)
-		return TRUE;
-	dynarr_remove_condense (sys->messageTriggers, mt);
-	mt_destroy (mt);
-	return TRUE;
-}
-
-void component_sendMessage (const char * message, EntComponent c)
-{
-	struct messageTrigger
-		* mt = *(struct messageTrigger **)dynarr_search (c->reg->messageTriggers, mt_search, message);
-	int
-		i = 0;
-	if (mt == NULL)
-		return;
-	while (i < dynarr_size (mt->funcs))
-	{
-		(*(compFunc **)dynarr_at (mt->funcs, i++))(c);
-	}
-}

@@ -252,10 +252,10 @@ void systemCreatePlayer ()
 	FUNCOPEN ();
 
 	player = entity_create ();
-	if (component_instantiateOnEntity ("input", player)) {
+	if (component_instantiate ("input", player)) {
 		input_addEntity (player, INPUT_CONTROLLED);
 	}
-	if (component_instantiateOnEntity ("position", player))
+	if (component_instantiate ("position", player))
 	{
 		/* NOTE: this is a placeholder; player positioning in the generated world is a worldgen thing, not a system thing. maybe this entire function is misguided, idk.
 		 *  - xph 2011 06 09
@@ -264,16 +264,16 @@ void systemCreatePlayer ()
 		systemPlacePlayerAt (mapRelativeTarget (rel));
 		mapRelativeDestroy (rel);
 	}
-	component_instantiateOnEntity ("walking", player);
+	component_instantiate ("walking", player);
 
 	camera = entity_create ();
-	component_instantiateOnEntity ("position", camera);
-	if (component_instantiateOnEntity ("camera", camera))
+	component_instantiate ("position", camera);
+	if (component_instantiate ("camera", camera))
 	{
 		camera_attachToTarget (camera, player);
 		camera_setAsActive (camera);
 	}
-	if (component_instantiateOnEntity ("input", camera))
+	if (component_instantiate ("input", camera))
 	{
 		input_addEntity (camera, INPUT_CONTROLLED);
 	}
