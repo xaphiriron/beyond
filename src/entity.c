@@ -581,29 +581,6 @@ Entity component_entityAttached (EntComponent c) {
   return c->e;
 }
 
-bool component_messageEntity (EntComponent comp, char * message, void * arg)
-{
-	struct comp_message
-		msg;
-	EntComponent
-		t = NULL;
-	int
-		i = 0;
-	msg.entFrom = component_entityAttached (comp);
-	msg.from = comp;
-	msg.to = NULL;
-	msg.message = message;
-	while ((t = *(EntComponent *)dynarr_at (comp->e->components, i++)) != NULL)
-	{
-		// we're purposefully messaging the component back, in case it has a response to its own message. consequentally, it's important that no components decide to send off the same message in response to getting a message.
-		msg.to = t;
-		//printf ("%s: #%d: messaging component \"%s\"\n", __FUNCTION__, comp->e->guid, t->reg->comp_name);
-		obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, &msg, arg);
-		component_sendMessage (message, t);
-	}
-	return TRUE;
-}
-
 bool entitySubsystem_store (const char * comp_name) {
   EntSystem s = NULL;
   if (SubsystemComponentStore == NULL) {

@@ -196,8 +196,6 @@ void input_sendGameEventMessage (const struct input_event * ie) {
 		i = 0;
 	Entity
 		e = NULL;
-	EntComponent
-		c = NULL;
 	struct comp_message
 		* msg = NULL;
 	// CATCH AND HANDLE EVENTS THAT HAVE SYSTEM-WIDE REPERCUSSIONS
@@ -245,18 +243,12 @@ void input_sendGameEventMessage (const struct input_event * ie) {
 	i = 0;
 	while ((e = *(Entity *)dynarr_at (Input->controlledEntities, i++)) != NULL)
 	{
-		c = entity_getAs (e, "input");
-		if (c == NULL)
-			continue;
-		component_messageEntity (c, "CONTROL_INPUT", (void *)ie);
+		entity_message (e, NULL, "CONTROL_INPUT", (void *)ie);
 	}
 	i = 0;
 	while ((e = *(Entity *)dynarr_at (Input->focusedEntities, i++)) != NULL)
 	{
-		c = entity_getAs (e, "input");
-		if (c == NULL)
-			continue;
-		component_messageEntity (c, "FOCUS_INPUT", (void *)ie);
+		entity_message (e, NULL, "FOCUS_INPUT", (void *)ie);
 	}
 }
 

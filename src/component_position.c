@@ -52,7 +52,7 @@ static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround
 	}
 	GroundChange = NULL;
 	posUpdate.difference = mapRelativeDistance (posUpdate.relPosition);
-	component_messageEntity (c, "positionUpdate", &posUpdate);
+	entity_message (component_entityAttached (c), NULL, "positionUpdate", &posUpdate);
 	if (!usedCache)
 		mapRelativeDestroy (posUpdate.relPosition);
 	memset (&posUpdate, '\0', sizeof (struct position_update));

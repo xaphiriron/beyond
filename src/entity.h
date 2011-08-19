@@ -62,7 +62,6 @@ Entity component_entityAttached (EntComponent c);
 
 bool component_instantiateOnEntity (const char * comp_name, Entity e);
 bool component_removeFromEntity (const char * comp_name, Entity e);
-bool component_messageEntity (EntComponent c, char * message, void * arg);
 
 bool entitySubsystem_store (const char * comp_name);
 bool entitySubsystem_unstore (const char * comp_name);
