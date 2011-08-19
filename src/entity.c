@@ -1,12 +1,12 @@
 #include "entity.h"
 
 struct entity {
-  unsigned int guid;
+	unsigned int
+		guid;
 
   // this is a local variable to make fetching components from a specific entity faster. It stores the same data as a EntSystem->entities vector, which is to say EntComponents (something todo: this is named "components" whereas the system vector is named "entities". this is confusing and dumb.)
-  Dynarr components;
-
-	Dynarr
+  Dynarr
+		components,
 		listeners;
 };
 
@@ -89,6 +89,7 @@ static void mt_destroy (struct messageTrigger * mt);
 static int mt_sort (const void * a, const void * b);
 static int mt_search (const void * k, const void * d);
 
+static void component_sendMessage (const char * message, EntComponent c);
 
 static int guid_sort (const void * a, const void * b)
 {
@@ -196,8 +197,6 @@ Entity entity_get (unsigned int guid)
 /***
  * MESSAGING
  */
-
-static void component_sendMessage (const char * message, EntComponent c);
 
 void entity_subscribe (Entity listener, Entity target)
 {
@@ -375,9 +374,170 @@ bool component_clearResponses (const char * comp_name, const char * message)
 }
 
 
+static struct messageTrigger * mt_create (const char * message)
+{
+	struct messageTrigger
+		* mt = xph_alloc (sizeof (struct messageTrigger));
+	mt->message = xph_alloc (strlen (message) + 1);
+	strcpy (mt->message, message);
+	mt->funcs = dynarr_create (2, sizeof (compFunc *));
+	return mt;
+}
+
+static void mt_destroy (struct messageTrigger * mt)
+{
+	xph_free (mt->message);
+	dynarr_wipe (mt->funcs, xph_free);
+	dynarr_destroy (mt->funcs);
+	xph_free (mt);
+}
+
+static int mt_sort (const void * a, const void * b)
+{
+	return strcmp
+	(
+		(*(const struct messageTrigger **)a)->message,
+		(*(const struct messageTrigger **)b)->message
+	);
+}
+
+static int mt_search (const void * k, const void * d)
+{
+	return strcmp
+	(
+		*(char **)k,
+		(*(const struct messageTrigger **)d)->message
+	);
+}
+
+/* returns a dynarr, which must be destroyed. In the event of a non-existant component or an intersection with no members, an empty dynarr is returned.
+ */
+Dynarr entity_getEntitiesWithComponent (int n, ...)
+{
+	int
+		* indices = xph_alloc_name (sizeof (int) * n, "indices");
+	Dynarr
+		* components = xph_alloc_name (sizeof (Dynarr) * n, "vectors"),
+		final = dynarr_create (2, sizeof (Entity *));
+	const char
+		** comp_names = xph_alloc_name (sizeof (char *) * n, "names");
+	EntSystem
+		sys = NULL;
+	EntComponent
+		c = NULL;
+	int
+		m = n,
+		j = 0,
+		highestGUID = 0;
+	bool
+		NULLbreak = FALSE;
+	va_list
+		comps;
+	va_start (comps, n);
+	m = 0;
+	while (m < n)
+	{
+		comp_names[m] = va_arg (comps, char *);
+		sys = entity_getSystemByName (comp_names[m]);
+		if (sys == NULL)
+		{
+			// it's impossible to have any intersection with an invalid component, since no entity will have it. Therefore, we can just return the empty dynarr.
+			WARNING ("%s: intersection impossible; no such component \"%s\"", __FUNCTION__, comp_names[m]);
+			xph_free (comp_names);
+			xph_free (components);
+			xph_free (indices);
+			return final;
+		}
+		components[m] = sys->entities;
+		indices[m] = 0;
+		m++;
+	}
+
+	while (j < n)
+	{
+		c = *(EntComponent *)dynarr_front (components[j]);
+		if (c == NULL)
+		{
+			// it's impossible to have any intersection, since there are no entities with this component. Therefore, we can just return the empty dynarr.
+			WARNING ("%s: intersection impossible; no entities have component \"%s\"\n", __FUNCTION__, comp_names[j]);
+			xph_free (comp_names);
+			xph_free (components);
+			xph_free (indices);
+			return final;
+		}
+		if (c->e->guid > highestGUID)
+		{
+			highestGUID = c->e->guid;
+		}
+		j++;
+	}
+
+  /* this whole thing is pretty horrific. Let me explain what I am attempting
+   * to do here: since the system component lists are sorted by entity guid,
+   * we can utilize that to do a relatively simple intersection merge. The
+   * highest component in the first index across the lists is the lowest
+   * possible entity which can have all components listed. So we iterate
+   * across each list, incrementing the index until the guid is at least the
+   * match of that 'highest guid'. Then we can check across-- if all the
+   * values are the same, then we have a match. Otherwise, one of the other
+   * values was higher, and it becomes the new target to reach. The current
+   * code is really inefficient-- we don't really need two seperate passes to
+   * determine the highestGUID value, and the NULLbreak variable is probably
+   * completely unnecessary if we rewrite the outer loop to automatically
+   * terminate when we hit a null value in one of the lists.
+   */
+	while (!NULLbreak)
+	{
+		j = 0;
+		while (j < n)
+		{
+			while (
+				(c = *(EntComponent *)dynarr_at (components[j], indices[j])) != NULL &&
+				c->e->guid < highestGUID)
+			{
+				//printf ("guid in list %d at index %d is %d, which is lower than the mark of %d\n", j, indices[j], c->e->guid, highestGUID);
+				indices[j]++;
+			}
+			if (c == NULL)
+			{
+				NULLbreak = TRUE;
+				break;
+			}
+			j++;
+		}
+		if (NULLbreak)
+		{
+			break;
+		}
+		j = 0;
+		while (j < n)
+		{
+			c = *(EntComponent *)dynarr_at (components[j], indices[j]);
+			if (c->e->guid > highestGUID)
+			{
+				highestGUID = c->e->guid;
+				break;
+			}
+			j++;
+		}
+		if (j >= n)
+		{
+			dynarr_push (final, c->e);
+			highestGUID++;
+		}
+	}
+	xph_free (comp_names);
+	xph_free (components);
+	xph_free (indices);
+	return final;
+}
 
 
 
+
+/***
+ * ENTITY SYSTEM
+ */
 
 
 void entity_purgeDestroyed (TIMER t)
@@ -446,109 +606,6 @@ bool entity_registerComponentAndSystem (objHandler func) {
 }
 
 
-/* returns a vector, which must be destroyed. In the event of a non-existant component or an intersection with no members, an empty vector is returned.
- */
-Dynarr entity_getEntitiesWithComponent (int n, ...) {
-  int * indices = xph_alloc_name (sizeof (int) * n, "indices");
-  Dynarr* components = xph_alloc_name (sizeof (Dynarr) * n, "vectors");
-  const char ** comp_names = xph_alloc_name (sizeof (char *) * n, "names");
-  Dynarr final = dynarr_create (2, sizeof (Entity *));
-  EntSystem sys = NULL;
-  EntComponent c = NULL;
-  int
-    m = n,
-    j = 0,
-    highestGUID = 0;
-  bool NULLbreak = FALSE;
-  va_list comps;
-  va_start (comps, n);
-  m = 0;
-  while (m < n) {
-    comp_names[m] = va_arg (comps, char *);
-    sys = entity_getSystemByName (comp_names[m]);
-    if (sys == NULL) {
-      // it's impossible to have any intersection with an invalid component, since no entity will have it. Therefore, we can just return the empty vector.
-      printf ("%s: intersection impossible; no such component \"%s\"", __FUNCTION__, comp_names[m]);
-      xph_free (comp_names);
-      xph_free (components);
-      xph_free (indices);
-      return final;
-    }
-    components[m] = sys->entities;
-    indices[m] = 0;
-    m++;
-  }
-
-  while (j < n) {
-    c = *(EntComponent *)dynarr_front (components[j]);
-    if (c == NULL) {
-      // it's impossible to have any intersection, since there are no entities with this component. Therefore, we can just return the empty vector.
-      //printf ("%s: intersection impossible; no entities have component \"%s\"\n", __FUNCTION__, comp_names[j]);
-      xph_free (comp_names);
-      xph_free (components);
-      xph_free (indices);
-      return final;
-    }
-    if (c->e->guid > highestGUID) {
-      highestGUID = c->e->guid;
-    }
-    j++;
-  }
-  j = 0;
-
-
-  /* this whole thing is pretty horrific. Let me explain what I am attempting
-   * to do here: since the system component lists are sorted by entity guid,
-   * we can utilize that to do a relatively simple intersection merge. The
-   * highest component in the first index across the lists is the lowest
-   * possible entity which can have all components listed. So we iterate
-   * across each list, incrementing the index until the guid is at least the
-   * match of that 'highest guid'. Then we can check across-- if all the
-   * values are the same, then we have a match. Otherwise, one of the other
-   * values was higher, and it becomes the new target to reach. The current
-   * code is really inefficient-- we don't really need two seperate passes to
-   * determine the highestGUID value, and the NULLbreak variable is probably
-   * completely unnecessary if we rewrite the outer loop to automatically
-   * terminate when we hit a null value in one of the lists.
-   */
-  while (!NULLbreak) {
-    j = 0;
-    while (j < n) {
-      while (
-        (c = *(EntComponent *)dynarr_at (components[j], indices[j])) != NULL &&
-        c->e->guid < highestGUID) {
-        //printf ("guid in list %d at index %d is %d, which is lower than the mark of %d\n", j, indices[j], c->e->guid, highestGUID);
-        indices[j]++;
-      }
-      if (c == NULL) {
-        NULLbreak = TRUE;
-        break;
-      }
-      j++;
-    }
-    if (NULLbreak) {
-      break;
-    }
-    j = 0;
-    while (j < n) {
-      c = *(EntComponent *)dynarr_at (components[j], indices[j]);
-      if (c->e->guid > highestGUID) {
-        highestGUID = c->e->guid;
-        break;
-      }
-      j++;
-    }
-    if (j >= n) {
-      dynarr_push (final, c->e);
-      highestGUID++;
-    }
-  }
-
-  xph_free (comp_names);
-  xph_free (components);
-  xph_free (indices);
-  return final;
-}
 
 EntSystem entity_getSystemByName (const char * comp_name) {
   struct ent_system * sys = NULL;
@@ -718,7 +775,7 @@ void entitySubsystem_clearStored () {
 
 
 /***
- * LOADING (old and terrible)
+ * LOADING (old and terrible; should be replaced with something less terrible)
  */
 
 void component_setLoadGoal (EntComponent c, unsigned int m)
@@ -884,41 +941,4 @@ static int comp_weight_sort (const void * a, const void * b)
 
 
 
-
-
-static struct messageTrigger * mt_create (const char * message)
-{
-	struct messageTrigger
-		* mt = xph_alloc (sizeof (struct messageTrigger));
-	mt->message = xph_alloc (strlen (message) + 1);
-	strcpy (mt->message, message);
-	mt->funcs = dynarr_create (2, sizeof (compFunc *));
-	return mt;
-}
-
-static void mt_destroy (struct messageTrigger * mt)
-{
-	xph_free (mt->message);
-	dynarr_wipe (mt->funcs, xph_free);
-	dynarr_destroy (mt->funcs);
-	xph_free (mt);
-}
-
-static int mt_sort (const void * a, const void * b)
-{
-	return strcmp
-	(
-		(*(const struct messageTrigger **)a)->message,
-		(*(const struct messageTrigger **)b)->message
-	);
-}
-
-static int mt_search (const void * k, const void * d)
-{
-	return strcmp
-	(
-		*(char **)k,
-		(*(const struct messageTrigger **)d)->message
-	);
-}
 

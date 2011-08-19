@@ -2,6 +2,7 @@
 #define XPH_ENTITY_H
 
 #include <stdarg.h>
+#include "bool.h"
 #include "timer.h"
 #include "dynarr.h"
 #include "object.h"
@@ -62,20 +63,20 @@ void * component_getData (EntComponent c);
 bool component_registerResponse (const char * comp_name, const char * message, compFunc * function);
 bool component_clearResponses (const char * comp_name, const char * message);
 
+Dynarr entity_getEntitiesWithComponent (int n, ...);
 
 
-
+/***
+ * ENTITY SYSTEM
+ */
 
 void entity_purgeDestroyed (TIMER t);
 
-
 bool entity_registerComponentAndSystem (objHandler func);
-Dynarr entity_getEntitiesWithComponent (int n, ...);
 EntSystem entity_getSystemByName (const char * comp_name);
 
 void entity_destroySystem (const char * comp_name);
 void entity_destroyEverything ();
-
 
 
 bool entitySubsystem_store (const char * comp_name);
@@ -86,6 +87,9 @@ void entitySubsystem_clearStored ();
 
 
 
+/***
+ * LOADING (old and terrible; should be replaced with something less terrible)
+ */
 
 void component_setLoadGoal (EntComponent c, unsigned int m);
 void component_updateLoadAmount (EntComponent c, unsigned int v);
