@@ -19,15 +19,35 @@ struct comp_message {
   char * message;
 };
 
-Entity entity_create ();
-Entity entity_get (unsigned int guid);
-void entity_purgeDestroyed (TIMER t);
-void entity_destroy (Entity e);
-bool entity_exists (unsigned int guid);
+/***
+ * ENTITIES
+ */
 
-bool entity_message (Entity e, Entity from, char * message, void * arg);
+Entity entity_create ();
+void entity_destroy (Entity e);
 
 unsigned int entity_GUID (const Entity e);
+
+bool entity_exists (unsigned int guid);
+Entity entity_get (unsigned int guid);
+
+/***
+ * MESSAGING
+ */
+
+void entity_subscribe (Entity listener, Entity target);
+void entity_unsubscribe (Entity listener, Entity target);
+
+/* vocalize a status change; messages any entities subscribed */
+void entity_speak (const Entity speaker, char * message, void * arg);
+
+/* message the entity specified */
+bool entity_message (Entity e, Entity from, char * message, void * arg);
+
+
+
+void entity_purgeDestroyed (TIMER t);
+
 EntComponent entity_getAs (Entity e, const char * comp_name);
 
 bool entity_registerComponentAndSystem (objHandler func);
@@ -38,15 +58,12 @@ void entity_destroySystem (const char * comp_name);
 void entity_destroyEverything ();
 
 void * component_getData (EntComponent c);
-const char * component_getName (const EntComponent c);
 Entity component_entityAttached (EntComponent c);
 
 bool component_instantiateOnEntity (const char * comp_name, Entity e);
 bool component_removeFromEntity (const char * comp_name, Entity e);
 bool component_messageEntity (EntComponent c, char * message, void * arg);
-bool component_messageSystem (EntComponent c, char * message, void * arg);
 
-bool entitySubsystem_message (const char * comp_name, enum object_messages message, void * a, void * b);
 bool entitySubsystem_store (const char * comp_name);
 bool entitySubsystem_unstore (const char * comp_name);
 bool entitySubsystem_runOnStored (objMsg);
@@ -54,9 +71,6 @@ void entitySubsystem_clearStored ();
 
 
 
-void entity_subscribe (Entity listener, Entity target);
-void entity_unsubscribe (Entity listener, Entity target);
-void entity_speak (const Entity speaker, char * message, void * arg);
 
 
 void component_setLoadGoal (EntComponent c, unsigned int m);

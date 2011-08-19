@@ -139,34 +139,25 @@ static int sys_search (const void * k, const void * d) {
 
 
 
-Entity entity_create () {
-  struct entity * e = xph_alloc (sizeof (struct entity));
-  if (DestroyedEntities != NULL && !dynarr_isEmpty (DestroyedEntities)) {
-    e->guid = *(unsigned int *)dynarr_pop (DestroyedEntities);
-  } else {
-    e->guid = ++EntityGUIDs;
-  }
-  if (e->guid == 0) {
-    fprintf (stderr, "Entity GUIDs have wrapped around. Now anything is possible!\n");
-    e->guid = ++EntityGUIDs;
-  }
-  e->components = dynarr_create (2, sizeof (EntComponent));
-	e->listeners = dynarr_create (2, sizeof (Entity));
-  if (ExistantEntities == NULL) {
-    ExistantEntities = dynarr_create (128, sizeof (Entity));
-  }
-  dynarr_push (ExistantEntities, e);
-  dynarr_sort (ExistantEntities, guid_sort);
-  return e;
-}
-
-Entity entity_get (unsigned int guid)
+Entity entity_create ()
 {
-	//printf ("%s (%d)...\n", __FUNCTION__, guid);
-	//printf ("entity count: %d\n", dynarr_size (ExistantEntities));
-	Entity
-		e = *(Entity *)dynarr_search (ExistantEntities, guid_search, guid);
-	//printf ("...%s () -> %p\n", __FUNCTION__, e);
+	struct entity
+		* e = xph_alloc (sizeof (struct entity));
+	if (DestroyedEntities != NULL && !dynarr_isEmpty (DestroyedEntities))
+		e->guid = *(unsigned int *)dynarr_pop (DestroyedEntities);
+	else
+		e->guid = ++EntityGUIDs;
+	if (e->guid == 0)
+	{
+		ERROR ("Entity GUIDs have wrapped around. Now anything is possible!", NULL);
+		e->guid = ++EntityGUIDs;
+	}
+	e->components = dynarr_create (2, sizeof (EntComponent));
+	e->listeners = dynarr_create (2, sizeof (Entity));
+	if (ExistantEntities == NULL)
+		ExistantEntities = dynarr_create (128, sizeof (Entity));
+	dynarr_push (ExistantEntities, e);
+	dynarr_sort (ExistantEntities, guid_sort);
 	return e;
 }
 
@@ -177,6 +168,86 @@ void entity_destroy (Entity e)
 		ToBeDestroyed = dynarr_create (32, sizeof (unsigned int));
 	dynarr_push (ToBeDestroyed, entity_GUID (e));
 }
+
+
+unsigned int entity_GUID (const Entity e)
+{
+	if (e == NULL)
+		return 0;
+	return e->guid;
+}
+
+bool entity_exists (unsigned int guid)
+{
+	if (guid > EntityGUIDs || (DestroyedEntities != NULL && in_dynarr (DestroyedEntities, (void *)guid) >= 0))
+	{
+		return FALSE;
+	}
+	return TRUE;
+}
+
+Entity entity_get (unsigned int guid)
+{
+	Entity
+		e = *(Entity *)dynarr_search (ExistantEntities, guid_search, guid);
+	return e;
+}
+
+/***
+ * MESSAGING
+ */
+
+void entity_subscribe (Entity listener, Entity target)
+{
+	dynarr_push (target->listeners, listener);
+}
+
+void entity_unsubscribe (Entity listener, Entity target)
+{
+	dynarr_remove_condense (target->listeners, listener);
+}
+
+void entity_speak (const Entity speaker, char * message, void * arg)
+{
+	Entity
+		listener;
+	int
+		i = 0;
+	while ((listener = *(Entity *)dynarr_at (speaker->listeners, i++)) != NULL)
+	{
+		entity_message (listener, speaker, message, arg);
+	}
+}
+
+bool entity_message (Entity e, Entity from, char * message, void * arg)
+{
+	EntComponent
+		t;
+	struct comp_message
+		msg;
+	DynIterator
+		it;
+	//printf ("%s (#%d, \"%s\", %p)\n", __FUNCTION__, entity_GUID (e), message, arg);
+	if (e == NULL)
+		return FALSE;
+	//msg = xph_alloc (sizeof (struct comp_message));
+	msg.entFrom = from;
+	msg.from = NULL;
+	msg.to = NULL;
+	msg.message = message;
+	it = dynIterator_create (e->components);
+	while (!dynIterator_done (it))
+	{
+		t = *(EntComponent *)dynIterator_next (it);
+		msg.to = t;
+		obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, &msg, arg);
+		component_sendMessage (message, t);
+	}
+	dynIterator_destroy (it);
+	return TRUE;
+}
+
+
 
 void entity_purgeDestroyed (TIMER t)
 {
@@ -218,48 +289,6 @@ void entity_purgeDestroyed (TIMER t)
 	}
 	//printf ("...%s ()\n", __FUNCTION__);
 	FUNCCLOSE ();
-}
-
-bool entity_exists (unsigned int guid) {
-  if (guid > EntityGUIDs || (DestroyedEntities != NULL && in_dynarr (DestroyedEntities, (void *)guid) >= 0)) {
-    return FALSE;
-  }
-  return TRUE;
-}
-
-bool entity_message (Entity e, Entity from, char * message, void * arg)
-{
-	EntComponent
-		t;
-	struct comp_message
-		msg;
-	DynIterator
-		it;
-	//printf ("%s (#%d, \"%s\", %p)\n", __FUNCTION__, entity_GUID (e), message, arg);
-	if (e == NULL)
-		return FALSE;
-	//msg = xph_alloc (sizeof (struct comp_message));
-	msg.entFrom = from;
-	msg.from = NULL;
-	msg.to = NULL;
-	msg.message = message;
-	it = dynIterator_create (e->components);
-	while (!dynIterator_done (it))
-	{
-		t = *(EntComponent *)dynIterator_next (it);
-		msg.to = t;
-		obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, &msg, arg);
-		component_sendMessage (message, t);
-	}
-	dynIterator_destroy (it);
-	return TRUE;
-}
-
-unsigned int entity_GUID (const Entity e)
-{
-	if (e == NULL)
-		return 0;
-	return e->guid;
 }
 
 
@@ -545,13 +574,6 @@ void * component_getData (EntComponent c) {
   return c->comp_data;
 }
 
-const char * component_getName (const EntComponent c)
-{
-	if (c == NULL || c->reg == NULL)
-		return NULL;
-	return c->reg->comp_name;
-}
-
 Entity component_entityAttached (EntComponent c) {
   if (c == NULL) {
     return NULL;
@@ -579,25 +601,6 @@ bool component_messageEntity (EntComponent comp, char * message, void * arg)
 		obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, &msg, arg);
 		component_sendMessage (message, t);
 	}
-	return TRUE;
-}
-
-bool component_messageEntSystem (EntComponent comp, char * message, void * arg) {
-  new (struct comp_message, msg);
-  msg->from = comp;
-  msg->message = message;
-  obj_message (comp->reg->system, OM_SYSTEM_RECEIVE_MESSAGE, msg, message);
-  xph_free (msg);
-  return TRUE;
-}
-
-bool entitySubsystem_message (const char * comp_name, enum object_messages message, void * a, void * b)
-{
-	EntSystem
-		s = entity_getSystemByName (comp_name);
-	if (s == NULL)
-		return FALSE;
-	obj_message (s->system, message, a, b);
 	return TRUE;
 }
 
@@ -653,32 +656,6 @@ void entitySubsystem_clearStored () {
   if (SubsystemComponentStore != NULL) {
     dynarr_clear (SubsystemComponentStore);
   }
-}
-
-/***
- * SUBSCRIBING
- */
-
-void entity_subscribe (Entity listener, Entity target)
-{
-	dynarr_push (target->listeners, listener);
-}
-
-void entity_unsubscribe (Entity listener, Entity target)
-{
-	dynarr_remove_condense (target->listeners, listener);
-}
-
-void entity_speak (const Entity speaker, char * message, void * arg)
-{
-	Entity
-		listener;
-	int
-		i = 0;
-	while ((listener = *(Entity *)dynarr_at (speaker->listeners, i++)) != NULL)
-	{
-		entity_message (listener, speaker, message, arg);
-	}
 }
 
 
