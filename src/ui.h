@@ -17,4 +17,6 @@ void uiDrawPanel (const UIPANEL p);
 
 void uiDrawWorldmap (const UIPANEL p);
 
+void uiDrawCursor ();
+
 #endif /* XPH_UI_H */

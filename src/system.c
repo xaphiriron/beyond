@@ -469,7 +469,7 @@ void systemRender (void)
 			glLoadMatrixf (matrix);
 		mapDraw ();
 		if (systemGetState (System) == STATE_FREEVIEW && camera_getMode (camera) == CAMERA_FIRST_PERSON)
-			camera_drawCursor ();
+			uiDrawCursor ();
 	}
 
 	if (dynarr_size (System->uiPanels))

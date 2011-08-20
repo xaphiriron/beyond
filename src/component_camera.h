@@ -1,13 +1,8 @@
 #ifndef XPH_COMPONENT_CAMERA_H
 #define XPH_COMPONENT_CAMERA_H
 
-#include "quaternion.h"
-
 #include "entity.h"
 #include "object.h"
-#include "video.h"
-
-#include "component_position.h"
 
 enum camera_modes
 {
@@ -42,7 +37,5 @@ void component_cameraOrientResponse (EntComponent camera, void * arg);
 void component_cameraPositionResponse (EntComponent camera, void * arg);
 
 void component_cameraGetMatrix (EntComponent camera, void * arg);
-
-void camera_drawCursor ();
 
 #endif /* XPH_COMPONENT_CAMERA_H */
