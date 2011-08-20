@@ -613,23 +613,26 @@ void entity_purgeDestroyed (TIMER t)
 bool entity_registerComponentAndSystem (objHandler func) {
 	struct ent_system
 		* reg = xph_alloc (sizeof (struct ent_system));
-  ObjClass * oc = objClass_init (func, NULL, NULL, NULL);
-  Object * sys = obj_create (oc->name, NULL, NULL, NULL);
-  reg->system = sys;
-  reg->comp_name = obj_getClassName (sys);
-  reg->entities = dynarr_create (4, sizeof (EntComponent *));
+	ObjClass
+		* oc = objClass_init (func, NULL, NULL, NULL);
+	Object
+		* sys = obj_create (oc->name, NULL, NULL, NULL);
+	reg->system = sys;
+	reg->comp_name = obj_getClassName (sys);
+	reg->entities = dynarr_create (4, sizeof (EntComponent *));
+
 	reg->loaderCallback = NULL;
 	reg->weighCallback = NULL;
 	obj_message (sys, OM_COMPONENT_GET_LOADER_CALLBACK, &reg->loaderCallback, NULL);
 	obj_message (sys, OM_COMPONENT_GET_WEIGH_CALLBACK, &reg->weighCallback, NULL);
-  if (SystemRegistry == NULL) {
-    SystemRegistry = dynarr_create (4, sizeof (EntSystem *));
-  }
-  dynarr_push (SystemRegistry, reg);
-  dynarr_sort (SystemRegistry, sys_sort);
+
 	reg->messageTriggers = dynarr_create (4, sizeof (struct messageTrigger *));
+	if (SystemRegistry == NULL)
+		SystemRegistry = dynarr_create (4, sizeof (EntSystem *));
+	dynarr_push (SystemRegistry, reg);
+	dynarr_sort (SystemRegistry, sys_sort);
 	//printf ("%s: registered component \"%s\"\n", __FUNCTION__, reg->comp_name);
-  return TRUE;
+	return TRUE;
 }
 
 
@@ -749,20 +752,21 @@ void entity_destroyEverything ()
 }
 
 
-bool entitySubsystem_store (const char * comp_name) {
-  EntSystem s = NULL;
-  if (SubsystemComponentStore == NULL) {
-    SubsystemComponentStore = dynarr_create (6, sizeof (EntSystem));
-  }
-  s = entity_getSystemByName (comp_name);
-  if (s == NULL) {
-    return FALSE;
-  }
-  if (in_dynarr (SubsystemComponentStore, s) >= 0) {
-    return TRUE;
-  }
-  dynarr_push (SubsystemComponentStore, s);
-  return TRUE;
+bool entitySubsystem_store (const char * comp_name)
+{
+	EntSystem
+		s = NULL;
+	if (SubsystemComponentStore == NULL)
+		SubsystemComponentStore = dynarr_create (6, sizeof (EntSystem));
+	s = entity_getSystemByName (comp_name);
+	if (s == NULL)
+		return FALSE;
+	if (in_dynarr (SubsystemComponentStore, s) >= 0)
+	{
+		return TRUE;
+	}
+	dynarr_push (SubsystemComponentStore, s);
+	return TRUE;
 }
 
 bool entitySubsystem_unstore (const char * comp_name) {
