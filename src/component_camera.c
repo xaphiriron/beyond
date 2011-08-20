@@ -29,7 +29,6 @@ struct camera_data
 static Entity
 	ActiveCamera = NULL;
 
-static void camera_doControlInputResponse (Entity camera, const struct input_event * ie);
 static struct camera_data * camera_create ();
 
 
@@ -208,25 +207,6 @@ void camera_setAsActive (Entity e)
 	ActiveCamera = e;
 }
 
-static void camera_doControlInputResponse (Entity camera, const struct input_event * ie)
-{
-	cameraComponent
-		cd = component_getData (entity_getAs (camera, "camera"));
-	enum camera_modes
-		newMode;
-	if (cd == NULL)
-		return;
-	switch (ie->ir)
-	{
-		case IR_CAMERA_MODE_SWITCH:
-			newMode = cd->mode + 1 == 4 ? 1 : cd->mode + 1;
-			camera_switchMode (camera, newMode);
-			camera_update (camera);
-			break;
-		default:
-			return;
-	}
-}
 
 void camera_switchMode (Entity camera, enum camera_modes mode)
 {
@@ -492,17 +472,12 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 {
 	struct camera_data
 		** cd = NULL;
-	cameraComponent
-		cdata = NULL;
 /*
 	DynIterator
 		it = NULL;
 */
 	Entity
-		e = NULL,
-		from = NULL;
-	char
-		* message = NULL;
+		e = NULL;
 	switch (msg)
 	{
 		case OM_CLSNAME:
@@ -510,6 +485,7 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 			return EXIT_SUCCESS;
 		case OM_CLSINIT:
 			comp_entdata = dynarr_create (8, sizeof (Entity));
+
 			return EXIT_SUCCESS;
 		case OM_CLSFREE:
 			dynarr_destroy (comp_entdata);
@@ -562,21 +538,7 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 			return EXIT_SUCCESS;
 
 		case OM_COMPONENT_RECEIVE_MESSAGE:
-			message = ((struct comp_message *)a)->message;
-			cdata = component_getData (((struct comp_message *)a)->to);
-			e = component_entityAttached (((struct comp_message *)a)->to);
-			from = ((struct comp_message *)a)->entFrom;
-			if (from == cdata->target)
-			{
-				/* there's probably a way to do this so it only has to update one cached matrix instead of all of them
-				 *  - xph 2011 06 12
-				 */
-				/* the obnoxious thing about this is that within this context we have the RELATIVEHEX we'll need to use for the position update, but by the time we call camera_update -> camera_updatePosition -> position_copy -> position_set it's no longer in the current scope.
-				 * although that /does/ assume that the camera will always be in the same exact position as its target prior to this step
-				 * anyway, suffice to say, it's annoying that we have to recalculate the RELATIVEHEX since that's an (relatively speaking) expensive step
-				 *  - xph 2011 06 14
-				 */
-				//DEBUG ("GOT A MESSAGE FROM THE CAMERA TARGET", NULL);
+/*
 				if (!strcmp (message, "positionUpdate"))
 					camera_update (e);
 				else if (!strcmp (message, "orientationUpdate"))
@@ -592,17 +554,79 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 				DEBUG ("Render cache has updated", NULL);
 				return EXIT_SUCCESS;
 			}
-			else if (strcmp (message, "CONTROL_INPUT") == 0)
-			{
-				camera_doControlInputResponse (e, (const struct input_event *)b);
-				return EXIT_SUCCESS;
-			}
+*/
 			return EXIT_FAILURE;
 
 		default:
 			return obj_pass ();
 	}
 	return EXIT_FAILURE;
+}
+
+void component_cameraRegisterResponses ()
+{
+	printf ("registering camera responses\n");
+	component_registerResponse ("camera", "CONTROL_INPUT", component_cameraControlResponse);
+	/* here we are trusting if we get /any/ position/orientation updates
+	 * they're from something we care about. right now this is fine, the
+	 * camera is only subscribed to its target, but if speaking becomes a
+	 * little more generalized this could lead to spurious updates
+	 *  - xph 2011 08 19 */
+	component_registerResponse ("camera", "orientationUpdate", component_cameraOrientResponse);
+	component_registerResponse ("camera", "positionUpdate", component_cameraPositionResponse);
+}
+
+void component_cameraControlResponse (EntComponent camera, void * arg)
+{
+	Entity
+		camEntity = component_entityAttached (camera);
+	cameraComponent
+		camData = component_getData (camera);
+	enum camera_modes
+		newMode;
+	const struct input_event
+		* ie = arg;
+
+	switch (ie->ir)
+	{
+		case IR_CAMERA_MODE_SWITCH:
+			newMode = camData->mode + 1 == 4
+				? 1
+				: camData->mode + 1;
+			camera_switchMode (camEntity, newMode);
+			camera_update (camEntity);
+			break;
+		default:
+			return;
+	}
+}
+
+void component_cameraOrientResponse (EntComponent camera, void * arg)
+{
+	Entity
+		camEntity = component_entityAttached (camera);
+
+	camera_update (camEntity);
+}
+
+void component_cameraPositionResponse (EntComponent camera, void * arg)
+{
+	Entity
+		camEntity = component_entityAttached (camera);
+	POSITIONUPDATE
+		update = arg;
+
+	camera_update (camEntity);
+	/* this should do an additional check on the platter distance between
+	 * update->oldGround and update->newGround and only update the render
+	 * cache if the value is above a certain value, dependant on the current
+	 * view distance. But there's no generalized distance metric function for
+	 * subhexes yet, so...
+	 *  - xph 2011 08 19 */
+	if (update != NULL)
+	{
+		worldSetRenderCacheCentre (update->newGround);
+	}
 }
 
 

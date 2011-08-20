@@ -42,6 +42,11 @@ void camera_update (Entity e);
 void camera_updatePosition (Entity camera);
 int component_camera (Object * obj, objMsg msg, void * a, void * b);
 
+void component_cameraRegisterResponses ();
+void component_cameraControlResponse (EntComponent camera, void * arg);
+void component_cameraOrientResponse (EntComponent camera, void * arg);
+void component_cameraPositionResponse (EntComponent camera, void * arg);
+
 
 void camera_drawCursor ();
 
