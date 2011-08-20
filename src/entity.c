@@ -284,7 +284,6 @@ bool component_instantiate (const char * comp_name, Entity e)
 	instance->e = e;
 	instance->reg = sys;
 	instance->comp_guid = ++ComponentGUIDs;
-	instance->comp_data = NULL;
 	instance->loaded = FALSE;
 	instance->loader = NULL;
 	// we care less about enforcing uniqueness of component guids than we do about entities.
@@ -292,7 +291,10 @@ bool component_instantiate (const char * comp_name, Entity e)
 	dynarr_push (e->components, instance);
 	dynarr_sort (sys->entities, comp_sort);
 	dynarr_sort (e->components, comp_sort);
+
+	instance->comp_data = NULL;
 	obj_message (sys->system, OM_COMPONENT_INIT_DATA, &instance->comp_data, e);
+	component_sendMessage (instance, "__init", NULL);
 	return TRUE;
 }
 
@@ -313,6 +315,7 @@ bool component_remove (const char * comp_name, Entity e)
 		return FALSE;
 	}
 	obj_message (sys->system, OM_COMPONENT_DESTROY_DATA, &comp->comp_data, e);
+	component_sendMessage (comp, "__destroy", NULL);
 	dynarr_remove_condense (sys->entities, comp);
 	dynarr_remove_condense (e->components, comp);
 	if (comp->loader != NULL)
@@ -328,11 +331,32 @@ Entity component_entityAttached (EntComponent c)
 	return c->e;
 }
 
+bool component_setData (EntComponent c, void * data)
+{
+	if (c == NULL)
+		return FALSE;
+	if (c->comp_data)
+	{
+		ERROR ("Could not set component data for \"%s\" on #%d: data already set to %p", c->reg->comp_name, entity_GUID (component_entityAttached (c)));
+		return FALSE;
+	}
+	c->comp_data = data;
+	return TRUE;
+}
+
 void * component_getData (EntComponent c)
 {
 	if (c == NULL)
 		return NULL;
 	return c->comp_data;
+}
+
+bool component_clearData (EntComponent c)
+{
+	if (c == NULL)
+		return FALSE;
+	c->comp_data = NULL;
+	return TRUE;
 }
 
 

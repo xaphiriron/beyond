@@ -58,7 +58,9 @@ bool component_remove (const char * comp_name, Entity e);
 EntComponent entity_getAs (Entity e, const char * comp_name);
 Entity component_entityAttached (EntComponent c);
 
+bool component_setData (EntComponent c, void * data);
 void * component_getData (EntComponent c);
+bool component_clearData (EntComponent c);
 
 bool component_registerResponse (const char * comp_name, const char * message, compFunc * function);
 bool component_clearResponses (const char * comp_name, const char * message);
