@@ -590,10 +590,12 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 					worldSetRenderCacheCentre (((POSITIONUPDATE)b)->newGround);
 				camera_update (e);
 				DEBUG ("Render cache has updated", NULL);
+				return EXIT_SUCCESS;
 			}
 			else if (strcmp (message, "CONTROL_INPUT") == 0)
 			{
 				camera_doControlInputResponse (e, (const struct input_event *)b);
+				return EXIT_SUCCESS;
 			}
 			return EXIT_FAILURE;
 
