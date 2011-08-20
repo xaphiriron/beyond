@@ -547,7 +547,9 @@ static void systemUpdateDebugStr (void)
 	len += snprintf (buffer, 63, "\t0: %d, %d\n", x, y);
 	strncat (debugDisplay, buffer, DEBUGLEN - len);
 	
-	while (trav != NULL)
+	/* the poles have local coordinates technically, but they're always 0,0
+	 * since there's no parent scope so we're skipping them */
+	while (subhexSpanLevel (trav) < mapGetSpan ())
 	{
 		subhexLocalCoordinates (trav, &x, &y);
 		len += snprintf (buffer, 63, "\t%d: %d, %d\n", subhexSpanLevel (trav), x, y);
