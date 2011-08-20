@@ -19,7 +19,6 @@ enum camera_modes
 
 typedef struct camera_data * cameraComponent;
 
-const float * camera_getMatrix (Entity e);
 enum camera_modes camera_getMode (Entity camera);
 float camera_getHeading (Entity e);
 float camera_getPitch (Entity e);
@@ -27,19 +26,7 @@ float camera_getRoll (Entity e);
 
 const Entity camera_getActiveCamera ();
 
-void camera_attachToTarget (Entity camera, Entity target);
-void camera_setAsActive (Entity e);
-void camera_switchMode (Entity camera, enum camera_modes mode);
 
-void camera_updateTargetPositionData (Entity camera);
-// azimuth is pitch from horizon; 0 means perpendicular with up vector, 90 means the opposite of the up vector, -90 means equal to the up vector. rotation is relative to the object's forward vector; 0 means equal to the object's forward vector, 180 means the opposite of it, and 90 and -90 are perpendicular.
-// in first-person mode distance and rotation are clamped to 0 (and the target's orientation is used to calculate azimuth)
-// in third-person mode rotation is clamped to 0 (and the target's orientation is used to calculate azimuth??)
-// in isometric mode azimuth is clamped to 45 (or maybe 30-60)
-void camera_setCameraOffset (Entity camera, float azimuth, float rotation, float distance);
-
-void camera_update (Entity e);
-void camera_updatePosition (Entity camera);
 int component_camera (Object * obj, objMsg msg, void * a, void * b);
 
 void component_cameraRegisterResponses ();
@@ -47,10 +34,14 @@ void component_cameraRegisterResponses ();
 void component_cameraInitialize (EntComponent camera, void * arg);
 void component_cameraDestroy (EntComponent camera, void * arg);
 
+void component_cameraActivate (EntComponent camera, void * arg);
+void component_cameraSetTarget (EntComponent camera, void * arg);
+
 void component_cameraControlResponse (EntComponent camera, void * arg);
 void component_cameraOrientResponse (EntComponent camera, void * arg);
 void component_cameraPositionResponse (EntComponent camera, void * arg);
 
+void component_cameraGetMatrix (EntComponent camera, void * arg);
 
 void camera_drawCursor ();
 

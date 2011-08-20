@@ -29,6 +29,21 @@ struct camera_data
 static Entity
 	ActiveCamera = NULL;
 
+void camera_setAsActive (Entity e);
+void camera_switchMode (Entity camera, enum camera_modes mode);
+
+void camera_update (Entity e);
+void camera_updatePosition (Entity camera);
+
+void camera_attachToTarget (Entity camera, Entity target);
+
+void camera_updateTargetPositionData (Entity camera);
+// azimuth is pitch from horizon; 0 means perpendicular with up vector, 90 means the opposite of the up vector, -90 means equal to the up vector. rotation is relative to the object's forward vector; 0 means equal to the object's forward vector, 180 means the opposite of it, and 90 and -90 are perpendicular.
+// in first-person mode distance and rotation are clamped to 0 (and the target's orientation is used to calculate azimuth)
+// in third-person mode rotation is clamped to 0 (and the target's orientation is used to calculate azimuth??)
+// in isometric mode azimuth is clamped to 45 (or maybe 30-60)
+void camera_setCameraOffset (Entity camera, float azimuth, float rotation, float distance);
+
 static struct camera_data * camera_create ();
 
 
@@ -440,9 +455,6 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 			dynarr_destroy (comp_entdata);
 			comp_entdata = NULL;
 			return EXIT_SUCCESS;
-		case OM_CLSVARS:
-		case OM_CREATE:
-			return EXIT_FAILURE;
 
 		case OM_SHUTDOWN:
 		case OM_DESTROY:
@@ -457,10 +469,13 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 
 void component_cameraRegisterResponses ()
 {
-	printf ("registering camera responses\n");
-
 	component_registerResponse ("camera", "__init", component_cameraInitialize);
 	component_registerResponse ("camera", "__destroy", component_cameraDestroy);
+
+	component_registerResponse ("camera", "setTarget", component_cameraSetTarget);
+	component_registerResponse ("camera", "activate", component_cameraActivate);
+
+	component_registerResponse ("camera", "getMatrix", component_cameraGetMatrix);
 
 	component_registerResponse ("camera", "CONTROL_INPUT", component_cameraControlResponse);
 	/* here we are trusting if we get /any/ position/orientation updates
@@ -497,6 +512,23 @@ void component_cameraDestroy (EntComponent camera, void * arg)
 	component_clearData (camera);
 
 	dynarr_remove_condense (comp_entdata, camEntity);
+}
+
+void component_cameraActivate (EntComponent camera, void * arg)
+{
+	Entity
+		camEntity = component_entityAttached (camera);
+
+	camera_setAsActive (camEntity);
+}
+
+void component_cameraSetTarget (EntComponent camera, void * arg)
+{
+	Entity
+		camEntity = component_entityAttached (camera),
+		target = arg;
+
+	camera_attachToTarget (camEntity, target);
 }
 
 void component_cameraControlResponse (EntComponent camera, void * arg)
@@ -550,6 +582,22 @@ void component_cameraPositionResponse (EntComponent camera, void * arg)
 	{
 		worldSetRenderCacheCentre (update->newGround);
 	}
+}
+
+
+void component_cameraGetMatrix (EntComponent camera, void * arg)
+{
+	cameraComponent
+		camData = component_getData (camera);
+	float
+		** matrix = arg;
+
+	if (camData == NULL)
+	{
+		*matrix = NULL;
+		return;
+	}
+	*matrix = camData->m;
 }
 
 

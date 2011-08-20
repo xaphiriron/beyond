@@ -270,8 +270,8 @@ void systemCreatePlayer ()
 	component_instantiate ("position", camera);
 	if (component_instantiate ("camera", camera))
 	{
-		camera_attachToTarget (camera, player);
-		camera_setAsActive (camera);
+		entity_message (camera, NULL, "setTarget", player);
+		entity_message (camera, NULL, "activate", NULL);
 	}
 	if (component_instantiate ("input", camera))
 	{
@@ -464,7 +464,7 @@ void systemRender (void)
 	if (worldExists ())
 	{
 		camera = camera_getActiveCamera ();
-		matrix = camera_getMatrix (camera);
+		entity_message (camera, NULL, "getMatrix", &matrix);
 		if (matrix != NULL)
 			glLoadMatrixf (matrix);
 		mapDraw ();
