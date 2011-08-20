@@ -31,8 +31,17 @@ static struct mapData * mapDataCreate ();
 static struct mapData * mapDataCopy (const struct mapData * md);
 static void mapDataDestroy (struct mapData * mb);
 
-static void mapRelativeTargetImprint (void * rel_v);
+static void mapRelativeTargetImprintMap (void * rel_v);
+static void mapRelativeTargetImprintArches (void * rel_v);
 static void mapRelativeTargetBake (void * rel_v);
+
+
+/***
+ * MAP LOADING INTERNAL FUNCTION DECLARATIONS
+ */
+static void mapQueueLoadAround (SUBHEX origin);
+static signed int mapUnloadDistant ();
+
 
 
 bool mapSetSpanAndRadius (const unsigned char span, const unsigned char radius)
@@ -805,7 +814,10 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 	{
 		//DEBUG ("iterating on %d up the span hierarchy", i);
 		if (subhexSpanLevel (start) == MapSpan)
+		{
+			INFO ("Hit pole level during traversal (net coordinates: %d, %d)", netX, netY);
 			break;
+		}
 		mapScaleCoordinates (1, netX, netY, &cX, &cY, &xRemainder, &yRemainder);
 		//DEBUG ("condensed coordinates %d, %d to %d, %d (with remainder %d, %d at index %d)", netX, netY, cX, cY, xRemainder, yRemainder, i);
 
@@ -898,11 +910,7 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 		i++;
 	}
 	//DEBUG ("final distance measure: %f, %f, %f", rel->distance.x, rel->distance.y, rel->distance.z);
-
 	xph_free (startX);
-
-
-
 
 	FUNCCLOSE ();
 	return rel;
@@ -1476,17 +1484,18 @@ char subhexPoleName (const SUBHEX subhex)
 		parent;
 	int
 		i;
+
 	if (Poles == NULL)
 	{
-		ERROR ("Can't get pole name: no poles!", NULL);
+		ERROR ("Can't get pole name for %p: no poles!", subhex);
 		return '!';
 	}
 	else if (subhex == NULL)
 	{
-		ERROR ("Can't get pole name: NULL subhex", NULL);
+		ERROR ("Can't get pole name for %p: NULL subhex", subhex);
 		return '?';
 	}
-	i = PoleCount;
+	sh = subhex;
 	parent = subhexParent (subhex);
 	while (parent != NULL)
 	{
@@ -1494,12 +1503,14 @@ char subhexPoleName (const SUBHEX subhex)
 		parent = subhexParent (parent);
 	}
 	/* DEBUG ("got pole value %p from %p", sh, subhex); */
-	while (i > 0)
+	i = 0;
+	while (i < PoleCount)
 	{
-		i--;
 		if (Poles[i] == sh)
 			return PoleNames[i];
+		i++;
 	}
+	ERROR ("Can't get pole name for %p: ???", subhex);
 	return '?';
 }
 
@@ -1658,7 +1669,7 @@ char worldhexPole (const WORLDHEX whx)
 
 
 /***
- * RENDERING FUNCTIONS
+ * MAP LOADING FUNCTIONS
  */
 
 
@@ -1667,7 +1678,69 @@ static Dynarr
 SUBHEX
 	RenderOrigin = NULL;
 static unsigned char
-	AbsoluteViewLimit = 8;
+	AbsoluteViewLimit = 6;
+
+Dynarr
+	loadedPlatters = NULL,
+	toLoad = NULL;
+
+static void initMapLoad ()
+{
+	if (loadedPlatters != NULL)
+	{
+		ERROR ("Can't (re?)load map storage; loaded platter list is already assigned (%p) and not NULL", loadedPlatters);
+		return;
+	}
+	if (toLoad != NULL)
+	{
+		ERROR ("Can't (re?)load map storage; platter to-load is already assigned (%p) and not NULL", toLoad);
+		return;
+	}
+	loadedPlatters = dynarr_create (12, sizeof (SUBHEX));
+	toLoad = dynarr_create (12, sizeof (SUBHEX));
+}
+
+static void mapQueueLoadAround (SUBHEX origin)
+{
+	if (loadedPlatters == NULL)
+		initMapLoad ();
+
+}
+
+/* i feel like this function is ignoring the fact that subhexes will
+ * frequently be high-span (not just span-1 at all times) and i /also/ feel
+ * like that will doubtless lead to problems when you accidentally unload a
+ * pole or something like that
+ *  - xph 2011 08 01
+ */
+static signed int mapUnloadDistant ()
+{
+	int
+/*
+		x, y,
+		distance = 0,*/
+		i = 0;
+	SUBHEX
+		subhex = NULL;
+	if (loadedPlatters == NULL)
+		initMapLoad ();
+	while ((subhex = *(SUBHEX *)dynarr_at (toLoad, i++)) != NULL)
+	{
+		/*
+		mapStepDistanceBetween (RenderOrigin, subhex, 1, &x, &y);
+		distance = hexMagnitude (x, y);
+		if (distance > (AbsoluteViewLimit * 2))
+		{
+			// unload subhex i guess
+		}
+		*/
+	}
+	return -1;
+}
+
+/***
+ * RENDERING FUNCTIONS
+ */
 
 
 void worldSetRenderCacheCentre (SUBHEX origin)
@@ -1691,8 +1764,21 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 		dynarr_wipe (RenderCache, (void (*)(void *))mapRelativeDestroy);
 		dynarr_destroy (RenderCache);
 	}
+
+	/* the instant map expansion rule:
+	 * this ought to add all the affected subhexes to a list to iterate
+	 * though, but for now an instant load will suffice.
+	 *  - xph 2011 08 01
+	 */
+	mapForceGrowAtLevelForDistance (origin, 1, 3);
+
+
+	mapQueueLoadAround (origin);
+
 	RenderCache = mapAdjacentSubhexes (origin, AbsoluteViewLimit);
 	DEBUG ("set render cache to %p", RenderCache);
+
+	mapUnloadDistant ();
 
 	/* i really don't know if this is the right place for the imprinting code
 	 * -- it obviously has /something/ to do with rendering, but when we're
@@ -1701,26 +1787,23 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 	 * maybe???
 	 *   - xph 2011 07 28
 	 */
-	dynarr_map (RenderCache, mapRelativeTargetImprint);
-	//dynarr_map (RenderCache, mapRelativeTargetBake);
-	
+	dynarr_map (RenderCache, mapRelativeTargetImprintMap);
+	dynarr_map (RenderCache, mapRelativeTargetImprintArches);
+	dynarr_map (RenderCache, mapRelativeTargetBake);
 }
 
-static void mapRelativeTargetImprint (void * rel_v)
+static void mapRelativeTargetImprintMap (void * rel_v)
 {
-	if (isPerfectFidelity (rel_v))
-	{
-		worldgenImprintMapData (mapRelativeTarget (rel_v));
-		worldgenImprintAllArches (mapRelativeTarget (rel_v));
-	}
+	worldgenImprintMapData (mapRelativeTarget (rel_v));
 }
-
-/*
+static void mapRelativeTargetImprintArches (void * rel_v)
+{
+	worldgenImprintAllArches (mapRelativeTarget (rel_v));
+}
 static void mapRelativeTargetBake (void * rel_v)
 {
 	mapBakeHexes (mapRelativeTarget (rel_v));
 }
-*/
 
 void mapBakeHexes (SUBHEX subhex)
 {
