@@ -470,14 +470,6 @@ static Dynarr
 	comp_entdata = NULL;
 int component_camera (Object * obj, objMsg msg, void * a, void * b)
 {
-	struct camera_data
-		** cd = NULL;
-/*
-	DynIterator
-		it = NULL;
-*/
-	Entity
-		e = NULL;
 	switch (msg)
 	{
 		case OM_CLSNAME:
@@ -491,71 +483,14 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 			dynarr_destroy (comp_entdata);
 			comp_entdata = NULL;
 			return EXIT_SUCCESS;
-    case OM_CLSVARS:
-    case OM_CREATE:
-      return EXIT_FAILURE;
-    default:
-      break;
-	}
-	switch (msg)
-	{
+		case OM_CLSVARS:
+		case OM_CREATE:
+			return EXIT_FAILURE;
+
 		case OM_SHUTDOWN:
 		case OM_DESTROY:
 			obj_destroy (obj);
 			return EXIT_SUCCESS;
-		case OM_COMPONENT_INIT_DATA:
-			e = (Entity)b;
-			cd = a;
-			*cd = camera_create ();
-			//DEBUG ("switching to first person:", NULL);
-			camera_switchMode (e, CAMERA_FIRST_PERSON);
-			//DEBUG ("setting as active:", NULL);
-			camera_setAsActive (b);
-			//DEBUG ("done with camera init", NULL);
-			dynarr_push (comp_entdata, e);
-			return EXIT_SUCCESS;
-		case OM_COMPONENT_DESTROY_DATA:
-			e = (Entity)b;
-			cd = a;
-			xph_free (*cd);
-			*cd = NULL;
-			dynarr_remove_condense (comp_entdata, e);
-			return EXIT_SUCCESS;
-
-		case OM_UPDATE:
-			/* don't do this -- have the camera listen to messages from its target and update when its target sends the positionUpdate message
-			it = dynIterator_create (comp_entdata);
-			while (!dynIterator_done (it))
-			{
-				e = *(Entity *)dynIterator_next (it);
-				camera_update (e);
-			}
-			dynIterator_destroy (it);
-			*/
-			return EXIT_SUCCESS;
-
-		case OM_POSTUPDATE:
-			return EXIT_SUCCESS;
-
-		case OM_COMPONENT_RECEIVE_MESSAGE:
-/*
-				if (!strcmp (message, "positionUpdate"))
-					camera_update (e);
-				else if (!strcmp (message, "orientationUpdate"))
-					camera_update (e);
-			
-				return EXIT_SUCCESS;
-			}
-			if (strcmp (message, "positionUpdate") == 0)
-			{
-				if (b != NULL)
-					worldSetRenderCacheCentre (((POSITIONUPDATE)b)->newGround);
-				camera_update (e);
-				DEBUG ("Render cache has updated", NULL);
-				return EXIT_SUCCESS;
-			}
-*/
-			return EXIT_FAILURE;
 
 		default:
 			return obj_pass ();
@@ -566,14 +501,45 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 void component_cameraRegisterResponses ()
 {
 	printf ("registering camera responses\n");
+
+	component_registerResponse ("camera", "__init", component_cameraInitialize);
+	component_registerResponse ("camera", "__destroy", component_cameraDestroy);
+
 	component_registerResponse ("camera", "CONTROL_INPUT", component_cameraControlResponse);
 	/* here we are trusting if we get /any/ position/orientation updates
-	 * they're from something we care about. right now this is fine, the
-	 * camera is only subscribed to its target, but if speaking becomes a
+	 * they're from something we care about. right now this is fine; the
+	 * camera is only subscribed to its target. but if speaking becomes a
 	 * little more generalized this could lead to spurious updates
 	 *  - xph 2011 08 19 */
 	component_registerResponse ("camera", "orientationUpdate", component_cameraOrientResponse);
 	component_registerResponse ("camera", "positionUpdate", component_cameraPositionResponse);
+}
+
+void component_cameraInitialize (EntComponent camera, void * arg)
+{
+	Entity
+		camEntity = component_entityAttached (camera);
+	cameraComponent
+		camData = camera_create ();
+
+	component_setData (camera, camData);
+
+	camera_switchMode (camEntity, CAMERA_FIRST_PERSON);
+	camera_setAsActive (camEntity);
+	dynarr_push (comp_entdata, camEntity);
+}
+
+void component_cameraDestroy (EntComponent camera, void * arg)
+{
+	Entity
+		camEntity = component_entityAttached (camera);
+	cameraComponent
+		camData = component_getData (camera);
+
+	xph_free (camData);
+	component_clearData (camera);
+
+	dynarr_remove_condense (comp_entdata, camEntity);
 }
 
 void component_cameraControlResponse (EntComponent camera, void * arg)
