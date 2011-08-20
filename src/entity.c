@@ -89,7 +89,7 @@ static void mt_destroy (struct messageTrigger * mt);
 static int mt_sort (const void * a, const void * b);
 static int mt_search (const void * k, const void * d);
 
-static void component_sendMessage (const char * message, EntComponent c);
+static void component_sendMessage (EntComponent c, const char * message, void * arg);
 
 static int guid_sort (const void * a, const void * b)
 {
@@ -249,12 +249,12 @@ bool entity_message (Entity e, Entity from, char * message, void * arg)
 		 * messaged here
 		 *  - xph 2011 08 19 */
 		obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, &msg, arg);
-		component_sendMessage (message, t);
+		component_sendMessage (t, message, arg);
 	}
 	return TRUE;
 }
 
-static void component_sendMessage (const char * message, EntComponent c)
+static void component_sendMessage (EntComponent c, const char * message, void * arg)
 {
 	struct messageTrigger
 		* mt = *(struct messageTrigger **)dynarr_search (c->reg->messageTriggers, mt_search, message);
@@ -264,7 +264,7 @@ static void component_sendMessage (const char * message, EntComponent c)
 		return;
 	while (i < dynarr_size (mt->funcs))
 	{
-		(*(compFunc **)dynarr_at (mt->funcs, i++))(c);
+		(*(compFunc **)dynarr_at (mt->funcs, i++))(c, arg);
 	}
 }
 
@@ -343,7 +343,10 @@ bool component_registerResponse (const char * comp_name, const char * message, c
 	struct messageTrigger
 		* mt;
 	if (sys == NULL)
+	{
+		ERROR ("No component \"%s\" registered", comp_name);
 		return FALSE;
+	}
 	mt = *(struct messageTrigger **)dynarr_search (sys->messageTriggers, mt_search, message);
 	if (mt == NULL)
 	{
@@ -387,7 +390,7 @@ static struct messageTrigger * mt_create (const char * message)
 static void mt_destroy (struct messageTrigger * mt)
 {
 	xph_free (mt->message);
-	dynarr_wipe (mt->funcs, xph_free);
+	/* don't wipe funcs; it's full of function pointers */
 	dynarr_destroy (mt->funcs);
 	xph_free (mt);
 }
@@ -621,13 +624,16 @@ EntSystem entity_getSystemByName (const char * comp_name) {
   return sys;
 }
 
-void entity_destroySystem (const char * comp_name) {
-  EntSystem sys = entity_getSystemByName (comp_name);
-  EntComponent c = NULL;
+void entity_destroySystem (const char * comp_name)
+{
+	EntSystem
+		sys = entity_getSystemByName (comp_name);
+	EntComponent
+		c = NULL;
 	//printf ("%s (\"%s\")...\n", __FUNCTION__, comp_name);
-  if (sys == NULL) {
-    return;
-  }
+	if (sys == NULL)
+		return;
+
 	if (!dynarr_isEmpty (sys->entities))
 	{
 		WARNING ("EntComponent system \"%s\" still has %d entit%s with instantiations while being destroyed.", sys->comp_name, dynarr_size (sys->entities), dynarr_size (sys->entities) == 1 ? "y" : "ies");
@@ -636,14 +642,15 @@ void entity_destroySystem (const char * comp_name) {
 			component_remove (sys->comp_name, c->e);
 		}
 	}
-	dynarr_wipe (sys->messageTriggers, (void (*)(void *))mt_destroy);
+
+	dynarr_map (sys->messageTriggers, (void (*)(void *))mt_destroy);
 	dynarr_destroy (sys->messageTriggers);
-  dynarr_destroy (sys->entities);
-  dynarr_remove_condense (SystemRegistry, sys);
-  obj_message (sys->system, OM_DESTROY, NULL, NULL);
-  objClass_destroy (sys->comp_name);
-  xph_free (sys);
-	//printf ("...%s\n", __FUNCTION__);
+
+	dynarr_destroy (sys->entities);
+	dynarr_remove_condense (SystemRegistry, sys);
+	obj_message (sys->system, OM_DESTROY, NULL, NULL);
+	objClass_destroy (sys->comp_name);
+	xph_free (sys);
 }
 
 

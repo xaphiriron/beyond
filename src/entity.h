@@ -11,7 +11,7 @@ typedef struct entity * Entity;
 typedef struct ent_system * EntSystem;
 typedef struct ent_component * EntComponent;
 
-typedef void (compFunc) (EntComponent);
+typedef void (compFunc) (EntComponent, void *);
 
 struct comp_message {
 	Entity
