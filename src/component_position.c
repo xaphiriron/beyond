@@ -36,9 +36,7 @@ static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround
 	}
 	else
 	{
-		WARNING ("Attempting to generate a relative hex using the not-exactly-correct subhex-to-subhex function", NULL);
 		posUpdate.relPosition = mapRelativeSubhexWithSubhex (oldGround, newGround);
-		WARNING (" (got %p)", posUpdate.relPosition);
 		if (posUpdate.relPosition == NULL)
 		{
 			ERROR ("CAN'T HANDLE THIS; NEED TO GENERATE A RELATIVEHEX FROM SCRATCH BUT CAN'T AAA (one that connects %p to %p", oldGround, newGround);

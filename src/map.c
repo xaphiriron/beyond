@@ -982,7 +982,7 @@ RELATIVEHEX mapRelativeSubhexWithSubhex (const SUBHEX start, const SUBHEX goal)
 		rel->y[i] = y;
 		if (subhexSpanLevel (sTrav) == MapSpan)
 		{
-			ERROR ("%s: traversal hit pole level; it's trivial to make this work right but i haven't yet; sorry (got poles %c and %c)", subhexPoleName (sTrav), subhexPoleName (gTrav));
+			ERROR ("%s: traversal hit pole level; it's trivial to make this work right but i haven't yet; sorry (got poles %c and %c)", __FUNCTION__, subhexPoleName (sTrav), subhexPoleName (gTrav));
 			break;
 		}
 		sTrav = subhexParent (sTrav);
@@ -995,6 +995,7 @@ RELATIVEHEX mapRelativeSubhexWithSubhex (const SUBHEX start, const SUBHEX goal)
 	i = subhexSpanLevel (sTrav);
 	
 
+	DEBUG ("%s: returning probably-broken relativehex %p", __FUNCTION__, rel);
 	DEBUG ("returning probably-broken relativehex %p", rel);
 	return rel;
 }
