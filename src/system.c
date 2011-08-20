@@ -540,7 +540,7 @@ static void systemUpdateDebugStr (void)
 	memset (debugDisplay, 0, DEBUGLEN);
 	len = snprintf (buffer, 63, "Player Entity: #%d\nCamera Entity: #%d\n\nPosition\n", entity_GUID (player), entity_GUID (camera_getActiveCamera ()));
 	strncpy (debugDisplay, buffer, len);
-	len += snprintf (buffer, 63, "World\n\tSpan: %d\n\tRadius: %d\n", mapGetSpan (), mapGetRadius ());
+	len += snprintf (buffer, 63, "World\n\tSpan: %d\n\tRadius: %d\n\tPole: '%c'\n", mapGetSpan (), mapGetRadius (), subhexPoleName (position_getGround (player)));
 	strncat (debugDisplay, buffer, DEBUGLEN - len);
 
 	position_getCoordOffset (player, &x, &y);
