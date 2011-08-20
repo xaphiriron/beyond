@@ -17,32 +17,28 @@ struct position_data { // POSITION
 };
 
 
-/* this groundChange var is used to cache a RELATIVEHEX calculated in position_move and reused in a later position_messageGroundChange call; this might not be the most elegant way to do things but it avoids pointlessly recalculating a RELATIVEHEX in many cases
- * - xph 2011 06 12
- */
-static RELATIVEHEX
-	GroundChange = NULL;
-
 static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround, SUBHEX newGround);
 static void position_updateAxesFromOrientation (POSITION pdata);
 
 static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround, SUBHEX newGround)
 {
+	FUNCOPEN ();
+
 	static struct position_update
 		posUpdate;
-	bool
-		usedCache = FALSE;
-	FUNCOPEN ();
 	posUpdate.oldGround = oldGround;
 	posUpdate.newGround = newGround;
-	if (GroundChange)
+	if (oldGround == NULL || newGround == NULL)
 	{
-		posUpdate.relPosition = GroundChange;
-		usedCache = TRUE;
+		WARNING ("No point in generating ground change between %p and %p (one or both is NULL)", oldGround, newGround);
+		FUNCCLOSE ();
+		return;
 	}
 	else
 	{
+		WARNING ("Attempting to generate a relative hex using the not-exactly-correct subhex-to-subhex function", NULL);
 		posUpdate.relPosition = mapRelativeSubhexWithSubhex (oldGround, newGround);
+		WARNING (" (got %p)", posUpdate.relPosition);
 		if (posUpdate.relPosition == NULL)
 		{
 			ERROR ("CAN'T HANDLE THIS; NEED TO GENERATE A RELATIVEHEX FROM SCRATCH BUT CAN'T AAA (one that connects %p to %p", oldGround, newGround);
@@ -50,11 +46,8 @@ static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround
 			return;
 		}
 	}
-	GroundChange = NULL;
 	posUpdate.difference = mapRelativeDistance (posUpdate.relPosition);
 	entity_message (component_entityAttached (c), NULL, "positionUpdate", &posUpdate);
-	if (!usedCache)
-		mapRelativeDestroy (posUpdate.relPosition);
 	memset (&posUpdate, '\0', sizeof (struct position_update));
 	FUNCCLOSE ();
 }
@@ -127,10 +120,8 @@ bool position_move (Entity e, VECTOR3 move)
 		newPosition;
 	SUBHEX
 		newGround = NULL;
-/*
-	signed int
-		sx = 0,sy = 0,fx = 0,fy = 0;
-*/
+	bool
+		validMove = TRUE;
 
 	if (pdata == NULL)
 	{
@@ -140,69 +131,24 @@ bool position_move (Entity e, VECTOR3 move)
 	}
 	newRawPosition = vectorAdd (&pdata->pos, &move);
 
-	if (mapMove (pdata->ground, &newRawPosition, &newGround, &newPosition))
+	validMove = mapMove (pdata->ground, &newRawPosition, &newGround, &newPosition);
+	newPosition.y = 90.0;
+	if (!validMove)
 	{
-/*
-		subhexLocalCoordinates (pdata->ground, &sx, &sy);
-		subhexLocalCoordinates (newGround, &fx, &fy);
-*/
-		newPosition.y = 90.0;
-		/*
-		DEBUG ("moving from %p (%d, %d) // %.2f,%.2f,%.2f to %p (%d, %d) // %.2f,%.2f,%.2f", pdata->ground, sx, sy, newRawPosition.x, newRawPosition.y, newRawPosition.z, newGround, fx, fy, newPosition.x, newPosition.y, newPosition.z);
-		*/
-		position_set (e, newPosition, newGround);
-		FUNCCLOSE ();
-		return TRUE;
-	}
-	else if (newGround != NULL)
-	{
-		newPosition.y = 90.0;
-		if (subhexSpanLevel (pdata->ground) < subhexSpanLevel (newGround))
+		if (newGround != NULL && subhexSpanLevel (pdata->ground) < subhexSpanLevel (newGround))
+		{
 			INFO ("Entity #%d's move has lost resolution: moving to span-%d platter from span-%d platter", entity_GUID (e), subhexSpanLevel (newGround), subhexSpanLevel (pdata->ground));
-		position_set (e, newPosition, newGround);
-		FUNCCLOSE ();
-		return TRUE;
+		}
+		else
+		{
+			ERROR ("Entity #%d's move has gone awry somehow???", entity_GUID (e));
+			return FALSE;
+		}
 	}
-	ERROR ("Entity #%d's move has gone awry somehow???", entity_GUID (e));
-	FUNCCLOSE ();
-	return FALSE;
 
-	/* NOTE: WARNING: okay look i don't know if this violates the "don't do any calculation of internals outside the related code" precept but there's just /got/ to be an easy way to only call this code when the player steps over a span-1 platter boundary, not /every tile/, and it looks like this function is the place to put it, at least for the time being.
-	 * (this could be a violation since supposedly the position code shouldn't care at all about the way the map system is coded, but, well, look at the below code all full of calculations using the map code. sigh.)
-	 * - xph 2011 06 12
-	 */
-	// the '1' in this function call should be the span level of the current platter
-/*
-	if (mapVectorOverrunsPlatter (1, &newPosition))
-	{
-		hex_space2coord (&newPosition, &x, &y);
-		DEBUG ("position vector out of bounds (at %d, %d); changing entity #%d's platter", x, y, entity_GUID (e));
-		x = y = 0;
-		
-		rel = mapRelativeSubhexWithVectorOffset (pdata->ground, &newPosition);
-		if (GroundChange != NULL)
-			ERROR ("Ground change cache already set when calling position_move; we're about to overwrite address %p with the new value of %p; this is a memory leak probably :(", GroundChange, rel);
-		GroundChange = rel;
-		newGround = mapRelativeSpanTarget (rel, 1);
-		if (subhexSpanLevel (pdata->ground) < subhexSpanLevel (newGround))
-			WARNING ("Entity #%d has moved from span level %d to %d and lost resolution in the process.", entity_GUID (e), subhexSpanLevel (pdata->ground), subhexSpanLevel (newGround));
-		else if (subhexSpanLevel (pdata->ground) != subhexSpanLevel (newGround))
-			WARNING ("Entity #%d has moved from span level %d to %d and GAINED resolution in the process.", entity_GUID (e), subhexSpanLevel (pdata->ground), subhexSpanLevel (newGround));
-		// this /isn't/ the distance to the centre of the new subhex; the vector offset is done with fidelity 0 and so it's accurate down to the individual hex but what we want is, well, the vector distance to the centre of the adjacent subhex. the funny thing is we can calculate /that/ easily from the position vector (i think??? convert to hex and then upscale one step); we only need to do the traversal to get the new subhex struct. but this should be as a map function, not part of the position code, because come on that is just too much map calculation to have to do externally
-		subhexCentreDistance = mapRelativeDistance (rel);
-		newPosition = vectorSubtract (&newPosition, &subhexCentreDistance);
-		subhexLocalCoordinates (newGround, &x, &y);
-		DEBUG ("new position: %f, %f, %f relative to new subhex (%p) at local coordinates %d, %d", newPosition.x, newPosition.y, newPosition.z, newGround, x, y);
-		position_set (e, newPosition, newGround);
-		mapRelativeDestroy (rel);
-	}
-	else
-	{
-		position_set (e, newPosition, pdata->ground);
-	}
+	position_set (e, newPosition, newGround);
 	FUNCCLOSE ();
 	return TRUE;
-*/
 }
 
 void position_copy (Entity target, const Entity source)
