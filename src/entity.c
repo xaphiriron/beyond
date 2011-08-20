@@ -598,12 +598,12 @@ bool entity_registerComponentAndSystem (objHandler func) {
 	reg->weighCallback = NULL;
 	obj_message (sys, OM_COMPONENT_GET_LOADER_CALLBACK, &reg->loaderCallback, NULL);
 	obj_message (sys, OM_COMPONENT_GET_WEIGH_CALLBACK, &reg->weighCallback, NULL);
-	reg->messageTriggers = dynarr_create (4, sizeof (struct messageTrigger));
   if (SystemRegistry == NULL) {
     SystemRegistry = dynarr_create (4, sizeof (EntSystem *));
   }
   dynarr_push (SystemRegistry, reg);
   dynarr_sort (SystemRegistry, sys_sort);
+	reg->messageTriggers = dynarr_create (4, sizeof (struct messageTrigger *));
 	//printf ("%s: registered component \"%s\"\n", __FUNCTION__, reg->comp_name);
   return TRUE;
 }
