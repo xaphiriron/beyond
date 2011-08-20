@@ -422,49 +422,6 @@ void camera_updatePosition (Entity camera)
 		cdata->offset[14] * cdata->offset[10];
 	//position_move (camera, cameraDistance);
 }
-//*/
-
-/*
-void camera_updatePosition (Entity camera)
-{
-	cameraComponent
-		cd = component_getData (entity_getAs (camera, "camera"));
-	positionComponent
-		camPos = component_getData (entity_getAs (camera, "position")),
-		targetPos;
-	QUAT
-		targetOrient,
-		camOrient;
-	if (cd == NULL || cd->target == NULL)
-		return;
-	// some notes:
-	// in first-person mode we just have to move the camera to its target and face it in the right direction
-	// in third-person mode we have to use some camera internal coordinates to place the camera in space, relative to the target. (polar coordinates, one assumes) it still is clamped to be facing the same direction as the target
-	// in isometric mode we use camera internal coordinates to place the camera in space, but the internal coordinates are clamped rather severely (very little capacity to pan the camera). also, now the camera rotation is decoupled from the target's rotation (so rotating the camera doesn't rotate the target and vice versa)
-
-	//camera_setPositionRelativeTo (camera, cd->target, 0, 0, 0);
-
-	targetPos = component_getData (entity_getAs (cd->target, "position"));
-	position_set (camera, position_getLocalOffsetR (targetPos), position_getGroundEntityR (targetPos));
-	//DEBUG ("First-person camera updating to be on ground %p (%p)", position_getGroundEntityR (targetPos), camPos->mapEntity);
-
-	if (cd->mode == CAMERA_FIRST_PERSON || cd->mode == CAMERA_THIRD_PERSON)
-	{
-		targetOrient = position_getOrientationR (targetPos);
-		camOrient = position_getOrientation (camera);
-		if (!quat_cmp (&targetOrient, &camOrient))
-		{
-			position_setOrientation (camera, targetOrient);
-			camOrient = targetOrient;
-		}
-		// this is dumb and inefficient
-		if (targetPos->dirty)
-			position_updateAxesFromOrientation (cd->target);
-		if (camPos->dirty)
-			position_updateAxesFromOrientation (camera);
-	}
-}
-//*/
 
 static Dynarr
 	comp_entdata = NULL;
