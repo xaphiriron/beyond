@@ -308,15 +308,10 @@ static void systemInitialize (void)
 
 	//printf ("initializing other objects\n");
 	objClass_init (video_handler, NULL, NULL, NULL);
-	//objClass_init (physics_handler, NULL, NULL, NULL);
-	//objClass_init (world_handler, NULL, NULL, NULL);
 
 	//printf ("registering components\n");
 	entity_registerComponentAndSystem (component_position);
-//	entity_registerComponentAndSystem (component_ground);
-//	entity_registerComponentAndSystem (component_integrate);
 	entity_registerComponentAndSystem (component_camera);
-//	entity_registerComponentAndSystem (component_collide);
 	entity_registerComponentAndSystem (component_walking);
 	entity_registerComponentAndSystem (component_input);
 	entity_registerComponentAndSystem (component_plant);
@@ -325,12 +320,9 @@ static void systemInitialize (void)
 
 	// this order DOES matter, since this is the order they're updated later.
 	entitySubsystem_store ("position");
-	//entitySubsystem_store ("ground");
 	entitySubsystem_store ("plant");
 	entitySubsystem_store ("walking");
-//	entitySubsystem_store ("integrate");
 	entitySubsystem_store ("camera");
-//	entitySubsystem_store ("collide");
 	entitySubsystem_store ("input");
 
 	// not really sure where these should go; they're going here for now.
@@ -339,11 +331,7 @@ static void systemInitialize (void)
 	system_registerTimedFunction (component_runLoader, 0x7f);
 
 	obj_create ("video", NULL, NULL, NULL);
-/*
-	obj_create ("physics", SystemObject,
-		accumulator_create (xtimer_create (s->clock, 1.0), 0.03), NULL
-	);
-*/
+
 #ifdef MEM_DEBUG
 	atexit (xph_audit);
 #endif /* MEM_DEBUG */
