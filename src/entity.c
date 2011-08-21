@@ -610,7 +610,8 @@ void entity_purgeDestroyed (TIMER t)
 }
 
 
-bool entity_registerComponentAndSystem (objHandler func) {
+bool entity_registerComponentAndSystem (objHandler func, compFunc classInit)
+{
 	struct ent_system
 		* reg = xph_alloc (sizeof (struct ent_system));
 	ObjClass
@@ -631,6 +632,15 @@ bool entity_registerComponentAndSystem (objHandler func) {
 		SystemRegistry = dynarr_create (4, sizeof (EntSystem *));
 	dynarr_push (SystemRegistry, reg);
 	dynarr_sort (SystemRegistry, sys_sort);
+
+	if (classInit)
+	{
+		component_registerResponse (reg->comp_name, "__classInit", classInit);
+		/* this isn't a 'real' message since component_sendMessage requires an
+		 * instance of the component and right now there aren't any
+		 *  - xph 2011 08 21 */
+		classInit (NULL, NULL);
+	}
 	//printf ("%s: registered component \"%s\"\n", __FUNCTION__, reg->comp_name);
 	return TRUE;
 }
@@ -669,6 +679,10 @@ void entity_destroySystem (const char * comp_name)
 			component_remove (sys->comp_name, c->e);
 		}
 	}
+
+	/* TODO: find if there's a __classDestroy response and if so call those
+	 * functions
+	 *  - xph 2011 08 21 */
 
 	dynarr_map (sys->messageTriggers, (void (*)(void *))mt_destroy);
 	dynarr_destroy (sys->messageTriggers);

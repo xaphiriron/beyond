@@ -24,7 +24,7 @@ const Entity camera_getActiveCamera ();
 
 int component_camera (Object * obj, objMsg msg, void * a, void * b);
 
-void component_cameraRegisterResponses ();
+void component_cameraRegisterResponses (EntComponent camera, void * arg);
 
 void component_cameraInitialize (EntComponent camera, void * arg);
 void component_cameraDestroy (EntComponent camera, void * arg);

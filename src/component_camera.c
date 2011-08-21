@@ -476,8 +476,9 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 	return EXIT_FAILURE;
 }
 
-void component_cameraRegisterResponses ()
+void component_cameraRegisterResponses (EntComponent camera, void * arg)
 {
+
 	component_registerResponse ("camera", "__init", component_cameraInitialize);
 	component_registerResponse ("camera", "__destroy", component_cameraDestroy);
 

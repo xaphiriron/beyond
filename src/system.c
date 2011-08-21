@@ -310,13 +310,11 @@ static void systemInitialize (void)
 	objClass_init (video_handler, NULL, NULL, NULL);
 
 	//printf ("registering components\n");
-	entity_registerComponentAndSystem (component_position);
-	entity_registerComponentAndSystem (component_camera);
-	entity_registerComponentAndSystem (component_walking);
-	entity_registerComponentAndSystem (component_input);
-	entity_registerComponentAndSystem (component_plant);
-
-	component_cameraRegisterResponses ();
+	entity_registerComponentAndSystem (component_position, NULL);
+	entity_registerComponentAndSystem (component_camera, component_cameraRegisterResponses);
+	entity_registerComponentAndSystem (component_walking, NULL);
+	entity_registerComponentAndSystem (component_input, NULL);
+	entity_registerComponentAndSystem (component_plant, NULL);
 
 	// this order DOES matter, since this is the order they're updated later.
 	entitySubsystem_store ("position");

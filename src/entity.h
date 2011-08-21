@@ -74,7 +74,7 @@ Dynarr entity_getEntitiesWithComponent (int n, ...);
 
 void entity_purgeDestroyed (TIMER t);
 
-bool entity_registerComponentAndSystem (objHandler func);
+bool entity_registerComponentAndSystem (objHandler func, compFunc classInit);
 EntSystem entity_getSystemByName (const char * comp_name);
 
 void entity_destroySystem (const char * comp_name);
