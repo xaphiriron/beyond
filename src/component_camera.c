@@ -476,11 +476,18 @@ int component_camera (Object * obj, objMsg msg, void * a, void * b)
 	return EXIT_FAILURE;
 }
 
-void component_cameraRegisterResponses (EntComponent camera, void * arg)
+void camera_classInit (EntComponent camera, void * arg)
 {
+	char
+		* name = arg;
+	strncpy (name, "camera", COMPNAMELENGTH - 1);
+
+	comp_entdata = dynarr_create (8, sizeof (Entity));
 
 	component_registerResponse ("camera", "__init", component_cameraInitialize);
 	component_registerResponse ("camera", "__destroy", component_cameraDestroy);
+
+	component_registerResponse ("camera", "__classDestroy", camera_classDestroy);
 
 	component_registerResponse ("camera", "setTarget", component_cameraSetTarget);
 	component_registerResponse ("camera", "activate", component_cameraActivate);
@@ -495,6 +502,12 @@ void component_cameraRegisterResponses (EntComponent camera, void * arg)
 	 *  - xph 2011 08 19 */
 	component_registerResponse ("camera", "orientationUpdate", component_cameraOrientResponse);
 	component_registerResponse ("camera", "positionUpdate", component_cameraPositionResponse);
+}
+
+void camera_classDestroy (EntComponent camrea, void * arg)
+{
+	dynarr_destroy (comp_entdata);
+	comp_entdata = NULL;
 }
 
 void component_cameraInitialize (EntComponent camera, void * arg)

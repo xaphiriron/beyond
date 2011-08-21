@@ -7,6 +7,8 @@
 #include "dynarr.h"
 #include "object.h"
 
+#define COMPNAMELENGTH 32
+
 typedef struct entity * Entity;
 typedef struct ent_system * EntSystem;
 typedef struct ent_component * EntComponent;

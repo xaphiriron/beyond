@@ -18,15 +18,16 @@ struct messageTrigger
 };
 
 struct ent_system {
-  Object * system;
-  const char * comp_name;
-  Dynarr entities;
+	Object
+		* system;
+	char
+		comp_name[COMPNAMELENGTH];
+	Dynarr
+		entities,
+		messageTriggers;
 
 	void (* loaderCallback) (TIMER, EntComponent);
 	unsigned char (* weighCallback) (EntComponent);
-
-	Dynarr
-		messageTriggers;
 };
 
 
@@ -610,22 +611,35 @@ void entity_purgeDestroyed (TIMER t)
 }
 
 
-bool entity_registerComponentAndSystem (objHandler func, compFunc classInit)
+bool entity_registerComponentAndSystem (objHandler objFunc, compFunc classInit)
 {
 	struct ent_system
-		* reg = xph_alloc (sizeof (struct ent_system));
+		* reg;
 	ObjClass
-		* oc = objClass_init (func, NULL, NULL, NULL);
+		* oc;
 	Object
-		* sys = obj_create (oc->name, NULL, NULL, NULL);
-	reg->system = sys;
-	reg->comp_name = obj_getClassName (sys);
+		* sys;
+	if (!objFunc && !classInit)
+	{
+		ERROR ("Can't create component; must have a object handler or a classInit response.", NULL);
+		return FALSE;
+	}
+	reg = xph_alloc (sizeof (struct ent_system));
+	memset (reg, 0, sizeof (struct ent_system));
+	if (objFunc)
+	{
+		oc = objClass_init (objFunc, NULL, NULL, NULL);
+		sys = obj_create (oc->name, NULL, NULL, NULL);
+		reg->system = sys;
+		strncpy (reg->comp_name, obj_getClassName (sys), COMPNAMELENGTH - 1);
+		obj_message (sys, OM_COMPONENT_GET_LOADER_CALLBACK, &reg->loaderCallback, NULL);
+		obj_message (sys, OM_COMPONENT_GET_WEIGH_CALLBACK, &reg->weighCallback, NULL);
+	}
+	
 	reg->entities = dynarr_create (4, sizeof (EntComponent *));
 
 	reg->loaderCallback = NULL;
 	reg->weighCallback = NULL;
-	obj_message (sys, OM_COMPONENT_GET_LOADER_CALLBACK, &reg->loaderCallback, NULL);
-	obj_message (sys, OM_COMPONENT_GET_WEIGH_CALLBACK, &reg->weighCallback, NULL);
 
 	reg->messageTriggers = dynarr_create (4, sizeof (struct messageTrigger *));
 	if (SystemRegistry == NULL)
@@ -635,11 +649,11 @@ bool entity_registerComponentAndSystem (objHandler func, compFunc classInit)
 
 	if (classInit)
 	{
-		component_registerResponse (reg->comp_name, "__classInit", classInit);
 		/* this isn't a 'real' message since component_sendMessage requires an
 		 * instance of the component and right now there aren't any
 		 *  - xph 2011 08 21 */
-		classInit (NULL, NULL);
+		classInit (NULL, &reg->comp_name);
+		component_registerResponse (reg->comp_name, "__classInit", classInit);
 	}
 	//printf ("%s: registered component \"%s\"\n", __FUNCTION__, reg->comp_name);
 	return TRUE;
