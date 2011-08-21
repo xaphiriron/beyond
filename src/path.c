@@ -16,7 +16,7 @@ char * absolutePath (const char * relPath)
 {
 	strcpy (FullPathBuffer, SystemPath);
 	if (strlen (FullPathBuffer) + strlen (SystemPath) + 1 > PATHBUFFERSIZE)
-		ERROR ("About to overrun the path buffer; this is an exploit; whoops", NULL);
+		ERROR ("About to overrun the path buffer; this is an exploit; whoops");
 	/* this is ugly in the case relPath := "./whatev" || "../foo/bar", but it
 	 * still works.
 	 */

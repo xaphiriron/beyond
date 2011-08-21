@@ -317,18 +317,18 @@ void sheetLoadSpriteData (SPRITESHEET s, const char * path) {
     spec[i] = sheetPixelCoordinate (s, s->raw->Width-1, i);
     i++;
   }
-	DEBUG ("loaded special pixels", NULL);
+	DEBUG ("loaded special pixels");
   spec[SPEC_OOB].r = spec[SPEC_OOB].g = spec[SPEC_OOB].b = spec[SPEC_OOB].a = -1;
-	DEBUG ("set the out of bounds color", NULL);
+	DEBUG ("set the out of bounds color");
   if (spec[SPEC_TRANSPARENT].a == 0) {
-	DEBUG ("loading png as alpha", NULL);
+	DEBUG ("loading png as alpha");
     s->texture = textureLoad (path, PNG_NOMIPMAP, PNG_ALPHA, GL_CLAMP, GL_LINEAR, GL_NEAREST);
   } else {
-	DEBUG ("loading png as stenciled", NULL);
+	DEBUG ("loading png as stenciled");
     pngSetStencil (spec[SPEC_TRANSPARENT].r, spec[SPEC_TRANSPARENT].g, spec[SPEC_TRANSPARENT].b);
     s->texture = textureLoad (path, PNG_NOMIPMAP, PNG_STENCIL, GL_CLAMP, GL_LINEAR, GL_NEAREST);
   }
-	DEBUG ("set transparency or stenciling", NULL);
+	DEBUG ("set transparency or stenciling");
   s->fMax = s->gMax = INT_MIN;
   s->fMin = s->gMin = INT_MAX;
   s->maxHeightBelowG = INT_MIN;
@@ -869,7 +869,7 @@ static struct pngColour sheetPixelCoordinate (const SPRITESHEET s, int x, int y)
   }
   if (s->raw->Components == 1) {
     assert (s->raw->Palette != NULL);
-    WARNING ("attempting to get pixel data (%d, %d) from a paletted .png (%s). This will probably fail if the image has alpha... or if the image does not have alpha.", x, y, s);
+    WARNING ("attempting to get pixel data (%d, %d) from a paletted .png (%s). This will probably fail if the image has alpha... or if the image does not have alpha.", x, y, s->texture->path);
     px.a = s->raw->Data[y * s->raw->Width + x];
     if (s->raw->Alpha == 0) {
       px.r = s->raw->Palette[px.a * 3 + 0];

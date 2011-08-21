@@ -44,7 +44,7 @@ void objects_destroyEverything () {
   ObjectClasses = NULL;
   if (ObjectMessageCallstack != NULL) {
     if (!dynarr_isEmpty (ObjectMessageCallstack)) {
-		ERROR ("Destroying the object message callstack even though it has entries in it. Wow, is this a bad idea.", NULL);
+		ERROR ("Destroying the object message callstack even though it has entries in it. Wow, is this a bad idea.");
       while ((m = *(struct objCall **)dynarr_pop (ObjectMessageCallstack)) != NULL) {
         xph_free (m->function);
         xph_free (m);
@@ -137,7 +137,7 @@ bool objClass_addChild (ObjClass * p, ObjClass * c) {
   ObjClass * t = NULL;
   //printf ("%s (%p, %p)\n", __FUNCTION__, p, c);
   if (objClass_inheritsP (c, p) == TRUE) {
-		WARNING ("Cannot make object class \"%s\" a child of \"%s\", since \"%s\" is a child of \"%s\".", c->name, c, p->name, p, p->name, p, c->name, c);
+		WARNING ("Cannot make object class \"%s\"(%p) a child of \"%s\"(%p), since \"%s\" is a child of \"%s\".", c->name, c, p->name, p, p->name, c->name);
     return FALSE;
   }
   c->parent = p;
@@ -588,7 +588,7 @@ int obj_childCount (const Object * o) {
   Object * t = NULL;
   int i = 0;
   if (o == NULL) {
-		DEBUG ("Can't count children of NULL object", NULL);
+		DEBUG ("Can't count children of NULL object");
     return -1;
   }
   t = o->firstChild;
@@ -601,7 +601,7 @@ int obj_childCount (const Object * o) {
 
 int obj_siblingCount (const Object * o) {
   if (o == NULL) {
-		DEBUG ("Can't count siblings of NULL object", NULL);
+		DEBUG ("Can't count siblings of NULL object");
     return -1;
   } else if (o->parent == NULL) {
     return 0;
@@ -662,7 +662,7 @@ int obj_message (Object * o, objMsg msg, void * a, void * b) {
   int r = 0;
 	if (o == NULL)
 	{
-		DEBUG ("Can't send message to NULL object", NULL);
+		DEBUG ("Can't send message to NULL object");
 		return 0;
 	}
 	else if (o->class == NULL)
@@ -799,7 +799,7 @@ static void obj_pushMessageCallstack (void * o, const char * func, objMsg msg, v
   }
 	if (dynarr_size (ObjectMessageCallstack) >= 32)
 	{
-		WARNING ("Callstack hit 32 entries. I'm going to guess this is an infinite recursion that I should put a stop to.", NULL);
+		WARNING ("Callstack hit 32 entries. I'm going to guess this is an infinite recursion that I should put a stop to.");
 		abort ();
 	}
   dynarr_push (ObjectMessageCallstack, n);
@@ -911,7 +911,7 @@ int obj_pass () {
   lastCall = *(struct objCall **)dynarr_at (ObjectMessageCallstack, i - 1);
   while ((base = *(struct objCall **)dynarr_at (ObjectMessageCallstack, --i))->stage == OC_PASS) {
     if (i == 0) {
-		ERROR ("The callstack is in a bad state: all registered calls are pass invocations, which should be impossible (but apparently isn't). We're going to blow everything up in the hopes you notice this, sorry.", NULL);
+		ERROR ("The callstack is in a bad state: all registered calls are pass invocations, which should be impossible (but apparently isn't). We're going to blow everything up in the hopes you notice this, sorry.");
       exit (1);
     }
   }

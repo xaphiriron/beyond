@@ -6,13 +6,13 @@
 #include <string.h>
 #include "bool.h"
 
-#define ERROR(x,...)			logLine (__FILE__, __LINE__, E_ERR, x, __VA_ARGS__)
-#define WARNING(x,...)			logLine (__FILE__, __LINE__, E_WARN, x, __VA_ARGS__)
-#define INFO(x,...)			logLine (__FILE__, __LINE__, E_INFO, x, __VA_ARGS__)
-#define DEBUG(x,...)			logLine (__FILE__, __LINE__, E_DEBUG, x, __VA_ARGS__)
+#define ERROR(x,...)			logLine (__FILE__, __LINE__, E_ERR, x, ##__VA_ARGS__)
+#define WARNING(x,...)			logLine (__FILE__, __LINE__, E_WARN, x, ##__VA_ARGS__)
+#define INFO(x,...)			logLine (__FILE__, __LINE__, E_INFO, x, ##__VA_ARGS__)
+#define DEBUG(x,...)			logLine (__FILE__, __LINE__, E_DEBUG, x, ##__VA_ARGS__)
 #define FUNCOPEN()			logLine (__FILE__, __LINE__, E_FUNCLABEL, "%s...", __FUNCTION__)
 #define FUNCCLOSE()			logLine (__FILE__, __LINE__, E_FUNCLABEL, "...%s", __FUNCTION__)
-#define LOG(level,x,...)		logLine (__FILE__, __LINE__, level, x, __VA_ARGS__)
+#define LOG(level,x,...)		logLine (__FILE__, __LINE__, level, x, ##__VA_ARGS__)
 
 typedef enum logLevels
 {
@@ -33,7 +33,8 @@ typedef enum logLoudness
 	LOG_LOUD = TRUE,
 } LogLoudness;
 
-void logLine (const char * file, const unsigned int line, LogLevel level, const char * log, ...);
+void logLine (const char * file, const unsigned int line, LogLevel level, const char * log, ...)
+__attribute__ ((format (printf, 4, 5)));
 
 void logSetLevel (LogLevel level);
 void logSetLoudness (LogLoudness loud);

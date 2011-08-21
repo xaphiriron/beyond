@@ -11,7 +11,7 @@ void loadFont (const char * path)
 {
 	if (SystemFont != NULL)
 	{
-		WARNING ("Resetting system font", NULL);
+		WARNING ("Resetting system font (with \"%s\")", path);
 		sheetDestroy (SystemFont);
 		SystemFont = NULL;
 	}

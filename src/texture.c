@@ -20,7 +20,7 @@ static void texturesInit ();
 
 static void texturesInit () {
   if (TextureList != NULL) {
-    WARNING ("texturesInit called with a valid texture store; destroying textures, even if it might be a bad idea.", NULL);
+    WARNING ("texturesInit called with a valid texture store; destroying textures, even if it might be a bad idea.");
     texturesDestroy ();
   }
   TextureList = dynarr_create (16, sizeof (struct texture *));
@@ -113,7 +113,7 @@ struct texture * textureLoad (const char * relPath, int mipmap, int trans, GLint
 		FUNCCLOSE ();
 		return NULL;
 	}
-	DEBUG ("bound png successfully", NULL);
+	DEBUG ("bound png successfully");
 	dynarr_push (TextureList, new);
 	dynarr_sort (TextureList, textureCmp);
   /*qsort (TextureList->items, TextureList->offset, sizeof (struct texture *), (int (*)(const void *, const void *))textureCmp);*/
@@ -151,11 +151,11 @@ void textureUnload (struct texture * t) {
 }
 
 static int textureCmp (const void * a, const void * b) {
-	DEBUG ("%s: cmp '%s' vs. '%s'", __FUNCTION__, (*(struct texture **)a)->path, (*(struct texture **)b)->path);
+	//DEBUG ("%s: cmp '%s' vs. '%s'", __FUNCTION__, (*(struct texture **)a)->path, (*(struct texture **)b)->path);
   return strcmp ((*(struct texture **)a)->path, (*(struct texture **)b)->path);
 }
 
 static int textureCmpPath (const void * p, const void * t) {
-	DEBUG ("%s: cmp '%s' vs. '%s'", __FUNCTION__, p, (*(struct texture **)t)->path);
+	//DEBUG ("%s: cmp '%s' vs. '%s'", __FUNCTION__, p, (*(struct texture **)t)->path);
   return strcmp (p, (*(struct texture **)t)->path);
 }

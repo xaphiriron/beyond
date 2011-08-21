@@ -167,7 +167,7 @@ void loadSetGoal (unsigned int goal)
 {
 	if (systemGetState () != STATE_LOADING)
 	{
-		WARNING ("Loader function called outside of loading context?!", NULL);
+		WARNING ("Loader function called outside of loading context?!");
 		return;
 	}
 	SysLoader.goal = goal;
@@ -177,7 +177,7 @@ void loadSetLoaded (unsigned int loaded)
 {
 	if (systemGetState () != STATE_LOADING)
 	{
-		WARNING ("Loader function called outside of loading context?!", NULL);
+		WARNING ("Loader function called outside of loading context?!");
 		return;
 	}
 	SysLoader.loaded = loaded;
@@ -187,7 +187,7 @@ void loadSetText (char * displayText)
 {
 	if (systemGetState () != STATE_LOADING)
 	{
-		WARNING ("Loader function called outside of loading context?!", NULL);
+		WARNING ("Loader function called outside of loading context?!");
 		return;
 	}
 	strncpy (SysLoader.displayText, displayText, LOADERTEXTBUFFERSIZE);

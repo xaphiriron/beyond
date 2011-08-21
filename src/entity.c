@@ -152,7 +152,7 @@ Entity entity_create ()
 		e->guid = ++EntityGUIDs;
 	if (e->guid == 0)
 	{
-		ERROR ("Entity GUIDs have wrapped around. Now anything is possible!", NULL);
+		ERROR ("Entity GUIDs have wrapped around. Now anything is possible!");
 		e->guid = ++EntityGUIDs;
 	}
 	e->components = dynarr_create (2, sizeof (EntComponent));
@@ -339,7 +339,7 @@ bool component_setData (EntComponent c, void * data)
 		return FALSE;
 	if (c->comp_data)
 	{
-		ERROR ("Could not set component data for \"%s\" on #%d: data already set to %p", c->reg->comp_name, entity_GUID (component_entityAttached (c)));
+		ERROR ("Could not set component data for \"%s\" on #%d: data already set to %p", c->reg->comp_name, entity_GUID (component_entityAttached (c)), c->comp_data);
 		return FALSE;
 	}
 	c->comp_data = data;
@@ -622,7 +622,7 @@ bool entity_registerComponentAndSystem (objHandler objFunc, compFunc classInit)
 		* sys;
 	if (!objFunc && !classInit)
 	{
-		ERROR ("Can't create component; must have a object handler or a classInit response.", NULL);
+		ERROR ("Can't create component; must have a object handler or a classInit response.");
 		return FALSE;
 	}
 	reg = xph_alloc (sizeof (struct ent_system));

@@ -175,7 +175,7 @@ void dynarr_destroy (Dynarr da)
 {
 	if (da == NULL)
 	{
-		WARNING ("Tried to destroy a NULL array", NULL);
+		WARNING ("Tried to destroy a NULL array");
 		return;
 	}
 	free (da->items);
@@ -508,7 +508,7 @@ DynIterator dynIterator_create (const Dynarr da)
 		it;
 	if (da == NULL)
 	{
-		ERROR ("Canoot create iterator: array is NULL", NULL);
+		ERROR ("Canoot create iterator: array is NULL");
 		return NULL;
 	}
 	it = malloc (sizeof (struct dyn_iterator));

@@ -218,19 +218,19 @@ void input_sendGameEventMessage (const struct input_event * ie) {
 		case IR_WORLDMAP_SWITCH:
 			if (systemTopUIPanelType () == UI_WORLDMAP)
 			{
-				DEBUG ("Whoop removing worldmap ui", NULL);
+				DEBUG ("Whoop removing worldmap ui");
 				uiDestroyPanel (systemPopUI ());
 				systemPopState ();
 			}
 			else if (systemTopUIPanelType () == UI_NONE)
 			{
-				DEBUG ("Whoop adding worldmap ui", NULL);
+				DEBUG ("Whoop adding worldmap ui");
 				systemPushUI (uiCreatePanel (UI_WORLDMAP));
 				systemPushState (STATE_UI);
 			}
 			else
 			{
-				DEBUG ("Some other panel exists; let's not", NULL);
+				DEBUG ("Some other panel exists; let's not");
 			}
 			break;
 		case IR_DEBUG_SWITCH:

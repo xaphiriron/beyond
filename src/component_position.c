@@ -316,7 +316,7 @@ float position_getHeadingR (const POSITION p)
 	if (p == NULL)
 		return 0.0;
 	if (p->dirty == TRUE)
-		WARNING ("Whoops getting outdated axes (heading)", NULL);
+		WARNING ("Whoops getting outdated axes (heading)");
 	if (fcmp (p->view.up.x, 1.0) || fcmp (p->view.up.x, -1.0))
 		return atan2 (p->view.side.z, p->view.front.z);
 	return atan2 (-p->view.front.x, p->view.side.x);
@@ -327,7 +327,7 @@ float position_getPitchR (const POSITION p)
 	if (p == NULL)
 		return 0.0;
 	if (p->dirty == TRUE)
-		WARNING ("Whoops getting outdated axes (pitch)", NULL);
+		WARNING ("Whoops getting outdated axes (pitch)");
 	if (fcmp (p->view.up.x, 1.0))
 		return M_PI_2;
 	else if (fcmp (p->view.up.x, -1.0))
@@ -340,7 +340,7 @@ float position_getRollR (const POSITION p)
 	if (p == NULL)
 		return 0.0;
 	if (p->dirty == TRUE)
-		WARNING ("Whoops getting outdated axes (roll)", NULL);
+		WARNING ("Whoops getting outdated axes (roll)");
 	if (fcmp (p->view.up.x, 1.0) || fcmp (p->view.up.x, -1.0))
 		return 0.0;
 	return atan2 (p->view.up.z, p->view.up.x);
