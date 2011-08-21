@@ -91,6 +91,7 @@ static int mt_sort (const void * a, const void * b);
 static int mt_search (const void * k, const void * d);
 
 static void component_sendMessage (EntComponent c, const char * message, void * arg);
+static EntSystem entity_getSystemByName (const char * comp_name);
 
 static int guid_sort (const void * a, const void * b)
 {
@@ -661,7 +662,7 @@ bool entity_registerComponentAndSystem (objHandler objFunc, compFunc classInit)
 
 
 
-EntSystem entity_getSystemByName (const char * comp_name) {
+static EntSystem entity_getSystemByName (const char * comp_name) {
   struct ent_system * sys = NULL;
   if (SystemRegistry == NULL) {
     fprintf (stderr, "%s: no components registered\n", __FUNCTION__);
