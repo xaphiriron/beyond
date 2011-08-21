@@ -311,7 +311,7 @@ static void systemInitialize (void)
 
 	//printf ("registering components\n");
 	entity_registerComponentAndSystem (component_position, NULL);
-	entity_registerComponentAndSystem (component_camera, component_cameraRegisterResponses);
+	entity_registerComponentAndSystem (NULL, camera_classInit);
 	entity_registerComponentAndSystem (component_walking, NULL);
 	entity_registerComponentAndSystem (component_input, NULL);
 	entity_registerComponentAndSystem (component_plant, NULL);

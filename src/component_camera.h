@@ -22,8 +22,6 @@ float camera_getRoll (Entity e);
 const Entity camera_getActiveCamera ();
 
 
-int component_camera (Object * obj, objMsg msg, void * a, void * b);
-
 void camera_classInit (EntComponent camera, void * arg);
 void camera_classDestroy (EntComponent camrea, void * arg);
 

@@ -447,35 +447,9 @@ void camera_updatePosition (Entity camera)
 	//position_move (camera, cameraDistance);
 }
 
+
 static Dynarr
 	comp_entdata = NULL;
-int component_camera (Object * obj, objMsg msg, void * a, void * b)
-{
-	switch (msg)
-	{
-		case OM_CLSNAME:
-			strncpy (a, "camera", 32);
-			return EXIT_SUCCESS;
-		case OM_CLSINIT:
-			comp_entdata = dynarr_create (8, sizeof (Entity));
-
-			return EXIT_SUCCESS;
-		case OM_CLSFREE:
-			dynarr_destroy (comp_entdata);
-			comp_entdata = NULL;
-			return EXIT_SUCCESS;
-
-		case OM_SHUTDOWN:
-		case OM_DESTROY:
-			obj_destroy (obj);
-			return EXIT_SUCCESS;
-
-		default:
-			return obj_pass ();
-	}
-	return EXIT_FAILURE;
-}
-
 void camera_classInit (EntComponent camera, void * arg)
 {
 	char
