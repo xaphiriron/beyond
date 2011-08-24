@@ -452,10 +452,6 @@ static Dynarr
 	comp_entdata = NULL;
 void camera_classInit (EntComponent camera, void * arg)
 {
-	char
-		* name = arg;
-	strncpy (name, "camera", COMPNAMELENGTH - 1);
-
 	comp_entdata = dynarr_create (8, sizeof (Entity));
 
 	component_registerResponse ("camera", "__init", component_cameraInitialize);
