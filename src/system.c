@@ -308,6 +308,7 @@ static void systemInitialize (void)
 
 	//printf ("initializing other objects\n");
 	objClass_init (video_handler, NULL, NULL, NULL);
+	obj_create ("video", NULL, NULL, NULL);
 
 	//printf ("registering components\n");
 	entity_registerComponentAndSystem ("position", component_position, NULL);
@@ -328,8 +329,6 @@ static void systemInitialize (void)
 	system_registerTimedFunction (entity_purgeDestroyed, 0x7f);
 //	system_registerTimedFunction (cameraCache_update, 0x7f);
 	system_registerTimedFunction (component_runLoader, 0x7f);
-
-	obj_create ("video", NULL, NULL, NULL);
 
 #ifdef MEM_DEBUG
 	atexit (xph_audit);
