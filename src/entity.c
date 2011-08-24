@@ -612,7 +612,7 @@ void entity_purgeDestroyed (TIMER t)
 }
 
 
-bool entity_registerComponentAndSystem (objHandler objFunc, compFunc classInit)
+bool entity_registerComponentAndSystem (const char * comp_name, objHandler objFunc, compFunc classInit)
 {
 	struct ent_system
 		* reg;
@@ -625,17 +625,14 @@ bool entity_registerComponentAndSystem (objHandler objFunc, compFunc classInit)
 		ERROR ("Can't create component; must have a object handler or a classInit response.");
 		return FALSE;
 	}
+	if (comp_name[0] == 0)
+	{
+		ERROR ("Can't create component: Needs a name.");
+		return FALSE;
+	}
 	reg = xph_alloc (sizeof (struct ent_system));
 	memset (reg, 0, sizeof (struct ent_system));
-	if (objFunc)
-	{
-		oc = objClass_init (objFunc, NULL, NULL, NULL);
-		sys = obj_create (oc->name, NULL, NULL, NULL);
-		reg->system = sys;
-		strncpy (reg->comp_name, obj_getClassName (sys), COMPNAMELENGTH - 1);
-		obj_message (sys, OM_COMPONENT_GET_LOADER_CALLBACK, &reg->loaderCallback, NULL);
-		obj_message (sys, OM_COMPONENT_GET_WEIGH_CALLBACK, &reg->weighCallback, NULL);
-	}
+	strncpy (reg->comp_name, comp_name, COMPNAMELENGTH - 1);
 	
 	reg->entities = dynarr_create (4, sizeof (EntComponent *));
 
@@ -648,15 +645,22 @@ bool entity_registerComponentAndSystem (objHandler objFunc, compFunc classInit)
 	dynarr_push (SystemRegistry, reg);
 	dynarr_sort (SystemRegistry, sys_sort);
 
+	if (objFunc)
+	{
+		oc = objClass_init (objFunc, NULL, NULL, NULL);
+		sys = obj_create (oc->name, NULL, NULL, NULL);
+		reg->system = sys;
+		obj_message (sys, OM_COMPONENT_GET_LOADER_CALLBACK, &reg->loaderCallback, NULL);
+		obj_message (sys, OM_COMPONENT_GET_WEIGH_CALLBACK, &reg->weighCallback, NULL);
+	}
 	if (classInit)
 	{
 		/* this isn't a 'real' message since component_sendMessage requires an
 		 * instance of the component and right now there aren't any
 		 *  - xph 2011 08 21 */
-		classInit (NULL, &reg->comp_name);
+		classInit (NULL, NULL);
 		component_registerResponse (reg->comp_name, "__classInit", classInit);
 	}
-	//printf ("%s: registered component \"%s\"\n", __FUNCTION__, reg->comp_name);
 	return TRUE;
 }
 
