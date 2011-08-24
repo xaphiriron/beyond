@@ -38,12 +38,12 @@ beyond_SOURCES = \
   component_integrate.c component_integrate.h	\
   component_camera.c component_camera.h		\
   component_input.c component_input.h		\
+	component_ui.c component_ui.h \
   component_walking.c component_walking.h	\
   component_plant.c component_plant.h		\
   hex_utility.h hex_utility.c \
 	sprite.c sprite.h \
 	font.c font.h \
-	ui.c ui.h \
 	system.c system.h \
 	beyond.c
 beyond_LDADD = \

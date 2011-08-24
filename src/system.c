@@ -5,14 +5,15 @@
 #include "timer.h"
 
 #include "font.h"
-#include "ui.h"
 
 #include "worldgen.h"
 
-#include "component_plant.h"
 #include "component_input.h"
+#include "component_ui.h"
+
 #include "component_camera.h"
 #include "component_walking.h"
+#include "component_plant.h"
 
 #define LOADERTEXTBUFFERSIZE 128
 struct loadingdata
@@ -35,7 +36,6 @@ char
 static struct loadingdata SysLoader;
 
 static void systemInitialize (void);
-static void systemUpdateDebugStr (void);
 
 SYSTEM * System = NULL;
 
@@ -64,14 +64,14 @@ SYSTEM * system_create ()
 	// register system loading %/note callback here
 
 	s->updateFuncs = dynarr_create (2, sizeof (void (*)(TIMER)));
-	s->uiPanels = dynarr_create (2, sizeof (UIPANEL));
+	s->uiPanels = dynarr_create (2, sizeof (Entity));
 	return s;
 }
 
 void system_destroy (SYSTEM * s)
 {
 	FUNCOPEN ();
-	dynarr_wipe (s->uiPanels, (void (*)(void *))uiDestroyPanel);
+	dynarr_map (s->uiPanels, (void (*)(void *))entity_destroy);
 	dynarr_destroy (s->uiPanels);
 	dynarr_destroy (s->updateFuncs);
 	dynarr_destroy (s->state);
@@ -197,18 +197,18 @@ void loadSetText (char * displayText)
  * UI CONTROL FUNCTIONS
  */
 
-UIPANEL systemPopUI ()
+Entity systemPopUI ()
 {
 	if (System == NULL)
 		return NULL;
-	return *(UIPANEL *)dynarr_pop (System->uiPanels);
+	return *(Entity *)dynarr_pop (System->uiPanels);
 }
 
-void systemPushUI (UIPANEL p)
+void systemPushUI (Entity p)
 {
 	if (System == NULL)
 	{
-		ERROR ("Trying to push UI (%p) without a system", p);
+		ERROR ("Trying to push UI (#%d) without a system", entity_GUID (p));
 		return;
 	}
 	dynarr_push (System->uiPanels, p);
@@ -216,9 +216,12 @@ void systemPushUI (UIPANEL p)
 
 enum uiPanelTypes systemTopUIPanelType ()
 {
+	enum uiPanelTypes
+		type = UI_NONE;
 	if (System == NULL)
-		return UI_NONE;
-	return uiGetPanelType (*(UIPANEL *)dynarr_back (System->uiPanels));
+		return type;
+	entity_message (*(Entity *)dynarr_back (System->uiPanels), NULL, "getType", &type);
+	return type;
 }
 
 /***
@@ -277,6 +280,7 @@ void systemCreatePlayer ()
 	{
 		input_addEntity (camera, INPUT_CONTROLLED);
 	}
+
 	FUNCCLOSE ();
 }
 
@@ -462,39 +466,15 @@ void systemRender (void)
 	{
 		glLoadIdentity ();
 		glDisable (GL_DEPTH_TEST);
+		glColor3f (0.0, 0.0, 0.0);
 		i = 0;
 		while (i < dynarr_size (System->uiPanels))
 		{
 			// draw ui stuff
-			uiDrawPanel (*(UIPANEL *)dynarr_at (System->uiPanels, i));
+			entity_message (*(Entity *)dynarr_at (System->uiPanels, i), NULL, "draw", NULL);
 			i++;
 		}
 		glEnable (GL_DEPTH_TEST);
-	}
-	glLoadIdentity ();
-	glDisable (GL_DEPTH_TEST);
-	glColor3f (0.0, 0.0, 0.0);
-	if (System->debug)
-	{
-		systemUpdateDebugStr ();
-		textAlign (ALIGN_LEFT);
-		drawLine (debugDisplay, 8, 8);
-
-		textAlign (ALIGN_RIGHT);
-		drawLine ("oh have you ever felt so god damn strong\nhow come it takes some people so damn long", width-8, 8);
-		/*
-		drawLine ("open up and keep on climbing\nhigher and higher and higher", 8, 8);
-		drawLine ("don't you want to come with me\ndon't you want to feel my bones\non your bones", 8, 8);
-		drawLine ("are you listening? sing it back", 8, 8);
-		drawLine ("farther from you every day", 8, 8);
-		drawLine ("hello again why so old wasn't time your friend i must be told hello again it seems so long since we last met how has it gone", 0, 0);
-		drawLine ("i pledge allegiance to gasoline and bulletproof limosines and leans on the property of the poor and every night i pray to the lords of war", 0, 0);
-		drawLine ("we are breathing we are seething we are hardly underway we have high hopes like the old popes even st. peter's bones decay", 0, 18);
-		drawLine ("shining bright in a sea of fools; oh i can sing you out of this cave shake your mermaid blues", 0, 0);
-	*/
-	}
-	else
-	{
 	}
 	glEnable (GL_DEPTH_TEST);
 	obj_messagePre (VideoObject, OM_POSTRENDER, NULL, NULL);
@@ -513,8 +493,9 @@ bool systemToggleAttr (enum system_toggle_states toggle)
 	return FALSE;
 }
 
-static void systemUpdateDebugStr (void)
+const char const * systemGenDebugStr ()
 {
+
 	signed int
 		x = 0,
 		y = 0,
@@ -545,6 +526,8 @@ static void systemUpdateDebugStr (void)
 		strncat (debugDisplay, buffer, DEBUGLEN - len);
 		trav = subhexParent (trav);
 	}
+
+	return debugDisplay;
 }
 
 /***

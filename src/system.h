@@ -3,7 +3,7 @@
 
 #include "accumulator.h"
 #include "object.h"
-#include "ui.h"
+#include "entity.h"
 
 #include "map.h"
 
@@ -88,9 +88,11 @@ void loadSetText (char * displayText);
  *  - xph 2011 06 16
  */
 
-UIPANEL systemPopUI ();
-void systemPushUI (UIPANEL p);
+Entity systemPopUI ();
+void systemPushUI (Entity p);
 enum uiPanelTypes systemTopUIPanelType ();
+
+const char const * systemGenDebugStr ();
 
 void system_registerTimedFunction (void (*func)(TIMER), unsigned char weight);
 void system_removeTimedFunction (void (*func)(TIMER));

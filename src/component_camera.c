@@ -459,9 +459,9 @@ void camera_classInit (EntComponent camera, void * arg)
 
 	component_registerResponse ("camera", "__classDestroy", camera_classDestroy);
 
-	component_registerResponse ("camera", "setTarget", component_cameraSetTarget);
 	component_registerResponse ("camera", "activate", component_cameraActivate);
 
+	component_registerResponse ("camera", "setTarget", component_cameraSetTarget);
 	component_registerResponse ("camera", "getMatrix", component_cameraGetMatrix);
 
 	component_registerResponse ("camera", "CONTROL_INPUT", component_cameraControlResponse);

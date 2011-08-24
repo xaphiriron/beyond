@@ -3,6 +3,8 @@
 #include "video.h"
 #include "system.h"
 
+#include "component_ui.h"
+
 struct input
 {
 	SDL_Event
@@ -195,7 +197,8 @@ void input_sendGameEventMessage (const struct input_event * ie) {
 	int
 		i = 0;
 	Entity
-		e = NULL;
+		e = NULL,
+		created = NULL;
 	struct comp_message
 		* msg = NULL;
 	// CATCH AND HANDLE EVENTS THAT HAVE SYSTEM-WIDE REPERCUSSIONS
@@ -219,21 +222,36 @@ void input_sendGameEventMessage (const struct input_event * ie) {
 			if (systemTopUIPanelType () == UI_WORLDMAP)
 			{
 				DEBUG ("Whoop removing worldmap ui");
-				uiDestroyPanel (systemPopUI ());
+				entity_destroy (systemPopUI ());
 				systemPopState ();
 			}
 			else if (systemTopUIPanelType () == UI_NONE)
 			{
 				DEBUG ("Whoop adding worldmap ui");
-				systemPushUI (uiCreatePanel (UI_WORLDMAP));
+				created = entity_create ();
+				component_instantiate ("ui", created);
+				entity_message (created, NULL, "setType", (void *)UI_WORLDMAP);
+				systemPushUI (created);
+				created = NULL;
 				systemPushState (STATE_UI);
 			}
 			else
 			{
-				DEBUG ("Some other panel exists; let's not");
+				WARNING ("Some other panel exists (%d); let's not", systemTopUIPanelType ());
 			}
 			break;
 		case IR_DEBUG_SWITCH:
+			if (systemTopUIPanelType () == UI_DEBUG_OVERLAY)
+			{
+				entity_destroy (systemPopUI ());
+			}
+			else if (systemTopUIPanelType () == UI_NONE)
+			{
+				created = entity_create ();
+				component_instantiate ("ui", created);
+				entity_message (created, NULL, "setType", (void *)UI_DEBUG_OVERLAY);
+				systemPushUI (created);
+			}
 			systemToggleAttr (SYS_DEBUG);
 			break;
 		default:
