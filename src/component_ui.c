@@ -77,11 +77,11 @@ void uiDrawCursor ()
 	glLoadIdentity ();
 	glColor3f (1.0, 1.0, 1.0);
 	//glBindTexture (GL_TEXTURE_2D, texture_glID (t));
-	glBegin (GL_TRIANGLE_STRIP);
-	glVertex3f (top, left, zNear);
-	glVertex3f (bottom, left, zNear);
-	glVertex3f (top, right, zNear);
-	glVertex3f (bottom, right, zNear);
+	glBegin (GL_TRIANGLE_FAN);
+	glVertex3f (left, top, zNear);
+	glVertex3f (left, bottom, zNear);
+	glVertex3f (right, bottom, zNear);
+	glVertex3f (right, top, zNear);
 	glEnd ();
 	glPopMatrix ();
 }
