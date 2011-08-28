@@ -13,12 +13,13 @@
 #include "dynarr.h"
 
 #include "path.h"
-#include "texture.h"
+
+#include "texture_internal.h"
 
 struct spriteSheet
 {
-	struct texture
-		* texture;
+	TEXTURE
+		texture;
 	pngRawInfo
 		* raw;
   /* SHEET_CONSTANT: each sprite is ->spriteHeight by ->spriteWidth pixels.
@@ -135,7 +136,7 @@ bool spriteDraw (const SPRITE sprite, float x, float y, float z, enum xflip xfli
 */
   billboardBegin ();
   glColor3f (1.0, 1.0, 1.0);
-  glBindTexture (GL_TEXTURE_2D, sprite->sheet->texture->id);
+  glBindTexture (GL_TEXTURE_2D, sprite->sheet->texture->name);
   glBegin (GL_QUADS);
   glTexCoord2f (tx, ty);
   glVertex3f (
@@ -255,12 +256,18 @@ void sheetConstantInitialize (SPRITESHEET s, const char * path, va_list args) {
   s->gMax = s->gMin = s->gVariance = 0;
 	s->maxHeightBelowG = 0;
   px = sheetPixelCoordinate (s, 0, 0);
-  if (px.a == 0) {
-    s->texture = textureLoad (path, PNG_NOMIPMAP, PNG_ALPHA, GL_CLAMP, GL_LINEAR, GL_NEAREST);
-  } else {
-    pngSetStencil (px.r, px.g, px.b);
-    s->texture = textureLoad (path, PNG_NOMIPMAP, PNG_STENCIL, GL_CLAMP, GL_LINEAR, GL_NEAREST);
-  }
+	if (px.a == 0)
+	{
+		// this should load the image as alpha-transparent
+		s->texture = textureGenFromImage (path);
+	}
+	else
+	{
+		// this should load the image with px.r, px.g, px.b as alpha 0 and everything else as alpha 255
+		s->texture = textureGenFromImage (path);
+		textureActiveStencil (s->texture, px.r, px.g, px.b);
+	}
+	textureBind (s->texture);
 }
 
 /*
@@ -320,15 +327,20 @@ void sheetLoadSpriteData (SPRITESHEET s, const char * path) {
 	DEBUG ("loaded special pixels");
   spec[SPEC_OOB].r = spec[SPEC_OOB].g = spec[SPEC_OOB].b = spec[SPEC_OOB].a = -1;
 	DEBUG ("set the out of bounds color");
-  if (spec[SPEC_TRANSPARENT].a == 0) {
-	DEBUG ("loading png as alpha");
-    s->texture = textureLoad (path, PNG_NOMIPMAP, PNG_ALPHA, GL_CLAMP, GL_LINEAR, GL_NEAREST);
-  } else {
-	DEBUG ("loading png as stenciled");
-    pngSetStencil (spec[SPEC_TRANSPARENT].r, spec[SPEC_TRANSPARENT].g, spec[SPEC_TRANSPARENT].b);
-    s->texture = textureLoad (path, PNG_NOMIPMAP, PNG_STENCIL, GL_CLAMP, GL_LINEAR, GL_NEAREST);
-  }
-	DEBUG ("set transparency or stenciling");
+	if (spec[SPEC_TRANSPARENT].a == 0)
+	{
+		DEBUG ("loading png as alpha");
+		// load as alpha transparent
+		s->texture = textureGenFromImage (path);
+	}
+	else
+	{
+		DEBUG ("loading png as stenciled");
+		// load as stenciled with spec[SPEC_TRANSPARENT].r, spec[SPEC_TRANSPARENT].g, spec[SPEC_TRANSPARENT].b as the stencil color
+		s->texture = textureGenFromImage (path);
+		textureActiveStencil (s->texture, spec[SPEC_TRANSPARENT].r, spec[SPEC_TRANSPARENT].g, spec[SPEC_TRANSPARENT].b);
+	}
+	textureBind (s->texture);
   s->fMax = s->gMax = INT_MIN;
   s->fMin = s->gMin = INT_MAX;
   s->maxHeightBelowG = INT_MIN;
@@ -737,7 +749,7 @@ void sheetDestroy (struct spriteSheet * sheet) {
     dynarr_destroy (sheet->sprites);
     xph_free (sheet->spritesPerRow);
   }
-  textureUnload (sheet->texture);
+	textureDestroy (sheet->texture);
   xph_free (sheet);
 }
 
@@ -869,7 +881,7 @@ static struct pngColour sheetPixelCoordinate (const SPRITESHEET s, int x, int y)
   }
   if (s->raw->Components == 1) {
     assert (s->raw->Palette != NULL);
-    WARNING ("attempting to get pixel data (%d, %d) from a paletted .png (%s). This will probably fail if the image has alpha... or if the image does not have alpha.", x, y, s->texture->path);
+    WARNING ("attempting to get pixel data (%d, %d) from a paletted .png (...). This will probably fail if the image has alpha... or if the image does not have alpha.", x, y);
     px.a = s->raw->Data[y * s->raw->Width + x];
     if (s->raw->Alpha == 0) {
       px.r = s->raw->Palette[px.a * 3 + 0];
@@ -898,7 +910,7 @@ static int pngColourCmp (const struct pngColour * a, const struct pngColour * b)
          ((b->r << 6) + (b->g << 4) + (b->b << 2) + (b->a));
 }
 
-const struct texture * sheetGetTexture (const SPRITESHEET s)
+const TEXTURE sheetGetTexture (const SPRITESHEET s)
 {
 	assert (s != NULL);
 	return s->texture;

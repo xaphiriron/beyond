@@ -67,7 +67,7 @@ void drawLine (const char * line, signed int x, signed int y)
 	glY += video_pixelYOffset (sheetGetGBaselineOffset (SystemFont));
 	glLineSpacing = video_pixelYOffset (sheetGetHeightRange (SystemFont));
 
-	glBindTexture (GL_TEXTURE_2D, sheetGetTexture (SystemFont)->id);
+	glBindTexture (GL_TEXTURE_2D, textureName (sheetGetTexture (SystemFont)));
 	glBegin (GL_QUADS);
 
 	if (TextAlign == ALIGN_LEFT)

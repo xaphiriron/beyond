@@ -1,161 +1,282 @@
 #include "texture.h"
+#include "texture_internal.h"
 
-#include <assert.h>
-#include <stdlib.h>
 #include <string.h>
-#include "bool.h"
+#include <GL/glpng.h>
+
+#include "xph_memory.h"
+#include "xph_log.h"
 #include "path.h"
 
-#include "xph_log.h"
-#include "xph_memory.h"
+static unsigned char
+	TextureColor[4] = {0x00, 0x00, 0x00, 0x0ff},
+	BackgroundColor[4] = {0xff, 0xff, 0xff, 0xff};
 
-#include "dynarr.h"
-
-static Dynarr
-	TextureList = NULL;
-
-static int textureCmp (const void * a, const void * b);
-static int textureCmpPath (const void * p, const void * t);
-static void texturesInit ();
-
-static void texturesInit () {
-  if (TextureList != NULL) {
-    WARNING ("texturesInit called with a valid texture store; destroying textures, even if it might be a bad idea.");
-    texturesDestroy ();
-  }
-  TextureList = dynarr_create (16, sizeof (struct texture *));
+void textureSetBackgroundColor (unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+{
+	BackgroundColor[0] = r;
+	BackgroundColor[1] = g;
+	BackgroundColor[2] = b;
+	BackgroundColor[3] = a;
 }
 
-void texturesDestroy () {
-//   struct texture * t = NULL;
-  assert (TextureList != NULL);
-	dynarr_wipe (TextureList, (void(*)(void *))textureUnload);
-/* -- holdover from the phantomnation import; the above line ought to accomplish the same thing - xph 2011 06 14
-  while (TextureList->offset > 0) {
-    t = listIndex (TextureList, 0);
-    t->references = 0;
-    listRemove (TextureList, t);
-    textureUnload (t);
-  }
-*/
-  dynarr_destroy (TextureList);
-  TextureList = NULL;
+void textureSetColor (unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+{
+	TextureColor[0] = r;
+	TextureColor[1] = g;
+	TextureColor[2] = b;
+	TextureColor[3] = a;
 }
 
-struct texture * textureLoad (const char * relPath, int mipmap, int trans, GLint wrap, GLint minfilter, GLint magfilter) {
-  struct texture
-    * match = NULL,
-    * new = NULL;
-  char * absPath = NULL;
-	FUNCOPEN ();
-  if (TextureList == NULL) {
-    texturesInit ();
-  }
-  absPath = absolutePath (relPath);
-	match = *(struct texture **)dynarr_search (TextureList, textureCmpPath, absPath);
-	DEBUG ("searched loaded textures; match: %p", match);
-  /*match = bsearch (absPath, TextureList->items, TextureList->offset, sizeof (struct texture *), (int (*)(const void *, const void *))textureCmpPath);*/
-  if (match != NULL) {
-    if (match->mipmap != mipmap) {
-      WARNING ("loading a copy of texture \"%s\" (with %d reference%s) that requests an un-implemented mipmap change.", match->path, match->references, match->references == 1 ? "" : "s");
-    }
-    if (match->trans != trans) {
-      WARNING ("loading a copy of texture \"%s\" (with %d reference%s) that requests an un-implemented transparency change.", match->path, match->references, match->references == 1 ? "" : "s");
-    }
-    glBindTexture (GL_TEXTURE_2D, match->id);
-    if (match->wrap != wrap) {
-      glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);
-      glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
-      match->wrap = wrap;
-    }
-    if (match->minfilter != minfilter) {
-      glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minfilter);
-      match->minfilter = minfilter;
-    }
-    if (match->magfilter != magfilter) {
-      glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magfilter);
-      match->magfilter = magfilter;
-    }
-    glBindTexture (GL_TEXTURE_2D, 0);
-    match->references++;
-	FUNCCLOSE ();
-    return match;
-  }
-  new = xph_alloc (sizeof (struct texture));
-	DEBUG ("creating new texture @ %p", new);
-  new->references = 1;
-  new->path = xph_alloc (strlen (absPath) + 1);
-	strcpy (new->path, absPath);
-	DEBUG ("stored path as '%s'", new->path);
-  new->info = xph_alloc (sizeof (pngInfo));
-  if ((mipmap < 0 || mipmap > 3) && mipmap != PNG_NOMIPMAP && mipmap != PNG_BUILDMIPMAPS && mipmap != PNG_SIMPLEMIPMAPS) {
-    DEBUG ("loading new texture \"%s\" with an invalid mipmap arg of %d.", new->path, mipmap);
-    mipmap = PNG_NOMIPMAP;
-  }
-  new->mipmap = mipmap;
-  if (wrap != GL_CLAMP && wrap != GL_REPEAT) {
-    DEBUG ("loading new texture \"%s\" with an invalid wrap arg of %d.", new->path, wrap);
-    wrap = GL_CLAMP;
-  }
-  new->wrap = wrap;
-  new->trans = trans;
-  new->minfilter = minfilter;
-  new->magfilter = magfilter;
-  DEBUG ("path: %s", new->path);
-	new->id = 0;
-	new->id = pngBind (new->path, new->mipmap, new->trans, new->info, new->wrap, new->minfilter, new->magfilter);
-	if (new->id == 0)
+void textureActiveStencil (TEXTURE t, unsigned char r, unsigned char g, unsigned char b)
+{
+	unsigned char
+		check[3] = {r, g, b};
+	int
+		i = 0,
+		max = t->height * t->width;
+	//printf ("stenciling on 0x%2.2x%2.2x%2.2x\n", r, g, b);
+	if (t->mode < 3)
 	{
-		ERROR ("tried to load a texture from \"%s\", which failed.", new->path);
-		xph_free (new->info);
-		xph_free (new->path);
-		xph_free (new);
-		FUNCCLOSE ();
-		return NULL;
+		ERROR ("Can't stencil texture (%p); only has %d color channel%s", t, t->mode, t->mode == 1 ? "" : "s");
+		return;
 	}
-	DEBUG ("bound png successfully");
-	dynarr_push (TextureList, new);
-	dynarr_sort (TextureList, textureCmp);
-  /*qsort (TextureList->items, TextureList->offset, sizeof (struct texture *), (int (*)(const void *, const void *))textureCmp);*/
-	DEBUG ("loaded texture at '%s' successfully", relPath);
-	FUNCCLOSE ();
-	return new;
+	while (i < max)
+	{
+		//printf ("at %d: got 0x%2.2x%2.2x%2.2x\n", i, t->data[i * t->mode], t->data[i * t->mode + 1], t->data[i * t->mode + 2]);
+		if (memcmp (&t->data[i * t->mode], check, 3) == 0)
+		{
+			if (t->mode == 4)
+				t->data[i * t->mode + 3] = 0;
+			else
+				memset (&t->data[i * t->mode], 0, t->mode);
+			//printf ("  wrote 0x%2.2x%2.2x%2.2x\n", t->data[i * t->mode], t->data[i * t->mode + 1], t->data[i * t->mode + 2]);
+		}
+		i++;
+	}
 }
 
-void textureUnload (struct texture * t) {
-/*
-  int i = 0;
-  bool shift = FALSE;*/
-  assert (TextureList != NULL);
-  if (0 >= --t->references) {
-	dynarr_remove_condense (TextureList, t);
-/* -- holdover from phantomnation import; the above line ought to accomplish the same thing - xph 2011 06 14
-    while (i < TextureList->offset) {
-      if (shift == TRUE || listIndex (TextureList, i) == t) {
-        *(void **)((char *)TextureList->items + TextureList->size * i) =
-          (i+1 >= TextureList->offset)
-            ? NULL
-            : *(void **)((char *)TextureList->items + TextureList->size * (i + 1));
-        shift = TRUE;
-      }
-      i++;
-    }
-    TextureList->offset--;
-*/
-    glDeleteTextures (1, &t->id);
-    xph_free (t->info);
-    xph_free (t->path);
-    xph_free (t);
-  }
-  return /*t == NULL ? 0 : t->references*/;
+void textureFloodFill (TEXTURE t, VECTOR3 start)
+{
 }
 
-static int textureCmp (const void * a, const void * b) {
-	//DEBUG ("%s: cmp '%s' vs. '%s'", __FUNCTION__, (*(struct texture **)a)->path, (*(struct texture **)b)->path);
-  return strcmp ((*(struct texture **)a)->path, (*(struct texture **)b)->path);
+
+/* about the "((t->height - px->y) * t->width + px->x" math:
+ "The first element corresponds to the lower left corner of the texture image. Subsequent elements progress left-to-right through the remaining texels in the lowest row of the texture image, and then in successively higher rows of the texture image. The final element corresponds to the upper right corner of the texture image."
+ */
+void texturePressPixel (TEXTURE t, VECTOR3 px)
+{
+	if (textureOOB (t, px))
+		return;
+	memcpy (&t->data[((t->height - (signed int)px.y) * t->width + (signed int)px.x) * t->mode], TextureColor, t->mode);
 }
 
-static int textureCmpPath (const void * p, const void * t) {
-	//DEBUG ("%s: cmp '%s' vs. '%s'", __FUNCTION__, p, (*(struct texture **)t)->path);
-  return strcmp (p, (*(struct texture **)t)->path);
+void texturePressLine (TEXTURE t, VECTOR3 start, VECTOR3 end)
+{
+	VECTOR3
+		diff = vectorSubtract (&end, &start),
+		norm = vectorNormalize (&diff),
+		current = start;
+	/* i'm using i/max as a counter since due to floating point rounding error
+	 * it's not feasible to use vector_cmp (&current, &end), which is the only
+	 * other way i can think of to check for when the line is actually done
+	 *  - xph 2011 08 27
+	 */
+	int
+		i = 0,
+		max = vectorMagnitude (&diff) + 1;
+	/* if start is out of bounds skip ahead until it isn't (if it isn't), and
+	 * if it goes out of bounds again then it's not coming back. this is
+	 * important if start is out of bounds but end isn't (or if they're both
+	 * oob but they cross the image edge at some point); the start of the line
+	 * won't be drawn but stopping after the first oob coordiante would be
+	 * wrong
+	 * (there's a better way to do this: if either value is oob, calculate the
+	 * intersection of the line w/ the screen edges and jump to that point
+	 * without needing to loop)
+	 *  - xph 2011 08 27
+	 */
+	while (textureOOB (t, current) && i < max)
+	{
+		current = vectorAdd (&current, &norm);
+		i++;
+	}
+	while (i < max)
+	{
+		if (textureOOB (t, current))
+			break;
+		texturePressPixel (t, current);
+		current = vectorAdd (&current, &norm);
+		i++;
+	}
+}
+
+void texturePressHex (TEXTURE t, VECTOR3 centre, unsigned int size, float angle)
+{
+	VECTOR3
+		axis = vectorCreate (
+			cos (angle) * size,
+			sin (angle) * size,
+			0
+		),
+	// rotation A is by 60 degrees; rotation B is by 120 degrees
+		rotA = vectorCreate (
+			cos (angle + M_PI * .333) * size,
+			sin (angle + M_PI * .333) * size,
+			0
+		),
+		rotB = vectorCreate (
+			cos (angle + M_PI * .666) * size,
+			sin (angle + M_PI * .666) * size,
+			0
+		),
+		corners[6];
+	int
+		i = 0;
+
+	corners[0] = vectorCreate (centre.x + axis.x, centre.y + axis.y, 0);
+	corners[1] = vectorCreate (centre.x + rotA.x, centre.y + rotA.y, 0);
+	corners[2] = vectorCreate (centre.x + rotB.x, centre.y + rotB.y, 0);
+	corners[3] = vectorCreate (centre.x - axis.x, centre.y - axis.y, 0);
+	corners[4] = vectorCreate (centre.x - rotA.x, centre.y - rotA.y, 0);
+	corners[5] = vectorCreate (centre.x - rotB.x, centre.y - rotB.y, 0);
+
+	while (i < 6)
+	{
+		texturePressLine (t, corners[i], corners[(i + 1) % 6]);
+		i++;
+	}
+	textureFloodFill (t, centre);
+}
+
+
+bool textureOOB (const TEXTURE t, VECTOR3 coord)
+{
+	if ((signed int)coord.x < 0 || (signed int)coord.x > t->width ||
+		(signed int)coord.y < 0 || (signed int)coord.y > t->height)
+		return TRUE;
+	return FALSE;
+}
+
+GLuint textureName (const TEXTURE t)
+{
+	return t->name;
+}
+
+
+
+TEXTURE textureGenBlank (unsigned int width, unsigned int height, unsigned char mode)
+{
+	TEXTURE
+		t = xph_alloc (sizeof (struct xph_texture));
+	int
+		i = 0,
+		max = width * height;
+	t->width = width;
+	t->height = height;
+	if (mode < 1 || mode > 4)
+	{
+		WARNING ("Invalid mode of %d for texture; using 4 instead.", mode);
+		t->mode = 4;
+	}
+	else
+	{
+		t->mode = mode;
+	}
+	t->name = 0;
+	t->data = xph_alloc (t->width * t->height * t->mode);
+	while (i < max)
+	{
+		memcpy (&t->data[i * t->mode], BackgroundColor, t->mode);
+		i++;
+	}
+
+	return t;
+}
+
+TEXTURE textureGenFromImage (const char * path)
+{
+	TEXTURE
+		t = xph_alloc (sizeof (struct xph_texture));
+	pngRawInfo
+		raw;
+
+	pngLoadRaw (absolutePath (path), &raw);
+
+	/* FIXME: this is where we would be doing the verification to make sure
+	 * this image is actually the kind of image we can use as a texture (e.g.,
+	 * has power-of-two dimensions, isn't paletted [since i don't know how to
+	 * handle that yet]) but uhhh it's not done yet
+	 *  - xph 2011 08 26
+	 */
+	t->width = raw.Width;
+	t->height = raw.Height;
+	t->mode = raw.Components;
+	t->name = 0;
+	t->data = raw.Data;
+	if (raw.Palette)
+	{
+		free (raw.Palette);
+		raw.Palette = NULL;
+	}
+
+	return t;
+}
+
+void textureDestroy (TEXTURE t)
+{
+	if (t->name)
+	{
+		glDeleteTextures (1, &t->name);
+		t->name = 0;
+	}
+	if (t->data)
+	{
+		free (t->data);
+		t->data = NULL;
+	}
+	xph_free (t);
+}
+
+GLuint textureBind (TEXTURE t)
+{
+	int
+		format;
+	switch (t->mode)
+	{
+		case 1:
+			format = GL_ALPHA;
+			break;
+		case 2:
+			format = GL_LUMINANCE_ALPHA;
+			break;
+		case 3:
+			format = GL_RGB;
+			break;
+		case 4:
+			format = GL_RGBA;
+			break;
+		default:
+			ERROR ("Texture has invalid mode of %d; can't deal; probably won't be able to load data", t->mode);
+			format = GL_ALPHA;
+			break;
+	}
+	glGenTextures (1, &t->name);
+	glBindTexture (GL_TEXTURE_2D, t->name);
+	/* i suspect i'll discover this very quickly when i start actually using
+	 * this code to /load/ images, but bad things will happen if the width and
+	 * height values aren't powers of two, so if we load images that aren't
+	 * powers of two then they've got to be padded in a very specific way
+	 *  - xph 2011 08 26
+	 */
+	glTexImage2D (GL_TEXTURE_2D, 0, t->mode, t->width, t->height, 0, format, GL_UNSIGNED_BYTE, t->data);
+	/* to generate mipmaps: increase the second arg to get the n-th mipmap for
+	 * the texture. i think if any mipmaps are specified you need to specify
+	 * them all, down to 1x1... but that's probably wrong.
+	 *  - xph 2011 08 26
+	 */
+	glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	return t->name;
 }

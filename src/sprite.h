@@ -1,8 +1,10 @@
 #ifndef XPH_SPRITE_H
 #define XPH_SPRITE_H
 
-#include "bool.h"
 #include <stdarg.h>
+
+#include "bool.h"
+#include "texture.h"
 
 typedef struct spriteSheet * SPRITESHEET;
 typedef struct sprite * SPRITE;
@@ -49,7 +51,7 @@ SPRITE sheetGetSpriteViaCoordinate (const SPRITESHEET s, int column, int row);
 bool sheetGetSpriteValuesViaOffset (const SPRITESHEET s, int offset, unsigned int *x, unsigned int *y, unsigned int *w, unsigned int *h, int *f, int *g);
 bool sheetGetSpriteValuesViaCoordinate (const SPRITESHEET s, int column, int row, unsigned int *x, unsigned int *y, unsigned int *w, unsigned int *h, int *f, int *g);
 
-const struct texture * sheetGetTexture (const SPRITESHEET s);
+const TEXTURE sheetGetTexture (const SPRITESHEET s);
 
 /* code for these two functions taken almost verbatim from the billboarding
  * tutorial at:
