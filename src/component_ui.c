@@ -2,6 +2,7 @@
 
 #include "video.h"
 #include "font.h"
+#include "texture.h"
 
 #include "system.h"
 
@@ -25,12 +26,25 @@ struct uiStaticText
 		fragments;
 };
 
+struct uiMapData
+{
+	enum uiPanelTypes
+		type;
+
+	Dynarr
+		scales;
+	unsigned char
+		currentScale;
+};
+
 union uiPanels
 {
 	enum uiPanelTypes
 		type;
 	struct uiStaticText
 		staticText;
+	struct uiMapData
+		map;
 };
 
 static unsigned int
@@ -43,27 +57,23 @@ static void uiPanel_destroy (UIPANEL ui);
 static struct uiTextFragment * uiFragmentCreate (const char * text, enum textAlignType align, signed int x, signed int y);
 static void uiFragmentDestroy (void * v);
 
+static void uiDrawPane (signed int x, signed int y, signed int width, signed int height, const TEXTURE texture);
 
 void uiDrawCursor ()
 {
 	unsigned int
-		height = 0,
-		width = 0,
 		centerHeight,
 		centerWidth,
 		halfTexHeight,
 		halfTexWidth;
 	float
-		zNear,
+		zNear = video_getZnear () - 0.001,
 		top, bottom,
 		left, right;
 /*
 	if (t == NULL)
 		return;
 */
-	if (!video_getDimensions (&width, &height))
-		return;
-	zNear = video_getZnear () - 0.001;
 	centerHeight = height / 2;
 	centerWidth = width / 2;
 	halfTexHeight = 2;//texture_pxHeight (t) / 2;
@@ -73,17 +83,14 @@ void uiDrawCursor ()
 	left = video_pixelXMap (centerWidth - halfTexWidth);
 	right = video_pixelXMap (centerWidth + halfTexWidth);
 	//printf ("top: %7.2f; bottom: %7.2f; left: %7.2f; right: %7.2f\n", top, bottom, left, right);
-	glPushMatrix ();
-	glLoadIdentity ();
 	glColor3f (1.0, 1.0, 1.0);
 	//glBindTexture (GL_TEXTURE_2D, texture_glID (t));
 	glBegin (GL_TRIANGLE_FAN);
 	glVertex3f (left, top, zNear);
-	glVertex3f (left, bottom, zNear);
-	glVertex3f (right, bottom, zNear);
 	glVertex3f (right, top, zNear);
+	glVertex3f (right, bottom, zNear);
+	glVertex3f (left, bottom, zNear);
 	glEnd ();
-	glPopMatrix ();
 }
 
 /***
@@ -128,6 +135,8 @@ void ui_setType (EntComponent ui, void * arg)
 		uiData = component_getData (ui);
 	enum uiPanelTypes
 		type = (enum uiPanelTypes)arg;
+	TEXTURE
+		texture;
 
 	if (uiData->type != UI_NONE)
 	{
@@ -149,6 +158,14 @@ void ui_setType (EntComponent ui, void * arg)
 			break;
 
 		case UI_WORLDMAP:
+			uiData->map.scales = dynarr_create (mapGetSpan () + 1, sizeof (TEXTURE));
+			texture = textureGenBlank (512, 512, 4);
+			dynarr_assign (uiData->map.scales, 0, texture);
+			uiData->map.currentScale = 0;
+
+			textureSetColor (0xff, 0x00, 0x00, 0xff);
+			texturePressHex (texture, vectorCreate (256.0, 256.0, 0.0), 128, 15 / 180. * M_PI);
+			textureBind (texture);
 			break;
 
 		default:
@@ -189,6 +206,11 @@ void ui_draw (EntComponent ui, void * arg)
 			}
 			break;
 
+		case UI_WORLDMAP:
+			
+			uiDrawPane ((width - (height - 32)) / 2, 16, height - 32, height - 32, *(TEXTURE *)dynarr_at (uiData->map.scales, 0));
+			break;
+
 		default:
 			break;	
 	}
@@ -215,6 +237,11 @@ static void uiPanel_destroy (UIPANEL ui)
 		case UI_STATICTEXT:
 			dynarr_map (ui->staticText.fragments, uiFragmentDestroy);
 			dynarr_destroy (ui->staticText.fragments);
+			break;
+
+		case UI_WORLDMAP:
+			dynarr_map (ui->map.scales, (void (*)(void *))textureDestroy);
+			dynarr_destroy (ui->map.scales);
 			break;
 		default:
 			break;
@@ -251,3 +278,63 @@ static void uiFragmentDestroy (void * v)
 	xph_free (uit->text);
 	xph_free (uit);
 }
+
+static void uiDrawPane (signed int x, signed int y, signed int width, signed int height, const TEXTURE texture)
+{
+	float
+		top = video_pixelYMap (y),
+		left = video_pixelXMap (x),
+		bottom = video_pixelYMap (y + height),
+		right = video_pixelXMap (x + width),
+		zNear = video_getZnear () - 0.001;
+
+	glColor3f (1.0, 1.0, 1.0);
+	if (texture)
+		glBindTexture (GL_TEXTURE_2D, textureName (texture));
+	else
+		glBindTexture (GL_TEXTURE_2D, 0);
+	glBegin (GL_TRIANGLE_FAN);
+	glTexCoord2f (0.0, 1.0);
+	glVertex3f (left, top, zNear);
+	glTexCoord2f (0.0, 0.0);
+	glVertex3f (left, bottom, zNear);
+	glTexCoord2f (1.0, 0.0);
+	glVertex3f (right, bottom, zNear);
+	glTexCoord2f (1.0, 1.0);
+	glVertex3f (right, top, zNear);
+	glEnd ();
+}
+
+/*
+static void uiDrawSkewPane (signed int x, signed int y, signed int width, signed int height, enum uiSkewTypes skew, const void * const * style)
+{
+	float
+		top = video_pixelYMap (y),
+		left = video_pixelXMap (x),
+		bottom = video_pixelYMap (y + height),
+		right = video_pixelXMap (x + width),
+		zNear = video_getZnear () - 0.001,
+		su = 0,
+		sd = 0,
+		sl = 0,
+		sr = 0;
+
+	if (skew & SKEW_UP)
+		su = 10;
+	else if (skew & SKEW_DOWN)
+		sd = 10;
+
+	if (skew & SKEW_LEFT)
+		sl = 10;
+	else if (skew & SKEW_RIGHT)
+		sr = 10;
+
+	glColor3f (1.0, 1.0, 1.0);
+	glBegin (GL_TRIANGLE_FAN);
+	glVertex3f (left, top, zNear - (sl + su));
+	glVertex3f (left, bottom, zNear - (sl + sd));
+	glVertex3f (right, bottom, zNear - (sr + sd));
+	glVertex3f (right, top, zNear - (sr + su));
+	glEnd ();
+}
+*/
