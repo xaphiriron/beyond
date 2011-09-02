@@ -7,6 +7,7 @@
 #include "xph_memory.h"
 #include "xph_log.h"
 #include "path.h"
+#include "dynarr.h"
 
 static unsigned char
 	TextureColor[4] = {0x00, 0x00, 0x00, 0x0ff},
@@ -26,6 +27,15 @@ void textureSetColor (unsigned char r, unsigned char g, unsigned char b, unsigne
 	TextureColor[1] = g;
 	TextureColor[2] = b;
 	TextureColor[3] = a;
+}
+
+unsigned char * textureColorAt (TEXTURE t, VECTOR3 px)
+{
+	static unsigned char
+		oobBlank[4] = {0, 0, 0, 0};
+	if (textureOOB (t, px))
+		return oobBlank;
+	return &t->data[(((t->height - 1) - (signed int)px.y) * t->width + (signed int)px.x) * t->mode];
 }
 
 void textureActiveStencil (TEXTURE t, unsigned char r, unsigned char g, unsigned char b)
@@ -56,22 +66,109 @@ void textureActiveStencil (TEXTURE t, unsigned char r, unsigned char g, unsigned
 	}
 }
 
-void textureFloodFill (TEXTURE t, VECTOR3 start)
+void textureFloodFill (TEXTURE t, signed int startX, signed int startY)
 {
-}
+	unsigned char
+		replaceColor[4] = {0, 0, 0, 0};
+	struct txpx {
+		signed int
+			x,y;
+	} * current,
+	  * next;
+	VECTOR3
+		loc;
+	Dynarr
+		affectedPixels;
 
+	loc = vectorCreate (startX, startY, 0);
+	
+	if (textureOOB (t, loc))
+	{
+		INFO ("Can't centre flood at %d, %d; it's out of bounds of image (%dx%d)", startX, startY, t->width, t->height);
+		return;
+	}
+	affectedPixels = dynarr_create (64, sizeof (struct txpx *));
+	memcpy (replaceColor, textureColorAt (t, loc), t->mode);
+
+	current = xph_alloc (sizeof (struct txpx));
+	current->x = startX;
+	current->y = startY;
+	dynarr_queue (affectedPixels, current);
+
+	while (!dynarr_isEmpty (affectedPixels))
+	{
+		current = *(struct txpx **)dynarr_dequeue (affectedPixels);
+		//printf ("got: %d, %d\n", current->x, current->y);
+		loc = vectorCreate (current->x, current->y, 0);
+		if (textureOOB (t, loc))
+		{
+		}
+		else if (memcmp (replaceColor, textureColorAt (t, loc), t->mode) == 0)
+		{
+			textureDrawPixel (t, loc);
+
+			next = xph_alloc (sizeof (struct txpx));
+			next->x = current->x + 1;
+			next->y = current->y;
+			dynarr_queue (affectedPixels, next);
+
+			next = xph_alloc (sizeof (struct txpx));
+			next->x = current->x;
+			next->y = current->y + 1;
+			dynarr_queue (affectedPixels, next);
+
+			next = xph_alloc (sizeof (struct txpx));
+			next->x = current->x - 1;
+			next->y = current->y;
+			dynarr_queue (affectedPixels, next);
+
+			next = xph_alloc (sizeof (struct txpx));
+			next->x = current->x;
+			next->y = current->y - 1;
+			dynarr_queue (affectedPixels, next);
+		}
+		xph_free (current);
+	}
+
+	INFO ("FINAL SIZE: %d ENTRIES", dynarr_capacity (affectedPixels));
+	dynarr_destroy (affectedPixels);
+}
 
 /* about the "((t->height - px->y) * t->width + px->x" math:
  "The first element corresponds to the lower left corner of the texture image. Subsequent elements progress left-to-right through the remaining texels in the lowest row of the texture image, and then in successively higher rows of the texture image. The final element corresponds to the upper right corner of the texture image."
  */
-void texturePressPixel (TEXTURE t, VECTOR3 px)
+void textureDrawPixel (TEXTURE t, VECTOR3 px)
 {
+	unsigned char
+		* oldColor;
+	unsigned char
+		alpha,
+		minusAlpha;
+	/* printf ("drawing at %f/%d, %f/%d (offset: %d of %d) -- (%d - (signed int)%d) * %d + (signed int) %d\n", px.x, (signed int)px.x, px.y, (signed int)px.y, (((t->height - 1) - (signed int)px.y) * t->width + (signed int)px.x), t->height * t->width, t->height, (signed int)px.y, t->width, (signed int)px.x); */
 	if (textureOOB (t, px))
 		return;
-	memcpy (&t->data[((t->height - (signed int)px.y) * t->width + (signed int)px.x) * t->mode], TextureColor, t->mode);
+	oldColor = textureColorAt (t, px);
+	if (t->mode < 4 || (t->mode == 4 && TextureColor[3] == 0xff))
+	{
+		memcpy (oldColor, TextureColor, t->mode);
+	}
+	else
+	{
+		alpha = TextureColor[3];
+		minusAlpha = (0xff - TextureColor[3]);
+		//printf ("pre:  #%2.2x%2.2x%2.2x%2.2x\n", oldColor[0], oldColor[1], oldColor[2], oldColor[3]);
+
+		oldColor[0] = (oldColor[0] * minusAlpha + TextureColor[0] * alpha) / 0xff;
+		oldColor[1] = (oldColor[1] * minusAlpha + TextureColor[1] * alpha) / 0xff;
+		oldColor[2] = (oldColor[2] * minusAlpha + TextureColor[2] * alpha) / 0xff;
+		// add the % of the remaining alpha (e.g., if backround alpha is 191 and foreground alpha is 127 then 31 alpha is added since that's 50% of (255 - 191)
+		oldColor[3] += (0xff - oldColor[3]) * TextureColor[3] / 0xff;
+
+		//printf ("post: #%2.2x%2.2x%2.2x%2.2x\n", oldColor[0], oldColor[1], oldColor[2], oldColor[3]);
+	}
 }
 
-void texturePressLine (TEXTURE t, VECTOR3 start, VECTOR3 end)
+void textureDrawLine (TEXTURE t, VECTOR3 start, VECTOR3 end)
 {
 	VECTOR3
 		diff = vectorSubtract (&end, &start),
@@ -105,13 +202,13 @@ void texturePressLine (TEXTURE t, VECTOR3 start, VECTOR3 end)
 	{
 		if (textureOOB (t, current))
 			break;
-		texturePressPixel (t, current);
+		textureDrawPixel (t, current);
 		current = vectorAdd (&current, &norm);
 		i++;
 	}
 }
 
-void texturePressHex (TEXTURE t, VECTOR3 centre, unsigned int size, float angle)
+void textureDrawHex (TEXTURE t, VECTOR3 centre, unsigned int size, float angle)
 {
 	VECTOR3
 		axis = vectorCreate (
@@ -143,17 +240,18 @@ void texturePressHex (TEXTURE t, VECTOR3 centre, unsigned int size, float angle)
 
 	while (i < 6)
 	{
-		texturePressLine (t, corners[i], corners[(i + 1) % 6]);
+		textureDrawLine (t, corners[i], corners[(i + 1) % 6]);
 		i++;
 	}
-	textureFloodFill (t, centre);
+	//printf ("FLOODING\n");
+	textureFloodFill (t, (signed int)centre.x, (signed int)centre.y);
 }
 
 
 bool textureOOB (const TEXTURE t, VECTOR3 coord)
 {
-	if ((signed int)coord.x < 0 || (signed int)coord.x > t->width ||
-		(signed int)coord.y < 0 || (signed int)coord.y > t->height)
+	if ((signed int)coord.x < 0 || (signed int)coord.x >= t->width ||
+		(signed int)coord.y < 0 || (signed int)coord.y >= t->height)
 		return TRUE;
 	return FALSE;
 }
@@ -225,6 +323,8 @@ TEXTURE textureGenFromImage (const char * path)
 
 void textureDestroy (TEXTURE t)
 {
+	if (!t)
+		return;
 	if (t->name)
 	{
 		glDeleteTextures (1, &t->name);

@@ -15,13 +15,15 @@ typedef struct xph_texture * TEXTURE;
 void textureSetBackgroundColor (unsigned char r, unsigned char g, unsigned char b, unsigned char a);
 void textureSetColor (unsigned char r, unsigned char g, unsigned char b, unsigned char a);
 
+unsigned char * textureColorAt (TEXTURE t, VECTOR3 px);
+
 void textureActiveStencil (TEXTURE t, unsigned char r, unsigned char g, unsigned char b);
 
-void textureFloodFill (TEXTURE t, VECTOR3 start);
+void textureFloodFill (TEXTURE t, signed int startX, signed int startY);
 
-void texturePressPixel (TEXTURE t, VECTOR3 px);
-void texturePressLine (TEXTURE t, VECTOR3 start, VECTOR3 end);
-void texturePressHex (TEXTURE t, VECTOR3 centre, unsigned int size, float angle);
+void textureDrawPixel (TEXTURE t, VECTOR3 px);
+void textureDrawLine (TEXTURE t, VECTOR3 start, VECTOR3 end);
+void textureDrawHex (TEXTURE t, VECTOR3 centre, unsigned int size, float angle);
 
 /***
  *
