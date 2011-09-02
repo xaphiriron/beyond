@@ -93,7 +93,7 @@ const TIMER system_getTimer ()
  * SYSTEM STATE
  */
 
-enum system_states systemGetState ()
+enum system_states systemState ()
 {
 	enum system_states
 		state;
@@ -165,7 +165,7 @@ static void systemCheckLoadState (const TIMER t)
 
 void loadSetGoal (unsigned int goal)
 {
-	if (systemGetState () != STATE_LOADING)
+	if (systemState () != STATE_LOADING)
 	{
 		WARNING ("Loader function called outside of loading context?!");
 		return;
@@ -175,7 +175,7 @@ void loadSetGoal (unsigned int goal)
 
 void loadSetLoaded (unsigned int loaded)
 {
-	if (systemGetState () != STATE_LOADING)
+	if (systemState () != STATE_LOADING)
 	{
 		WARNING ("Loader function called outside of loading context?!");
 		return;
@@ -185,7 +185,7 @@ void loadSetLoaded (unsigned int loaded)
 
 void loadSetText (char * displayText)
 {
-	if (systemGetState () != STATE_LOADING)
+	if (systemState () != STATE_LOADING)
 	{
 		WARNING ("Loader function called outside of loading context?!");
 		return;
@@ -427,7 +427,7 @@ void systemRender (void)
 		return;
 	video_getDimensions (&width, &height);
 	obj_messagePre (VideoObject, OM_PRERENDER, NULL, NULL);
-	if (systemGetState (System) == STATE_LOADING)
+	if (systemState (System) == STATE_LOADING)
 	{
 		glDisable (GL_DEPTH_TEST);
 		glColor3f (0.0, 0.0, 0.0);
@@ -458,7 +458,7 @@ void systemRender (void)
 		if (matrix != NULL)
 			glLoadMatrixf (matrix);
 		mapDraw ();
-		if (systemGetState (System) == STATE_FREEVIEW && camera_getMode (camera) == CAMERA_FIRST_PERSON)
+		if (systemState (System) == STATE_FREEVIEW && camera_getMode (camera) == CAMERA_FIRST_PERSON)
 			uiDrawCursor ();
 	}
 
@@ -493,7 +493,19 @@ bool systemToggleAttr (enum system_toggle_states toggle)
 	return FALSE;
 }
 
-const char const * systemGenDebugStr ()
+bool systemAttr (enum system_toggle_states state)
+{
+	switch (state)
+	{
+		case SYS_DEBUG:
+			return System->debug;
+		default:
+			break;
+	}
+	return FALSE;
+}
+
+char * systemGenDebugStr ()
 {
 
 	signed int

@@ -193,7 +193,8 @@ bool input_rmEntity (Entity e, enum input_control_types t)
 }
 
 
-void input_sendGameEventMessage (const struct input_event * ie) {
+void input_sendGameEventMessage (const struct input_event * ie)
+{
 	int
 		i = 0;
 	Entity
@@ -203,6 +204,9 @@ void input_sendGameEventMessage (const struct input_event * ie) {
 		* msg = NULL;
 	// CATCH AND HANDLE EVENTS THAT HAVE SYSTEM-WIDE REPERCUSSIONS
 	//DEBUG ("GOT INPUTEVENT TYPE %d", ie->ir);
+	/* this has become the home of the UI switching; this isn't a good thing. i don't know how to break it apart (presumably to be handled by the ui component??) but it's something that should be done. in the mean time, try to avoid tying the ui code with the input code any further.
+	 *  - xph 2011 08 28
+	 */
 	switch (ie->ir)
 	{
 		case IR_QUIT:
@@ -219,15 +223,14 @@ void input_sendGameEventMessage (const struct input_event * ie) {
 			msg = NULL;
 			break;
 		case IR_WORLDMAP_SWITCH:
-			if (systemTopUIPanelType () == UI_WORLDMAP)
+			if (systemState() == STATE_UI &&
+				systemTopUIPanelType () == UI_WORLDMAP)
 			{
-				DEBUG ("Whoop removing worldmap ui");
 				entity_destroy (systemPopUI ());
 				systemPopState ();
 			}
-			else if (systemTopUIPanelType () == UI_NONE)
+			else if (systemState() == STATE_FREEVIEW)
 			{
-				DEBUG ("Whoop adding worldmap ui");
 				created = entity_create ();
 				component_instantiate ("ui", created);
 				entity_message (created, NULL, "setType", (void *)UI_WORLDMAP);
@@ -235,24 +238,23 @@ void input_sendGameEventMessage (const struct input_event * ie) {
 				created = NULL;
 				systemPushState (STATE_UI);
 			}
-			else
-			{
-				WARNING ("Some other panel exists (%d); let's not", systemTopUIPanelType ());
-			}
 			break;
 		case IR_DEBUG_SWITCH:
-			if (systemTopUIPanelType () == UI_DEBUG_OVERLAY)
+			if (systemAttr (SYS_DEBUG) &&
+				systemTopUIPanelType () == UI_DEBUG_OVERLAY)
 			{
 				entity_destroy (systemPopUI ());
+				systemToggleAttr (SYS_DEBUG);
 			}
-			else if (systemTopUIPanelType () == UI_NONE)
+			else if (systemState() == STATE_FREEVIEW)
 			{
 				created = entity_create ();
 				component_instantiate ("ui", created);
 				entity_message (created, NULL, "setType", (void *)UI_DEBUG_OVERLAY);
 				systemPushUI (created);
+				created = NULL;
+				systemToggleAttr (SYS_DEBUG);
 			}
-			systemToggleAttr (SYS_DEBUG);
 			break;
 		default:
 			break;

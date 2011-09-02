@@ -68,7 +68,7 @@ const TIMER system_getTimer ();
  * part of that working right, sigh])
  * - xph 2011-05-22
  */
-enum system_states systemGetState ();
+enum system_states systemState ();
 bool systemPushState (enum system_states state);
 enum system_states systemPopState ();	// returns the new current state
 bool systemClearStates ();				// entirely wipes the state stack
@@ -92,7 +92,7 @@ Entity systemPopUI ();
 void systemPushUI (Entity p);
 enum uiPanelTypes systemTopUIPanelType ();
 
-const char const * systemGenDebugStr ();
+char * systemGenDebugStr ();
 
 void system_registerTimedFunction (void (*func)(TIMER), unsigned char weight);
 void system_removeTimedFunction (void (*func)(TIMER));
@@ -105,6 +105,7 @@ void systemUpdate (void);
 void systemRender (void);
 
 bool systemToggleAttr (enum system_toggle_states toggle);
+bool systemAttr (enum system_toggle_states state);
 
 int system_message (objMsg msg, void * a, void * b);
 
