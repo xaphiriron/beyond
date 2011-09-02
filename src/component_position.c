@@ -120,6 +120,8 @@ bool position_move (Entity e, VECTOR3 move)
 		newGround = NULL;
 	bool
 		validMove = TRUE;
+	signed int
+		newX, newY;
 
 	if (pdata == NULL)
 	{
@@ -130,7 +132,8 @@ bool position_move (Entity e, VECTOR3 move)
 	newRawPosition = vectorAdd (&pdata->pos, &move);
 
 	validMove = mapMove (pdata->ground, &newRawPosition, &newGround, &newPosition);
-	newPosition.y = pdata->pos.y;
+	hex_space2coord (&newPosition, &newX, &newY);
+	newPosition.y = subhexGetHeight (subhexData (newGround, newX, newY)) + 90.0;
 	if (!validMove)
 	{
 		if (newGround != NULL && subhexSpanLevel (pdata->ground) < subhexSpanLevel (newGround))
