@@ -263,7 +263,7 @@ void systemCreatePlayer ()
 		/* NOTE: this is a placeholder; player positioning in the generated world is a worldgen thing, not a system thing. maybe this entire function is misguided, idk.
 		 *  - xph 2011 06 09
 		 */
-		rel = mapRelativeSubhexWithCoordinateOffset (mapPole ('r'), -6, 0, 0);
+		rel = mapRelativeSubhexWithCoordinateOffset (mapPole ('r'), -(mapGetSpan () - 1), 0, 0);
 		systemPlacePlayerAt (mapRelativeTarget (rel));
 		mapRelativeDestroy (rel);
 	}

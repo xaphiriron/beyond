@@ -41,7 +41,7 @@ struct worldgenArch // ARCH
 	VECTOR3
 		position;
 	unsigned int
-		height;
+		size;
 	signed int
 		x, y;
 
@@ -55,7 +55,7 @@ void worldgenAbsHocNihilo ()
 		firstPattern = patternCreate ();	// from patterns file
 */
 	
-	mapSetSpanAndRadius (7, 8);
+	mapSetSpanAndRadius (2, 8);
 	mapGeneratePoles (POLE_TRI);
 
 	FUNCCLOSE ();
@@ -76,7 +76,8 @@ void worldgenExpandWorldGraph (TIMER t)
 {
 	static SUBHEX
 		pole = NULL,
-		base = NULL;
+		base = NULL,
+		poleCentre = NULL;
 	SUBHEX
 		active = NULL;
 	RELATIVEHEX
@@ -91,9 +92,10 @@ void worldgenExpandWorldGraph (TIMER t)
 	if (!base)
 	{
 		mapForceGrowAtLevelForDistance (pole, 1, 3);
-		rel = mapRelativeSubhexWithCoordinateOffset (pole, -6, 0, 0);
-		base = mapRelativeTarget (rel);
+		rel = mapRelativeSubhexWithCoordinateOffset (pole, -mapGetSpan (), 0, 0);
+		poleCentre = mapRelativeTarget (rel);
 		mapRelativeDestroy (rel);
+		base = subhexParent (poleCentre);
 	}
 
 	loadSetLoaded (1);
@@ -118,6 +120,8 @@ void worldgenExpandWorldGraph (TIMER t)
 		active = mapHexAtCoordinateAuto (subhexParent (base), 1, -1);
 		worldgenCreateArch (NULL, active);
 */
+
+		worldgenCreateArch (NULL, active);
 
 		mapDataAdd (base, "height", 16);
 
@@ -174,7 +178,7 @@ ARCH worldgenCreateArch (PATTERN pattern, SUBHEX base)
 	k = rand () % 6;
 	i = rand () % MapRadius - 1;
 	hex_rki2xy (r, k, i, &arch->x, &arch->y);
-	arch->height = (rand () & 0x1f) + 5;
+	arch->size = (rand () & 0x03) + 2;
 
 	mapArchSet (base, arch);
 	return arch;
@@ -204,11 +208,11 @@ void worldgenImprintMapData (SUBHEX at)
 	unsigned int
 		height = mapDataGet (at, "height"),
 		adjHeight[6],
-		r = 0, i = 0;
+		r = 0, k = 0, i = 0;
 	signed int
 		* centres = mapSpanCentres (1),
 		dir = 0,
-		nextDir = 1,
+		lastDir = 5,
 		x, y;
 	float
 		b[4] = {0, 0, 0, 0};
@@ -232,19 +236,20 @@ void worldgenImprintMapData (SUBHEX at)
 	}
 
 	dir = 0;
-	nextDir = 5;
+	lastDir = 5;
 	while (dir < 6)
 	{
 		r = 1;
+		k = dir;
 		i = 0;
 		while (r <= MapRadius)
 		{
-			hex_rki2xy (r, dir, i, &x, &y);
+			hex_rki2xy (r, k, i, &x, &y);
 			hex = mapHexAtCoordinateAuto (at, x, y);
 			if (hex == NULL)
 				goto increment;
-			p = hex_coord2space (r, dir, i);
-			/* the full method for calculating the barycentric coordinates of a point :p {0} with three vertices (in this case, 0,0 implicitly, :adjCoords[dir], and :adjCoords[nextDir] {1,2,3}) is the first calculate a normalizing factor, bc, by way of
+			p = hex_coord2space (r, k, i);
+			/* the full method for calculating the barycentric coordinates of a point :p {0} with three vertices (in this case, 0,0 implicitly, :adjCoords[dir], and :adjCoords[lastDir] {1,2,3}) is the first calculate a normalizing factor, bc, by way of
 			* b0 = (2.x - 1.x) * (3.y - 1.y) - (3.x - 1.x) * (2.y - 1.y);
 			* in this case since the '1' is 0,0 this simplifies things substantially
 			* from that the coordinates themselves are calculated:
@@ -255,30 +260,44 @@ void worldgenImprintMapData (SUBHEX at)
 			* it's always 0,0. remember also that the world plane is the x,z
 			* plane; that's why we're using z here instead of y. to interpolate
 			* any map data point, multiply the coordinate values with their respective map point value, so that:
-			* value at :p = b1 * [map value of the subhex corresponding to 1] + b2 * [same] + b3 * same;
+			* value at :p = b1 * [map value of the subhex corresponding to 1] + b2 * [same w/ 2] + b3 * [same w/ 3];
 			 */
-			b[0] = adjCoords[dir].x * adjCoords[nextDir].z - adjCoords[nextDir].x * adjCoords[dir].z;
-			b[1] = ((adjCoords[dir].x - p.x) * (adjCoords[nextDir].z - p.z) -
-					(adjCoords[nextDir].x - p.x) * (adjCoords[dir].z - p.z)) / b[0];
-			b[2] = ((adjCoords[nextDir].x - p.x) * -p.z -
-					-p.x * (adjCoords[nextDir].z - p.z)) / b[0];
+			b[0] = adjCoords[dir].x * adjCoords[lastDir].z - adjCoords[lastDir].x * adjCoords[dir].z;
+			b[1] = ((adjCoords[dir].x - p.x) * (adjCoords[lastDir].z - p.z) -
+					(adjCoords[lastDir].x - p.x) * (adjCoords[dir].z - p.z)) / b[0];
+			b[2] = ((adjCoords[lastDir].x - p.x) * -p.z -
+					-p.x * (adjCoords[lastDir].z - p.z)) / b[0];
 			b[3] = (-p.x * (adjCoords[dir].z - p.z) -
 					(adjCoords[dir].x - p.x) * -p.z) / b[0];
-			hex->hex.centre = b[1] * height + b[2] * adjHeight[dir] + b[3] * adjHeight[nextDir];
-			if ((signed int)hex->hex.centre < 0)
-				hex->hex.centre = 0;
-			//WARNING ("final height: %d, from %f * %d + %f * %d + %f * %d", hex->hex.centre, b[1], height, b[2], adjHeight[dir], b[3], adjHeight[nextDir]);
+			if (b[1] >= 0.0 && b[1] <= 1.0 &&
+				b[2] >= 0.0 && b[2] <= 1.0 &&
+				b[3] >= 0.0 && b[3] <= 1.0)
+			{
+				hex->hex.centre = b[1] * height + b[2] * adjHeight[dir] + b[3] * adjHeight[lastDir];
+			}
+			else
+			{
+				WARNING ("{%d %d %d} not touched by triangle O %d %d", r, k, i, lastDir, dir);
+			}
+			//DEBUG ("final height: %d, from %f * %d + %f * %d + %f * %d", hex->hex.centre, b[1], height, b[2], adjHeight[dir], b[3], adjHeight[lastDir]);
 			
 			increment:
 			i++;
-			if (i == r)
+			if (k == dir && i >= (r/2.0))
 			{
 				r++;
+				k = lastDir;
+				i = ceil (r / 2.0);
+			}
+			else if (i == r)
+			{
+				k = dir;
 				i = 0;
 			}
+
 		}
+		lastDir = dir;
 		dir++;
-		nextDir = (dir + 5) % 6;
 	}
 }
 
@@ -287,16 +306,15 @@ void worldgenImprintAllArches (SUBHEX at)
 	ARCH
 		arch = NULL;
 	SUBHEX
-		hex = NULL,
-		closer = NULL;
+		hex = NULL;
 	int
 		offset = 0;
 	signed int
-		hx, hy,
-		cx, cy,
+		hx = 0,
+		hy = 0,
 		height;
 	unsigned int
-		r, k, i;
+		r = 0, k = 0, i = 0;
 	if (subhexSpanLevel (at) < 1)
 	{
 		WARNING ("Can't imprint platter (%p) with span level %d.", at, subhexSpanLevel (at));
@@ -304,67 +322,34 @@ void worldgenImprintAllArches (SUBHEX at)
 	}
 	if (at->sub.imprinted == TRUE)
 		return;
-	height = 2;
 	while ((arch = mapArchGet (at, offset++)) != NULL)
 	{
 		hex = mapHexAtCoordinateAuto (at, arch->x, arch->y);
-		if (hex->hex.centre < arch->height)
-			hex->hex.centre = arch->height;
-		r = 1;
-		k = i = 0;
-		while (r * 2 < arch->height)
+		height = hex->hex.centre;
+
+		while (r <= arch->size)
 		{
 			hex_rki2xy (r, k, i, &hx, &hy);
 			hx += arch->x;
 			hy += arch->y;
+			
 			hex = mapHexAtCoordinateAuto (at, hx, hy);
 			if (hex == NULL)
 			{
 				hex_nextValidCoord (&r, &k, &i);
 				continue;
 			}
-			hex_stepLineToOrigin (hx - arch->x,hy - arch->y, 1, &cx, &cy);
-			closer = mapHexAtCoordinateAuto (at, arch->x + cx, arch->y + cy);
-			DEBUG ("from %d, %d got 'closer' hex %d, %d", hx, hy, arch->x + cx, arch->y + cy);
-			if (closer == NULL)
-			{
-				// ?!?
-				hex_nextValidCoord (&r, &k, &i);
-				continue;
-			}
-			if (height > closer->hex.centre || hex->hex.centre >= closer->hex.centre - height)
-			{
-				hex_nextValidCoord (&r, &k, &i);
-				continue;
-			}
-			if (i == 0)
-			{
-				SETCORNER (hex->hex.corners, k, -1);
-				SETCORNER (hex->hex.corners, (k + 1) % 6, 0);
-				SETCORNER (hex->hex.corners, (k + 2) % 6, 1);
-				SETCORNER (hex->hex.corners, (k + 3) % 6, 1);
-				SETCORNER (hex->hex.corners, (k + 4) % 6, 0);
-				SETCORNER (hex->hex.corners, (k + 5) % 6, -1);
-			}
+			if (r < arch->size)
+				hex->hex.centre = height;
 			else
 			{
-				SETCORNER (hex->hex.corners, k, -1);
-				SETCORNER (hex->hex.corners, (k + 1) % 6, 0);
-				SETCORNER (hex->hex.corners, (k + 2) % 6, 1);
-				SETCORNER (hex->hex.corners, (k + 3) % 6, 2);
-				SETCORNER (hex->hex.corners, (k + 4) % 6, 1);
-				SETCORNER (hex->hex.corners, (k + 5) % 6, 0);
+				if (abs (i - r/2) < 1)
+					hex->hex.centre = height + arch->size / 2;
+				else
+					hex->hex.centre = height + arch->size * 2;
 			}
-			hex->hex.centre = closer->hex.centre - height;
+
 			hex_nextValidCoord (&r, &k, &i);
 		}
-		hex = mapHexAtCoordinateAuto (at, arch->x, arch->y);
-		hex->hex.centre = arch->height - 1;
-		hex->hex.corners[0] = 0;
-		hex->hex.corners[1] = 0;
-		hex->hex.corners[2] = 0;
 	}
-	at->sub.imprinted = TRUE;
-	mapBakeHexes (at);
-
 }
