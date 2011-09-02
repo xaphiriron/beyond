@@ -439,6 +439,16 @@ const AXES * const position_getMoveAxesR (const POSITION p)
 }
 
 
+/***
+ * POSITION COMPONENT
+ */
+
+void position_classInit (EntComponent position, void * arg)
+{
+
+	component_registerResponse ("position", "getHex", position_getHex);
+	component_registerResponse ("position", "getHexAngle", position_getHexAngle);
+}
 
 int component_position (Object * obj, objMsg msg, void * a, void * b) {
   struct position_data ** cd = NULL;
@@ -547,4 +557,26 @@ int component_position (Object * obj, objMsg msg, void * a, void * b) {
 			return obj_pass ();
 	}
 	return EXIT_FAILURE;
+}
+
+
+void position_getHex (EntComponent position, void * arg)
+{
+	POSITION
+		pData = component_getData (position);
+	SUBHEX
+		* hex = arg;
+	signed int
+		x, y;
+	hex_space2coord (&pData->pos, &x, &y);
+	*hex = subhexData (pData->ground, x, y);
+}
+
+void position_getHexAngle (EntComponent position, void * arg)
+{
+	POSITION
+		pData = component_getData (position);
+	float
+		* hexAngle = arg;
+	*hexAngle = position_getHeadingR (pData);
 }

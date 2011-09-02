@@ -315,7 +315,7 @@ static void systemInitialize (void)
 	obj_create ("video", NULL, NULL, NULL);
 
 	//printf ("registering components\n");
-	entity_registerComponentAndSystem ("position", component_position, NULL);
+	entity_registerComponentAndSystem ("position", component_position, position_classInit);
 	entity_registerComponentAndSystem ("camera", NULL, camera_classInit);
 	entity_registerComponentAndSystem ("walking", component_walking, NULL);
 	entity_registerComponentAndSystem ("input", component_input, NULL);

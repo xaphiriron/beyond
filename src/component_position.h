@@ -66,7 +66,11 @@ const AXES * const position_getViewAxesR (const POSITION p);
 const AXES * const position_getMoveAxes (const Entity e);
 const AXES * const position_getMoveAxesR (const POSITION p);
 
+void position_classInit (EntComponent position, void * arg);
 int component_position (Object * obj, objMsg msg, void * a, void * b);
+
+void position_getHex (EntComponent position, void * arg);
+void position_getHexAngle (EntComponent position, void * arg);
 
 
 #endif /* XPH_COMPONENT_POSITION_H */
