@@ -268,7 +268,21 @@ signed int hex_stepLineToOrigin (signed int x, signed int y, unsigned int steps,
 	return r;
 }
 
-unsigned char hex_dirHashFromYaw (float yaw)
+
+
+
+
+/*
+def hex_dir (yaw):
+	f = (yaw + math.pi * 2) / (math.pi * 2) * 6 if yaw < 0 else yaw / (math.pi * 2) * 6;
+	f -= 6.0 if f >= 6.0 else 0.0;
+	h = int (f) << 5;
+	h |= int (((f - int(f)) * 0x1f)) & 0x1f
+	return h;
+
+ */
+
+unsigned char hex_dirAngle (float yaw)
 {
 	float
 		f = yaw < 0

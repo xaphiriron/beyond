@@ -290,6 +290,20 @@ char * dynarr_back (Dynarr da)
 	return da->items + index * da->size;
 }
 
+
+char * dynarr_dequeue (Dynarr da)
+{
+	int
+		index = dynarr_index_first (da);
+	if (index < 0)
+		return da->items + da->capacity * da->size;
+	dynarr_unset_index (da, index);
+	da->used--;
+	return da->items + index * da->size;
+}
+
+
+
 void dynarr_unset (Dynarr da, int index)
 {
 	if (!dynarr_index_used (da, index))

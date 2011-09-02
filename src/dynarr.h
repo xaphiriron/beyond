@@ -54,6 +54,9 @@ char * dynarr_pop (Dynarr da);
 char * dynarr_front (Dynarr da);
 char * dynarr_back (Dynarr da);
 
+#define dynarr_queue(x, ...)	dynarr_push(x, __VA_ARGS__)
+char * dynarr_dequeue (Dynarr da);
+
 void dynarr_unset (Dynarr da, int index);
 void dynarr_clear (Dynarr da);
 void dynarr_wipe (Dynarr da, void free_func (void *));

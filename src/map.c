@@ -1567,6 +1567,21 @@ bool subhexLocalCoordinates (const SUBHEX subhex, signed int * xp, signed int * 
 	return TRUE;
 }
 
+
+bool hexColor (const HEX hex, unsigned char * rgb)
+{
+	rgb[0] = 64 +
+		!!(hex->light & 0x01) * 127 +
+		!!(hex->light & 0x02) * 64;
+	rgb[1] = 64 +
+		!!(hex->light & 0x04) * 127 +
+		!!(hex->light & 0x08) * 64;
+	rgb[2] = 64 +
+		!!(hex->light & 0x10) * 127 +
+		!!(hex->light & 0x20) * 64;
+	return TRUE;
+}
+
 WORLDHEX subhexGeneratePosition (const SUBHEX subhex)
 {
 	WORLDHEX
@@ -1928,10 +1943,8 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 	VECTOR3
 		hexOffset = hex_xyCoord2Space (hex->x, hex->y),
 		totalOffset = vectorAdd (&centreOffset, &hexOffset);
-	float
-		lR = 0.0,
-		lG = 0.0,
-		lB = 0.0;
+	unsigned char
+		rgb[3];
 	unsigned int
 		corners[6] = {
 			FULLHEIGHT (hex, 0),
@@ -1944,11 +1957,9 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 	signed int
 		i, j;
 
-	lR = 0.25 + (0.5 * (!!(hex->light & 0x01) + (!!(hex->light & 0x02) * .5)));
-	lG = 0.25 + (0.5 * (!!(hex->light & 0x04) + (!!(hex->light & 0x08) * .5)));
-	lB = 0.25 + (0.5 * (!!(hex->light & 0x10) + (!!(hex->light & 0x20) * .5)));
+	hexColor (hex, rgb);
 
-	glColor3f (lR, lG, lB);
+	glColor3ub (rgb[0], rgb[1], rgb[2]);
 
 	//DEBUG ("drawing hex based at %.2f, %.2f, %.2f", totalOffset.x, hex->centre * HEX_SIZE_4, totalOffset.z);
 	glBegin (GL_TRIANGLE_FAN);
@@ -1964,7 +1975,7 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 	i = 0;
 	j = 1;
 
-	glColor3f (lR * .9, lG * .9, lB * .9);
+	glColor3ub (rgb[0] - (rgb[0] >> 2), rgb[1] - (rgb[1] >> 2), rgb[2] - (rgb[2] >> 2));
 	while (i < 6)
 	{
 		if (hex->edgeBase[i * 2] >= corners[i] &&
@@ -2000,4 +2011,65 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 		j = (i + 1) % 6;
 	}
 	//FUNCCLOSE ();
+}
+
+TEXTURE mapGenerateMapTexture (SUBHEX centre, float facing, unsigned char span)
+{
+	TEXTURE
+		texture;
+	VECTOR3
+		mapCoords,
+		rot;
+	SUBHEX
+		centreLevel = centre,
+		hex;
+	unsigned int
+		r = 0, k = 0, i = 0;
+	signed int
+		localX = 0, localY = 0,
+		x, y,
+		targetSpan = 0;
+	unsigned char
+		color[3] = {0xff, 0xff, 0xff};
+
+	textureSetBackgroundColor (0x00, 0x00, 0x00, 0x7f);
+	texture = textureGenBlank (256, 256, 4);
+
+	subhexLocalCoordinates (centre, &localX, &localY);
+
+	while (targetSpan < (span + 1))
+	{
+		centreLevel = subhexParent (centreLevel);
+		targetSpan++;
+	}
+	if (centreLevel == NULL)
+	{
+		ERROR ("Can't construct map texture for span level %d", span);
+		return NULL;
+	}
+
+	while (r < 16)
+	{
+		hex_rki2xy (r, k, i, &x, &y);
+		//printf ("{%d %d %d} %d, %d\n", r, k, i, x, y);
+		hex = mapHexAtCoordinateAuto (subhexParent (centre), localX + x, localY + y);
+		if (hex->type == HS_HEX)
+			hexColor (&hex->hex, color);
+
+		mapCoords = hex_xyCoord2Space (x, y);
+		mapCoords = vectorDivideByScalar (&mapCoords, 51);
+
+		rot = mapCoords;
+		mapCoords.x = rot.x * cos (-facing) - rot.z * sin (-facing);
+		mapCoords.z = rot.x * sin (-facing) + rot.z * cos (-facing);
+
+		mapCoords = vectorMultiplyByScalar (&mapCoords, 14);
+		textureSetColor (color[0], color[1], color[2], 0xff);
+		textureDrawHex (texture, vectorCreate (128.0 + mapCoords.x, 128.0 + mapCoords.z, 0.0), 8, -facing);
+		
+		hex_nextValidCoord (&r, &k, &i);
+	}
+	textureBind (texture);
+
+	return texture;
 }

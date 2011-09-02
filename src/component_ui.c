@@ -3,8 +3,21 @@
 #include "video.h"
 #include "font.h"
 #include "texture.h"
+#include "hex_utility.h"
 
 #include "system.h"
+
+#include "component_position.h"
+#include "component_input.h"
+#include "map.h"
+
+enum uiSkewTypes
+{
+	SKEW_LEFT	= 0x01,
+	SKEW_RIGHT	= 0x02,
+	SKEW_UP		= 0x04,
+	SKEW_DOWN	= 0x08,
+};
 
 struct uiTextFragment
 {
@@ -15,6 +28,17 @@ struct uiTextFragment
 		yAlign;
 	enum textAlignType
 		align;
+	/* the point of :reservedText is that sometimes (by which currently I mean
+	 * "only when we're drawing the system debug text") the :text string is an
+	 * external string instead of something allocated by the ui fragment
+	 * itself, and in that case: 1) it shouldn't be freed when the fragment is
+	 * destroyed and 2) in the future when text spacing is precalculated
+	 * reserved text /can't/ be precalculated, since the text may change at any
+	 * time
+	 *  - xph 2011 08 28
+	 */
+	bool
+		reservedText;
 };
 
 struct uiStaticText
@@ -57,7 +81,10 @@ static void uiPanel_destroy (UIPANEL ui);
 static struct uiTextFragment * uiFragmentCreate (const char * text, enum textAlignType align, signed int x, signed int y);
 static void uiFragmentDestroy (void * v);
 
+static void uiWorldmapFill (struct uiMapData * map);
+
 static void uiDrawPane (signed int x, signed int y, signed int width, signed int height, const TEXTURE texture);
+//static void uiDrawSkewPane (signed int x, signed int y, signed int width, signed int height, enum uiSkewTypes skew, const void * const * style);
 
 void uiDrawCursor ()
 {
@@ -135,8 +162,8 @@ void ui_setType (EntComponent ui, void * arg)
 		uiData = component_getData (ui);
 	enum uiPanelTypes
 		type = (enum uiPanelTypes)arg;
-	TEXTURE
-		texture;
+	struct uiTextFragment
+		* systemText;
 
 	if (uiData->type != UI_NONE)
 	{
@@ -148,24 +175,21 @@ void ui_setType (EntComponent ui, void * arg)
 	{
 		case UI_STATICTEXT:
 			uiData->staticText.fragments = dynarr_create (3, sizeof (struct uiTextFragment *));
+			break;
 
 		case UI_DEBUG_OVERLAY:
 			uiData->staticText.fragments = dynarr_create (3, sizeof (struct uiTextFragment *));
 
-			dynarr_assign (uiData->staticText.fragments, 0, uiFragmentCreate (systemGenDebugStr (), ALIGN_LEFT, 8, 8));
+			systemText = uiFragmentCreate (NULL, ALIGN_LEFT, 8, 8);
+			systemText->text = systemGenDebugStr ();
+			dynarr_assign (uiData->staticText.fragments, 0, systemText);
 
 			dynarr_assign (uiData->staticText.fragments, 1, uiFragmentCreate ("raise em til your arms tired\nlet em know you here\nthat you struggling surviving\nthat you gonna persevere", ALIGN_RIGHT, -8, 8));
 			break;
 
 		case UI_WORLDMAP:
-			uiData->map.scales = dynarr_create (mapGetSpan () + 1, sizeof (TEXTURE));
-			texture = textureGenBlank (512, 512, 4);
-			dynarr_assign (uiData->map.scales, 0, texture);
-			uiData->map.currentScale = 0;
 
-			textureSetColor (0xff, 0x00, 0x00, 0xff);
-			texturePressHex (texture, vectorCreate (256.0, 256.0, 0.0), 128, 15 / 180. * M_PI);
-			textureBind (texture);
+			uiWorldmapFill (&uiData->map);
 			break;
 
 		default:
@@ -198,7 +222,9 @@ void ui_draw (EntComponent ui, void * arg)
 	{
 		case UI_DEBUG_OVERLAY:
 			systemGenDebugStr ();
+			/* fall through */
 		case UI_STATICTEXT:
+			glColor3f (0.0, 0.0, 0.0);
 			while ((fragment = *(struct uiTextFragment **)dynarr_at (uiData->staticText.fragments, i++)) != NULL)
 			{
 				textAlign (fragment->align);
@@ -208,6 +234,7 @@ void ui_draw (EntComponent ui, void * arg)
 
 		case UI_WORLDMAP:
 			
+			glColor3f (1.0, 1.0, 1.0);
 			uiDrawPane ((width - (height - 32)) / 2, 16, height - 32, height - 32, *(TEXTURE *)dynarr_at (uiData->map.scales, 0));
 			break;
 
@@ -255,8 +282,17 @@ static struct uiTextFragment * uiFragmentCreate (const char * text, enum textAli
 {
 	struct uiTextFragment
 		* uit = xph_alloc (sizeof (struct uiTextFragment));
-	uit->text = xph_alloc (strlen (text) + 1);
-	strcpy (uit->text, text);
+	if (text != NULL)
+	{
+		uit->text = xph_alloc (strlen (text) + 1);
+		strcpy (uit->text, text);
+		uit->reservedText = FALSE;
+	}
+	else
+	{
+		uit->text = NULL;
+		uit->reservedText = TRUE;
+	}
 	uit->align = align;
 	if (x < 0)
 		uit->xAlign = (signed int)width + x;
@@ -275,9 +311,30 @@ static void uiFragmentDestroy (void * v)
 {
 	struct uiTextFragment
 		* uit = v;
-	xph_free (uit->text);
+	if (!uit->reservedText)
+		xph_free (uit->text);
 	xph_free (uit);
 }
+
+static void uiWorldmapFill (struct uiMapData * map)
+{
+	TEXTURE
+		texture;
+	SUBHEX
+		playerLocation;
+	float
+		facing;
+
+	map->scales = dynarr_create (mapGetSpan () + 1, sizeof (TEXTURE));
+
+	entity_message (input_getPlayerEntity (), NULL, "getHex", &playerLocation);
+	entity_message (input_getPlayerEntity (), NULL, "getHexAngle", &facing);
+
+	texture = mapGenerateMapTexture (playerLocation, facing, 0);
+	dynarr_assign (map->scales, 0, texture);
+	map->currentScale = 0;
+}
+
 
 static void uiDrawPane (signed int x, signed int y, signed int width, signed int height, const TEXTURE texture)
 {
@@ -288,7 +345,6 @@ static void uiDrawPane (signed int x, signed int y, signed int width, signed int
 		right = video_pixelXMap (x + width),
 		zNear = video_getZnear () - 0.001;
 
-	glColor3f (1.0, 1.0, 1.0);
 	if (texture)
 		glBindTexture (GL_TEXTURE_2D, textureName (texture));
 	else

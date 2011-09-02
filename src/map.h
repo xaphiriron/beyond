@@ -4,6 +4,7 @@
 #include "bool.h"
 #include "vector.h"
 #include "dynarr.h"
+#include "texture.h"
 
 typedef union hexOrSubdiv * SUBHEX;
 
@@ -120,7 +121,10 @@ SUBHEX subhexData (const SUBHEX subhex, signed int x, signed int y);
 SUBHEX subhexParent (const SUBHEX subhex);
 bool subhexLocalCoordinates (const SUBHEX subhex, signed int * xp, signed int * yp);
 
-bool subhexCoordinateOffset (const SUBHEX subhex, const SUBHEX offset, unsigned char * spanLevel, signed int * xp, signed int * yp);
+bool hexColor (const HEX hex, unsigned char * rgb);
+
+// what was the idea of this...???
+//bool subhexCoordinateOffset (const SUBHEX subhex, const SUBHEX offset, unsigned char * spanLevel, signed int * xp, signed int * yp);
 
 WORLDHEX subhexGeneratePosition (const SUBHEX subhex);
 
@@ -141,5 +145,7 @@ void worldSetRenderCacheCentre (SUBHEX origin);
 void mapDraw ();
 void subhexDraw (const SUBDIV sub, const VECTOR3 offset);
 void hexDraw (const HEX hex, const VECTOR3 centreOffset);
+
+TEXTURE mapGenerateMapTexture (SUBHEX centre, float facing, unsigned char span);
 
 #endif /* XPH_MAP_H */

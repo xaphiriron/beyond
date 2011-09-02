@@ -54,9 +54,9 @@ bool hexPole_centerDistanceCoord (unsigned int dir, signed int * xp, signed int 
  */
 signed int hex_stepLineToOrigin (signed int x, signed int y, unsigned int steps, signed int * xp, signed int * yp);
 
-unsigned char hex_dir (const signed int x, const signed int y);
+//unsigned char hex_dir (const signed int x, const signed int y);
 
-unsigned char hex_dirHashFromYaw (float yaw);
+unsigned char hex_dirAngle (float yaw);
 unsigned char hex_dirHashFromCoord (signed int x, signed int y);
 unsigned char hex_dirHashCmp (unsigned char a, unsigned char b);
 
