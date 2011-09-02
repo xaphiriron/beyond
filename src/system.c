@@ -290,9 +290,10 @@ void systemPlacePlayerAt (const SUBHEX subhex)
 	Entity
 		player = input_getPlayerEntity ();
 	VECTOR3
-		pos = vectorCreate (0.0, 90.0, 0.0);
-	position_set (player, pos, subhex);
+		pos;
 	worldSetRenderCacheCentre (subhex);
+	pos = vectorCreate (0.0, subhexGetHeight (subhex) + 90.0, 0.0);
+	position_set (player, pos, subhex);
 	FUNCCLOSE ();
 }
 

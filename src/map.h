@@ -121,6 +121,8 @@ SUBHEX subhexData (const SUBHEX subhex, signed int x, signed int y);
 SUBHEX subhexParent (const SUBHEX subhex);
 bool subhexLocalCoordinates (const SUBHEX subhex, signed int * xp, signed int * yp);
 
+float subhexGetHeight (const SUBHEX subhex);
+
 bool hexColor (const HEX hex, unsigned char * rgb);
 
 // what was the idea of this...???

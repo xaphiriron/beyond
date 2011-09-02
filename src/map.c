@@ -1567,6 +1567,22 @@ bool subhexLocalCoordinates (const SUBHEX subhex, signed int * xp, signed int * 
 	return TRUE;
 }
 
+float subhexGetHeight (const SUBHEX subhex)
+{
+	SUBHEX
+		hex = subhex;
+	while (subhexSpanLevel (hex) != 0)
+	{
+		hex = subhexData (hex, 0, 0);
+		if (hex == NULL)
+		{
+			printf ("GOT NOTHING\n");
+			return 0.0;
+		}
+	}
+	printf ("got %d * %f\n", hex->hex.centre, HEX_SIZE_4);
+	return hex->hex.centre * HEX_SIZE_4;
+}
 
 bool hexColor (const HEX hex, unsigned char * rgb)
 {

@@ -130,7 +130,7 @@ bool position_move (Entity e, VECTOR3 move)
 	newRawPosition = vectorAdd (&pdata->pos, &move);
 
 	validMove = mapMove (pdata->ground, &newRawPosition, &newGround, &newPosition);
-	newPosition.y = 90.0;
+	newPosition.y = pdata->pos.y;
 	if (!validMove)
 	{
 		if (newGround != NULL && subhexSpanLevel (pdata->ground) < subhexSpanLevel (newGround))
