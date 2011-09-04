@@ -90,7 +90,9 @@ static void mt_destroy (struct messageTrigger * mt);
 static int mt_sort (const void * a, const void * b);
 static int mt_search (const void * k, const void * d);
 
-static void component_sendMessage (EntComponent c, const char * message, void * arg);
+static void component_messageSystem (const char * comp_name, const char * message, void * arg);
+static void component_message (EntComponent c, const char * message, void * arg);
+
 static EntSystem entity_getSystemByName (const char * comp_name);
 
 static int guid_sort (const void * a, const void * b)
@@ -251,12 +253,31 @@ bool entity_message (Entity e, Entity from, char * message, void * arg)
 		 * messaged here
 		 *  - xph 2011 08 19 */
 		obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, &msg, arg);
-		component_sendMessage (t, message, arg);
+		component_message (t, message, arg);
 	}
 	return TRUE;
 }
 
-static void component_sendMessage (EntComponent c, const char * message, void * arg)
+static void component_messageSystem (const char * comp_name, const char * message, void * arg)
+{
+	EntSystem
+		component = entity_getSystemByName (comp_name);
+	struct messageTrigger
+		* mt;
+	int
+		i = 0;
+	if (component == NULL)
+		return;
+	mt = *(struct messageTrigger **)dynarr_search (component->messageTriggers, mt_search, message);
+	if (mt == NULL)
+		return;
+	while (i < dynarr_size (mt->funcs))
+	{
+		(*(compFunc **)dynarr_at (mt->funcs, i++))(NULL, arg);
+	}
+}
+
+static void component_message (EntComponent c, const char * message, void * arg)
 {
 	struct messageTrigger
 		* mt = *(struct messageTrigger **)dynarr_search (c->reg->messageTriggers, mt_search, message);
@@ -296,7 +317,7 @@ bool component_instantiate (const char * comp_name, Entity e)
 
 	instance->comp_data = NULL;
 	obj_message (sys->system, OM_COMPONENT_INIT_DATA, &instance->comp_data, e);
-	component_sendMessage (instance, "__init", NULL);
+	component_message (instance, "__init", NULL);
 	return TRUE;
 }
 
@@ -317,7 +338,7 @@ bool component_remove (const char * comp_name, Entity e)
 		return FALSE;
 	}
 	obj_message (sys->system, OM_COMPONENT_DESTROY_DATA, &comp->comp_data, e);
-	component_sendMessage (comp, "__destroy", NULL);
+	component_message (comp, "__destroy", NULL);
 	dynarr_remove_condense (sys->entities, comp);
 	dynarr_remove_condense (e->components, comp);
 	if (comp->loader != NULL)
@@ -655,11 +676,8 @@ bool entity_registerComponentAndSystem (const char * comp_name, objHandler objFu
 	}
 	if (classInit)
 	{
-		/* this isn't a 'real' message since component_sendMessage requires an
-		 * instance of the component and right now there aren't any
-		 *  - xph 2011 08 21 */
-		classInit (NULL, NULL);
 		component_registerResponse (reg->comp_name, "__classInit", classInit);
+		component_messageSystem (reg->comp_name, "__classInit", NULL);
 	}
 	return TRUE;
 }
@@ -818,20 +836,35 @@ bool entitySubsystem_unstore (const char * comp_name) {
   return TRUE;
 }
 
-bool entitySubsystem_runOnStored (objMsg msg) {
-  bool
-    r = TRUE,
-    t = TRUE;
-  EntSystem sys = NULL;
-  int i = 0;
-  if (SubsystemComponentStore == NULL) {
-    return FALSE;
-  }
-  while ((sys = *(EntSystem *)dynarr_at (SubsystemComponentStore, i++)) != NULL) {
-    t = obj_message (sys->system, msg, NULL, NULL);
-    r = (r != TRUE) ? FALSE : t;
-  }
-  return r;
+bool entitySubsystem_runOnStored (objMsg msg)
+{
+	EntSystem
+		sys = NULL;
+	bool
+		r = TRUE,
+		t = TRUE;
+	int
+		i = 0;
+	if (SubsystemComponentStore == NULL)
+		return FALSE;
+	while ((sys = *(EntSystem *)dynarr_at (SubsystemComponentStore, i++)) != NULL)
+	{
+		t = obj_message (sys->system, msg, NULL, NULL);
+		switch (msg)
+		{
+			case OM_UPDATE:
+				component_messageSystem (sys->comp_name, "__update", NULL);
+				break;
+			case OM_POSTUPDATE:
+				component_messageSystem (sys->comp_name, "__postupdate", NULL);
+				break;
+			default:
+				WARNING ("%s: Unhandled system message (%d)", __FUNCTION__, msg);
+				break;
+		}
+		r = (r != TRUE) ? FALSE : t;
+	}
+	return r;
 }
 
 void entitySubsystem_clearStored () {
