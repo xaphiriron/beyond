@@ -249,8 +249,7 @@ void position_rotateOnMouseInput (Entity e, const struct input_event * ie)
 		yrel *= mag;
 		return;
 	}
-	//position_updateAxesFromOrientation (e);
-	// ^ we manually recalculate the one orientation axis value (front y component) we care about right here, instead of updating every single one
+	// we manually recalculate the one orientation axis value (front y component) we care about right here, instead of updating every single one
 	newPitch =
 		(pdata->orientation.y * pdata->orientation.z +
 		pdata->orientation.w * pdata->orientation.x) * 180.0;
@@ -279,22 +278,6 @@ void position_rotateOnMouseInput (Entity e, const struct input_event * ie)
 	entity_speak (e, "orientationUpdate", NULL);
 	//printf ("view quat: %7.2f, %7.2f, %7.2f, %7.2f\n", cdata->viewQuat.w, cdata->viewQuat.x, cdata->viewQuat.y, cdata->viewQuat.z);
 }
-
-/*
-void position_updateOnEdgeTraversal (Entity e, struct ground_edge_traversal * t)
-{
-	POSITION
-		pdata = component_getData (entity_getAs (e, "position"));
-	GroundMap
-		newGround = component_getData (entity_getAs (t->newGroundEntity, "ground"));
-	VECTOR3
-		groundOrigin = hexGround_centerDistanceSpace (ground_getMapSize (newGround), t->directionOfMovement),
-		newPosition = vectorSubtract (&pdata->pos, &groundOrigin);
-	//printf ("%s (#%d, ...): updated position to %5.2f, %5.2f, %5.2f from the local origin\n", __FUNCTION__, entity_GUID (e), newPosition.x, newPosition.y, newPosition.z);
-	//printf ("\tbased off of the new ground (%5.2f, %5.2f, %5.2f) @ %d\n", groundOrigin.x, groundOrigin.y, groundOrigin.z, t->directionOfMovement);
-	position_set (e, newPosition, t->newGroundEntity);
-}
-*/
 
 float position_getHeading (const Entity e)
 {
