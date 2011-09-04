@@ -25,6 +25,8 @@ void ui_destroy (EntComponent ui, void * arg);
 void ui_setType (EntComponent ui, void * arg);
 void ui_getType (EntComponent ui, void * arg);
 
+void ui_handleInput (EntComponent ui, void * inputEvent);
+
 void ui_draw (EntComponent ui, void * arg);
 
 #endif /* XPH_COMPONENT_UI_H */

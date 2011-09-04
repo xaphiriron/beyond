@@ -104,6 +104,9 @@ struct input * input_create ()
 	dynarr_assign (i->controlMap, IR_CAMERA_MODE_SWITCH, keys_create (1, SDLK_TAB));
 	dynarr_assign (i->controlMap, IR_WORLDMAP_SWITCH, keys_create (1, SDLK_SLASH));
 
+	dynarr_assign (i->controlMap, IR_UI_WORLDMAP_SCALE_UP, keys_create (1, SDLK_UP));
+	dynarr_assign (i->controlMap, IR_UI_WORLDMAP_SCALE_DOWN, keys_create (1, SDLK_DOWN));
+
 	dynarr_assign (i->controlMap, IR_DEBUG_SWITCH, keys_create (1, SDLK_F3));
 	return i;
 }
@@ -199,7 +202,7 @@ void input_sendGameEventMessage (const struct input_event * ie)
 		i = 0;
 	Entity
 		e = NULL,
-		created = NULL;
+		newUI = NULL;
 	struct comp_message
 		* msg = NULL;
 	// CATCH AND HANDLE EVENTS THAT HAVE SYSTEM-WIDE REPERCUSSIONS
@@ -231,12 +234,15 @@ void input_sendGameEventMessage (const struct input_event * ie)
 			}
 			else if (systemState() == STATE_FREEVIEW)
 			{
-				created = entity_create ();
-				component_instantiate ("ui", created);
-				entity_message (created, NULL, "setType", (void *)UI_WORLDMAP);
-				systemPushUI (created);
-				created = NULL;
+				newUI = entity_create ();
+				component_instantiate ("ui", newUI);
+				entity_message (newUI, NULL, "setType", (void *)UI_WORLDMAP);
+				component_instantiate ("input", newUI);
+				input_addEntity (newUI, INPUT_FOCUSED);
+
+				systemPushUI (newUI);
 				systemPushState (STATE_UI);
+				newUI = NULL;
 			}
 			break;
 		case IR_DEBUG_SWITCH:
@@ -248,12 +254,13 @@ void input_sendGameEventMessage (const struct input_event * ie)
 			}
 			else if (systemState() == STATE_FREEVIEW)
 			{
-				created = entity_create ();
-				component_instantiate ("ui", created);
-				entity_message (created, NULL, "setType", (void *)UI_DEBUG_OVERLAY);
-				systemPushUI (created);
-				created = NULL;
+				newUI = entity_create ();
+				component_instantiate ("ui", newUI);
+				entity_message (newUI, NULL, "setType", (void *)UI_DEBUG_OVERLAY);
+
+				systemPushUI (newUI);
 				systemToggleAttr (SYS_DEBUG);
+				newUI = NULL;
 			}
 			break;
 		default:

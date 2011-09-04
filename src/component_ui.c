@@ -81,7 +81,7 @@ static void uiPanel_destroy (UIPANEL ui);
 static struct uiTextFragment * uiFragmentCreate (const char * text, enum textAlignType align, signed int x, signed int y);
 static void uiFragmentDestroy (void * v);
 
-static void uiWorldmapFill (struct uiMapData * map);
+static void uiWorldmapGenLevel (struct uiMapData * map, unsigned char span);
 
 static void uiDrawPane (signed int x, signed int y, signed int width, signed int height, const TEXTURE texture);
 //static void uiDrawSkewPane (signed int x, signed int y, signed int width, signed int height, enum uiSkewTypes skew, const void * const * style);
@@ -133,6 +133,8 @@ void ui_classInit (EntComponent ui, void * arg)
 
 	component_registerResponse ("ui", "setType", ui_setType);
 	component_registerResponse ("ui", "getType", ui_getType);
+
+	component_registerResponse ("ui", "FOCUS_INPUT", ui_handleInput);
 
 	component_registerResponse ("ui", "draw", ui_draw);
 }
@@ -189,7 +191,9 @@ void ui_setType (EntComponent ui, void * arg)
 
 		case UI_WORLDMAP:
 
-			uiWorldmapFill (&uiData->map);
+			uiData->map.scales = dynarr_create (mapGetSpan () + 1, sizeof (TEXTURE));
+			uiWorldmapGenLevel (&uiData->map, 0);
+			uiData->map.currentScale = 0;
 			break;
 
 		default:
@@ -206,6 +210,45 @@ void ui_getType (EntComponent ui, void * arg)
 	enum uiPanelTypes
 		* type = arg;
 	*type = uiData->type;
+}
+
+void ui_handleInput (EntComponent ui, void * arg)
+{
+	UIPANEL
+		uiData = component_getData (ui);
+	struct input_event
+		* inputEvent = arg;
+	switch (uiData->type)
+	{
+		case UI_WORLDMAP:
+			switch (inputEvent->ir)
+			{
+				case IR_UI_WORLDMAP_SCALE_UP:
+					if (uiData->map.currentScale >= mapGetSpan ())
+						break;
+					uiData->map.currentScale++;
+					if (*(TEXTURE *)dynarr_at (uiData->map.scales, uiData->map.currentScale) == NULL)
+					{
+						uiWorldmapGenLevel (&uiData->map, uiData->map.currentScale);
+					}
+
+					break;
+				case IR_UI_WORLDMAP_SCALE_DOWN:
+					if (uiData->map.currentScale == 0)
+						break;
+					uiData->map.currentScale--;
+					if (*(TEXTURE *)dynarr_at (uiData->map.scales, uiData->map.currentScale) == NULL)
+					{
+						uiWorldmapGenLevel (&uiData->map, uiData->map.currentScale);
+					}
+					break;
+				default:
+					break;
+			}
+			break;
+		default:
+			break;
+	}
 }
 
 void ui_draw (EntComponent ui, void * arg)
@@ -235,7 +278,7 @@ void ui_draw (EntComponent ui, void * arg)
 		case UI_WORLDMAP:
 			
 			glColor3f (1.0, 1.0, 1.0);
-			uiDrawPane ((width - (height - 32)) / 2, 16, height - 32, height - 32, *(TEXTURE *)dynarr_at (uiData->map.scales, 0));
+			uiDrawPane ((width - (height - 32)) / 2, 16, height - 32, height - 32, *(TEXTURE *)dynarr_at (uiData->map.scales, uiData->map.currentScale));
 			break;
 
 		default:
@@ -316,23 +359,18 @@ static void uiFragmentDestroy (void * v)
 	xph_free (uit);
 }
 
-static void uiWorldmapFill (struct uiMapData * map)
+static void uiWorldmapGenLevel (struct uiMapData * map, unsigned char span)
 {
-	TEXTURE
-		texture;
 	SUBHEX
 		playerLocation;
+	Entity
+		player = input_getPlayerEntity ();
 	float
 		facing;
+	entity_message (player, NULL, "getHex", &playerLocation);
+	entity_message (player, NULL, "getHexAngle", &facing);
 
-	map->scales = dynarr_create (mapGetSpan () + 1, sizeof (TEXTURE));
-
-	entity_message (input_getPlayerEntity (), NULL, "getHex", &playerLocation);
-	entity_message (input_getPlayerEntity (), NULL, "getHexAngle", &facing);
-
-	texture = mapGenerateMapTexture (playerLocation, facing, 0);
-	dynarr_assign (map->scales, 0, texture);
-	map->currentScale = 0;
+	dynarr_assign (map->scales, span, mapGenerateMapTexture (playerLocation, facing, span));
 }
 
 
