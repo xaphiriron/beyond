@@ -319,7 +319,7 @@ static void systemInitialize (void)
 	entity_registerComponentAndSystem ("position", component_position, position_classInit);
 	entity_registerComponentAndSystem ("camera", NULL, camera_classInit);
 	entity_registerComponentAndSystem ("walking", component_walking, NULL);
-	entity_registerComponentAndSystem ("input", component_input, NULL);
+	entity_registerComponentAndSystem ("input", component_input, input_classInit);
 	entity_registerComponentAndSystem ("plant", component_plant, NULL);
 	entity_registerComponentAndSystem ("ui", NULL, ui_classInit);
 

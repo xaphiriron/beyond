@@ -113,7 +113,7 @@ struct input * input_create ()
 
 void input_destroy (struct input * i)
 {
-	dynarr_wipe (i->controlMap, (void (*)(void *))keys_destroy);
+	dynarr_map (i->controlMap, (void (*)(void *))keys_destroy);
 /*
 	dynarr_wipe (i->keysPressed, xph_free);
 	vector_wipe (i->activeEvents, (void (*)(void *))input_destroyEvent);
@@ -400,6 +400,11 @@ void input_update (Object * d)
 	}
 }
 
+void input_classInit (EntComponent inputComponent, void * arg)
+{
+	component_registerResponse ("input", "__destroy", input_componentDestroy);
+}
+
 int component_input (Object * o, objMsg msg, void * a, void * b)
 {
 	Entity
@@ -444,4 +449,13 @@ int component_input (Object * o, objMsg msg, void * a, void * b)
 			return obj_pass ();
 	}
 	return EXIT_FAILURE;
+}
+
+void input_componentDestroy (EntComponent inputComponent, void * arg)
+{
+	Entity
+		inputEntity = component_entityAttached (inputComponent);
+
+	input_rmEntity (inputEntity, INPUT_CONTROLLED);
+	input_rmEntity (inputEntity, INPUT_FOCUSED);
 }

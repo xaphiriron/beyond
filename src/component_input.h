@@ -91,6 +91,9 @@ Entity input_getPlayerEntity ();
 
 void input_update ();
 
+void input_classInit (EntComponent inputComponent, void * arg);
 int component_input (Object * o, objMsg msg, void * a, void * b);
+
+void input_componentDestroy (EntComponent inputComponent, void * arg);
 
 #endif /* XPH_COMPONENT_INPUT_H */
