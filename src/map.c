@@ -255,9 +255,6 @@ SUBHEX mapHexCreate (const SUBHEX parent, signed int x, signed int y)
 		sh;
 	unsigned int
 		r, k, i;
-	unsigned char
-		channel = 0,
-		aspect = 0;
 	if (hexMagnitude (x, y) > MapRadius)
 	{
 		ERROR ("Can't create subhex child: coordinates given were %d, %d, which are %d step%s out of bounds.", x, y, hexMagnitude (x, y) - MapRadius, hexMagnitude (x, y) - MapRadius == 1 ? "" : "s");
@@ -276,65 +273,9 @@ SUBHEX mapHexCreate (const SUBHEX parent, signed int x, signed int y)
 	hex_xy2rki (x, y, &r, &k, &i);
 
 	sh->hex.light = 0;
-	while (channel < 6)
-	{
-		aspect = (hexColouring & (0x0f << (channel * 3))) >> (channel * 3);
-		switch (aspect)
-		{
-			default:
-			case 0:
-				// alternating concentric hexes
-				sh->hex.light |= (r % 2) << channel;
-				break;
-			case 1:
-				// division into 3 triangles
-				sh->hex.light |= (k % 2) << channel;
-				break;
-			case 2:
-				sh->hex.light |= (i % 2) << channel;
-				break;
-			case 3:
-				// 3 spiral
-				sh->hex.light |= (r % 2 ^ k % 2) << channel;
-				break;
-			case 4:
-				sh->hex.light |= (r % 2 ^ i % 2) << channel;
-				break;
-			case 5:
-				sh->hex.light |= (k % 2 ^ i % 2) << channel;
-				break;
-			case 6:
-				sh->hex.light |= (r % 2 ^ k % 2 ^ i % 2) << channel;
-				break;
-			case 7:
-				sh->hex.light |= (((r + 5) % 6) == ((6 - k) % 6)) << channel;
-				break;
-			case 8:
-				sh->hex.light |= ((r % 6) == ((6 - k) % 6)) << channel;
-				break;
-			case 9:
-				sh->hex.light |= (((r + 1) % 6) == ((6 - k) % 6)) << channel;
-				break;
-			case 10:
-				break;
-			case 11:
-				channel++;
-				break;
-			case 12:
-				sh->hex.light |= 0x01 << channel;
-				break;
-			case 13:
-				sh->hex.light |= ((!i && r) || i == MapRadius / 2) << channel;
-				break;
-			case 14:
-				sh->hex.light |= ((r > MapRadius / 2) ^ k % 2) << channel;
-				break;
-			case 15:
-				sh->hex.light |= ((r > MapRadius / 2) ^ (i % 2 | !r)) << channel;
-				break;
-		}
-		channel++;
-	}
+	sh->hex.light = hexColouring & ((1 << 6) - 1);
+	sh->hex.light ^= (((r > MapRadius / 2) ^ (i % 2 | !r)) * (hexColouring >> 6));
+
 	return sh;
 }
 
