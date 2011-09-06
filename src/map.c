@@ -713,9 +713,14 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 		}
 		else if (start->sub.data == NULL || start->sub.data[0] == NULL)
 		{
-			WARNING ("Hit unexpanded layer while traversing map; wanted %d more level%s (down)", spanDiff, spanDiff == 1 ? "" : "s");
-			mapScaleCoordinates (spanDiff, x, y, &cX, &cY, NULL, NULL);
-			break;
+			if (start->sub.data == NULL)
+				WARNING ("Hit completely unexpanded layer while traversing map; at %p with span %d; wanted %d more level%s (down)", start, start->sub.span, -spanDiff, spanDiff == -1 ? "" : "s");
+			else
+				WARNING ("Hit incomplete layer while traversing map; at %p with span %d; wanted %d more level%s (down)", start, start->sub.span, -spanDiff, spanDiff == -1 ? "" : "s");
+			/* maybe this isn't the best idea in terms of grouping map areas together in terms of what's loaded at what level, or in terms of "traversal doesn't change the state of the world in any way" either, but without this the high-span map view doesn't work in most cases
+			 *  - xph 2011 09 05
+			 */
+			mapForceGrowAtLevelForDistance (start, start->sub.span - 1, 0);
 		}
 		// this is /so/ not the place for this assert - xph 2011-06-02
 		assert (subhexParent (subhexData (start, 0, 0)) == start);
