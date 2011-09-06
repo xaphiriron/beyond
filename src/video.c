@@ -1,5 +1,7 @@
 #include "video.h"
 
+#define VIDEO_DEFAULT_RESOLUTION	0.05
+
 Object * VideoObject = NULL;
 
 VIDEO * video_create () {
@@ -28,7 +30,7 @@ void video_loadDefaultSettings (VIDEO * v) {
   v->width = 960;
   v->orthographic = FALSE;
   v->doublebuffer = TRUE;
-  v->resolution = 0.07;
+  v->resolution = VIDEO_DEFAULT_RESOLUTION;
   v->title = xph_alloc_name (16, "video->title");
   strncpy (v->title, "beyond 0.0.0.1", 16);
   v->icon = NULL;
@@ -304,7 +306,7 @@ int video_handler (Object * o, objMsg msg, void * a, void * b) {
 			else if (strcmp (message, "ORTHOGRAPHIC_OFF") == 0)
 			{
 				v->orthographic = 0;
-				video_setScaling (v, 0.07);
+				video_setScaling (v, VIDEO_DEFAULT_RESOLUTION);
 				video_regenerateDisplay (v);
 			}
 			else if (strcmp (message, "ORTHOGRAPHIC_ON") == 0)
