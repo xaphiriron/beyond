@@ -2198,20 +2198,43 @@ TEXTURE mapGenerateMapTexture (SUBHEX centre, float facing, unsigned char span)
 	{
 		hex_rki2xy (r, k, i, &x, &y);
 		//printf ("{%d %d %d} %d, %d\n", r, k, i, x, y);
-		hex = mapHexAtCoordinateAuto (subhexParent (centre), localX + x, localY + y);
-		if (hex->type == HS_HEX)
+		hex = mapHexAtCoordinateAuto (centreLevel, -1, localX + x, localY + y);
+		//printf ("  got subhex %p\n", hex);
+		if (hex == NULL)
+		{
+			color[0] = 0x00;
+			color[1] = 0x00;
+			color[2] = 0x00;
+		}
+		else if (hex->type == HS_HEX)
+		{
 			hexColor (&hex->hex, color);
+		}
+		else
+		{
+			color[0] = mapDataGet (hex, "height") / (float)(1 << 9) * 255;
+			color[1] = mapDataGet (hex, "height") / (float)(1 << 9) * 255;
+			color[2] = mapDataGet (hex, "height") / (float)(1 << 9) * 255;
+		}
 
-		mapCoords = hex_xyCoord2Space (x, y);
-		mapCoords = vectorDivideByScalar (&mapCoords, 51);
+		scale = mapSpanCentres (span);
+		//printf ("  got %p with %d\n", scale, span);
+
+		mapCoords = hex_xyCoord2Space
+		(
+			x * scale[0] + y * scale[2],
+			x * scale[1] + y * scale[3]
+		);
+		mapCoords = vectorDivideByScalar (&mapCoords, 52 * hexMagnitude (scale[0], scale[1]));
 
 		rot = mapCoords;
 		mapCoords.x = rot.x * cos (-facing) - rot.z * sin (-facing);
 		mapCoords.z = rot.x * sin (-facing) + rot.z * cos (-facing);
 
 		mapCoords = vectorMultiplyByScalar (&mapCoords, 14);
-		textureSetColor (color[0], color[1], color[2], 0xff);
-		textureDrawHex (texture, vectorCreate (128.0 + mapCoords.x, 128.0 + mapCoords.z, 0.0), 8, -facing);
+		textureSetColor (color[0], color[1], color[2], 0xcf);
+		textureDrawHex (texture, vectorCreate (128.0 + mapCoords.x, 128.0 + mapCoords.z, 0.0), 6, -facing);
+		//printf ("{%d %d %d} %d, %d (real offset: %d, %d) at %2.2f, %2.2f (span %d) -- %2.2x%2.2x%2.2x / %p\n", r, k, i, x, y, localX + x, localY + y, mapCoords.x, mapCoords.z, span, color[0], color[1], color[2], hex);
 		
 		hex_nextValidCoord (&r, &k, &i);
 	}
