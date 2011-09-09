@@ -186,7 +186,10 @@ void ui_setType (EntComponent ui, void * arg)
 			systemText->text = systemGenDebugStr ();
 			dynarr_assign (uiData->staticText.fragments, 0, systemText);
 
+			dynarr_assign (uiData->staticText.fragments, 1, uiFragmentCreate ("the ocean floor was open long ago\nand currents started forming long ago\nwater began circling long ago\nthis ship started sinking long ago", ALIGN_RIGHT, -8, 8));
+			/*
 			dynarr_assign (uiData->staticText.fragments, 1, uiFragmentCreate ("raise em til your arms tired\nlet em know you here\nthat you struggling surviving\nthat you gonna persevere", ALIGN_RIGHT, -8, 8));
+			 */
 			break;
 
 		case UI_WORLDMAP:
