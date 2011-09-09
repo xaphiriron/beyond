@@ -245,43 +245,13 @@ void worldgenImprintMapData (SUBHEX at)
 		while (r <= MapRadius)
 		{
 			hex_rki2xy (r, k, i, &x, &y);
-			hex = mapHexAtCoordinateAuto (at, x, y);
-			if (hex == NULL)
-				goto increment;
-			p = hex_coord2space (r, k, i);
-			/* the full method for calculating the barycentric coordinates of a point :p {0} with three vertices (in this case, 0,0 implicitly, :adjCoords[dir], and :adjCoords[lastDir] {1,2,3}) is the first calculate a normalizing factor, bc, by way of
-			* b0 = (2.x - 1.x) * (3.y - 1.y) - (3.x - 1.x) * (2.y - 1.y);
-			* in this case since the '1' is 0,0 this simplifies things substantially
-			* from that the coordinates themselves are calculated:
-			* b1 = ((2.x - 0.x) * (y.3 - 0.y) - (3.x - 0.x) * (2.y -0.y)) / bc;
-			* b2 = ((3.x - 0.x) * (y.1 - 0.y) - (1.x - 0.x) * (3.y -0.y)) / bc;
-			* b3 = ((1.x - 0.x) * (y.2 - 0.y) - (2.x - 0.x) * (1.y -0.y)) / bc;
-			* which, again, can be simplified on the values involving 1, since
-			* it's always 0,0. remember also that the world plane is the x,z
-			* plane; that's why we're using z here instead of y. to interpolate
-			* any map data point, multiply the coordinate values with their respective map point value, so that:
-			* value at :p = b1 * [map value of the subhex corresponding to 1] + b2 * [same w/ 2] + b3 * [same w/ 3];
-			 */
-			b[0] = adjCoords[dir].x * adjCoords[lastDir].z - adjCoords[lastDir].x * adjCoords[dir].z;
-			b[1] = ((adjCoords[dir].x - p.x) * (adjCoords[lastDir].z - p.z) -
-					(adjCoords[lastDir].x - p.x) * (adjCoords[dir].z - p.z)) / b[0];
-			b[2] = ((adjCoords[lastDir].x - p.x) * -p.z -
-					-p.x * (adjCoords[lastDir].z - p.z)) / b[0];
-			b[3] = (-p.x * (adjCoords[dir].z - p.z) -
-					(adjCoords[dir].x - p.x) * -p.z) / b[0];
-			if (b[1] >= 0.0 && b[1] <= 1.0 &&
-				b[2] >= 0.0 && b[2] <= 1.0 &&
-				b[3] >= 0.0 && b[3] <= 1.0)
+			hex = mapHexAtCoordinateAuto (at, -1, x, y);
+			if (hex != NULL)
 			{
-				hex->hex.centre = b[1] * height + b[2] * adjHeight[dir] + b[3] * adjHeight[lastDir];
+				p = hex_coord2space (r, k, i);
+				hex->hex.centre = baryInterpolate (&p, &adjCoords[dir], &adjCoords[lastDir], height, adjHeight[dir], adjHeight[lastDir]);
 			}
-			else
-			{
-				WARNING ("{%d %d %d} not touched by triangle O %d %d", r, k, i, lastDir, dir);
-			}
-			//DEBUG ("final height: %d, from %f * %d + %f * %d + %f * %d", hex->hex.centre, b[1], height, b[2], adjHeight[dir], b[3], adjHeight[lastDir]);
-			
-			increment:
+
 			i++;
 			if (k == dir && i >= (r/2.0))
 			{

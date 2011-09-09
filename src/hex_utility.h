@@ -67,5 +67,6 @@ bool hex_space2coord (const VECTOR3 * space, signed int * xp, signed int * yp);
 VECTOR3 hexGround_centerDistanceSpace (unsigned int radius, unsigned int dir);
 VECTOR3 hexPole_centerDistanceSpace (unsigned int dir);
 
+unsigned int baryInterpolate (const VECTOR3 const * p, const VECTOR3 const * c1, const VECTOR3 const * c2, const unsigned int v1, const unsigned int v2, const unsigned int v3);
 
 #endif /* XPH_HEX_UTILITY_H */

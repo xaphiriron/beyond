@@ -414,3 +414,40 @@ VECTOR3 hexPole_centerDistanceSpace (unsigned int dir)
 	t = vectorAdd (&t, &u);
 	return t;
 }
+
+
+
+/* the full method for calculating the barycentric coordinates of a point :p {0} with three vertices (in this case, 0,0 implicitly, :adjCoords[dir], and :adjCoords[lastDir] {1,2,3}) is the first calculate a normalizing factor, bc, by way of
+ * b0 = (2.x - 1.x) * (3.y - 1.y) - (3.x - 1.x) * (2.y - 1.y);
+ * in this case since the '1' is 0,0 this simplifies things substantially
+ * from that the coordinates themselves are calculated:
+ * b1 = ((2.x - 0.x) * (y.3 - 0.y) - (3.x - 0.x) * (2.y -0.y)) / bc;
+ * b2 = ((3.x - 0.x) * (y.1 - 0.y) - (1.x - 0.x) * (3.y -0.y)) / bc;
+ * b3 = ((1.x - 0.x) * (y.2 - 0.y) - (2.x - 0.x) * (1.y -0.y)) / bc;
+ * which, again, can be simplified on the values involving 1, since
+ * it's always 0,0. remember also that the world plane is the x,z
+ * plane; that's why we're using z here instead of y. to interpolate
+* any map data point, multiply the coordinate values with their respective map point value, so that:
+* value at :p = b1 * [map value of the subhex corresponding to 1] + b2 * [same w/ 2] + b3 * [same w/ 3];
+ */
+unsigned int baryInterpolate (const VECTOR3 const * p, const VECTOR3 const * c1, const VECTOR3 const * c2, const unsigned int v1, const unsigned int v2, const unsigned int v3)
+{
+	float
+		b[4] = {0, 0, 0, 0};
+	b[0] = c1->x * c2->z - c2->x * c1->z;
+	b[1] =	((c1->x - p->x) * (c2->z - p->z) -
+			 (c2->x - p->x) * (c1->z - p->z)) / b[0];
+	b[2] =	((c2->x - p->x) * -p->z -
+			 -p->x * (c2->z - p->z)) / b[0];
+	b[3] =	(-p->x * (c1->z - p->z) -
+			(c1->x - p->x) * -p->z) / b[0];
+/*
+	if (b[1] < 0.0 || b[1] > 1.0 ||
+		b[2] < 0.0 || b[2] > 1.0 ||
+		b[3] < 0.0 || b[3] > 1.0)
+	{
+		ERROR ("Coordinate outside barycentric triangle; final result was %.2f %.2f %.2f // %u %u %u", b[1], b[2], b[3], v1, v2, v3);
+	}
+*/
+	return ceil (b[1] * v1 + b[2] * v2 + b[3] * v3);
+}
