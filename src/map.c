@@ -733,16 +733,16 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 	rel->target = NULL;
 
 	// to minorly and uselessly reduce fragmentation this could allocate one address, double the size, and set -> to the halfway point. - xph 2011 06 02
-	rel->x = xph_alloc (sizeof (signed int) * MapSpan);
-	rel->y = xph_alloc (sizeof (signed int) * MapSpan);
-	memset (rel->x, 0, sizeof (signed int) * MapSpan);
-	memset (rel->y, 0, sizeof (signed int) * MapSpan);
+	rel->x = xph_alloc (sizeof (signed int) * (MapSpan + 1));
+	rel->y = xph_alloc (sizeof (signed int) * (MapSpan + 1));
+	memset (rel->x, 0, sizeof (signed int) * (MapSpan + 1));
+	memset (rel->y, 0, sizeof (signed int) * (MapSpan + 1));
 
-	startX = xph_alloc (sizeof (signed int) * MapSpan * 4);
-	startY = startX + MapSpan;
-	goalX = startY + MapSpan;
-	goalY = goalX + MapSpan;
-	memset (startX, 0, sizeof (signed int) * MapSpan * 4);
+	startX = xph_alloc (sizeof (signed int) * (MapSpan + 1) * 4);
+	startY = startX + MapSpan + 1;
+	goalX = startY + MapSpan + 1;
+	goalY = goalX + MapSpan + 1;
+	memset (startX, 0, sizeof (signed int) * (MapSpan + 1) * 4);
 	/* DEBUG ("allocated %d entr%s for coordinates", abs (spanDiff) + 1, spanDiff == 0 ? "y" : "ies"); */
 
 	cX = x;
@@ -954,16 +954,16 @@ RELATIVEHEX mapRelativeSubhexWithSubhex (const SUBHEX start, const SUBHEX goal)
 	rel = xph_alloc (sizeof (struct hexRelativePosition));
 	rel->origin = start;
 	rel->target = goal;
-	rel->x = xph_alloc (sizeof (signed int) * MapSpan);
-	rel->y = xph_alloc (sizeof (signed int) * MapSpan);
+	rel->x = xph_alloc (sizeof (signed int) * (MapSpan + 1));
+	rel->y = xph_alloc (sizeof (signed int) * (MapSpan + 1));
 
 	// is this shared memory really necessary
 	//     or even correct?
-	startX = xph_alloc (sizeof (signed int) * MapSpan * 4);
-	startY = startX + MapSpan;
-	goalX = startY + MapSpan;
-	goalY = goalX + MapSpan;
-	memset (startX, 0, sizeof (signed int) * MapSpan * 4);
+	startX = xph_alloc (sizeof (signed int) * (MapSpan + 1) * 4);
+	startY = startX + MapSpan + 1;
+	goalX = startY + MapSpan + 1;
+	goalY = goalX + MapSpan + 1;
+	memset (startX, 0, sizeof (signed int) * (MapSpan + 1) * 4);
 
 	INFO ("%s: attempting to level the start/goal subhexes to the same span level (start: %d; goal: %d)", __FUNCTION__, subhexSpanLevel (sTrav), subhexSpanLevel (gTrav));
 
@@ -1019,12 +1019,13 @@ RELATIVEHEX mapRelativeSubhexWithSubhex (const SUBHEX start, const SUBHEX goal)
 		}
 		sTrav = subhexParent (sTrav);
 		gTrav = subhexParent (gTrav);
+		i++;
 	}
 
 	INFO ("%s: memcpy-ing something???", __FUNCTION__);
 
-	memcpy (goalX, rel->x, sizeof (signed int) * MapSpan);
-	memcpy (goalY, rel->y, sizeof (signed int) * MapSpan);
+	memcpy (goalX, rel->x, sizeof (signed int) * (MapSpan + 1));
+	memcpy (goalY, rel->y, sizeof (signed int) * (MapSpan + 1));
 	// resolve the relative distance between the two subhexes
 	i = subhexSpanLevel (sTrav);
 	
