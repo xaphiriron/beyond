@@ -33,7 +33,8 @@ struct loadingdata
 char
 	debugDisplay[DEBUGLEN];
 
-static struct loadingdata SysLoader;
+static struct loadingdata
+	SysLoader;
 
 static void systemInitialize (void);
 
@@ -423,6 +424,8 @@ void systemRender (void)
 	unsigned int
 		width,
 		height;
+	char
+		loadStr[64];
 
 	if (System == NULL)
 		return;
@@ -447,6 +450,13 @@ void systemRender (void)
 		glEnd ();
 		glColor3f (1.0, 1.0, 1.0);
 		drawLine ("loading...", width/2, height/2);
+
+		
+		snprintf (loadStr, 64, "(%d / %d, %.2f%%)", SysLoader.loaded, SysLoader.goal, SysLoader.percentage);
+
+		drawLine (loadStr, width/2, height/2 + 32);
+		drawLine (SysLoader.displayText, width/2, height/1.5);
+
 		glEnable (GL_DEPTH_TEST);
 		obj_messagePre (VideoObject, OM_POSTRENDER, NULL, NULL);
 		return;
@@ -460,14 +470,16 @@ void systemRender (void)
 			glLoadMatrixf (matrix);
 		mapDraw ();
 		if (systemState (System) == STATE_FREEVIEW && camera_getMode (camera) == CAMERA_FIRST_PERSON)
+		{
+			glLoadIdentity ();
 			uiDrawCursor ();
+		}
 	}
 
 	if (dynarr_size (System->uiPanels))
 	{
 		glLoadIdentity ();
 		glDisable (GL_DEPTH_TEST);
-		glColor3f (0.0, 0.0, 0.0);
 		i = 0;
 		while (i < dynarr_size (System->uiPanels))
 		{
@@ -513,23 +525,25 @@ char * systemGenDebugStr ()
 		x = 0,
 		y = 0,
 		len = 0;
+	unsigned int
+		height = 0;
 	Entity
 		player = input_getPlayerEntity ();
 	SUBHEX
-		trav = position_getGround (player);
+		trav;
 	char
 		buffer[64];
 	
 	memset (debugDisplay, 0, DEBUGLEN);
 	len = snprintf (buffer, 63, "Player Entity: #%d\nCamera Entity: #%d\n\nPosition\n", entity_GUID (player), entity_GUID (camera_getActiveCamera ()));
 	strncpy (debugDisplay, buffer, len);
-	len += snprintf (buffer, 63, "World\n\tSpan: %d\n\tRadius: %d\n\tPole: '%c'\n", mapGetSpan (), mapGetRadius (), subhexPoleName (position_getGround (player)));
+
+	entity_message (player, NULL, "getHex", &trav);
+	height = subhexGetRawHeight (trav);
+
+	len += snprintf (buffer, 63, "World\n\tSpan: %d\n\tRadius: %d\n\tPole: '%c'\n", mapGetSpan (), mapGetRadius (), subhexPoleName (trav));
 	strncat (debugDisplay, buffer, DEBUGLEN - len);
 
-	position_getCoordOffset (player, &x, &y);
-	len += snprintf (buffer, 63, "\t0: %d, %d\n", x, y);
-	strncat (debugDisplay, buffer, DEBUGLEN - len);
-	
 	/* the poles have local coordinates technically, but they're always 0,0
 	 * since there's no parent scope so we're skipping them */
 	while (subhexSpanLevel (trav) < mapGetSpan ())
@@ -539,6 +553,9 @@ char * systemGenDebugStr ()
 		strncat (debugDisplay, buffer, DEBUGLEN - len);
 		trav = subhexParent (trav);
 	}
+
+	len += snprintf (buffer, 63, "\nheight: %u\n", height);
+	strncat (debugDisplay, buffer, DEBUGLEN - len);
 
 	return debugDisplay;
 }
