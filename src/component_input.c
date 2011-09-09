@@ -96,11 +96,11 @@ struct input * input_create ()
 	// fill out the control map here or elsewhere (probably elsewhere in the config/defaults function), but it needs to be populated with the actual key data before any SDL events are checked.
 	dynarr_assign (i->controlMap, IR_QUIT, keys_create (1, SDLK_ESCAPE));
 	dynarr_assign (i->controlMap, IR_VIEW_WIREFRAME_SWITCH, keys_create (1, SDLK_w));
-	dynarr_assign (i->controlMap, IR_AVATAR_MOVE_LEFT, keys_create (1, SDLK_LEFT));
-	dynarr_assign (i->controlMap, IR_AVATAR_MOVE_RIGHT, keys_create (1, SDLK_RIGHT));
-	dynarr_assign (i->controlMap, IR_AVATAR_MOVE_FORWARD, keys_create (1, SDLK_UP));
-	dynarr_assign (i->controlMap, IR_AVATAR_MOVE_BACKWARD, keys_create (1, SDLK_DOWN));
-	dynarr_assign (i->controlMap, IR_AVATAR_AUTOMOVE, keys_create (1, SDLK_q));
+	dynarr_assign (i->controlMap, IR_FREEMOVE_MOVE_LEFT, keys_create (1, SDLK_LEFT));
+	dynarr_assign (i->controlMap, IR_FREEMOVE_MOVE_RIGHT, keys_create (1, SDLK_RIGHT));
+	dynarr_assign (i->controlMap, IR_FREEMOVE_MOVE_FORWARD, keys_create (1, SDLK_UP));
+	dynarr_assign (i->controlMap, IR_FREEMOVE_MOVE_BACKWARD, keys_create (1, SDLK_DOWN));
+	dynarr_assign (i->controlMap, IR_FREEMOVE_AUTOMOVE, keys_create (1, SDLK_q));
 	dynarr_assign (i->controlMap, IR_CAMERA_MODE_SWITCH, keys_create (1, SDLK_TAB));
 	dynarr_assign (i->controlMap, IR_WORLDMAP_SWITCH, keys_create (1, SDLK_SLASH));
 
@@ -307,6 +307,19 @@ void input_update (Object * d)
 		input_event.event = &Input->event;
 		switch (Input->event.type)
 		{
+			case SDL_MOUSEMOTION:
+				if (systemState () == STATE_FREEVIEW)
+				{
+					input_event.ir = IR_FREEMOVE_MOUSEMOVE;
+					input_sendGameEventMessage (&input_event);
+				}
+				else if (systemState () == STATE_UI)
+				{
+					input_event.ir = IR_UI_MOUSEMOVE;
+					input_sendGameEventMessage (&input_event);
+				}
+				break;
+
 			case SDL_KEYDOWN:
 				if (in_dynarr (Input->keysPressed, Input->event.key.keysym.sym) >= 0)
 					continue;
@@ -343,6 +356,7 @@ void input_update (Object * d)
 				{
 					input_event.ir = *(enum input_responses *)dynarr_at (Input->activeEvents, i);
 					//printf ("sending game message from keydown (%d)\n", input_event.ir);
+					
 					input_sendGameEventMessage (&input_event);
 				}
 				break;

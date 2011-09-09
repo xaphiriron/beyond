@@ -123,18 +123,18 @@ void walking_doControlInputResponse (Entity e, const struct input_event * ie)
 		return;
 	switch (ie->ir)
 	{
-		case IR_AVATAR_AUTOMOVE:
+		case IR_FREEMOVE_AUTOMOVE:
 			if (wdata->automoveActive)
 				walking_end_movement (e, WALK_MOVE_FORWARD);
 			else
 				walking_begin_movement (e, WALK_MOVE_FORWARD);
 			wdata->automoveActive ^= 1;
 			break;
-		case IR_AVATAR_MOVE_FORWARD:
+		case IR_FREEMOVE_MOVE_FORWARD:
 			wdata->automoveActive = FALSE;
 			walking_begin_movement (e, WALK_MOVE_FORWARD);
 			break;
-		case IR_AVATAR_MOVE_BACKWARD:
+		case IR_FREEMOVE_MOVE_BACKWARD:
 			if (wdata->automoveActive)
 			{
 				walking_end_movement (e, WALK_MOVE_FORWARD);
@@ -142,50 +142,24 @@ void walking_doControlInputResponse (Entity e, const struct input_event * ie)
 			}
 			walking_begin_movement (e, WALK_MOVE_BACKWARD);
 			break;
-		case IR_AVATAR_MOVE_LEFT:
+		case IR_FREEMOVE_MOVE_LEFT:
 			walking_begin_movement (e, WALK_MOVE_LEFT);
 			break;
-		case IR_AVATAR_MOVE_RIGHT:
+		case IR_FREEMOVE_MOVE_RIGHT:
 			walking_begin_movement (e, WALK_MOVE_RIGHT);
 			break;
 
-		case ~IR_AVATAR_MOVE_FORWARD:
+		case ~IR_FREEMOVE_MOVE_FORWARD:
 			walking_end_movement (e, WALK_MOVE_FORWARD);
 			break;
-		case ~IR_AVATAR_MOVE_BACKWARD:
+		case ~IR_FREEMOVE_MOVE_BACKWARD:
 			walking_end_movement (e, WALK_MOVE_BACKWARD);
 			break;
-		case ~IR_AVATAR_MOVE_LEFT:
+		case ~IR_FREEMOVE_MOVE_LEFT:
 			walking_end_movement (e, WALK_MOVE_LEFT);
 			break;
-		case ~IR_AVATAR_MOVE_RIGHT:
+		case ~IR_FREEMOVE_MOVE_RIGHT:
 			walking_end_movement (e, WALK_MOVE_RIGHT);
-			break;
-
-		case IR_AVATAR_PAN_UP:
-			walking_begin_turn (e, WALK_TURN_UP);
-			break;
-		case IR_AVATAR_PAN_DOWN:
-			walking_begin_turn (e, WALK_TURN_DOWN);
-			break;
-		case IR_AVATAR_PAN_LEFT:
-			walking_begin_turn (e, WALK_TURN_LEFT);
-			break;
-		case IR_AVATAR_PAN_RIGHT:
-			walking_begin_turn (e, WALK_TURN_RIGHT);
-			break;
-
-		case ~IR_AVATAR_PAN_UP:
-			walking_end_turn (e, WALK_TURN_UP);
-			break;
-		case ~IR_AVATAR_PAN_DOWN:
-			walking_end_turn (e, WALK_TURN_DOWN);
-			break;
-		case ~IR_AVATAR_PAN_LEFT:
-			walking_end_turn (e, WALK_TURN_LEFT);
-			break;
-		case ~IR_AVATAR_PAN_RIGHT:
-			walking_end_turn (e, WALK_TURN_RIGHT);
 			break;
 
 		default:
