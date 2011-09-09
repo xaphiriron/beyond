@@ -40,13 +40,6 @@ void walking_end_movement (Entity e, enum walk_move mtype) {
 	wdata->dirsActive &= ~mtype;
 }
 
-void walking_begin_turn (Entity e, enum walk_turn w) {
-  printf ("%s (e#%d, %d)\n", __FUNCTION__, entity_GUID (e), w);
-}
-
-void walking_end_turn (Entity e, enum walk_turn w) {
-}
-
 
 void walk_move (Entity e)
 {
