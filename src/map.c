@@ -31,9 +31,13 @@ static struct mapData * mapDataCreate ();
 static struct mapData * mapDataCopy (const struct mapData * md);
 static void mapDataDestroy (struct mapData * mb);
 
+static void mapCheckLoadStatusAndImprint (void * rel_v);
+/*
 static void mapRelativeTargetImprintMap (void * rel_v);
 static void mapRelativeTargetImprintArches (void * rel_v);
 static void mapRelativeTargetBake (void * rel_v);
+*/
+static void mapImprintHex (HEX hex);
 
 
 /***
@@ -213,7 +217,7 @@ void mapForceGrowAtLevelForDistance (SUBHEX subhex, unsigned char spanLevel, uns
 	while (r <= distance)
 	{
 		hex_rki2xy (r, k, i, &x, &y);
-		DEBUG ("generating relative hex from centre at offset %d, %d", x, y);
+		DEBUG ("generating relative hex from centre at offset {%u %u %u} %d, %d", r, k, i, x, y);
 		rel = mapRelativeSubhexWithCoordinateOffset (centre, 0, x, y);
 		newSub = mapRelativeTarget (rel);
 		DEBUG ("target has span %d", subhexSpanLevel (newSub));
@@ -240,6 +244,7 @@ void mapForceGrowAtLevelForDistance (SUBHEX subhex, unsigned char spanLevel, uns
 		mapRelativeDestroy (rel);
 		hex_nextValidCoord (&r, &k, &i);
 	}
+	DEBUG ("done iterating to grow in %s", __FUNCTION__);
 }
 
 /***
@@ -282,7 +287,24 @@ SUBHEX mapHexCreate (const SUBHEX parent, signed int x, signed int y)
 SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 {
 	SUBHEX
-		sh;
+		sh,
+		intHex1,
+		intHex2;
+	unsigned int
+		r = 0, k = 0, i = 0,
+		o = 0,
+		otherDir,
+		intVal1,
+		intVal2;
+	signed int
+		* centres = mapSpanCentres (1);
+	VECTOR3
+		subdivLocation,
+		intLoc1,
+		intLoc2;
+	struct mapDataEntry
+		* mapData = NULL;
+
 	if (hexMagnitude (x, y) > MapRadius)
 	{
 		ERROR ("Can't create subhex child: coordinates given were %d, %d, which are %d step%s out of bounds.", x, y, hexMagnitude (x, y) - MapRadius, hexMagnitude (x, y) - MapRadius == 1 ? "" : "s");
@@ -295,6 +317,10 @@ SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 	sh->sub.y = y;
 	sh->sub.data = NULL;
 	sh->sub.arches = dynarr_create (1, sizeof (ARCH));
+
+	sh->sub.imprintable = FALSE;
+	sh->sub.loaded = FALSE;
+
 	if (parent != NULL && parent->type != HS_SUB)
 	{
 		ERROR ("Given invalid parent (%p); cannot use a hex as a parent of a subdiv!", parent);
@@ -303,16 +329,48 @@ SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 
 	//INFO ("Creating subdiv %p @ %p, %d, %d", sh, parent, x, y);
 
-	if (parent != NULL)
+	if (parent == NULL)
+	{
+		sh->sub.imprintable = TRUE;
+		sh->sub.span = MapSpan;
+		sh->sub.mapInfo = mapDataCreate ();
+	}
+	else
 	{
 		sh->sub.span = parent->sub.span - 1;
 		subhexSetData (parent, x, y, sh);
 		sh->sub.mapInfo = mapDataCopy (parent->sub.mapInfo);
-	}
-	else
-	{
-		sh->sub.span = MapSpan;
-		sh->sub.mapInfo = mapDataCreate ();
+		if (!(x == 0 && y == 0))
+		{
+			// TODO: this should /also/ check the map data vals of the two adjacent subhexes, in the event they have types that should be interpolated
+			hex_xy2rki (x, y, &r, &k, &i);
+			subdivLocation = hex_xyCoord2Space (x, y);
+			if (i < r / 2.0)
+				otherDir = (k + 5) % 6;
+			else
+				otherDir = (k + 1) % 6;
+			intHex1 = mapHexAtCoordinateAuto (parent, 0, XY[k][X], XY[k][Y]);
+			intHex2 = mapHexAtCoordinateAuto (parent, 0, XY[otherDir][X], XY[otherDir][Y]);
+			//printf ("platters: %p, %p, %p\n", parent, intHex1, intHex2);
+			intLoc1 = hex_xyCoord2Space (centres[k * 2], centres[k * 2 + 1]);
+			intLoc2 = hex_xyCoord2Space (centres[otherDir * 2], centres[otherDir * 2 + 1]);
+
+			o = 0;
+			while ((mapData = *(struct mapDataEntry **)dynarr_at (sh->sub.mapInfo->entries, o++)) != NULL)
+			{
+				if (intHex1)
+					intVal1 = mapDataGet (intHex1, mapData->type);
+				else
+					intVal1 = mapData->value;
+				if (intHex2)
+					intVal2 = mapDataGet (intHex2, mapData->type);
+				else
+					intVal2 = mapData->value;
+				//printf ("sent {%u %u %u} w/ %d, %d and %d, %d (%d and %d) -- vals %u %u %u\n", r, k, i, XY[k][X], XY[k][Y], XY[otherDir][X], XY[otherDir][Y], k, otherDir, mapData->value, intVal1, intVal2);
+				mapData->value = baryInterpolate (&subdivLocation, &intLoc1, &intLoc2, mapData->value, intVal1, intVal2);
+				//printf ("  got %u\n", mapData->value);
+			}
+		}
 	}
 
 	// a span-one subdiv is REQUIRED to have all its hexes generated
@@ -759,6 +817,7 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 	while (hexMagnitude (netX, netY) > MapRadius)
 	{
 		DEBUG ("iterating on %d up the span hierarchy", i);
+		//assert (i < spanRange);
 		if (subhexSpanLevel (start) == MapSpan)
 		{
 			INFO ("Hit pole level during traversal (net coordinates: %d, %d)", netX, netY);
@@ -788,6 +847,7 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 	{
 		// at this point, no matter the magnitude, the target can be found since there are no data structures to overrun this high up
 		goal = mapPole (mapPoleTraversal (subhexPoleName (start), netX, netY));
+		DEBUG ("in pole special case; set goal to %p ('%c'), assuming moving %d, %d from pole '%c'", goal, subhexPoleName (goal), netX, netY, subhexPoleName (start));
 	}
 	else
 	{
@@ -826,6 +886,7 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 		}
 	}
 	rel->target = goal;
+	DEBUG ("finished with %p as goal", goal);
 
 	/* we're using a seperate goalX/Y instead of rel->x/y because if we change the rel values it becomes impossible to generate the target subhex from a low-precision RELATIVEHEX, since the rel-> values map directly to subhex local coordinates
 	 * also we're doing this calculation seperately from the actual goal traversal step, above, because while we don't care if the goal is at low-resolution, it's pretty vitally important that we always have the coordinate and distance information set for every RELATIVEHEX
@@ -875,7 +936,8 @@ RELATIVEHEX mapRelativeSubhexWithSubhex (const SUBHEX start, const SUBHEX goal)
 		* startY,
 		* goalX,
 		* goalY,
-		i = 0;
+		i = 0,
+		* pole = NULL;
 	unsigned char
 		levelSpan;
 	RELATIVEHEX
@@ -946,7 +1008,13 @@ RELATIVEHEX mapRelativeSubhexWithSubhex (const SUBHEX start, const SUBHEX goal)
 		rel->y[i] = y;
 		if (subhexSpanLevel (sTrav) == MapSpan)
 		{
-			ERROR ("%s: traversal hit pole level; it's trivial to make this work right but i haven't yet; sorry (got poles %c and %c)", __FUNCTION__, subhexPoleName (sTrav), subhexPoleName (gTrav));
+			pole = mapPoleConnections (subhexPoleName (sTrav), subhexPoleName (gTrav));
+			i++;
+			startX[i] = XY[pole[0]][X];
+			startY[i] = XY[pole[0]][Y];
+			rel->x[i] = XY[(pole[0] + 3) % 6][X];
+			rel->y[i] = XY[(pole[0] + 3) % 6][Y];
+			WARNING ("%s: traversal hit pole level; not sure if everything works (got poles '%c' and '%c')", __FUNCTION__, subhexPoleName (sTrav), subhexPoleName (gTrav));
 			break;
 		}
 		sTrav = subhexParent (sTrav);
@@ -966,10 +1034,10 @@ RELATIVEHEX mapRelativeSubhexWithSubhex (const SUBHEX start, const SUBHEX goal)
 }
 
 
-SUBHEX mapHexAtCoordinateAuto (const SUBHEX subhex, const signed int x, const signed int y)
+SUBHEX mapHexAtCoordinateAuto (const SUBHEX subhex, const signed short relativeSpan, const signed int x, const signed int y)
 {
 	RELATIVEHEX
-		rel = mapRelativeSubhexWithCoordinateOffset (subhex, -1, x, y);
+		rel = mapRelativeSubhexWithCoordinateOffset (subhex, relativeSpan, x, y);
 	SUBHEX
 		target = mapRelativeTarget (rel);
 	if (isPerfectFidelity (rel))
@@ -1160,6 +1228,7 @@ bool mapScaleCoordinates (signed char relativeSpan, signed int x, signed int y, 
  * this is mostly useless; the values returned would be the same values as are
  * stored in XY in hex_utility.c. but it should still work right, since it is
  * called that way in practice quite frequently
+ *
  * I'M PRETTY SURE I FIXED THIS WHY DIDN'T I UPDATE THIS NOTE???
  *   - XPH 2011 07 29
  */
@@ -1513,6 +1582,35 @@ bool subhexLocalCoordinates (const SUBHEX subhex, signed int * xp, signed int * 
 	return TRUE;
 }
 
+bool subhexPartlyLoaded (const SUBHEX subhex)
+{
+	SUBHEX
+		val = subhex;
+	if (subhex == NULL)
+		return TRUE;
+	if (subhexSpanLevel (val) == 0)
+	{
+		val = subhexParent (val);
+	}
+	// TODO: blah blah recurse, but before adding that check make 'imprintable' and 'loaded' mean something for platters w/ span > 1 since right now they're never set except at 1 and pole level
+	return !(val->sub.imprintable && val->sub.loaded);
+	
+}
+
+/* these functions don't really make sense; they could check map data for higher-span subhexes but, just... the way they traverse down to the hex level to get the 'real' height doesn't make a whole lot of sense given the context of the world. or something. */
+unsigned int subhexGetRawHeight (const SUBHEX subhex)
+{
+	SUBHEX
+		hex = subhex;
+	while (subhexSpanLevel (hex) != 0)
+	{
+		hex = subhexData (hex, 0, 0);
+		if (hex == NULL)
+			return 0.0;
+	}
+	return hex->hex.centre;
+}
+
 float subhexGetHeight (const SUBHEX subhex)
 {
 	SUBHEX
@@ -1668,6 +1766,7 @@ Dynarr
 	loadedPlatters = NULL,
 	toLoad = NULL;
 
+/*
 static void initMapLoad ()
 {
 	if (loadedPlatters != NULL)
@@ -1683,12 +1782,14 @@ static void initMapLoad ()
 	loadedPlatters = dynarr_create (12, sizeof (SUBHEX));
 	toLoad = dynarr_create (12, sizeof (SUBHEX));
 }
+*/
 
 static void mapQueueLoadAround (SUBHEX origin)
 {
+/*
 	if (loadedPlatters == NULL)
 		initMapLoad ();
-
+*/
 }
 
 /* i feel like this function is ignoring the fact that subhexes will
@@ -1699,10 +1800,10 @@ static void mapQueueLoadAround (SUBHEX origin)
  */
 static signed int mapUnloadDistant ()
 {
-	int
 /*
+	int
 		x, y,
-		distance = 0,*/
+		distance = 0,
 		i = 0;
 	SUBHEX
 		subhex = NULL;
@@ -1710,15 +1811,14 @@ static signed int mapUnloadDistant ()
 		initMapLoad ();
 	while ((subhex = *(SUBHEX *)dynarr_at (toLoad, i++)) != NULL)
 	{
-		/*
 		mapStepDistanceBetween (RenderOrigin, subhex, 1, &x, &y);
 		distance = hexMagnitude (x, y);
 		if (distance > (AbsoluteViewLimit * 2))
 		{
 			// unload subhex i guess
 		}
-		*/
 	}
+*/
 	return -1;
 }
 
@@ -1754,11 +1854,12 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 	 * though, but for now an instant load will suffice.
 	 *  - xph 2011 08 01
 	 */
-	mapForceGrowAtLevelForDistance (origin, 1, 3);
+	mapForceGrowAtLevelForDistance (origin, 1, 4);
 
 
 	mapQueueLoadAround (origin);
 
+	DEBUG ("remaking render cache");
 	RenderCache = mapAdjacentSubhexes (origin, AbsoluteViewLimit);
 	DEBUG ("set render cache to %p", RenderCache);
 
@@ -1771,11 +1872,68 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 	 * maybe???
 	 *   - xph 2011 07 28
 	 */
+	dynarr_map (RenderCache, mapCheckLoadStatusAndImprint);
+	/*
 	dynarr_map (RenderCache, mapRelativeTargetImprintMap);
 	dynarr_map (RenderCache, mapRelativeTargetImprintArches);
 	dynarr_map (RenderCache, mapRelativeTargetBake);
+     */
 }
 
+static void mapCheckLoadStatusAndImprint (void * rel_v)
+{
+	SUBHEX
+		target = mapRelativeTarget (rel_v),
+		adjacent = NULL;
+	int
+		i = 0,
+		loadCount = 0;
+	/* higher span platters can still be imprinted and 'loaded' in the sense that their data values can be used to, like, the raycasting bg or something. ultimately they shouldn't be ignored, but for the time being they are */
+	if (subhexSpanLevel (target) != 1)
+		return;
+	if (target->sub.loaded)
+		return;
+	if (!target->sub.imprintable)
+	{
+		while (i < 6)
+		{
+			adjacent = mapHexAtCoordinateAuto (target, 0, XY[i][X], XY[i][Y]);
+			if (adjacent != NULL)
+				loadCount++;
+			i++;
+		}
+		if (loadCount == 6)
+			target->sub.imprintable = TRUE;
+		else
+			return;
+	}
+	if (!target->sub.loaded)
+	{
+		/* loaded needs to be set before the imprinting because the imprinting code checks to see if the hexes it's getting are part of a loaded platter and discards them if they're not */
+		target->sub.loaded = TRUE;
+		worldgenImprintMapData (target);
+		worldgenImprintAllArches (target);
+		mapBakeHexes (target);
+		i = 0;
+		while (i < 6)
+		{
+			adjacent = mapHexAtCoordinateAuto (target, 0, XY[i][X], XY[i][Y]);
+			if (adjacent != NULL && subhexSpanLevel (adjacent) == subhexSpanLevel (target) && adjacent->sub.loaded == TRUE)
+			{
+				/* FIXME: only some of these need to be updated (based on the i value) but I have no clue which and I'm too lazy to figure it out right now */
+				mapBakeEdgeHexes (adjacent, 0);
+				mapBakeEdgeHexes (adjacent, 1);
+				mapBakeEdgeHexes (adjacent, 2);
+				mapBakeEdgeHexes (adjacent, 3);
+				mapBakeEdgeHexes (adjacent, 4);
+				mapBakeEdgeHexes (adjacent, 5);
+			}
+			i++;
+		}
+	}
+}
+
+/*
 static void mapRelativeTargetImprintMap (void * rel_v)
 {
 	worldgenImprintMapData (mapRelativeTarget (rel_v));
@@ -1788,39 +1946,67 @@ static void mapRelativeTargetBake (void * rel_v)
 {
 	mapBakeHexes (mapRelativeTarget (rel_v));
 }
+*/
+
+void mapBakeEdgeHexes (SUBHEX subhex, unsigned int dir)
+{
+	unsigned int
+		r = MapRadius,
+		i = 0,
+		offset;
+	if (subhexSpanLevel (subhex) != 1)
+		return;
+	offset = hex_linearCoord (r, dir, i);
+	while (i < MapRadius)
+	{
+		mapImprintHex (&subhex->sub.data[offset]->hex);
+		i++;
+		offset++;
+	}
+}
 
 void mapBakeHexes (SUBHEX subhex)
 {
-	HEX
-		hex,
-		adj;
 	int
-		offset = 0,
-		dir = 0;
-	signed int
-		ax, ay;
+		offset = 0;
 	if (subhexSpanLevel (subhex) != 1)
 		return;
 	while (offset < hx (MapRadius + 1))
 	{
-		hex = &subhex->sub.data[offset]->hex;
-		dir = 0;
-		while (dir < 6)
-		{
-			// i have reason to believe i should be using (dir + 1) % 6 here instead of dir
-			ax = hex->x + XY[(dir + 1) % 6][0];
-			ay = hex->y + XY[(dir + 1) % 6][1];
-			adj = &mapHexAtCoordinateAuto (hex->parent, ax, ay)->hex;
-			if (adj == NULL)
-			{
-				dir++;
-				continue;
-			}
-			hex->edgeBase[dir * 2] = FULLHEIGHT (adj, (dir + 4) % 6);
-			hex->edgeBase[dir * 2 + 1] = FULLHEIGHT (adj, (dir + 3) % 6);
-			dir++;
-		}
+		mapImprintHex (&subhex->sub.data[offset]->hex);
 		offset++;
+	}
+}
+
+static void mapImprintHex (HEX hex)
+{
+	HEX
+		adj;
+	unsigned int
+		dir = 0;
+	signed int
+		ax,
+		ay;
+
+	while (dir < 6)
+	{
+		ax = hex->x + XY[(dir + 1) % 6][0];
+		ay = hex->y + XY[(dir + 1) % 6][1];
+		adj = (HEX)mapHexAtCoordinateAuto (hex->parent, -1, ax, ay);
+		//printf ("tried %d, %d: got %p; span %d\n", ax, ay, adj, subhexSpanLevel ((SUBHEX)adj));
+		if (adj == NULL || subhexPartlyLoaded ((SUBHEX)adj))
+		{
+			/* don't use 0 as the default/NULL/error value; it looks bizarre when the height is substantially above 0. also this hasn't been tested to work on sloped tiles; the dir values might need to be changed to some degree */
+			hex->edgeBase[dir * 2] = FULLHEIGHT (hex, dir) + 10;
+			hex->edgeBase[dir * 2 + 1] = FULLHEIGHT (hex, (dir + 1) % 6) + 10;
+			//printf ("invalid adjacency; using %d, %d\n", hex->edgeBase[dir * 2], hex->edgeBase[dir * 2 + 1]);
+			dir++;
+			continue;
+		}
+		hex->edgeBase[dir * 2] = FULLHEIGHT (adj, (dir + 4) % 6);
+		hex->edgeBase[dir * 2 + 1] = FULLHEIGHT (adj, (dir + 3) % 6);
+		//printf ("using height %d, %d\n", hex->edgeBase[dir * 2], hex->edgeBase[dir * 2 + 1]);
+		dir++;
 	}
 }
 
@@ -1857,7 +2043,7 @@ void mapDraw ()
 		sub = mapRelativeTarget (rel);
 		//DEBUG (" - target: %p", sub);
 		i++;
-		if (sub == NULL || subhexSpanLevel (sub) != 1)
+		if (sub == NULL || subhexSpanLevel (sub) != 1 || sub->sub.loaded == FALSE)
 		{
 			//DEBUG ("skipping value; subhex is NULL (%p) or span level isn't 1 (%d)", sub, sub == NULL ? -1 : subhexSpanLevel (sub));
 			continue;
@@ -1986,7 +2172,8 @@ TEXTURE mapGenerateMapTexture (SUBHEX centre, float facing, unsigned char span)
 	signed int
 		localX = 0, localY = 0,
 		x, y,
-		targetSpan = 0;
+		targetSpan = 0,
+		* scale;
 	unsigned char
 		color[3] = {0xff, 0xff, 0xff};
 

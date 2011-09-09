@@ -85,7 +85,7 @@ RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const si
 RELATIVEHEX mapRelativeSubhexWithSubhex (const SUBHEX subhex, const SUBHEX target);
 
 /* this does exactly what mapRelativeSubhexWithCoordinateOffset does only it returns the target or NULL if no perfect target and automatically destroys the relativehex */
-SUBHEX mapHexAtCoordinateAuto (const SUBHEX subhex, const signed int x, const signed int y);
+SUBHEX mapHexAtCoordinateAuto (const SUBHEX subhex, const signed short relativeSpan, const signed int x, const signed int y);
 
 SUBHEX mapRelativeTarget (const RELATIVEHEX relativePosition);
 SUBHEX mapRelativeSpanTarget (const RELATIVEHEX relativePosition, unsigned char span);
@@ -120,7 +120,9 @@ char subhexPoleName (const SUBHEX subhex);
 SUBHEX subhexData (const SUBHEX subhex, signed int x, signed int y);
 SUBHEX subhexParent (const SUBHEX subhex);
 bool subhexLocalCoordinates (const SUBHEX subhex, signed int * xp, signed int * yp);
+bool subhexPartlyLoaded (const SUBHEX subhex);
 
+unsigned int subhexGetRawHeight (const SUBHEX subhex);
 float subhexGetHeight (const SUBHEX subhex);
 
 bool hexColor (const HEX hex, unsigned char * rgb);
@@ -141,6 +143,7 @@ char worldhexPole (const WORLDHEX whx);
  * RENDERING FUNCTIONS
  */
 
+void mapBakeEdgeHexes (SUBHEX subhex, unsigned int dir);
 void mapBakeHexes (SUBHEX subhex);
 
 void worldSetRenderCacheCentre (SUBHEX origin);

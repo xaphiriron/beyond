@@ -25,7 +25,10 @@ struct hexSubdivided
 	Dynarr
 		arches;
 	bool
-		imprinted;
+		imprintable,	// true if all adjacent subdivs are loaded (so data val
+						// interpolation works)
+		loaded;			// true if all hexes have had all applicable patterns
+						// imprinted (and the patterns haven't changed since)
 };
 
 struct hexTile

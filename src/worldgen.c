@@ -7,11 +7,19 @@
 #include "map.h"
 #include "map_internal.h"
 
+#include <time.h>
+
 GRAPH
 	WorldGraph = NULL;
 
+#define PATTERN_NAME_LENGTH	64
+
 struct worldgenPattern
 {
+	unsigned int
+		id;
+	char
+		name[PATTERN_NAME_LENGTH];
 	
 };
 
@@ -49,14 +57,20 @@ struct worldgenArch // ARCH
 
 void worldgenAbsHocNihilo ()
 {
+	static unsigned long
+		seed = 0;
 	FUNCOPEN ();
 /*
 	PATTERN
 		firstPattern = patternCreate ();	// from patterns file
 */
 	
-	mapSetSpanAndRadius (2, 8);
+	mapSetSpanAndRadius (3, 3);
 	mapGeneratePoles (POLE_TRI);
+
+	seed = time (NULL);
+	INFO ("%s: using seed of \'%ld\'", __FUNCTION__, seed);
+	loadSetText ("Initializing...");
 
 	FUNCCLOSE ();
 }
@@ -72,87 +86,125 @@ void worldgenFinalizeCreation ()
 	FUNCCLOSE ();
 }
 
-void worldgenExpandWorldGraph (TIMER t)
+void worldgenExpandWorldGraph (TIMER timer)
 {
-	static SUBHEX
-		pole = NULL,
-		base = NULL,
-		poleCentre = NULL;
+	static enum {
+		GEN_INIT,
+		GEN_REDPOLE,
+		GEN_GREENPOLE,
+		GEN_BLUEPOLE,
+		GEN_FINAL,
+		GEN_DONE
+	} genstate = GEN_INIT;
 	SUBHEX
-		active = NULL;
-	RELATIVEHEX
-		rel = NULL;
+		pole = NULL,
+		base = NULL;
+	signed int
+		x = 0,
+		y = 0;
+	unsigned int
+		r = 0,
+		k = 0,
+		i = 0,
+		heightval = 0;
+
 	FUNCOPEN ();
 
-	loadSetGoal (2);
-
-	if (!pole)
-		pole = mapPole ('r');
-
-	if (!base)
+	// all this is just worldgen scratchpad stuff
+	loadSetGoal (655);
+	switch (genstate)
 	{
-		mapForceGrowAtLevelForDistance (pole, 1, 3);
-		rel = mapRelativeSubhexWithCoordinateOffset (pole, -mapGetSpan (), 0, 0);
-		poleCentre = mapRelativeTarget (rel);
-		mapRelativeDestroy (rel);
-		base = subhexParent (poleCentre);
-	}
+		case GEN_INIT:
+			pole = mapPole ('r');
+			heightval = rand () & ((1 << 9) - 1);
+			mapDataAdd (pole, "height", heightval);
 
-	loadSetLoaded (1);
+			pole = mapPole ('g');
+			heightval = rand () & ((1 << 9) - 1);
+			mapDataAdd (pole, "height", heightval);
 
-	active = base;
+			pole = mapPole ('b');
+			heightval = rand () & ((1 << 9) - 1);
+			mapDataAdd (pole, "height", heightval);
 
-	while (1)
-	{
-		// all this is just worldgen scratchpad stuff
-/*
-		worldgenCreateArch (NULL, active);
-		active = mapHexAtCoordinateAuto (subhexParent (base), 1, 0);
-		worldgenCreateArch (NULL, active);
-		active = mapHexAtCoordinateAuto (subhexParent (base), 0, 1);
-		worldgenCreateArch (NULL, active);
-		active = mapHexAtCoordinateAuto (subhexParent (base), -1, 1);
-		worldgenCreateArch (NULL, active);
-		active = mapHexAtCoordinateAuto (subhexParent (base), -1, 0);
-		worldgenCreateArch (NULL, active);
-		active = mapHexAtCoordinateAuto (subhexParent (base), 0, -1);
-		worldgenCreateArch (NULL, active);
-		active = mapHexAtCoordinateAuto (subhexParent (base), 1, -1);
-		worldgenCreateArch (NULL, active);
-*/
+			mapForceSubdivide (mapPole ('r'));
+			mapForceSubdivide (mapPole ('g'));
+			mapForceSubdivide (mapPole ('b'));
 
-		worldgenCreateArch (NULL, active);
+			genstate = GEN_REDPOLE;
+			loadSetLoaded (3);
+			loadSetText ("Filling red pole w/ noise...");
+			if (outOfTime (timer))
+				return;
 
-		mapDataAdd (base, "height", 16);
+		case GEN_REDPOLE:
+			pole = mapPole ('r');
+			r = k = i = 0;
+			while (r <= MapRadius)
+			{
+				hex_rki2xy (r, k, i, &x, &y);
+				base = subhexData (pole, x, y);
+				heightval = rand () & ((1 << 8) - 1);
+				mapDataAdd (base, "height", heightval);
+				hex_nextValidCoord (&r, &k, &i);
+			}
+			genstate = GEN_GREENPOLE;
+			loadSetLoaded (220);
+			loadSetText ("Filling green pole w/ noise...");
+			if (outOfTime (timer))
+				return;
 
-		active = mapHexAtCoordinateAuto (subhexParent (base), 1, 0);
-		mapDataAdd (active, "height", 32);
+		case GEN_GREENPOLE:
+			pole = mapPole ('g');
+			r = k = i = 0;
+			while (r <= MapRadius)
+			{
+				hex_rki2xy (r, k, i, &x, &y);
+				base = subhexData (pole, x, y);
+				heightval = rand () & ((1 << 8) - 1);
+				mapDataAdd (base, "height", heightval);
+				hex_nextValidCoord (&r, &k, &i);
+			}
+			genstate = GEN_BLUEPOLE;
+			loadSetLoaded (437);
+			loadSetText ("Filling blue pole w/ noise...");
+			if (outOfTime (timer))
+				return;
 
-		active = mapHexAtCoordinateAuto (subhexParent (base), 0, 1);
-		mapDataAdd (active, "height", 16);
+		case GEN_BLUEPOLE:
+			pole = mapPole ('b');
+			r = k = i = 0;
+			while (r <= MapRadius)
+			{
+				hex_rki2xy (r, k, i, &x, &y);
+				base = subhexData (pole, x, y);
+				heightval = rand () & ((1 << 8) - 1);
+				mapDataAdd (base, "height", heightval);
+				hex_nextValidCoord (&r, &k, &i);
+			}
+			genstate = GEN_FINAL;
+			loadSetLoaded (654);
+			loadSetText ("Finalizing...");
+			if (outOfTime (timer))
+				return;
 
-		active = mapHexAtCoordinateAuto (subhexParent (base), -1, 1);
-		mapDataAdd (active, "height", 16);
+		case GEN_FINAL:
+			pole = mapPole ('g');
+			mapForceGrowAtLevelForDistance (pole, 1, 3);
+			base = mapHexAtCoordinateAuto (pole, -MapSpan + 1, 0, 0);
 
-		active = mapHexAtCoordinateAuto (subhexParent (base), -1, 0);
-		mapDataAdd (active, "height", 8);
+			worldgenCreateArch (NULL, base);
 
-		active = mapHexAtCoordinateAuto (subhexParent (base), 0, -1);
-		mapDataAdd (active, "height", 36);
+			loadSetLoaded (655);
+			genstate = GEN_DONE;
+			break;
 
-		active = mapHexAtCoordinateAuto (subhexParent (base), 1, -1);
-		mapDataAdd (active, "height", 12);
-
-
-		active = mapHexAtCoordinateAuto (subhexParent (base), -1, 2);
-		mapDataAdd (active, "height", 16);
-
-		break;
-		if (outOfTime (t))
-			return;
-	}
-
-	loadSetLoaded (2);
+		case GEN_DONE:
+		default:
+			loadSetGoal (655);
+			loadSetLoaded (655);
+			break;
+		}
 
 	FUNCCLOSE ();
 }
@@ -169,7 +221,7 @@ ARCH worldgenCreateArch (PATTERN pattern, SUBHEX base)
 	unsigned int
 		r, k, i;
 
-	memset (arch, '\0', sizeof (struct worldgenArch));
+	memset (arch, 0, sizeof (struct worldgenArch));
 
 	arch->centre = base;
 
@@ -178,9 +230,17 @@ ARCH worldgenCreateArch (PATTERN pattern, SUBHEX base)
 	k = rand () % 6;
 	i = rand () % MapRadius - 1;
 	hex_rki2xy (r, k, i, &arch->x, &arch->y);
-	arch->size = (rand () & 0x03) + 2;
+	arch->size = (rand () & 0x03) + 3;
 
 	mapArchSet (base, arch);
+
+	i = 0;
+	while (i < 6)
+	{
+		mapArchSet (mapHexAtCoordinateAuto (base, 0, XY[i][X], XY[i][Y]), arch);
+		i++;
+	}
+
 	return arch;
 }
 
@@ -214,8 +274,6 @@ void worldgenImprintMapData (SUBHEX at)
 		dir = 0,
 		lastDir = 5,
 		x, y;
-	float
-		b[4] = {0, 0, 0, 0};
 	VECTOR3
 		p,
 		adjCoords[6];
@@ -224,14 +282,14 @@ void worldgenImprintMapData (SUBHEX at)
 	if (subhexSpanLevel (at) != 1)
 		return;
 
-	hex = mapHexAtCoordinateAuto (at, 0, 0);
+	hex = mapHexAtCoordinateAuto (at, -1, 0, 0);
 	hex->hex.centre = height;
 
 	subhexLocalCoordinates (at, &x, &y);
 	while (dir < 6)
 	{
 		adjCoords[dir] = hex_xyCoord2Space (centres[dir * 2], centres[dir * 2 + 1]);
-		adjHeight[dir] = mapDataGet (mapHexAtCoordinateAuto (subhexParent (at), x + XY[dir][X], y + XY[dir][Y]), "height");
+		adjHeight[dir] = mapDataGet (mapHexAtCoordinateAuto (subhexParent (at), -1, x + XY[dir][X], y + XY[dir][Y]), "height");
 		dir++;
 	}
 
@@ -290,11 +348,9 @@ void worldgenImprintAllArches (SUBHEX at)
 		WARNING ("Can't imprint platter (%p) with span level %d.", at, subhexSpanLevel (at));
 		return;
 	}
-	if (at->sub.imprinted == TRUE)
-		return;
 	while ((arch = mapArchGet (at, offset++)) != NULL)
 	{
-		hex = mapHexAtCoordinateAuto (at, arch->x, arch->y);
+		hex = mapHexAtCoordinateAuto (arch->centre, -1, arch->x, arch->y);
 		height = hex->hex.centre;
 
 		while (r <= arch->size)
@@ -303,7 +359,7 @@ void worldgenImprintAllArches (SUBHEX at)
 			hx += arch->x;
 			hy += arch->y;
 			
-			hex = mapHexAtCoordinateAuto (at, hx, hy);
+			hex = mapHexAtCoordinateAuto (arch->centre, -1, hx, hy);
 			if (hex == NULL)
 			{
 				hex_nextValidCoord (&r, &k, &i);
