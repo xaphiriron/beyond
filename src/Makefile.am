@@ -6,12 +6,13 @@ AM_CPPFLAGS = -Wall -Werror -O3
 #AM_CPPFLAGS = -Wall -Werror -fprofile-generate -ftest-coverage
 #AM_LDFLAGS = -fprofile-generate -lgcov
 
-lib_LTLIBRARIES = libfcmp.la libvector.la libquat.la libline.la libsph.la
+lib_LTLIBRARIES = libfcmp.la libvector.la libquat.la libline.la libsph.la libmatrix.la
 libfcmp_la_SOURCES = fcmp.c fcmp.h
 libvector_la_SOURCES = vector.c vector.h
 libquat_la_SOURCES = quaternion.c quaternion.h
 libline_la_SOURCES = line.c line.h
 libsph_la_SOURCES = sph.c sph.h
+libmatrix_la_SOURCES = matrix.c matrix.h
 #libline_la_LIBADD = libvector.la
 
 
@@ -31,6 +32,7 @@ beyond_SOURCES = \
   timer.c timer.h	\
   accumulator.c accumulator.h \
   entity.c entity.h	\
+	matspec.c matspec.h \
 	map.c map.h \
 	worldgen.c worldgen.h \
 	worldgen_graph.c worldgen_graph.h \
@@ -48,6 +50,7 @@ beyond_SOURCES = \
 	beyond.c
 beyond_LDADD = \
 	-lm -lGL -lSDL -lglpng \
+	libmatrix.la \
 	libline.la \
 	libsph.la \
 	libvector.la \

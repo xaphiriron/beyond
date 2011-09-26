@@ -6,10 +6,13 @@
 #include "dynarr.h"
 #include "texture.h"
 
+#include "matspec.h"
+
 typedef union hexOrSubdiv * SUBHEX;
 
 typedef struct hexSubdivided * SUBDIV;
-typedef struct hexTile * HEX;
+typedef struct hexColumn * HEX;
+typedef struct hexStep * HEXSTEP;
 
 typedef struct hexWorldPosition * WORLDHEX;
 typedef struct hexRelativePosition * RELATIVEHEX;
@@ -40,6 +43,7 @@ void worldDestroy ();
 
 void mapForceSubdivide (SUBHEX subhex);
 void mapForceGrowAtLevelForDistance (SUBHEX subhex, unsigned char absoluteSpan, unsigned int distance);
+void mapForceGrowChildAt (SUBHEX subhex, signed int x, signed int y);
 
 /***
  * SIMPLE CREATION AND INITIALIZATION FUNCTIONS
@@ -49,6 +53,10 @@ SUBHEX mapHexCreate (SUBHEX parent, signed int x, signed int y);
 SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y);
 
 void subhexDestroy (SUBHEX subhex);
+
+HEXSTEP hexSetBase (HEX hex, unsigned int height, MATSPEC material);
+HEXSTEP hexCreateStep (HEX hex, unsigned int height, MATSPEC material);
+unsigned char stepParam (HEXSTEP step, const char * param);
 
 /***
  * MAP TRAVERSAL FUNCTIONS
@@ -147,7 +155,7 @@ void mapBakeEdgeHexes (SUBHEX subhex, unsigned int dir);
 void mapBakeHexes (SUBHEX subhex);
 
 void worldSetRenderCacheCentre (SUBHEX origin);
-void mapDraw ();
+void mapDraw (const float const * matrix);
 void subhexDraw (const SUBDIV sub, const VECTOR3 offset);
 void hexDraw (const HEX hex, const VECTOR3 centreOffset);
 

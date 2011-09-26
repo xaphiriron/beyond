@@ -6,6 +6,8 @@
 #include "xph_memory.h"
 #include "xph_log.h"
 
+#include "matrix.h"
+
 #include "hex_utility.h"
 
 #include "map_internal.h"
@@ -31,13 +33,14 @@ static struct mapData * mapDataCreate ();
 static struct mapData * mapDataCopy (const struct mapData * md);
 static void mapDataDestroy (struct mapData * mb);
 
+
 static void mapCheckLoadStatusAndImprint (void * rel_v);
 /*
 static void mapRelativeTargetImprintMap (void * rel_v);
 static void mapRelativeTargetImprintArches (void * rel_v);
 static void mapRelativeTargetBake (void * rel_v);
 */
-static void mapImprintHex (HEX hex);
+static void mapBakeHex (HEX hex);
 
 
 /***
@@ -247,6 +250,14 @@ void mapForceGrowAtLevelForDistance (SUBHEX subhex, unsigned char spanLevel, uns
 	DEBUG ("done iterating to grow in %s", __FUNCTION__);
 }
 
+void mapForceGrowChildAt (SUBHEX subhex, signed int x, signed int y)
+{
+	if (subhexData (subhex, x, y) == NULL)
+	{
+		mapSubdivCreate (subhex, x, y);
+	}
+}
+
 /***
  * SIMPLE CREATION AND INITIALIZATION FUNCTIONS
  */
@@ -276,10 +287,15 @@ SUBHEX mapHexCreate (const SUBHEX parent, signed int x, signed int y)
 	sh->hex.x = x;
 	sh->hex.y = y;
 	hex_xy2rki (x, y, &r, &k, &i);
-
+/*
 	sh->hex.light = 0;
 	sh->hex.light = hexColouring & ((1 << 6) - 1);
 	sh->hex.light ^= (((r > MapRadius / 2) ^ (i % 2 | !r)) * (hexColouring >> 6));
+*/
+	sh->hex.light = (r > MapRadius / 2) ^ (i % 2 | !r);
+
+	sh->hex.steps = dynarr_create (8, sizeof (HEXSTEP));
+	hexSetBase (&sh->hex, 0, NULL);
 
 	return sh;
 }
@@ -442,6 +458,65 @@ void subhexDestroy (SUBHEX subhex)
 		return;
 	}
 	xph_free (subhex);
+}
+
+
+static int hexStepSort (const void * a, const void * b);
+
+static int hexStepSort (const void * a, const void * b)
+{
+	return (*(HEXSTEP *)a)->height - (*(HEXSTEP *)b)->height;
+}
+
+
+	// FIXME: this is such a dummy function; nothing about it works as it ought
+HEXSTEP hexSetBase (HEX hex, unsigned int height, MATSPEC material)
+{
+	HEXSTEP
+		base = *(HEXSTEP *)dynarr_front (hex->steps),
+		next;
+	if (base == NULL)
+	{
+		return hexCreateStep (hex, height, material);
+	}
+	base->height = height;
+	base->material = material;
+	if (dynarr_size (hex->steps) > 1)
+	{
+		next = *(HEXSTEP *)dynarr_at (hex->steps, 1);
+		if (base->height > next->height)
+		{
+			ERROR ("INVALID BASE HIGHT FOR HEX COLUMN %p; base is %ud while next-highest is %ud; there is no possible way this will end well.", hex, base->height, next->height);
+		}
+	}
+	return base;
+}
+
+HEXSTEP hexCreateStep (HEX hex, unsigned int height, MATSPEC material)
+{
+	HEXSTEP
+		prev,
+		step = xph_alloc (sizeof (struct hexStep));
+	memset (step, 0, sizeof (struct hexStep));
+	step->height = height;
+	step->material = material;
+	
+	prev = *(HEXSTEP *)dynarr_back (hex->steps);
+
+	dynarr_push (hex->steps, step);
+	dynarr_sort (hex->steps, hexStepSort);
+	return step;
+}
+
+unsigned char stepParam (HEXSTEP step, const char * param)
+{
+	if (step == NULL || step->material == NULL)
+	{
+		if (strcmp (param, "transparent") == 0)
+			return TRUE;
+		return FALSE;
+	}
+	return materialParam (step->material, param);
 }
 
 /***
@@ -1603,26 +1678,32 @@ unsigned int subhexGetRawHeight (const SUBHEX subhex)
 {
 	SUBHEX
 		hex = subhex;
+	HEXSTEP
+		step;
 	while (subhexSpanLevel (hex) != 0)
 	{
 		hex = subhexData (hex, 0, 0);
 		if (hex == NULL)
 			return 0.0;
 	}
-	return hex->hex.centre;
+	step = *(HEXSTEP *)dynarr_front (hex->hex.steps);
+	return step->height;
 }
 
 float subhexGetHeight (const SUBHEX subhex)
 {
 	SUBHEX
 		hex = subhex;
+	HEXSTEP
+		step;
 	while (subhexSpanLevel (hex) != 0)
 	{
 		hex = subhexData (hex, 0, 0);
 		if (hex == NULL)
 			return 0.0;
 	}
-	return hex->hex.centre * HEX_SIZE_4;
+	step = *(HEXSTEP *)dynarr_front (hex->hex.steps);
+	return step->height * HEX_SIZE_4;
 }
 
 bool hexColor (const HEX hex, unsigned char * rgb)
@@ -1761,7 +1842,7 @@ static Dynarr
 SUBHEX
 	RenderOrigin = NULL;
 static unsigned char
-	AbsoluteViewLimit = 6;
+	AbsoluteViewLimit = 12;
 
 Dynarr
 	loadedPlatters = NULL,
@@ -1855,8 +1936,7 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 	 * though, but for now an instant load will suffice.
 	 *  - xph 2011 08 01
 	 */
-	mapForceGrowAtLevelForDistance (origin, 1, 4);
-
+	mapForceGrowAtLevelForDistance (origin, 1, 5);
 
 	mapQueueLoadAround (origin);
 
@@ -1960,7 +2040,7 @@ void mapBakeEdgeHexes (SUBHEX subhex, unsigned int dir)
 	offset = hex_linearCoord (r, dir, i);
 	while (i < MapRadius)
 	{
-		mapImprintHex (&subhex->sub.data[offset]->hex);
+		mapBakeHex (&subhex->sub.data[offset]->hex);
 		i++;
 		offset++;
 	}
@@ -1974,47 +2054,57 @@ void mapBakeHexes (SUBHEX subhex)
 		return;
 	while (offset < hx (MapRadius + 1))
 	{
-		mapImprintHex (&subhex->sub.data[offset]->hex);
+		mapBakeHex (&subhex->sub.data[offset]->hex);
 		offset++;
 	}
 }
 
-static void mapImprintHex (HEX hex)
+static void mapBakeHex (HEX hex)
 {
-	HEX
-		adj;
+	HEXSTEP
+		step = NULL,
+		adjacent = NULL;
 	unsigned int
-		dir = 0;
-	signed int
-		ax,
-		ay;
-
+		dir = 0,
+		i = 0,
+		adjacentIndex = 0;
 	while (dir < 6)
 	{
-		ax = hex->x + XY[(dir + 1) % 6][0];
-		ay = hex->y + XY[(dir + 1) % 6][1];
-		adj = (HEX)mapHexAtCoordinateAuto (hex->parent, -1, ax, ay);
-		//printf ("tried %d, %d: got %p; span %d\n", ax, ay, adj, subhexSpanLevel ((SUBHEX)adj));
-		if (adj == NULL || subhexPartlyLoaded ((SUBHEX)adj))
-		{
-			/* don't use 0 as the default/NULL/error value; it looks bizarre when the height is substantially above 0. also this hasn't been tested to work on sloped tiles; the dir values might need to be changed to some degree */
-			hex->edgeBase[dir * 2] = FULLHEIGHT (hex, dir) + 10;
-			hex->edgeBase[dir * 2 + 1] = FULLHEIGHT (hex, (dir + 1) % 6) + 10;
-			//printf ("invalid adjacency; using %d, %d\n", hex->edgeBase[dir * 2], hex->edgeBase[dir * 2 + 1]);
-			dir++;
-			continue;
-		}
-		hex->edgeBase[dir * 2] = FULLHEIGHT (adj, (dir + 4) % 6);
-		hex->edgeBase[dir * 2 + 1] = FULLHEIGHT (adj, (dir + 3) % 6);
-		//printf ("using height %d, %d\n", hex->edgeBase[dir * 2], hex->edgeBase[dir * 2 + 1]);
+		if (hex->adjacent[dir] == NULL)
+			hex->adjacent[dir] = (HEX)mapHexAtCoordinateAuto ((SUBHEX)hex, 0, XY[(dir + 1) % 6][X], XY[(dir + 1) % 6][Y]);
 		dir++;
+	}
+	while ((step = *(HEXSTEP *)dynarr_at (hex->steps, i++)) != NULL)
+	{
+		dir = 0;
+		while (dir < 6)
+		{
+			if (hex->adjacent[dir] == NULL)
+			{
+				dir++;
+				continue;
+			}
+			adjacentIndex = dynarr_size (hex->adjacent[dir]->steps);
+			while (1)
+			{
+				adjacentIndex--;
+				adjacent = *(HEXSTEP *)dynarr_at (hex->adjacent[dir]->steps, adjacentIndex);
+				if (adjacent == NULL || adjacent->height <= step->height)
+				{
+					step->adjacentHigherIndex[dir] = adjacentIndex++;
+					break;
+				}
+			}
+			dir++;
+		}
 	}
 }
 
-void mapDraw ()
+void mapDraw (const float const * matrix)
 {
 	VECTOR3
-		centreOffset;
+		centreOffset,
+		norm;
 	RELATIVEHEX
 		rel;
 	SUBHEX
@@ -2024,6 +2114,10 @@ void mapDraw ()
 		tier2Detail = hx (AbsoluteViewLimit / 2),
 		tier3Detail = hx (AbsoluteViewLimit),*/
 		i = 0;
+	float
+		facing = matrixHeading (matrix),
+		platterAngle = 0,
+		diff = 0;
 	if (RenderCache == NULL)
 	{
 		ERROR ("Cannot draw map: Render cache is uninitialized.");
@@ -2038,10 +2132,27 @@ void mapDraw ()
 			i++;
 			continue;
 		}
-		DEBUG ("trying to render the subhex %d-th in the cache (relativehex val: %p)", i, rel);
 		centreOffset = mapRelativeDistance (rel);
-		DEBUG (" - centre offset: %f %f %f", centreOffset.x, centreOffset.y, centreOffset.z);
 		sub = mapRelativeTarget (rel);
+		if (i > 6)
+		{
+			norm = vectorNormalize (&centreOffset);
+			platterAngle = atan2 (norm.z, norm.x);
+			diff = facing - platterAngle;
+			if (diff > M_PI)
+				diff = (M_PI * -2) + diff;
+			if (diff < -M_PI)
+				diff = (M_PI * 2) + diff;
+			//printf ("render at %.2f, %.2f has angle %f (vs. facing of %f; diff %f)\n", norm.z, norm.x, platterAngle, facing, diff);
+			if (fabs (diff - M_PI_2) >= M_PI_2)
+			{
+				i++;
+				continue;
+			}
+		}
+
+		DEBUG ("trying to render the subhex %d-th in the cache (relativehex val: %p)", i, rel);
+		DEBUG (" - centre offset: %f %f %f", centreOffset.x, centreOffset.y, centreOffset.z);
 		//DEBUG (" - target: %p", sub);
 		i++;
 		if (sub == NULL || subhexSpanLevel (sub) != 1 || sub->sub.loaded == FALSE)
@@ -2088,72 +2199,152 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 	VECTOR3
 		hexOffset = hex_xyCoord2Space (hex->x, hex->y),
 		totalOffset = vectorAdd (&centreOffset, &hexOffset);
+	HEXSTEP
+		step = NULL,
+		higher = NULL,
+		lower = NULL,
+		adjacentStep = NULL;
 	unsigned char
 		rgb[3];
 	unsigned int
-		corners[6] = {
-			FULLHEIGHT (hex, 0),
-			FULLHEIGHT (hex, 1),
-			FULLHEIGHT (hex, 2),
-			FULLHEIGHT (hex, 3),
-			FULLHEIGHT (hex, 4),
-			FULLHEIGHT (hex, 5)
-		};
+		corners[6] = {0, 0, 0, 0, 0, 0},
+		columnIndex = 0,
+		adjacentColumnIndex = 0,
+		high[2] = {0, 0};
 	signed int
 		i, j;
 
-	hexColor (hex, rgb);
-
-	glColor3ub (rgb[0], rgb[1], rgb[2]);
-
-	//DEBUG ("drawing hex based at %.2f, %.2f, %.2f", totalOffset.x, hex->centre * HEX_SIZE_4, totalOffset.z);
-	glBegin (GL_TRIANGLE_FAN);
-	glVertex3f (totalOffset.x, hex->centre * HEX_SIZE_4, totalOffset.z);
-	glVertex3f (totalOffset.x + H[0][0], corners[0] * HEX_SIZE_4, totalOffset.z + H[0][1]);
-	glVertex3f (totalOffset.x + H[5][0], corners[5] * HEX_SIZE_4, totalOffset.z + H[5][1]);
-	glVertex3f (totalOffset.x + H[4][0], corners[4] * HEX_SIZE_4, totalOffset.z + H[4][1]);
-	glVertex3f (totalOffset.x + H[3][0], corners[3] * HEX_SIZE_4, totalOffset.z + H[3][1]);
-	glVertex3f (totalOffset.x + H[2][0], corners[2] * HEX_SIZE_4, totalOffset.z + H[2][1]);
-	glVertex3f (totalOffset.x + H[1][0], corners[1] * HEX_SIZE_4, totalOffset.z + H[1][1]);
-	glVertex3f (totalOffset.x + H[0][0], corners[0] * HEX_SIZE_4, totalOffset.z + H[0][1]);
-	glEnd ();
-	i = 0;
-	j = 1;
-
-	glColor3ub (rgb[0] - (rgb[0] >> 2), rgb[1] - (rgb[1] >> 2), rgb[2] - (rgb[2] >> 2));
-	while (i < 6)
+	higher = NULL;
+	columnIndex = dynarr_size (hex->steps) - 1;
+	step = *(HEXSTEP *)dynarr_at (hex->steps, columnIndex);
+	corners[0] = FULLHEIGHT (step, 0);
+	corners[1] = FULLHEIGHT (step, 1);
+	corners[2] = FULLHEIGHT (step, 2);
+	corners[3] = FULLHEIGHT (step, 3);
+	corners[4] = FULLHEIGHT (step, 4);
+	corners[5] = FULLHEIGHT (step, 5);
+	while (step != NULL)
 	{
-		if (hex->edgeBase[i * 2] >= corners[i] &&
-			hex->edgeBase[i * 2 + 1] >= corners[j])
+		//printf ("on column %p, #%d; %p\n", hex, columnIndex, step);
+		matspecColor (step->material, &rgb[0], &rgb[1], &rgb[2], NULL);
+		if (stepParam (step, "visible") != FALSE)
 		{
+			if (hex->light)
+				glColor3ub (rgb[0], rgb[1], rgb[2]);
+			else
+				glColor3ub (rgb[0] - (rgb[0] >> 4), rgb[1] - (rgb[1] >> 4), rgb[2] - (rgb[2] >> 4));
+			if (stepParam (higher, "opaque") == FALSE)
+			{
+				glBegin (GL_TRIANGLE_FAN);
+				glVertex3f (totalOffset.x, step->height * HEX_SIZE_4, totalOffset.z);
+				glVertex3f (totalOffset.x + H[0][0], corners[0] * HEX_SIZE_4, totalOffset.z + H[0][1]);
+				glVertex3f (totalOffset.x + H[5][0], corners[5] * HEX_SIZE_4, totalOffset.z + H[5][1]);
+				glVertex3f (totalOffset.x + H[4][0], corners[4] * HEX_SIZE_4, totalOffset.z + H[4][1]);
+				glVertex3f (totalOffset.x + H[3][0], corners[3] * HEX_SIZE_4, totalOffset.z + H[3][1]);
+				glVertex3f (totalOffset.x + H[2][0], corners[2] * HEX_SIZE_4, totalOffset.z + H[2][1]);
+				glVertex3f (totalOffset.x + H[1][0], corners[1] * HEX_SIZE_4, totalOffset.z + H[1][1]);
+				glVertex3f (totalOffset.x + H[0][0], corners[0] * HEX_SIZE_4, totalOffset.z + H[0][1]);
+				glEnd ();
+			}
 		}
-		else if (hex->edgeBase[i * 2] >= corners[i])
+
+		i = 0;
+		j = 1;
+		lower = *(HEXSTEP *)dynarr_at (hex->steps, --columnIndex);
+
+		if (stepParam (step, "visible") != FALSE)
 		{
-			glBegin (GL_TRIANGLES);
-			glVertex3f (totalOffset.x + H[i][0], corners[i] * HEX_SIZE_4, totalOffset.z + H[i][1]);
-			glVertex3f (totalOffset.x + H[j][0], corners[j] * HEX_SIZE_4, totalOffset.z + H[j][1]);
-			glVertex3f (totalOffset.x + H[j][0], hex->edgeBase[i * 2 + 1] * HEX_SIZE_4, totalOffset.z + H[j][1]);
+			if (hex->light)
+				glColor3ub (
+					rgb[0] - (rgb[0] >> 2),
+					rgb[1] - (rgb[1] >> 2),
+					rgb[2] - (rgb[2] >> 2)
+				);
+			else
+				glColor3ub (
+					rgb[0] - ((rgb[0] >> 2) + (rgb[0] >> 4)),
+					rgb[1] - ((rgb[1] >> 2) + (rgb[1] >> 4)),
+					rgb[2] - ((rgb[2] >> 2) + (rgb[2] >> 4))
+				);
+
+			while (i < 6)
+			{
+				if (hex->adjacent[i] == NULL || subhexPartlyLoaded ((SUBHEX)hex->adjacent[i]))
+				{
+					i++;
+					j = (i + 1) % 6;
+					continue;
+				}
+				adjacentColumnIndex = dynarr_size (hex->adjacent[i]->steps) - 1;
+				high[0] = corners[i];
+				high[1] = corners[j];
+				while ((adjacentStep = *(HEXSTEP *)dynarr_at (hex->adjacent[i]->steps, adjacentColumnIndex)) != NULL)
+				{
+					if (adjacentStep->height >= step->height)
+					{
+						adjacentColumnIndex--;
+						continue;
+					}
+					glBegin (GL_TRIANGLE_STRIP);
+					glVertex3f (totalOffset.x + H[i][X], high[0] * HEX_SIZE_4, totalOffset.z + H[i][Y]);
+					glVertex3f (totalOffset.x + H[j][X], high[1] * HEX_SIZE_4, totalOffset.z + H[j][Y]);
+					if (lower != NULL && adjacentStep->height < lower->height)
+					{
+						high[0] = FULLHEIGHT (lower, i % 6);
+						high[1] = FULLHEIGHT (lower, (i + 1) % 6);
+					}
+					else
+					{
+						high[0] = FULLHEIGHT (adjacentStep, (i + 4) % 6);
+						high[1] = FULLHEIGHT (adjacentStep, (i + 3) % 6);
+					}
+					glVertex3f (totalOffset.x + H[i][X], high[0] * HEX_SIZE_4, totalOffset.z + H[i][Y]);
+					glVertex3f (totalOffset.x + H[j][X], high[1] * HEX_SIZE_4, totalOffset.z + H[j][Y]);
+					glEnd ();
+					adjacentColumnIndex--;
+				}
+				i++;
+				j = (i + 1) % 6;
+			}
+
+		}
+
+		if (lower == NULL)
+			break;
+		corners[0] = FULLHEIGHT (lower, 0);
+		corners[1] = FULLHEIGHT (lower, 1);
+		corners[2] = FULLHEIGHT (lower, 2);
+		corners[3] = FULLHEIGHT (lower, 3);
+		corners[4] = FULLHEIGHT (lower, 4);
+		corners[5] = FULLHEIGHT (lower, 5);
+		if (stepParam (lower, "visible") == FALSE)
+		{
+			if (hex->light)
+				glColor3ub (
+					rgb[0] - (rgb[0] >> 1),
+					rgb[1] - (rgb[1] >> 1),
+					rgb[2] - (rgb[2] >> 1)
+				);
+			else
+				glColor3ub (
+					rgb[0] - ((rgb[0] >> 1) + (rgb[0] >> 4)),
+					rgb[1] - ((rgb[1] >> 1) + (rgb[1] >> 4)),
+					rgb[2] - ((rgb[2] >> 1) + (rgb[2] >> 4))
+				);
+			glBegin (GL_TRIANGLE_FAN);
+			glVertex3f (totalOffset.x, lower->height * HEX_SIZE_4, totalOffset.z);
+			glVertex3f (totalOffset.x + H[0][X], corners[0] * HEX_SIZE_4, totalOffset.z + H[0][Y]);
+			glVertex3f (totalOffset.x + H[1][X], corners[1] * HEX_SIZE_4, totalOffset.z + H[1][Y]);
+			glVertex3f (totalOffset.x + H[2][X], corners[2] * HEX_SIZE_4, totalOffset.z + H[2][Y]);
+			glVertex3f (totalOffset.x + H[3][X], corners[3] * HEX_SIZE_4, totalOffset.z + H[3][Y]);
+			glVertex3f (totalOffset.x + H[4][X], corners[4] * HEX_SIZE_4, totalOffset.z + H[4][Y]);
+			glVertex3f (totalOffset.x + H[5][X], corners[5] * HEX_SIZE_4, totalOffset.z + H[5][Y]);
+			glVertex3f (totalOffset.x + H[0][X], corners[0] * HEX_SIZE_4, totalOffset.z + H[0][Y]);
 			glEnd ();
 		}
-		else if (hex->edgeBase[i * 2 + 1] >= corners[j])
-		{
-			glBegin (GL_TRIANGLES);
-			glVertex3f (totalOffset.x + H[i][0], corners[i] * HEX_SIZE_4, totalOffset.z + H[i][1]);
-			glVertex3f (totalOffset.x + H[j][0], corners[j] * HEX_SIZE_4, totalOffset.z + H[j][1]);
-			glVertex3f (totalOffset.x + H[i][0], hex->edgeBase[i * 2] * HEX_SIZE_4, totalOffset.z + H[i][1]);
-			glEnd ();
-		}
-		else
-		{
-			glBegin (GL_TRIANGLE_STRIP);
-			glVertex3f (totalOffset.x + H[i][0], corners[i] * HEX_SIZE_4, totalOffset.z + H[i][1]);
-			glVertex3f (totalOffset.x + H[j][0], corners[j] * HEX_SIZE_4, totalOffset.z + H[j][1]);
-			glVertex3f (totalOffset.x + H[i][0], (hex->edgeBase[i * 2]) * HEX_SIZE_4, totalOffset.z + H[i][1]);
-			glVertex3f (totalOffset.x + H[j][0], (hex->edgeBase[i * 2 + 1]) * HEX_SIZE_4, totalOffset.z + H[j][1]);
-			glEnd ();
-		}
-		i++;
-		j = (i + 1) % 6;
+
+		higher = step;
+		step = lower;
 	}
 	//FUNCCLOSE ();
 }

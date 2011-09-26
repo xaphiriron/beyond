@@ -1,6 +1,8 @@
 #ifndef XPH_MAP_INTERNAL_H
 #define XPH_MAP_INTERNAL_H
 
+#include "matspec.h"
+
 struct hexSubdivided
 {
 	enum hexOrSubdivType
@@ -31,7 +33,7 @@ struct hexSubdivided
 						// imprinted (and the patterns haven't changed since)
 };
 
-struct hexTile
+struct hexColumn
 {
 	enum hexOrSubdivType
 		type;
@@ -39,15 +41,26 @@ struct hexTile
 		parent;
 	signed int
 		x, y;
-
-	/* actual hex data goes here */
-	unsigned int
-		centre,
-		edgeBase[12];
-	unsigned char
-		corners[3];
 	unsigned char
 		light;
+
+	Dynarr
+		steps;
+	struct hexColumn
+		* adjacent[6];
+};
+
+struct hexStep
+{
+	unsigned int
+		height,
+		adjacentHigherIndex[6];
+	unsigned char
+		corners[3];
+
+	MATSPEC
+		material;
+	/* actual hex data goes here */
 };
 
 
@@ -71,7 +84,7 @@ union hexOrSubdiv		// SUBHEX is union hexOrSubdiv *
 		type;
 	struct hexSubdivided
 		sub;
-	struct hexTile
+	struct hexColumn
 		hex;
 };
 
@@ -123,7 +136,7 @@ int __v, __n;
 #define GETCORNER(p, n)		(__n = (n), __v = (__n % 2 ? p[__n/2] & 0x0f : (p[__n/2] & 0xf0) >> 4), (__v & 8) ? 0 - ((__v & 7)) : __v)
 #define SETCORNER(p, n, v)	(__n = (n), __v = (v), __v = (__v < 0 ? ((~__v & 15) + 1) | 8 : __v & 7), p[__n/2] = (__n % 2 ? (p[__n/2] & 0xf0) | __v : (p[__n/2] & 0x0f) | (__v << 4)))
 
-#define FULLHEIGHT(hex, i)		(__v = GETCORNER (hex->corners, i), (__v < 0 && hex->centre < abs (__v)) ? 0 : ((__v > 0 && hex->centre > (UINT_MAX - __v)) ? UINT_MAX : hex->centre + __v))
+#define FULLHEIGHT(base, i)		(__v = GETCORNER (base->corners, i), (__v < 0 && base->height < abs (__v)) ? 0 : ((__v > 0 && base->height > (UINT_MAX - __v)) ? UINT_MAX : base->height + __v))
 
 /* keep these cast as float no matter what they are; since hex heights are
  * unsigned ints we really don't want to force a signed int * unsigned int

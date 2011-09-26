@@ -23,6 +23,16 @@ struct worldgenPattern
 	
 };
 
+
+
+enum worldMaterialList
+{
+	MATERIAL_AIR,
+	MATERIAL_GROUND,
+};
+static Dynarr
+	worldMaterials = NULL;
+
 /*
 struct worldgenArch // ARCH
 {
@@ -65,8 +75,12 @@ void worldgenAbsHocNihilo ()
 		firstPattern = patternCreate ();	// from patterns file
 */
 	
-	mapSetSpanAndRadius (3, 3);
+	mapSetSpanAndRadius (4, 8);
 	mapGeneratePoles (POLE_TRI);
+
+	worldMaterials = dynarr_create (3, sizeof (MATSPEC));
+	dynarr_assign (worldMaterials, MATERIAL_AIR, makeMaterial (MAT_TRANSPARENT));
+	dynarr_assign (worldMaterials, MATERIAL_GROUND, makeMaterial (MAT_OPAQUE));
 
 	seed = time (NULL);
 	INFO ("%s: using seed of \'%ld\'", __FUNCTION__, seed);
@@ -105,8 +119,7 @@ void worldgenExpandWorldGraph (TIMER timer)
 	unsigned int
 		r = 0,
 		k = 0,
-		i = 0,
-		heightval = 0;
+		i = 0;
 
 	FUNCOPEN ();
 
@@ -116,16 +129,13 @@ void worldgenExpandWorldGraph (TIMER timer)
 	{
 		case GEN_INIT:
 			pole = mapPole ('r');
-			heightval = rand () & ((1 << 9) - 1);
-			mapDataAdd (pole, "height", heightval);
+			mapDataAdd (pole, "height", rand () & ((1 << 12) - 1));
 
 			pole = mapPole ('g');
-			heightval = rand () & ((1 << 9) - 1);
-			mapDataAdd (pole, "height", heightval);
+			mapDataAdd (pole, "height", rand () & ((1 << 12) - 1));
 
 			pole = mapPole ('b');
-			heightval = rand () & ((1 << 9) - 1);
-			mapDataAdd (pole, "height", heightval);
+			mapDataAdd (pole, "height", rand () & ((1 << 12) - 1));
 
 			mapForceSubdivide (mapPole ('r'));
 			mapForceSubdivide (mapPole ('g'));
@@ -144,8 +154,7 @@ void worldgenExpandWorldGraph (TIMER timer)
 			{
 				hex_rki2xy (r, k, i, &x, &y);
 				base = subhexData (pole, x, y);
-				heightval = rand () & ((1 << 8) - 1);
-				mapDataAdd (base, "height", heightval);
+				mapDataAdd (base, "height", rand () & ((1 << 11) - 1));
 				hex_nextValidCoord (&r, &k, &i);
 			}
 			genstate = GEN_GREENPOLE;
@@ -161,8 +170,7 @@ void worldgenExpandWorldGraph (TIMER timer)
 			{
 				hex_rki2xy (r, k, i, &x, &y);
 				base = subhexData (pole, x, y);
-				heightval = rand () & ((1 << 8) - 1);
-				mapDataAdd (base, "height", heightval);
+				mapDataAdd (base, "height", rand () & ((1 << 11) - 1));
 				hex_nextValidCoord (&r, &k, &i);
 			}
 			genstate = GEN_BLUEPOLE;
@@ -178,8 +186,7 @@ void worldgenExpandWorldGraph (TIMER timer)
 			{
 				hex_rki2xy (r, k, i, &x, &y);
 				base = subhexData (pole, x, y);
-				heightval = rand () & ((1 << 8) - 1);
-				mapDataAdd (base, "height", heightval);
+				mapDataAdd (base, "height", rand () & ((1 << 11) - 1));
 				hex_nextValidCoord (&r, &k, &i);
 			}
 			genstate = GEN_FINAL;
@@ -193,7 +200,7 @@ void worldgenExpandWorldGraph (TIMER timer)
 			mapForceGrowAtLevelForDistance (pole, 1, 3);
 			base = mapHexAtCoordinateAuto (pole, -MapSpan + 1, 0, 0);
 
-			worldgenCreateArch (NULL, base);
+			//worldgenCreateArch (NULL, base);
 
 			loadSetLoaded (655);
 			genstate = GEN_DONE;
@@ -230,7 +237,7 @@ ARCH worldgenCreateArch (PATTERN pattern, SUBHEX base)
 	k = rand () % 6;
 	i = rand () % MapRadius - 1;
 	hex_rki2xy (r, k, i, &arch->x, &arch->y);
-	arch->size = (rand () & 0x03) + 3;
+	arch->size = (rand () & 0x03) + 6;
 
 	mapArchSet (base, arch);
 
@@ -267,6 +274,7 @@ void worldgenImprintMapData (SUBHEX at)
 {
 	unsigned int
 		height = mapDataGet (at, "height"),
+		localHeight = 0,
 		adjHeight[6],
 		r = 0, k = 0, i = 0;
 	signed int
@@ -278,18 +286,22 @@ void worldgenImprintMapData (SUBHEX at)
 		p,
 		adjCoords[6];
 	SUBHEX
-		hex = NULL;
+		hex = NULL,
+		adj = NULL;
+	HEXSTEP
+		base;
 	if (subhexSpanLevel (at) != 1)
 		return;
 
 	hex = mapHexAtCoordinateAuto (at, -1, 0, 0);
-	hex->hex.centre = height;
+	base = hexSetBase ((HEX)hex, height, *(MATSPEC *)dynarr_at (worldMaterials, MATERIAL_GROUND));
 
 	subhexLocalCoordinates (at, &x, &y);
 	while (dir < 6)
 	{
 		adjCoords[dir] = hex_xyCoord2Space (centres[dir * 2], centres[dir * 2 + 1]);
-		adjHeight[dir] = mapDataGet (mapHexAtCoordinateAuto (subhexParent (at), -1, x + XY[dir][X], y + XY[dir][Y]), "height");
+		adj = mapHexAtCoordinateAuto (at, 0, XY[dir][X], XY[dir][Y]);
+		adjHeight[dir] = mapDataGet (adj, "height");
 		dir++;
 	}
 
@@ -307,7 +319,10 @@ void worldgenImprintMapData (SUBHEX at)
 			if (hex != NULL)
 			{
 				p = hex_coord2space (r, k, i);
-				hex->hex.centre = baryInterpolate (&p, &adjCoords[dir], &adjCoords[lastDir], height, adjHeight[dir], adjHeight[lastDir]);
+
+				localHeight = baryInterpolate (&p, &adjCoords[dir], &adjCoords[lastDir], height, adjHeight[dir], adjHeight[lastDir]);
+				hexSetBase ((HEX)hex, localHeight, *(MATSPEC *)dynarr_at (worldMaterials, MATERIAL_GROUND));
+
 			}
 
 			i++;
@@ -335,6 +350,8 @@ void worldgenImprintAllArches (SUBHEX at)
 		arch = NULL;
 	SUBHEX
 		hex = NULL;
+	HEXSTEP
+		base;
 	int
 		offset = 0;
 	signed int
@@ -351,7 +368,9 @@ void worldgenImprintAllArches (SUBHEX at)
 	while ((arch = mapArchGet (at, offset++)) != NULL)
 	{
 		hex = mapHexAtCoordinateAuto (arch->centre, -1, arch->x, arch->y);
-		height = hex->hex.centre;
+		/* FIXME: if the platter the base is on isn't loaded then this height value will be all wrong or maybe even potentially NULL, and that would lead to crashes or improperly-imprinted hexes */
+		base = *(HEXSTEP *)dynarr_front (hex->hex.steps);
+		height = base->height + 32;
 
 		while (r <= arch->size)
 		{
@@ -365,16 +384,27 @@ void worldgenImprintAllArches (SUBHEX at)
 				hex_nextValidCoord (&r, &k, &i);
 				continue;
 			}
-			if (r < arch->size)
-				hex->hex.centre = height;
+			else if (subhexParent (hex) != at)
+			{
+				/* WARNING: this else if will break if we ever apply patterns to span-2 or higher platters (since hex is a hex and at would be span-2+, so there's no possibility of it being the direct parent even if it is the grandparent) */
+				hex_nextValidCoord (&r, &k, &i);
+				continue;
+			}
+			if (r == 0)
+				hexSetBase ((HEX)hex, height, *(MATSPEC *)dynarr_at (worldMaterials, MATERIAL_GROUND));
+			else if (r < arch->size)
+			{
+				hexCreateStep ((HEX)hex, height - (((arch->size + 1) - r) * 2), *(MATSPEC *)dynarr_at (worldMaterials, MATERIAL_AIR));
+				hexCreateStep ((HEX)hex, height, *(MATSPEC *)dynarr_at (worldMaterials, MATERIAL_GROUND));
+			}
 			else
 			{
+				hexCreateStep ((HEX)hex, height - (((arch->size + 1) - r) * 2), *(MATSPEC *)dynarr_at (worldMaterials, MATERIAL_AIR));
 				if (abs (i - r/2) < 1)
-					hex->hex.centre = height + arch->size / 2;
+					hexCreateStep ((HEX)hex, height + arch->size / 2, *(MATSPEC *)dynarr_at (worldMaterials, MATERIAL_GROUND));
 				else
-					hex->hex.centre = height + arch->size * 2;
+					hexCreateStep ((HEX)hex, height + arch->size * 2, *(MATSPEC *)dynarr_at (worldMaterials, MATERIAL_GROUND));
 			}
-
 			hex_nextValidCoord (&r, &k, &i);
 		}
 	}
