@@ -114,7 +114,11 @@ bool systemPushState (enum system_states state)
 {
 	if (System == NULL)
 		return FALSE;
+	if (*(enum system_states *)dynarr_back (System->state) == STATE_FREEVIEW)
+		SDL_ShowCursor (SDL_ENABLE);
 	dynarr_push (System->state, state);
+	if (state == STATE_FREEVIEW)
+		SDL_ShowCursor (SDL_DISABLE);
 	return TRUE;
 }
 
@@ -126,6 +130,10 @@ enum system_states systemPopState ()
 		return STATE_ERROR;
 	dynarr_pop (System->state);
 	state = *(enum system_states *)dynarr_back (System->state);
+	if (state == STATE_FREEVIEW)
+		SDL_ShowCursor (SDL_DISABLE);
+	else
+		SDL_ShowCursor (SDL_ENABLE);
 	return state;
 }
 

@@ -30,9 +30,13 @@ struct input
 							// Shift+X is held down)
 		controlledEntities,	// entities to message with CONTROL_INPUT
 		focusedEntities;	// entities to message with FOCUS_INPUT
+
+	bool
+		active;
 };
 
-static INPUT Input = NULL;
+static INPUT
+	Input = NULL;
 
 int keysPressed (const struct input_keys * k) {
   int
@@ -92,6 +96,8 @@ struct input * input_create ()
 	i->overriddenEvents = dynarr_create (4, sizeof (enum input_responses));
 	i->controlledEntities = dynarr_create (2, sizeof (Entity *));
 	i->focusedEntities = dynarr_create (2, sizeof (Entity *));
+
+	i->active = TRUE;
 
 	// fill out the control map here or elsewhere (probably elsewhere in the config/defaults function), but it needs to be populated with the actual key data before any SDL events are checked.
 	dynarr_assign (i->controlMap, IR_QUIT, keys_create (1, SDLK_ESCAPE));
@@ -210,6 +216,8 @@ void input_sendGameEventMessage (const struct input_event * ie)
 	/* this has become the home of the UI switching; this isn't a good thing. i don't know how to break it apart (presumably to be handled by the ui component??) but it's something that should be done. in the mean time, try to avoid tying the ui code with the input code any further.
 	 *  - xph 2011 08 28
 	 */
+	if (!Input->active)
+		return;
 	switch (ie->ir)
 	{
 		case IR_QUIT:
@@ -390,7 +398,12 @@ void input_update (Object * d)
 			case SDL_ACTIVEEVENT:
 				if (Input->event.active.state & SDL_APPINPUTFOCUS)
 				{
-					SDL_ShowCursor (Input->event.active.gain ? SDL_DISABLE : SDL_ENABLE);
+					if (Input->event.active.gain)
+					{
+						Input->active = TRUE;
+						if (systemState () == STATE_FREEVIEW)
+							SDL_ShowCursor (SDL_DISABLE);
+					}
 					it = dynIterator_create (Input->activeEvents);
 					while (!dynIterator_done (it))
 					{
@@ -401,6 +414,12 @@ void input_update (Object * d)
 					dynarr_clear (Input->activeEvents);
 					dynarr_clear (Input->overriddenEvents);
 					dynarr_clear (Input->keysPressed);
+					if (!Input->event.active.gain)
+					{
+						Input->active = FALSE;
+						if (systemState () == STATE_FREEVIEW)
+							SDL_ShowCursor (SDL_ENABLE);
+					}
 				}
 				break;
 			default:
