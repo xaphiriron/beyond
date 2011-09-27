@@ -88,6 +88,17 @@ void loadSetText (char * displayText);
  *  - xph 2011 06 16
  */
 
+/* these are the functions called right after the system structure has been
+ * allocated; everything that's needed instantly should get loaded here
+ *  - xoh 2011 09 26
+ */
+void systemBootstrapInit (void);
+void systemBootstrap (TIMER t);
+void systemBootstrapFinalize (void);
+
+void systemUpdate (void);
+void systemRender (void);
+
 Entity systemPopUI ();
 void systemPushUI (Entity p);
 enum uiPanelTypes systemTopUIPanelType ();
@@ -99,10 +110,6 @@ void system_removeTimedFunction (void (*func)(TIMER));
 
 void systemCreatePlayer ();
 void systemPlacePlayerAt (const SUBHEX subhex);
-
-void systemStart (void);
-void systemUpdate (void);
-void systemRender (void);
 
 bool systemToggleAttr (enum system_toggle_states toggle);
 bool systemAttr (enum system_toggle_states state);

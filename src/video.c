@@ -43,7 +43,7 @@ void video_loadDefaultSettings (VIDEO * v) {
 
 
 void video_enableSDLmodules () {
-  SDL_ShowCursor (SDL_DISABLE);
+  //SDL_ShowCursor (SDL_DISABLE);
   //SDL_WM_GrabInput (SDL_GRAB_ON);
 }
 

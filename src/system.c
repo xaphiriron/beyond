@@ -1,9 +1,13 @@
 #include "system.h"
 
+#include <time.h>
+
 #include "object.h"
 #include "video.h"
 #include "timer.h"
 
+#include <GL/glpng.h>
+#include "texture.h"
 #include "font.h"
 
 #include "worldgen.h"
@@ -14,6 +18,7 @@
 #include "component_camera.h"
 #include "component_walking.h"
 #include "component_plant.h"
+
 
 #define LOADERTEXTBUFFERSIZE 128
 struct loadingdata
@@ -46,7 +51,7 @@ SYSTEM * system_create ()
 	SYSTEM
 		* s = xph_alloc (sizeof (SYSTEM));
 	TIMER
-		t = timerCreate ();
+		t;
 
 	s->quit = FALSE;
 	s->debug = FALSE;
@@ -54,6 +59,7 @@ SYSTEM * system_create ()
 	s->clock = clock_create ();
 	s->timer_mult = 1.0;
 	s->timestep = 0.03;
+ 	t = timerCreate ();
 	timerSetClock (t, s->clock);
 	timerSetScale (t, s->timer_mult);
 	s->acc = accumulator_create (t, s->timestep);
@@ -250,8 +256,10 @@ void systemCreatePlayer ()
 	Entity
 		player,
 		camera;
-	RELATIVEHEX
-		rel;
+	SUBHEX
+		base;
+	unsigned char
+		mapRadius = mapGetRadius ();
 
 	FUNCOPEN ();
 
@@ -264,9 +272,17 @@ void systemCreatePlayer ()
 		/* NOTE: this is a placeholder; player positioning in the generated world is a worldgen thing, not a system thing. maybe this entire function is misguided, idk.
 		 *  - xph 2011 06 09
 		 */
-		rel = mapRelativeSubhexWithCoordinateOffset (mapPole ('r'), -(mapGetSpan () - 1), 0, 0);
-		systemPlacePlayerAt (mapRelativeTarget (rel));
-		mapRelativeDestroy (rel);
+		base = mapPole ('g');
+		while (subhexSpanLevel (base) > 1)
+		{
+			if (base == NULL)
+			{
+				ERROR ("lost player base in unloaded platter");
+			}
+			mapForceGrowChildAt (base, mapRadius, -mapRadius);
+			base = mapHexAtCoordinateAuto (base, -1, mapRadius, -mapRadius);
+		}
+		systemPlacePlayerAt (base);
 	}
 	component_instantiate ("walking", player);
 
@@ -343,30 +359,81 @@ static void systemInitialize (void)
 	return;
 }
 
-#include <GL/glpng.h>
-#include "texture.h"
-void systemStart (void)
+
+void systemBootstrapInit (void)
 {
-	/* for the record, the VideoEntity calls SDL_Init; everything else
-	 * calls SDL_InitSubSystem. so the video entity has to start first.
-	 * If this becomes a problem, feel free to switch the SDL_Init call
-	 * to somewhere where it will /really/ always be called first (the
-	 * system entity seems like a good place) and make everything else
-	 * use SDL_InitSubSystem.
+	/* this is where any loading that's absolutely needed from the first frame
+	 * onwards should go -- sdl initialization, font loading, loading screen
+	 * effects, etc
+	 *  - xph 2011 09 26
 	 */
-	LOG (E_FUNCLABEL, "%s...", __FUNCTION__);
 	obj_message (VideoObject, OM_START, NULL, NULL);
 	//obj_message (PhysicsObject, OM_START, NULL, NULL);
 	//obj_message (WorldObject, OM_START, NULL, NULL);
 	//entitySubsystem_message ("ground", OM_START, NULL, NULL);
 	loadFont ("../img/default.png");
-	
+	loadSetText ("Loading...");
+}
+
+void systemBootstrapFinalize (void)
+{
+	systemClearStates();
+	systemPushState (STATE_UI);
+}
+
+void systemBootstrap (TIMER t)
+{
+	Entity
+		titleScreenMenu;
+	unsigned int
+		height,
+		width;
+	/* this is where any loading that's needed for the system ui or for title
+	 * screen effects should go
+	 *  - xph 2011 09 26
+	 */
+
+	/* this, though, is just a filler that ought to be set elsewhere and remembered */
+	srand (time (NULL));
+
+
+
+	video_getDimensions (&height, &width);
+	titleScreenMenu = entity_create ();
+	component_instantiate ("ui", titleScreenMenu);
+	entity_message (titleScreenMenu, NULL, "setType", (void *)UI_MENU);
+	component_instantiate ("input", titleScreenMenu);
+	input_addEntity (titleScreenMenu, INPUT_FOCUSED);
+
+	entity_message (titleScreenMenu, NULL, "addValue", "this is a test of the menu code and also the ui code and also aaaaah :(");
+	entity_message (titleScreenMenu, NULL, "addValue", "second option");
+	entity_message (titleScreenMenu, NULL, "addValue", "third option");
+	entity_message (titleScreenMenu, NULL, "addValue", "blah blah blah etc");
+	entity_message (titleScreenMenu, NULL, "addValue", "lorem ipsum dolor sit amet");
+	entity_message (titleScreenMenu, NULL, "addValue", "Quit");
+
+	entity_message (titleScreenMenu, NULL, "setWidth", (void *)(int)(width / 4));
+	entity_message (titleScreenMenu, NULL, "setPosType", (void *)(PANEL_X_CENTER | PANEL_Y_ALIGN_23));
+	entity_message (titleScreenMenu, NULL, "setFrameBG", (void *)FRAMEBG_SOLID);
+	entity_message (titleScreenMenu, NULL, "setBorder", (void *)4);
+	entity_message (titleScreenMenu, NULL, "setLineSpacing", (void *)4);
+
+	systemPushUI (titleScreenMenu);
+
+	loadSetGoal (1);
+	loadSetLoaded (1);
+}
+
+/*
+void systemStart (void)
+{
 	printf ("DONE W/ SYSTEM START:\n");
 	printf ("ARTIFICIALLY TRIGGERING WORLDGEN:\n");
 	systemLoad (worldgenAbsHocNihilo, worldgenExpandWorldGraph, worldgenFinalizeCreation);
 
 	LOG (E_FUNCLABEL, "...%s", __FUNCTION__);
 }
+*/
 
 /***
  * UPDATING
@@ -468,7 +535,7 @@ void systemRender (void)
 		entity_message (camera, NULL, "getMatrix", &matrix);
 		if (matrix != NULL)
 			glLoadMatrixf (matrix);
-		mapDraw ();
+		mapDraw (matrix);
 		if (systemState (System) == STATE_FREEVIEW && camera_getMode (camera) == CAMERA_FIRST_PERSON)
 		{
 			glLoadIdentity ();
