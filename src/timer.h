@@ -39,8 +39,11 @@ void timerStart (TIMER t);
 bool outOfTime (TIMER t);
 
 void timerUpdate (TIMER t);
+float lastTimestep (const TIMER t);
 float timerGetTotalTimeElapsed (const TIMER t);
 float timerGetTimeSinceLastUpdate (const TIMER t);
+
+float timerPercentageToGoal (const TIMER t);
 
 void xtimerUpdateAll ();
 void xtimerDestroyRegistry ();

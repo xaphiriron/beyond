@@ -41,13 +41,55 @@ struct uiTextFragment
 		reservedText;
 };
 
+struct uiMenuOpt
+{
+	float
+		highlight;
+	// TODO: add menu response triggers or w/e
+};
+
+struct uiFrame
+{
+	enum uiFramePos
+		positionType;
+	enum uiFrameBackground
+		background;
+	signed int
+		x, y,
+		xMargin,
+		border,
+		lineSpacing;
+};
+
 struct uiStaticText
 {
 	enum uiPanelTypes
 		type;
+	struct uiFrame
+		* frame;
 
 	Dynarr
 		fragments;
+};
+
+struct uiMenu
+{
+	enum uiPanelTypes
+		type;
+	struct uiFrame
+		* frame;
+
+	Dynarr
+		fragments,
+		menuOpt;
+
+	unsigned int
+		lastIndex,
+		activeIndex;
+	float
+		fadeScale;
+	TIMER
+		timer;
 };
 
 struct uiMapData
@@ -69,6 +111,8 @@ union uiPanels
 		staticText;
 	struct uiMapData
 		map;
+	struct uiMenu
+		menu;
 };
 
 static unsigned int
@@ -78,12 +122,21 @@ static unsigned int
 static UIPANEL uiPanel_createEmpty ();
 static void uiPanel_destroy (UIPANEL ui);
 
+static struct uiFrame * uiFrame_createEmpty ();
+static void uiFrame_destroy (struct uiFrame * frame);
+
+static void uiFrame_getXY (struct uiFrame * frame, signed int * x, signed int * y);
+
 static struct uiTextFragment * uiFragmentCreate (const char * text, enum textAlignType align, signed int x, signed int y);
 static void uiFragmentDestroy (void * v);
+
+static struct uiMenuOpt * uiMenuOpt_createEmpty ();
+static void uiMenuOpt_destroy (struct uiMenuOpt * opt);
 
 static void uiWorldmapGenLevel (struct uiMapData * map, unsigned char span);
 
 static void uiDrawPane (signed int x, signed int y, signed int width, signed int height, const TEXTURE texture);
+static void ui_drawIndex (struct uiMenu * menu);
 //static void uiDrawSkewPane (signed int x, signed int y, signed int width, signed int height, enum uiSkewTypes skew, const void * const * style);
 
 void uiDrawCursor ()
@@ -131,8 +184,20 @@ void ui_classInit (EntComponent ui, void * arg)
 	component_registerResponse ("ui", "__init", ui_create);
 	component_registerResponse ("ui", "__destroy", ui_destroy);
 
+	component_registerResponse ("ui", "__update", ui_update);
+
 	component_registerResponse ("ui", "setType", ui_setType);
 	component_registerResponse ("ui", "getType", ui_getType);
+
+	component_registerResponse ("ui", "addValue", ui_addValue);
+
+	component_registerResponse ("ui", "setPosType", ui_setPositionType);
+	component_registerResponse ("ui", "setFrameBG", ui_setBackground);
+	component_registerResponse ("ui", "setBorder", ui_setBorder);
+	component_registerResponse ("ui", "setLineSpacing", ui_setLineSpacing);
+	component_registerResponse ("ui", "setXPos", ui_setXPosition);
+	component_registerResponse ("ui", "setYPos", ui_setYPosition);
+	component_registerResponse ("ui", "setWidth", ui_setWidth);
 
 	component_registerResponse ("ui", "FOCUS_INPUT", ui_handleInput);
 
@@ -156,6 +221,44 @@ void ui_destroy (EntComponent ui, void * arg)
 	component_clearData (ui);
 }
 
+void ui_update (EntComponent ui, void * arg)
+{
+	Dynarr
+		uiEntities = entity_getEntitiesWithComponent (1, "ui");
+	Entity
+		uiEntity;
+	UIPANEL
+		uiData;
+	struct uiMenuOpt
+		* opt;
+	int
+		i = 0,
+		j = 0;
+
+	while ((uiEntity = *(Entity *)dynarr_at (uiEntities, i++)) != NULL)
+	{
+		uiData = component_getData (entity_getAs (uiEntity, "ui"));
+		j = 0;
+
+		switch (uiData->type)
+		{
+			case UI_MENU:
+				while ((opt = *(struct uiMenuOpt **)dynarr_at (uiData->menu.menuOpt, j++)) != NULL)
+				{
+					if (opt->highlight == 0.0)
+						continue;
+					opt->highlight -= lastTimestep (uiData->menu.timer) * uiData->menu.fadeScale;
+					if (opt->highlight < 0.0)
+						opt->highlight = 0.0;
+				}
+				break;
+			default:
+				break;
+		}
+
+	}
+}
+
 void ui_setType (EntComponent ui, void * arg)
 {
 	Entity
@@ -177,6 +280,7 @@ void ui_setType (EntComponent ui, void * arg)
 	{
 		case UI_STATICTEXT:
 			uiData->staticText.fragments = dynarr_create (3, sizeof (struct uiTextFragment *));
+			uiData->staticText.frame = uiFrame_createEmpty ();
 			break;
 
 		case UI_DEBUG_OVERLAY:
@@ -193,10 +297,20 @@ void ui_setType (EntComponent ui, void * arg)
 			break;
 
 		case UI_WORLDMAP:
-
 			uiData->map.scales = dynarr_create (mapGetSpan () + 1, sizeof (TEXTURE));
 			uiWorldmapGenLevel (&uiData->map, 0);
 			uiData->map.currentScale = 0;
+			break;
+
+		case UI_MENU:
+			uiData->menu.fragments = dynarr_create (3, sizeof (struct uiTextFragment *));
+			uiData->menu.menuOpt = dynarr_create (3, sizeof (struct uiMenuOpt *));
+			uiData->menu.frame = uiFrame_createEmpty ();
+			uiData->menu.lastIndex = 0;
+			uiData->menu.activeIndex = 0;
+			uiData->menu.timer = timerCreate ();
+			uiData->menu.fadeScale = 6.0;
+			//timerPause (uiData->menu.timer);
 			break;
 
 		default:
@@ -215,12 +329,231 @@ void ui_getType (EntComponent ui, void * arg)
 	*type = uiData->type;
 }
 
+void ui_addValue (EntComponent ui, void * arg)
+{
+	UIPANEL
+		uiData = component_getData (ui);
+	struct uiFrame
+		* frame;
+	Dynarr
+		fragments;
+	int
+		x, y,
+		yOffset = 0;
+	if (uiData->type != UI_STATICTEXT && uiData->type != UI_MENU)
+	{
+		// TODO: maybe warn here?
+		return;
+	}
+	if (uiData->type == UI_STATICTEXT)
+	{
+		fragments = uiData->staticText.fragments;
+		frame = uiData->staticText.frame;
+	}
+	else
+	{
+		fragments = uiData->menu.fragments;
+		frame = uiData->menu.frame;
+	}
+
+	uiFrame_getXY (frame, &x, &y);
+
+	yOffset = dynarr_size (fragments) * systemLineHeight ();
+	dynarr_push (fragments, uiFragmentCreate (arg, ALIGN_LEFT, x, y + yOffset));
+	if (uiData->type == UI_MENU)
+	{
+		dynarr_push (uiData->menu.menuOpt, uiMenuOpt_createEmpty ());
+	}
+}
+
+void ui_setPositionType (EntComponent ui, void * arg)
+{
+	UIPANEL
+		uiData = component_getData (ui);
+	enum uiFramePos
+		posType = (enum uiFramePos)arg;
+	struct uiFrame
+		* frame;
+	Dynarr
+		fragments;
+	struct uiTextFragment
+		* text;
+	signed int
+		x, y,
+		i = 0;
+	if (uiData->type != UI_STATICTEXT && uiData->type != UI_MENU)
+	{
+		return;
+	}
+	if (uiData->type == UI_STATICTEXT)
+	{
+		frame = uiData->staticText.frame;
+		fragments = uiData->staticText.fragments;
+	}
+	else
+	{
+		frame = uiData->menu.frame;
+		fragments = uiData->menu.fragments;
+	}
+
+	if (posType & PANEL_X_MASK)
+	{
+		frame->positionType &= ~PANEL_X_MASK;
+		frame->positionType |= (posType & PANEL_X_MASK);
+	}
+	if (posType & PANEL_Y_MASK)
+	{
+		frame->positionType &= ~PANEL_Y_MASK;
+		frame->positionType |= (posType & PANEL_Y_MASK);
+	}
+
+	uiFrame_getXY (frame, &x, &y);
+	while ((text = *(struct uiTextFragment **)dynarr_at (fragments, i)) != NULL)
+	{
+		text->xAlign = x;
+		text->yAlign = y + frame->lineSpacing * i;
+		i++;
+	}
+}
+
+void ui_setBackground (EntComponent ui, void * arg)
+{
+	UIPANEL
+		uiData = component_getData (ui);
+	enum uiFrameBackground
+		bg = (enum uiFrameBackground)arg;
+	struct uiFrame
+		* frame;
+	if (uiData->type != UI_STATICTEXT && uiData->type != UI_MENU)
+	{
+		return;
+	}
+	if (uiData->type == UI_STATICTEXT)
+		frame = uiData->staticText.frame;
+	else
+		frame = uiData->menu.frame;
+
+	frame->background = bg;
+}
+
+void ui_setBorder (EntComponent ui, void * arg)
+{
+	UIPANEL
+		uiData = component_getData (ui);
+	struct uiFrame
+		* frame;
+	signed int
+		border = (signed int)arg;
+
+	if (uiData->type != UI_MENU && uiData->type != UI_STATICTEXT)
+		return;
+	if (uiData->type == UI_STATICTEXT)
+		frame = uiData->staticText.frame;
+	else
+		frame = uiData->menu.frame;
+
+	frame->border = border;
+}
+
+void ui_setLineSpacing (EntComponent ui, void * arg)
+{
+	UIPANEL
+		uiData = component_getData (ui);
+	struct uiFrame
+		* frame;
+	signed int
+		lineSpacing = (signed int)arg;
+
+	if (uiData->type != UI_MENU && uiData->type != UI_STATICTEXT)
+		return;
+	if (uiData->type == UI_STATICTEXT)
+		frame = uiData->staticText.frame;
+	else
+		frame = uiData->menu.frame;
+
+	frame->lineSpacing = systemLineHeight () + lineSpacing;
+
+	/* if we change the spacing we need to recalculate the text fragments - xph 2011 09 27 */
+	ui_setPositionType (ui, (void *)frame->positionType);
+}
+
+void ui_setXPosition (EntComponent ui, void * arg)
+{
+	UIPANEL
+		uiData = component_getData (ui);
+	struct uiFrame
+		* frame;
+	signed int
+		xPos = (signed int)arg;
+
+	if (uiData->type != UI_MENU && uiData->type != UI_STATICTEXT)
+		return;
+	if (uiData->type == UI_STATICTEXT)
+		frame = uiData->staticText.frame;
+	else
+		frame = uiData->menu.frame;
+
+
+	if ((frame->positionType & PANEL_X_MASK) != PANEL_X_FREE)
+		return;
+	frame->x = xPos;
+}
+
+void ui_setYPosition (EntComponent ui, void * arg)
+{
+	UIPANEL
+		uiData = component_getData (ui);
+	struct uiFrame
+		* frame;
+	signed int
+		yPos = (signed int)arg;
+
+
+	if (uiData->type != UI_MENU && uiData->type != UI_STATICTEXT)
+		return;
+	if (uiData->type == UI_STATICTEXT)
+		frame = uiData->staticText.frame;
+	else
+		frame = uiData->menu.frame;
+
+	if ((frame->positionType & PANEL_Y_MASK) != PANEL_Y_FREE)
+		return;
+	frame->y = yPos;
+}
+
+void ui_setWidth (EntComponent ui, void * arg)
+{
+	UIPANEL
+		uiData = component_getData (ui);
+	struct uiFrame
+		* frame;
+
+	signed int
+		width = (signed int)arg;
+
+	if (uiData->type != UI_MENU && uiData->type != UI_STATICTEXT)
+		return;
+	if (uiData->type == UI_STATICTEXT)
+		frame = uiData->staticText.frame;
+	else
+		frame = uiData->menu.frame;
+
+	frame->xMargin = width;
+	if (frame->positionType & PANEL_X_CENTER)
+	{
+		/* if we change the width and this is a centered frame we need to recalculate the text fragments - xph 2011 09 26*/
+		ui_setPositionType (ui, (void *)frame->positionType);
+	}
+}
+
 void ui_handleInput (EntComponent ui, void * arg)
 {
 	UIPANEL
 		uiData = component_getData (ui);
 	struct input_event
 		* inputEvent = arg;
+	struct uiMenuOpt
+		* opt;
 	switch (uiData->type)
 	{
 		case UI_WORLDMAP:
@@ -249,6 +582,35 @@ void ui_handleInput (EntComponent ui, void * arg)
 					break;
 			}
 			break;
+		case UI_MENU:
+			switch (inputEvent->ir)
+			{
+				case IR_UI_MENU_INDEX_DOWN:
+					if (uiData->menu.activeIndex < dynarr_size (uiData->menu.fragments) - 1)
+					{
+						opt = *(struct uiMenuOpt **)dynarr_at (uiData->menu.menuOpt, uiData->menu.activeIndex);
+						opt->highlight = 1.0;
+						uiData->menu.lastIndex = uiData->menu.activeIndex;
+						uiData->menu.activeIndex++;
+						timerSetGoal (uiData->menu.timer, 0.20);
+						timerStart (uiData->menu.timer);
+					}
+					break;
+				case IR_UI_MENU_INDEX_UP:
+					if (uiData->menu.activeIndex > 0)
+					{
+						opt = *(struct uiMenuOpt **)dynarr_at (uiData->menu.menuOpt, uiData->menu.activeIndex);
+						opt->highlight = 1.0;
+						uiData->menu.lastIndex = uiData->menu.activeIndex;
+						uiData->menu.activeIndex--;
+						timerSetGoal (uiData->menu.timer, 0.20);
+						timerStart (uiData->menu.timer);
+					}
+					break;
+				default:
+					break;
+			}
+			break;
 		default:
 			break;
 	}
@@ -259,9 +621,14 @@ void ui_draw (EntComponent ui, void * arg)
 	UIPANEL
 		uiData = component_getData (ui);
 
+	struct uiFrame
+		* frame = NULL;
 	struct uiTextFragment
 		* fragment = NULL;
+	struct uiMenuOpt
+		* opt = NULL;
 	int
+		x, y,
 		i = 0;
 
 	switch (uiData->type)
@@ -279,13 +646,42 @@ void ui_draw (EntComponent ui, void * arg)
 			break;
 
 		case UI_WORLDMAP:
-			
 			glColor3f (1.0, 1.0, 1.0);
 			uiDrawPane ((width - (height - 32)) / 2, 16, height - 32, height - 32, *(TEXTURE *)dynarr_at (uiData->map.scales, uiData->map.currentScale));
 			break;
 
+		case UI_MENU:
+			frame = uiData->menu.frame;
+			uiFrame_getXY (frame, &x, &y);
+			if (frame->background != FRAMEBG_TRANSPARENT)
+			{
+				glColor3f (0.0, 0.0, 0.0);
+				uiDrawPane (x - frame->border, y - frame->border, frame->xMargin + frame->border, dynarr_size (uiData->menu.fragments) * frame->lineSpacing + frame->border, NULL);
+			}
+			while ((fragment = *(struct uiTextFragment **)dynarr_at (uiData->menu.fragments, i)) != NULL)
+			{
+				if (i == uiData->menu.activeIndex)
+				{
+					glColor3ub (0xff, 0xff, 0xff);
+				}
+				else
+				{
+					opt = *(struct uiMenuOpt **)dynarr_at (uiData->menu.menuOpt, i);
+					glColor3f (
+						0.8 + opt->highlight * 0.2,
+						0.8 + opt->highlight * 0.2,
+						0.8 + opt->highlight * 0.2
+					);
+				}
+				textAlign (fragment->align);
+				drawLine (fragment->text, fragment->xAlign, fragment->yAlign);
+				i++;
+			}
+			ui_drawIndex (&uiData->menu);
+			break;
+
 		default:
-			break;	
+			break;
 	}
 }
 
@@ -310,11 +706,20 @@ static void uiPanel_destroy (UIPANEL ui)
 		case UI_STATICTEXT:
 			dynarr_map (ui->staticText.fragments, uiFragmentDestroy);
 			dynarr_destroy (ui->staticText.fragments);
+			uiFrame_destroy (ui->staticText.frame);
 			break;
 
 		case UI_WORLDMAP:
 			dynarr_map (ui->map.scales, (void (*)(void *))textureDestroy);
 			dynarr_destroy (ui->map.scales);
+			break;
+
+		case UI_MENU:
+			dynarr_map (ui->menu.fragments, uiFragmentDestroy);
+			dynarr_destroy (ui->menu.fragments);
+			dynarr_map (ui->menu.menuOpt, (void (*)(void *))uiMenuOpt_destroy);
+			dynarr_destroy (ui->menu.menuOpt);
+			uiFrame_destroy (ui->menu.frame);
 			break;
 		default:
 			break;
@@ -323,6 +728,75 @@ static void uiPanel_destroy (UIPANEL ui)
 	xph_free (ui);
 }
 
+static struct uiFrame * uiFrame_createEmpty ()
+{
+	struct uiFrame
+		* frame = xph_alloc (sizeof (struct uiFrame));
+	memset (frame, 0, sizeof (struct uiFrame));
+	frame->positionType = PANEL_X_CENTER | PANEL_Y_CENTER;
+	frame->background = FRAMEBG_TRANSPARENT;
+	frame->lineSpacing = systemLineHeight ();
+	return frame;
+}
+
+static void uiFrame_destroy (struct uiFrame * frame)
+{
+	xph_free (frame);
+}
+
+static void uiFrame_getXY (struct uiFrame * frame, signed int * x, signed int * y)
+{
+	if (x != NULL)
+	{
+		switch (frame->positionType & PANEL_X_MASK)
+		{
+			case PANEL_X_FREE:
+				*x = frame->x;
+				break;
+			case PANEL_X_ALIGN_14:
+				*x = width / 4;
+				break;
+			case PANEL_X_ALIGN_12:
+				*x = width / 2;
+				break;
+			case PANEL_X_ALIGN_34:
+				*x = width * .75;
+				break;
+			case PANEL_X_CENTER:
+				*x = width / 2 - frame->xMargin / 2;
+				break;
+			default:
+				*x = 0;
+				break;
+		}
+	}
+
+	if (y != NULL)
+	{
+		switch (frame->positionType & PANEL_Y_MASK)
+		{
+			case PANEL_Y_FREE:
+				*y = frame->y;
+				break;
+			case PANEL_Y_ALIGN_13:
+				*y = height / 3;
+				break;
+			case PANEL_Y_ALIGN_12:
+				*y = height / 2;
+				break;
+			case PANEL_Y_ALIGN_23:
+				*y = height / 1.5;
+				break;
+			case PANEL_Y_CENTER:
+				 /* FIXME: currently height is implicitly calculated using "systemLineHeight () * dynarr_size(fragments)"; that makes it impossible to calculate the proper centered height here. also that's a bad way of storing frame height. */
+				*y = height / 2;
+				break;
+			default:
+				*y = 0;
+				break;
+		}
+	}
+}
 
 static struct uiTextFragment * uiFragmentCreate (const char * text, enum textAlignType align, signed int x, signed int y)
 {
@@ -362,6 +836,20 @@ static void uiFragmentDestroy (void * v)
 	xph_free (uit);
 }
 
+static struct uiMenuOpt * uiMenuOpt_createEmpty ()
+{
+	struct uiMenuOpt
+		* opt = xph_alloc (sizeof (struct uiMenuOpt));
+	opt->highlight = 0.0;
+
+	return opt;
+}
+
+static void uiMenuOpt_destroy (struct uiMenuOpt * opt)
+{
+	xph_free (opt);
+}
+
 static void uiWorldmapGenLevel (struct uiMapData * map, unsigned char span)
 {
 	SUBHEX
@@ -398,6 +886,58 @@ static void uiDrawPane (signed int x, signed int y, signed int width, signed int
 	glTexCoord2f (1.0, 0.0);
 	glVertex3f (right, bottom, zNear);
 	glTexCoord2f (1.0, 1.0);
+	glVertex3f (right, top, zNear);
+	glEnd ();
+}
+
+static void ui_drawIndex (struct uiMenu * menu)
+{
+	signed int
+		x, y,
+		diff = 0;
+	float
+		top,
+		left,
+		bottom,
+		right,
+		topMovement = 0.0,
+		width = 16,
+		height = 16,
+		zNear = video_getZnear () - 0.001,
+		percentage;
+	uiFrame_getXY (menu->frame, &x, &y);
+	if ((percentage = timerPercentageToGoal (menu->timer)) >= 1.0)
+	{
+		//timerPause (menu->timer);
+		timerSetGoal (menu->timer, 0.0);
+		top = video_pixelYMap (
+			(y - menu->frame->border) +
+			(menu->frame->lineSpacing - height) / 2 +
+			(menu->frame->lineSpacing * menu->activeIndex)
+		);
+	}
+	else
+	{
+		diff = menu->lastIndex - menu->activeIndex;
+		topMovement = (1 - ((sin (percentage * M_PI - M_PI_2) + 1) / 2.0)) * menu->frame->lineSpacing * diff;
+		top = video_pixelYMap (
+			(y - menu->frame->border) +
+			(menu->frame->lineSpacing - height) / 2 +
+			(menu->frame->lineSpacing * menu->activeIndex) +
+			topMovement
+		);
+	}
+
+	left = video_pixelXMap (x - menu->frame->border - width * 1.25);
+	bottom = top + video_pixelYOffset (height);
+	right = left + video_pixelXOffset (width);
+
+	glColor3f (1.0, 0.0, 0.0);
+	glBindTexture (GL_TEXTURE_2D, 0);
+	glBegin (GL_TRIANGLE_FAN);
+	glVertex3f (left, top, zNear);
+	glVertex3f (left, bottom, zNear);
+	glVertex3f (right, bottom, zNear);
 	glVertex3f (right, top, zNear);
 	glEnd ();
 }

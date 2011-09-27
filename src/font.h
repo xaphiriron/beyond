@@ -14,6 +14,8 @@ ALIGN_JUSTIFY = 4
 
 void loadFont (const char * path);
 
+int systemLineHeight ();
+
 enum textAlignType textAlign (enum textAlignType);
 void drawLine (const char * line, signed int x, signed int y);
 

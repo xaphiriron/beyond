@@ -7,8 +7,9 @@ struct timer
 	float
 		scale,
 		elapsed,
-		goal,
-		goalElapsed;
+		goal,			// like 2.00 for two seconds
+		goalElapsed,	// the amount of time elapsed towards the goal
+		lastTimestep;
 	CLOCK
 		* clock;
 	enum
@@ -53,12 +54,14 @@ float timeval_asFloat (const struct timeval * t) {
   return t->tv_sec + (t->tv_usec / 1000000.0);
 }
 
-
+static CLOCK
+	* BaseClock = NULL;
 
 
 CLOCK * clock_create () {
   CLOCK * c = xph_alloc (sizeof (CLOCK));
-  memset (c, '\0', sizeof (CLOCK));
+  memset (c, 0, sizeof (CLOCK));
+	BaseClock = c;
   return c;
 }
 
@@ -77,9 +80,10 @@ TIMER timerCreate ()
 	TIMER t = xph_alloc (sizeof (struct timer));
 	t->scale = 1;
 	t->elapsed = 0.0;
-	t->clock = NULL;
+	t->clock = BaseClock;
 	t->paused = TIMER_RUNNING;
-	memset (&t->lastUpdate, '\0', sizeof (struct timeval));
+	t->lastTimestep = 0.0;
+	memset (&t->lastUpdate, 0, sizeof (struct timeval));
 	xtimer_registerTimer (t);
 	return t;
 }
@@ -109,6 +113,9 @@ void timerSetGoal (TIMER t, float goal)
 void timerPause (TIMER t)
 {
 	t->paused = TIMER_PAUSED;
+	t->elapsed = 0.0;
+	t->lastUpdate.tv_sec = 0;
+	t->lastUpdate.tv_usec = 0;
 }
 
 void timerStart (TIMER t)
@@ -141,7 +148,13 @@ void timerUpdate (TIMER t)
 	t->elapsed += u * t->scale;
 	if (t->goal)
 		t->goalElapsed += u * t->scale;
+	t->lastTimestep = u;
 	t->lastUpdate = t->clock->now;
+}
+
+float lastTimestep (const TIMER t)
+{
+	return t->lastTimestep;
 }
 
 float timerGetTotalTimeElapsed (const TIMER t)
@@ -156,7 +169,15 @@ float timerGetTimeSinceLastUpdate (const TIMER t)
 	return timeval_cmp (&t->clock->now, &t->lastUpdate) * t->scale;
 }
 
-static Dynarr TimerRegistry = NULL;
+float timerPercentageToGoal (const TIMER t)
+{
+	if (t->goal == 0.0)
+		return 1.0;
+	return t->goalElapsed / t->goal;
+}
+
+static Dynarr
+	TimerRegistry = NULL;
 
 void xtimerUpdateAll () {
   TIMER t = NULL;

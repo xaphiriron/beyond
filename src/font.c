@@ -18,6 +18,13 @@ void loadFont (const char * path)
 	SystemFont = sheetCreate (path, SHEET_MULTISIZE);
 }
 
+int systemLineHeight ()
+{
+	if (SystemFont == NULL)
+		return -1;
+	return sheetGetHeightRange (SystemFont);
+}
+
 static enum textAlignType
 	TextAlign = ALIGN_LEFT;
 enum textAlignType textAlign (enum textAlignType align)

@@ -354,6 +354,7 @@ static void systemInitialize (void)
 	entitySubsystem_store ("walking");
 	entitySubsystem_store ("camera");
 	entitySubsystem_store ("input");
+	entitySubsystem_store ("ui");
 
 	// not really sure where these should go; they're going here for now.
 	system_registerTimedFunction (entity_purgeDestroyed, 0x7f);
