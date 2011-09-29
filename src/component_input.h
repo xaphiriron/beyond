@@ -28,6 +28,7 @@ enum input_responses {
 	IR_FREEMOVE_LOOK			= 6,
 
 	IR_FREEMOVE_MOUSEMOVE		= 7,
+	IR_FREEMOVE_MOUSECLICK		= 8,
 
 	IR_CAMERA_MOVE_BACK			= 16,
 	IR_CAMERA_MOVE_FORWARD		= 17,
@@ -47,6 +48,7 @@ enum input_responses {
 	IR_UI_CONFIRM,
 
 	IR_UI_MOUSEMOVE,
+	IR_UI_MOUSECLICK,
 
 
 	IR_QUIT,

@@ -330,6 +330,13 @@ void input_update (Object * d)
 					input_sendGameEventMessage (&input_event);
 				}
 				break;
+			case SDL_MOUSEBUTTONDOWN:
+				if (systemState () == STATE_FREEVIEW)
+					input_event.ir = IR_FREEMOVE_MOUSECLICK;
+				else if (systemState () == STATE_UI)
+					input_event.ir = IR_UI_MOUSECLICK;
+				input_sendGameEventMessage (&input_event);
+				break;
 
 			case SDL_KEYDOWN:
 				if (in_dynarr (Input->keysPressed, Input->event.key.keysym.sym) >= 0)
