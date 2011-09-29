@@ -133,6 +133,10 @@ static void uiFragmentDestroy (void * v);
 static struct uiMenuOpt * uiMenuOpt_createEmpty ();
 static void uiMenuOpt_destroy (struct uiMenuOpt * opt);
 
+// should this maybe be something that a message can be sent about? - xph 2011 09 29
+static void uiMenu_setActiveIndex (UIPANEL ui, unsigned int index);
+static signed int uiMenu_mouseHit (UIPANEL ui, signed int mx, signed int my);
+
 static void uiWorldmapGenLevel (struct uiMapData * map, unsigned char span);
 
 static void uiDrawPane (signed int x, signed int y, signed int width, signed int height, const TEXTURE texture);
@@ -171,6 +175,69 @@ void uiDrawCursor ()
 	glVertex3f (right, bottom, zNear);
 	glVertex3f (left, bottom, zNear);
 	glEnd ();
+}
+
+
+void ui_getXY (UIPANEL ui, signed int * x, signed int * y)
+{
+	signed int
+		fx, fy;
+	struct uiFrame
+		* frame = NULL;
+	if (ui->type != UI_MENU && ui->type != UI_STATICTEXT)
+	{
+		if (x != NULL)
+			*x = 0;
+		if (y != NULL)
+			*y = 0;
+		return;
+	}
+	if (ui->type == UI_MENU)
+	{
+		frame = ui->menu.frame;
+	}
+	else
+	{
+		frame = ui->staticText.frame;
+	}
+
+	uiFrame_getXY (frame, &fx, &fy);
+	if (x != NULL)
+		*x = fx - frame->border;
+	if (y != NULL)
+		*y = fy - frame->border;
+}
+
+void ui_getWH (UIPANEL ui, signed int * w, signed int * h)
+{
+	struct uiFrame
+		* frame = NULL;
+	Dynarr
+		fragments = NULL;
+
+	if (ui->type != UI_MENU && ui->type != UI_STATICTEXT)
+	{
+		if (w != NULL)
+			*w = 0;
+		if (h != NULL)
+			*h = 0;
+		return;
+	}
+	if (ui->type == UI_MENU)
+	{
+		frame = ui->menu.frame;
+		fragments = ui->menu.fragments;
+	}
+	else
+	{
+		frame = ui->staticText.frame;
+		fragments = ui->staticText.fragments;
+	}
+
+	if (w != NULL)
+		*w = frame->xMargin + frame->border;
+	if (h != NULL)
+		*h = dynarr_size (fragments) * frame->lineSpacing + frame->border;
 }
 
 /***
@@ -554,6 +621,8 @@ void ui_handleInput (EntComponent ui, void * arg)
 		* inputEvent = arg;
 	struct uiMenuOpt
 		* opt;
+	signed int
+		i = 0;
 	switch (uiData->type)
 	{
 		case UI_WORLDMAP:
@@ -588,24 +657,35 @@ void ui_handleInput (EntComponent ui, void * arg)
 				case IR_UI_MENU_INDEX_DOWN:
 					if (uiData->menu.activeIndex < dynarr_size (uiData->menu.fragments) - 1)
 					{
-						opt = *(struct uiMenuOpt **)dynarr_at (uiData->menu.menuOpt, uiData->menu.activeIndex);
-						opt->highlight = 1.0;
-						uiData->menu.lastIndex = uiData->menu.activeIndex;
-						uiData->menu.activeIndex++;
-						timerSetGoal (uiData->menu.timer, 0.20);
-						timerStart (uiData->menu.timer);
+						uiMenu_setActiveIndex (uiData, uiData->menu.activeIndex + 1);
 					}
 					break;
 				case IR_UI_MENU_INDEX_UP:
 					if (uiData->menu.activeIndex > 0)
 					{
-						opt = *(struct uiMenuOpt **)dynarr_at (uiData->menu.menuOpt, uiData->menu.activeIndex);
-						opt->highlight = 1.0;
-						uiData->menu.lastIndex = uiData->menu.activeIndex;
-						uiData->menu.activeIndex--;
-						timerSetGoal (uiData->menu.timer, 0.20);
-						timerStart (uiData->menu.timer);
+						uiMenu_setActiveIndex (uiData, uiData->menu.activeIndex - 1);
 					}
+					break;
+				case IR_UI_CONFIRM:
+					opt = *(struct uiMenuOpt **)dynarr_at (uiData->menu.menuOpt, uiData->menu.activeIndex);
+					input_sendAction (opt->action);
+					break;
+				case IR_UI_MOUSEMOVE:
+					i = uiMenu_mouseHit (uiData, inputEvent->event->motion.x, inputEvent->event->motion.y);
+					if (i < 0)
+						break;
+					uiMenu_setActiveIndex (uiData, i);
+					break;
+				case IR_UI_MOUSECLICK:
+					i = uiMenu_mouseHit (uiData, inputEvent->event->button.x, inputEvent->event->button.y);
+					if (i < 0)
+						break;
+					if (i != uiData->menu.activeIndex)
+					{
+						// ?!
+						uiMenu_setActiveIndex (uiData, i);
+					}
+					input_sendAction (IR_UI_CONFIRM);
 					break;
 				default:
 					break;
@@ -629,6 +709,7 @@ void ui_draw (EntComponent ui, void * arg)
 		* opt = NULL;
 	int
 		x, y,
+		w, h,
 		i = 0;
 
 	switch (uiData->type)
@@ -652,11 +733,12 @@ void ui_draw (EntComponent ui, void * arg)
 
 		case UI_MENU:
 			frame = uiData->menu.frame;
-			uiFrame_getXY (frame, &x, &y);
+			ui_getXY (uiData, &x, &y);
+			ui_getWH (uiData, &w, &h);
 			if (frame->background != FRAMEBG_TRANSPARENT)
 			{
 				glColor3f (0.0, 0.0, 0.0);
-				uiDrawPane (x - frame->border, y - frame->border, frame->xMargin + frame->border, dynarr_size (uiData->menu.fragments) * frame->lineSpacing + frame->border, NULL);
+				uiDrawPane (x, y, w, h, NULL);
 			}
 			while ((fragment = *(struct uiTextFragment **)dynarr_at (uiData->menu.fragments, i)) != NULL)
 			{
@@ -849,6 +931,55 @@ static void uiMenuOpt_destroy (struct uiMenuOpt * opt)
 {
 	xph_free (opt);
 }
+
+static void uiMenu_setActiveIndex (UIPANEL ui, unsigned int index)
+{
+	struct uiMenuOpt
+		* opt;
+	if (ui->type != UI_MENU)
+		return;
+	if (index == ui->menu.activeIndex)
+		return;
+
+	opt = *(struct uiMenuOpt **)dynarr_at (ui->menu.menuOpt, ui->menu.activeIndex);
+	opt->highlight = 1.0;
+	ui->menu.lastIndex = ui->menu.activeIndex;
+	ui->menu.activeIndex = index;
+	timerSetGoal (ui->menu.timer, 0.20);
+	timerStart (ui->menu.timer);
+}
+
+static signed int uiMenu_mouseHit (UIPANEL ui, signed int mx, signed int my)
+{
+	signed int
+		x, y,
+		w, h,
+		index = 0,
+		hitHeight,
+		hitY;
+	if (ui->type != UI_MENU)
+		return -1;
+
+	ui_getXY (ui, &x, &y);
+	ui_getWH (ui, &w, &h);
+	if (mx < x || mx > x + w || my < y || my > y + h)
+		return -1;
+	hitHeight = ui->menu.frame->lineSpacing;
+	hitY = y + ui->menu.frame->border;
+
+	while (my > hitY)
+	{
+		if (index >= dynarr_size (ui->menu.fragments))
+			break;
+		if (my < hitY + hitHeight)
+			return index;
+		hitY += hitHeight;
+		index++;
+	}
+	return -1;
+}
+
+
 
 static void uiWorldmapGenLevel (struct uiMapData * map, unsigned char span)
 {

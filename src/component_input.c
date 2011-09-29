@@ -115,6 +115,7 @@ struct input * input_create ()
 
 	dynarr_assign (i->controlMap, IR_UI_MENU_INDEX_UP, keys_create (1, SDLK_UP));
 	dynarr_assign (i->controlMap, IR_UI_MENU_INDEX_DOWN, keys_create (1, SDLK_DOWN));
+	dynarr_assign (i->controlMap, IR_UI_CONFIRM, keys_create (1, SDLK_RETURN));
 
 	dynarr_assign (i->controlMap, IR_DEBUG_SWITCH, keys_create (1, SDLK_F3));
 	return i;
@@ -204,6 +205,25 @@ bool input_rmEntity (Entity e, enum input_control_types t)
 	return FALSE;
 }
 
+void input_sendAction (enum input_responses action)
+{
+	/* FIXME: currently you can't (shouldn't) send any kind of "continued"
+	 * input (like the start of a walk sequence) because the inverse "stop"
+	 * input when the key is released won't be automatically sent (see
+	 * input_update for how it works usually) and that means it's possible to
+	 * completely mess up the input system using this function. this isn't
+	 * /totally/ the fault of this function, the whole inverse-event-code
+	 * concept is kind of... terrible. just keep in mind that this function
+	 * should only be used for event codes that 1) don't require an sdl event
+	 * and 2) don't require a turn-off signal.
+	 *  - xph 2011 09 27
+	 */
+	struct input_event
+		event;
+	event.ir = action;
+	event.event = NULL;
+	input_sendGameEventMessage (&event);
+}
 
 void input_sendGameEventMessage (const struct input_event * ie)
 {

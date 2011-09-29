@@ -39,6 +39,10 @@ enum uiFrameBackground {
 };
 
 void uiDrawCursor ();
+/* don't know if it's really useful to have these public - xph 2011 09 29*/
+void ui_getXY (UIPANEL ui, signed int * x, signed int * y);
+void ui_getWH (UIPANEL ui, signed int * w, signed int * h);
+
 
 void ui_classInit (EntComponent ui, void * arg);
 
@@ -51,6 +55,7 @@ void ui_setType (EntComponent ui, void * arg);
 void ui_getType (EntComponent ui, void * arg);
 
 void ui_addValue (EntComponent ui, void * arg);
+void ui_setAction (EntComponent ui, void * arg);
 
 void ui_setPositionType (EntComponent ui, void * arg);
 void ui_setBackground (EntComponent ui, void * arg);
