@@ -455,6 +455,9 @@ void input_update (Object * d)
 					}
 				}
 				break;
+			case SDL_QUIT:
+				system_message (OM_SHUTDOWN, NULL, NULL);
+				break;
 			default:
 				if ((SDL_GetAppState () & (SDL_APPMOUSEFOCUS | SDL_APPINPUTFOCUS)) == (SDL_APPMOUSEFOCUS | SDL_APPINPUTFOCUS))
 				{
