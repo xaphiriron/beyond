@@ -247,6 +247,36 @@ void textureDrawHex (TEXTURE t, VECTOR3 centre, unsigned int size, float angle)
 	textureFloodFill (t, (signed int)centre.x, (signed int)centre.y);
 }
 
+void textureCopyChunkFromRaw (TEXTURE t, unsigned int x, unsigned int y, unsigned int width, unsigned int height, const TEXTURE raw, unsigned int rawX, unsigned int rawY)
+{
+	int
+		lines = 0;
+	unsigned char
+		* to = NULL,
+		* from = NULL;
+	VECTOR3
+		px;
+	if (t->mode != raw->mode)
+	{
+		WARNING ("Can't copy raw data between two textures with different modes (to has %d channels; from has %d)", t->mode, raw->mode);
+		return;
+	}
+
+	while (lines < height)
+	{
+		px.x = x;
+		px.y = y + lines;
+		to = textureColorAt (t, px);
+		px.x = rawX;
+		px.y = rawY + lines;
+		from = textureColorAt (raw, px);
+
+		memcpy (to, from, width * t->mode);
+		lines++;
+	}
+
+}
+
 
 bool textureOOB (const TEXTURE t, VECTOR3 coord)
 {

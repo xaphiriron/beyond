@@ -36,6 +36,13 @@ void spriteGetXY (const SPRITE s, int * x, int * y);
 void spriteGetWH (const SPRITE s, int * w, int * h);
 void spriteGetFG (const SPRITE s, int * f, int * g);
 
+void spriteGetXYf (const SPRITE s, float * x, float * y);
+void spriteGetWHf (const SPRITE s, float * w, float * h);
+
+/* called like:
+ *  sheetCreate (path, SHEET_MULTISIZE);
+ *  sheetCreate (path, SHEET_CONSTANT, width, height);
+ */
 SPRITESHEET sheetCreate (const char * path, enum sheetFormat format, ...);
 void sheetMultisizeInitialize (SPRITESHEET s, const char * path);
 void sheetConstantInitialize (SPRITESHEET s, const char * path, va_list args);
@@ -50,6 +57,7 @@ SPRITE sheetGetSpriteViaOffset (const SPRITESHEET s, int offset);
 SPRITE sheetGetSpriteViaCoordinate (const SPRITESHEET s, int column, int row);
 bool sheetGetSpriteValuesViaOffset (const SPRITESHEET s, int offset, unsigned int *x, unsigned int *y, unsigned int *w, unsigned int *h, int *f, int *g);
 bool sheetGetSpriteValuesViaCoordinate (const SPRITESHEET s, int column, int row, unsigned int *x, unsigned int *y, unsigned int *w, unsigned int *h, int *f, int *g);
+bool sheetGetCoordinateFVals (const SPRITESHEET s, int column, int row, float * x, float * y, float * w, float * h);
 
 const TEXTURE sheetGetTexture (const SPRITESHEET s);
 

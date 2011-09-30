@@ -380,7 +380,9 @@ void systemBootstrapInit (void)
 	//obj_message (PhysicsObject, OM_START, NULL, NULL);
 	//obj_message (WorldObject, OM_START, NULL, NULL);
 	//entitySubsystem_message ("ground", OM_START, NULL, NULL);
+
 	loadFont ("../img/default.png");
+	uiLoadPanelTexture ("../img/frame.png");
 	loadSetText ("Loading...");
 }
 
@@ -427,7 +429,7 @@ void systemBootstrap (TIMER t)
 	entity_message (titleScreenMenu, NULL, "setWidth", (void *)(int)(width / 4));
 	entity_message (titleScreenMenu, NULL, "setPosType", (void *)(PANEL_X_CENTER | PANEL_Y_ALIGN_23));
 	entity_message (titleScreenMenu, NULL, "setFrameBG", (void *)FRAMEBG_SOLID);
-	entity_message (titleScreenMenu, NULL, "setBorder", (void *)4);
+	entity_message (titleScreenMenu, NULL, "setBorder", (void *)6);
 	entity_message (titleScreenMenu, NULL, "setLineSpacing", (void *)4);
 
 	systemPushUI (titleScreenMenu);

@@ -1,5 +1,6 @@
 #include "font.h"
 
+#include <GL/glpng.h>
 #include "texture.h"
 #include "video.h"
 #include "sprite.h"
@@ -15,6 +16,9 @@ void loadFont (const char * path)
 		sheetDestroy (SystemFont);
 		SystemFont = NULL;
 	}
+
+	// TODO: ugh fix this so it works when the orientation is set correctly - xph 2011 09 27
+	pngSetStandardOrientation (0);
 	SystemFont = sheetCreate (path, SHEET_MULTISIZE);
 }
 

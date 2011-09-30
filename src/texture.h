@@ -25,6 +25,9 @@ void textureDrawPixel (TEXTURE t, VECTOR3 px);
 void textureDrawLine (TEXTURE t, VECTOR3 start, VECTOR3 end);
 void textureDrawHex (TEXTURE t, VECTOR3 centre, unsigned int size, float angle);
 
+/* copy rect of pixels from raw->data from rawX,rawY to rawX+width,rawY+height and paste them into t from x,y to x+width,y+height */
+void textureCopyChunkFromRaw (TEXTURE t, unsigned int x, unsigned int y, unsigned int width, unsigned int height, const TEXTURE raw, unsigned int rawX, unsigned int rawY);
+
 /***
  *
  */

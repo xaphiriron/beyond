@@ -39,6 +39,9 @@ enum uiFrameBackground {
 };
 
 void uiDrawCursor ();
+void uiLoadPanelTexture (const char * path);
+
+
 /* don't know if it's really useful to have these public - xph 2011 09 29*/
 void ui_getXY (UIPANEL ui, signed int * x, signed int * y);
 void ui_getWH (UIPANEL ui, signed int * w, signed int * h);

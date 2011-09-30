@@ -190,6 +190,24 @@ void spriteGetFG (const SPRITE s, int * f, int * g)
 	*g = s->g;
 }
 
+void spriteGetXYf (const SPRITE s, float * x, float * y)
+{
+	assert (s != NULL);
+	if (x != NULL)
+		*x = (float)s->x / s->sheet->raw->Width;
+	if (y != NULL)
+		*y = (float)s->y / s->sheet->raw->Height;
+}
+
+void spriteGetWHf (const SPRITE s, float * w, float * h)
+{
+	assert (s != NULL);
+	if (w != NULL)
+		*w = (float)s->w / s->sheet->raw->Width;
+	if (h != NULL)
+		*h = (float)s->h / s->sheet->raw->Height;
+}
+
 struct spriteSheet * sheetCreate (const char * path, enum sheetFormat format, ...) {
 	struct spriteSheet
 		* s;
@@ -866,6 +884,51 @@ bool sheetGetSpriteValuesViaCoordinate (const SPRITESHEET s, int column, int row
     *y = row * s->spriteHeight;
   }
   return TRUE;
+}
+
+bool sheetGetCoordinateFVals (const SPRITESHEET s, int column, int row, float * x, float * y, float * w, float * h)
+{
+	int
+		r = 0,
+		t = 0;
+	struct sprite
+		* sp = NULL;
+	if (
+		row < 0 || row > s->sheetRows || column < 0 ||
+		(s->format == SHEET_CONSTANT && column >= s->sheetColumns) ||
+		(s->format == SHEET_MULTISIZE && column >= s->spritesPerRow[row])
+	)
+	{
+		return FALSE;
+	}
+	if (SHEET_MULTISIZE == s->format)
+	{
+		while (r < row) {
+			t += s->spritesPerRow[r++];
+		}
+		t += column;
+		sp = *(SPRITE *)dynarr_at (s->sprites, t);
+
+		if (x != NULL)
+			*x = (float)sp->x / s->raw->Width;
+		if (y != NULL)
+			*y = (float)sp->y / s->raw->Height;
+
+		if (w != NULL)
+			*w = (float)sp->w / s->raw->Width;
+		if (h != NULL)
+			*h = (float)sp->h / s->raw->Height;
+		return TRUE;
+	}
+	if (x != NULL)
+		*x = (float)(column * s->spriteWidth) / s->raw->Width;
+	if (y != NULL)
+		*y = (float)(row * s->spriteHeight) / s->raw->Height;
+	if (w != NULL)
+		*w = (float)s->spriteWidth / s->raw->Width;
+	if (h != NULL)
+		*h = (float)s->spriteHeight / s->raw->Height;
+	return TRUE;
 }
 
 static struct pngColour sheetPixelCoordinate (const SPRITESHEET s, int x, int y) {

@@ -1,8 +1,11 @@
 #include "component_ui.h"
 
 #include "video.h"
-#include "font.h"
+#include <GL/glpng.h>
+#include "texture_internal.h"
 #include "texture.h"
+#include "font.h"
+#include "sprite.h"
 #include "hex_utility.h"
 
 #include "system.h"
@@ -45,7 +48,9 @@ struct uiMenuOpt
 {
 	float
 		highlight;
-	// TODO: add menu response triggers or w/e
+
+	enum input_responses
+		action;
 };
 
 struct uiFrame
@@ -119,6 +124,21 @@ static unsigned int
 	height,
 	width;
 
+struct panelTexture
+{
+	unsigned int
+		spriteSize;
+	SPRITESHEET
+		base;	// holds non-repeatable versions of all the ui sprites
+	TEXTURE
+		lrSide,	// repeatable left and right side
+		tbSide,	// repeatable top and bottom side
+		inside;	// repeatable inside
+};
+
+static void panelTextureDestroy (struct panelTexture * pt);
+static struct panelTexture * panelTextureLoad (const char * path);
+
 static UIPANEL uiPanel_createEmpty ();
 static void uiPanel_destroy (UIPANEL ui);
 
@@ -176,6 +196,74 @@ void uiDrawCursor ()
 	glVertex3f (left, bottom, zNear);
 	glEnd ();
 }
+
+static struct panelTexture
+	* SystemPanel = NULL;
+void uiLoadPanelTexture (const char * path)
+{
+	if (SystemPanel != NULL)
+	{
+		WARNING ("Resetting system panel (with \"%s\")", path);
+		panelTextureDestroy (SystemPanel);
+		SystemPanel = NULL;
+	}
+	SystemPanel = panelTextureLoad (path);
+}
+
+static void panelTextureDestroy (struct panelTexture * pt)
+{
+	sheetDestroy (pt->base);
+	textureDestroy (pt->lrSide);
+	textureDestroy (pt->tbSide);
+	textureDestroy (pt->inside);
+	xph_free (pt);
+}
+
+static struct panelTexture * panelTextureLoad (const char * path)
+{
+	struct panelTexture
+		* pt = xph_alloc (sizeof (struct panelTexture));
+	TEXTURE
+		base;
+	unsigned int
+		spriteSize;
+	pngSetStandardOrientation (1);
+	base = textureGenFromImage (path);
+	// divide the sheet into four sprites across, eight sprites down, no matter the side of the image (so long as it's got the right proportions)
+	if (base->width >> 2 != base->height >> 3)
+	{
+		ERROR ("Invalid image resolution for ui frames; need image twice as tall as wide, with side lengths that are powers of two (e.g., 1x2, 2x4, 4x8, 8x16, 16x32, 32x64 64x128, etc) got %dx%d, which is wrong.", base->width, base->height);
+		return NULL;
+	}
+	spriteSize = base->width >> 2;
+	pt->spriteSize = spriteSize;
+	pngSetStandardOrientation (0);
+	pt->base = sheetCreate (path, SHEET_CONSTANT, spriteSize, spriteSize);
+	pt->lrSide = textureGenBlank (spriteSize * 2, spriteSize, base->mode);
+	pt->tbSide = textureGenBlank (spriteSize, spriteSize * 2, base->mode);
+	pt->inside = textureGenBlank (spriteSize, spriteSize, base->mode);
+
+	// set the 0,0 texture to the left side (at 0,1 on base)
+	textureCopyChunkFromRaw (pt->lrSide, 0, 0, spriteSize, spriteSize, base, 0, spriteSize);
+	// set the 1,0 texture to the right side (at 2,1 on base)
+	textureCopyChunkFromRaw (pt->lrSide, spriteSize, 0, spriteSize, spriteSize, base, spriteSize * 2, spriteSize);
+	textureBind (pt->lrSide);
+
+	// set the 0,0 texture to the top side (1, 0 on base)
+	textureCopyChunkFromRaw (pt->tbSide, 0, 0, spriteSize, spriteSize, base, spriteSize, 0);
+	// set the 0,1 texture to the bottom side (1, 2 on base)
+	textureCopyChunkFromRaw (pt->tbSide, 0, spriteSize, spriteSize, spriteSize, base, spriteSize, spriteSize * 2);
+	textureBind (pt->tbSide);
+
+	// set the 0,0 texture to the inside (1,1 on base)
+	textureCopyChunkFromRaw (pt->inside, 0, 0, spriteSize, spriteSize, base, spriteSize, spriteSize);
+	textureBind (pt->inside);
+
+	textureDestroy (base);
+
+	return pt;
+}
+
 
 
 void ui_getXY (UIPANEL ui, signed int * x, signed int * y)
@@ -257,6 +345,7 @@ void ui_classInit (EntComponent ui, void * arg)
 	component_registerResponse ("ui", "getType", ui_getType);
 
 	component_registerResponse ("ui", "addValue", ui_addValue);
+	component_registerResponse ("ui", "setAction", ui_setAction);
 
 	component_registerResponse ("ui", "setPosType", ui_setPositionType);
 	component_registerResponse ("ui", "setFrameBG", ui_setBackground);
@@ -431,6 +520,21 @@ void ui_addValue (EntComponent ui, void * arg)
 	{
 		dynarr_push (uiData->menu.menuOpt, uiMenuOpt_createEmpty ());
 	}
+}
+
+void ui_setAction (EntComponent ui, void * arg)
+{
+	UIPANEL
+		uiData = component_getData (ui);
+	struct uiMenuOpt
+		* opt;
+	enum input_responses
+		action = (enum input_responses)arg;
+
+	if (uiData->type != UI_MENU)
+		return;
+	opt = *(struct uiMenuOpt **)dynarr_back (uiData->menu.menuOpt);
+	opt->action = action;
 }
 
 void ui_setPositionType (EntComponent ui, void * arg)
@@ -758,6 +862,7 @@ void ui_draw (EntComponent ui, void * arg)
 				textAlign (fragment->align);
 				drawLine (fragment->text, fragment->xAlign, fragment->yAlign);
 				i++;
+
 			}
 			ui_drawIndex (&uiData->menu);
 			break;
@@ -923,6 +1028,7 @@ static struct uiMenuOpt * uiMenuOpt_createEmpty ()
 	struct uiMenuOpt
 		* opt = xph_alloc (sizeof (struct uiMenuOpt));
 	opt->highlight = 0.0;
+	opt->action = IR_NOTHING;
 
 	return opt;
 }
@@ -1003,21 +1109,119 @@ static void uiDrawPane (signed int x, signed int y, signed int width, signed int
 		left = video_pixelXMap (x),
 		bottom = video_pixelYMap (y + height),
 		right = video_pixelXMap (x + width),
-		zNear = video_getZnear () - 0.001;
+		sx = video_pixelXOffset (SystemPanel->spriteSize),
+		sy = video_pixelYOffset (SystemPanel->spriteSize),
+		zNear = video_getZnear () - 0.001,
+		tx, ty, tw, th,
+		xRepeat, yRepeat;
 
-	if (texture)
-		glBindTexture (GL_TEXTURE_2D, textureName (texture));
-	else
-		glBindTexture (GL_TEXTURE_2D, 0);
-	glBegin (GL_TRIANGLE_FAN);
-	glTexCoord2f (0.0, 1.0);
+	glColor3ub (0xff, 0xff, 0xff);
+	glBindTexture (GL_TEXTURE_2D, textureName (sheetGetTexture (SystemPanel->base)));
+
+
+	yRepeat = (float)(height - SystemPanel->spriteSize * 2) / SystemPanel->spriteSize;
+	xRepeat = (float)(width - SystemPanel->spriteSize * 2) / SystemPanel->spriteSize;
+
+	glBegin (GL_QUADS);
+
+	sheetGetCoordinateFVals (SystemPanel->base, 0, 0, &tx, &ty, &tw, &th);
+	glTexCoord2f (tx, ty);
 	glVertex3f (left, top, zNear);
-	glTexCoord2f (0.0, 0.0);
+	glTexCoord2f (tx, ty + th);
+	glVertex3f (left, top + sy, zNear);
+	glTexCoord2f (tx + tw, ty + th);
+	glVertex3f (left + sx, top + sy, zNear);
+	glTexCoord2f (tx + tw, ty);
+	glVertex3f (left + sx, top, zNear);
+
+	sheetGetCoordinateFVals (SystemPanel->base, 0, 2, &tx, &ty, &tw, &th);
+	glTexCoord2f (tx, ty);
+	glVertex3f (left, bottom - sy, zNear);
+	glTexCoord2f (tx, ty + th);
 	glVertex3f (left, bottom, zNear);
-	glTexCoord2f (1.0, 0.0);
-	glVertex3f (right, bottom, zNear);
-	glTexCoord2f (1.0, 1.0);
+	glTexCoord2f (tx + tw, ty + th);
+	glVertex3f (left + sx, bottom, zNear);
+	glTexCoord2f (tx + tw, ty);
+	glVertex3f (left + sx, bottom - sy, zNear);
+
+	sheetGetCoordinateFVals (SystemPanel->base, 2, 0, &tx, &ty, &tw, &th);
+	glTexCoord2f (tx, ty);
+	glVertex3f (right - sx, top, zNear);
+	glTexCoord2f (tx, ty + th);
+	glVertex3f (right - sx, top + sy, zNear);
+	glTexCoord2f (tx + tw, ty + th);
+	glVertex3f (right, top + sy, zNear);
+	glTexCoord2f (tx + tw, ty);
 	glVertex3f (right, top, zNear);
+
+	sheetGetCoordinateFVals (SystemPanel->base, 2, 2, &tx, &ty, &tw, &th);
+	glTexCoord2f (tx, ty);
+	glVertex3f (right - sx, bottom - sy, zNear);
+	glTexCoord2f (tx, ty + th);
+	glVertex3f (right - sx, bottom, zNear);
+	glTexCoord2f (tx + tw, ty + th);
+	glVertex3f (right, bottom, zNear);
+	glTexCoord2f (tx + tw, ty);
+	glVertex3f (right, bottom - sy, zNear);
+
+	glEnd ();
+
+
+	glBindTexture (GL_TEXTURE_2D, textureName (SystemPanel->lrSide));
+	glBegin (GL_QUADS);
+	glTexCoord2f (0, 0);
+	glVertex3f (left, top + sy, zNear);
+	glTexCoord2f (0, yRepeat);
+	glVertex3f (left, bottom - sy, zNear);
+	glTexCoord2f (0.5, yRepeat);
+	glVertex3f (left + sx, bottom - sy, zNear);
+	glTexCoord2f (0.5, 0);
+	glVertex3f (left + sx, top + sy, zNear);
+
+	glTexCoord2f (0.5, 0);
+	glVertex3f (right - sx, top + sy, zNear);
+	glTexCoord2f (0.5, yRepeat);
+	glVertex3f (right - sx, bottom - sy, zNear);
+	glTexCoord2f (1.0, yRepeat);
+	glVertex3f (right, bottom - sy, zNear);
+	glTexCoord2f (1.0, 0);
+	glVertex3f (right, top + sy, zNear);
+
+	glEnd ();
+
+
+	glBindTexture (GL_TEXTURE_2D, textureName (SystemPanel->tbSide));
+	glBegin (GL_QUADS);
+	glTexCoord2f (0, 0);
+	glVertex3f (left + sx, top, zNear);
+	glTexCoord2f (0, .5);
+	glVertex3f (left + sx, top + sy, zNear);
+	glTexCoord2f (xRepeat, .5);
+	glVertex3f (right - sx, top + sy, zNear);
+	glTexCoord2f (xRepeat, 0);
+	glVertex3f (right - sx, top, zNear);
+
+	glTexCoord2f (0, 0.5);
+	glVertex3f (left + sx, bottom - sy, zNear);
+	glTexCoord2f (0, 1.0);
+	glVertex3f (left + sx, bottom, zNear);
+	glTexCoord2f (xRepeat, 1.0);
+	glVertex3f (right - sx, bottom, zNear);
+	glTexCoord2f (xRepeat, 0.5);
+	glVertex3f (right - sx, bottom - sy, zNear);
+	glEnd ();
+
+	
+	glBindTexture (GL_TEXTURE_2D, textureName (SystemPanel->inside));
+	glBegin (GL_QUADS);
+	glTexCoord2f (0, 0);
+	glVertex3f (left + sx, top + sy, zNear);
+	glTexCoord2f (0, yRepeat);
+	glVertex3f (left + sx, bottom - sy, zNear);
+	glTexCoord2f (xRepeat, yRepeat);
+	glVertex3f (right - sx, bottom - sy, zNear);
+	glTexCoord2f (xRepeat, 0);
+	glVertex3f (right - sx, top + sy, zNear);
 	glEnd ();
 }
 
@@ -1032,18 +1236,17 @@ static void ui_drawIndex (struct uiMenu * menu)
 		bottom,
 		right,
 		topMovement = 0.0,
-		width = 16,
-		height = 16,
 		zNear = video_getZnear () - 0.001,
-		percentage;
+		percentage,
+		tx, ty, tw, th;
 	uiFrame_getXY (menu->frame, &x, &y);
 	if ((percentage = timerPercentageToGoal (menu->timer)) >= 1.0)
 	{
 		//timerPause (menu->timer);
 		timerSetGoal (menu->timer, 0.0);
 		top = video_pixelYMap (
-			(y - menu->frame->border) +
-			(menu->frame->lineSpacing - height) / 2 +
+			y +
+			(menu->frame->lineSpacing - SystemPanel->spriteSize) / 2 +
 			(menu->frame->lineSpacing * menu->activeIndex)
 		);
 	}
@@ -1052,26 +1255,33 @@ static void ui_drawIndex (struct uiMenu * menu)
 		diff = menu->lastIndex - menu->activeIndex;
 		topMovement = (1 - ((sin (percentage * M_PI - M_PI_2) + 1) / 2.0)) * menu->frame->lineSpacing * diff;
 		top = video_pixelYMap (
-			(y - menu->frame->border) +
-			(menu->frame->lineSpacing - height) / 2 +
+			y +
+			(menu->frame->lineSpacing - SystemPanel->spriteSize) / 2 +
 			(menu->frame->lineSpacing * menu->activeIndex) +
 			topMovement
 		);
 	}
 
-	left = video_pixelXMap (x - menu->frame->border - width * 1.25);
-	bottom = top + video_pixelYOffset (height);
-	right = left + video_pixelXOffset (width);
+	left = video_pixelXMap (x - menu->frame->border - SystemPanel->spriteSize * 1.25);
+	bottom = top + video_pixelYOffset (SystemPanel->spriteSize);
+	right = left + video_pixelXOffset (SystemPanel->spriteSize);
 
-	glColor3f (1.0, 0.0, 0.0);
-	glBindTexture (GL_TEXTURE_2D, 0);
+	glColor3ub (0xff, 0xff, 0xff);
+	glBindTexture (GL_TEXTURE_2D, textureName (sheetGetTexture (SystemPanel->base)));
+	sheetGetCoordinateFVals (SystemPanel->base, 2, 3, &tx, &ty, &tw, &th);
+
 	glBegin (GL_TRIANGLE_FAN);
+	glTexCoord2f (tx, ty);
 	glVertex3f (left, top, zNear);
+	glTexCoord2f (tx, ty + th);
 	glVertex3f (left, bottom, zNear);
+	glTexCoord2f (tx + tw, ty + th);
 	glVertex3f (right, bottom, zNear);
+	glTexCoord2f (tx + tw, ty);
 	glVertex3f (right, top, zNear);
 	glEnd ();
 }
+
 
 /*
 static void uiDrawSkewPane (signed int x, signed int y, signed int width, signed int height, enum uiSkewTypes skew, const void * const * style)
