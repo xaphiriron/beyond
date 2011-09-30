@@ -355,10 +355,15 @@ void input_update (Object * d)
 				break;
 			case SDL_MOUSEBUTTONDOWN:
 				if (systemState () == STATE_FREEVIEW)
+				{
 					input_event.ir = IR_FREEMOVE_MOUSECLICK;
+					input_sendGameEventMessage (&input_event);
+				}
 				else if (systemState () == STATE_UI)
+				{
 					input_event.ir = IR_UI_MOUSECLICK;
-				input_sendGameEventMessage (&input_event);
+					input_sendGameEventMessage (&input_event);
+				}
 				break;
 
 			case SDL_KEYDOWN:
