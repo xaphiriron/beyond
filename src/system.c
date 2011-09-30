@@ -483,12 +483,16 @@ void systemUpdate (void)
  * RENDERING
  */
 
+static void renderSkyCube ();
+
 void systemRender (void)
 {
 	Entity
 		camera;
 	const float
 		* matrix;
+	float
+		fakeMatrix[16];
 	int
 		i;
 	unsigned int
@@ -496,6 +500,8 @@ void systemRender (void)
 		height;
 	char
 		loadStr[64];
+	float
+		zNear = video_getZnear () - 0.001;
 
 	if (System == NULL)
 		return;
@@ -512,10 +518,10 @@ void systemRender (void)
 		glVertex3f (video_pixelXMap (width), video_pixelYMap (0), video_getZnear ());
 
 		glColor3f (0.0, 0.0, 1.0);
-		glVertex3f (0, 0, video_getZnear ());
-		glVertex3f (5, 0, video_getZnear ());
-		glVertex3f (5, 5, video_getZnear ());
-		glVertex3f (0, 5, video_getZnear ());
+		glVertex3f (0, 0, zNear);
+		glVertex3f (5, 0, zNear);
+		glVertex3f (5, 5, zNear);
+		glVertex3f (0, 5, zNear);
 
 		glEnd ();
 		glColor3f (1.0, 1.0, 1.0);
@@ -537,8 +543,19 @@ void systemRender (void)
 		camera = camera_getActiveCamera ();
 		entity_message (camera, NULL, "getMatrix", &matrix);
 		if (matrix != NULL)
+		{
+			memcpy (fakeMatrix, matrix, sizeof (float) * 16);
+			fakeMatrix[12] = fakeMatrix[13] = fakeMatrix[14] = 0.0;
+			glLoadMatrixf (fakeMatrix);
+		}
+
+		renderSkyCube ();
+
+		if (matrix != NULL)
 			glLoadMatrixf (matrix);
+
 		mapDraw (matrix);
+
 		if (systemState (System) == STATE_FREEVIEW && camera_getMode (camera) == CAMERA_FIRST_PERSON)
 		{
 			glLoadIdentity ();
@@ -562,6 +579,56 @@ void systemRender (void)
 	glEnable (GL_DEPTH_TEST);
 	obj_messagePre (VideoObject, OM_POSTRENDER, NULL, NULL);
 }
+
+static void renderSkyCube ()
+{
+	float
+		zNear = video_getZnear () * 2.0;
+
+	glBindTexture (GL_TEXTURE_2D, 0);
+	glDisable (GL_DEPTH_TEST);
+	glBegin (GL_QUADS);
+
+	glColor3ub (0xff, 0x00, 0x00);
+	glVertex3f ( 1.0 * zNear,  1.0 * zNear,  1.0 * zNear);
+	glVertex3f ( 1.0 * zNear, -1.0 * zNear,  1.0 * zNear);
+	glVertex3f ( 1.0 * zNear, -1.0 * zNear, -1.0 * zNear);
+	glVertex3f ( 1.0 * zNear,  1.0 * zNear, -1.0 * zNear);
+
+	glColor3ub (0x00, 0xff, 0x00);
+	glVertex3f (-1.0 * zNear,  1.0 * zNear, -1.0 * zNear);
+	glVertex3f (-1.0 * zNear,  1.0 * zNear,  1.0 * zNear);
+	glVertex3f ( 1.0 * zNear,  1.0 * zNear,  1.0 * zNear);
+	glVertex3f ( 1.0 * zNear,  1.0 * zNear, -1.0 * zNear);
+
+	glColor3ub (0x00, 0x00, 0xff);
+	glVertex3f (-1.0 * zNear,  1.0 * zNear,  1.0 * zNear);
+	glVertex3f (-1.0 * zNear, -1.0 * zNear,  1.0 * zNear);
+	glVertex3f ( 1.0 * zNear, -1.0 * zNear,  1.0 * zNear);
+	glVertex3f ( 1.0 * zNear,  1.0 * zNear,  1.0 * zNear);
+
+	glColor3ub (0x00, 0xff, 0xff);
+	glVertex3f (-1.0 * zNear,  1.0 * zNear, -1.0 * zNear);
+	glVertex3f (-1.0 * zNear, -1.0 * zNear, -1.0 * zNear);
+	glVertex3f (-1.0 * zNear, -1.0 * zNear,  1.0 * zNear);
+	glVertex3f (-1.0 * zNear,  1.0 * zNear,  1.0 * zNear);
+
+	glColor3ub (0xff, 0x00, 0xff);
+	glVertex3f ( 1.0 * zNear, -1.0 * zNear, -1.0 * zNear);
+	glVertex3f ( 1.0 * zNear, -1.0 * zNear,  1.0 * zNear);
+	glVertex3f (-1.0 * zNear, -1.0 * zNear,  1.0 * zNear);
+	glVertex3f (-1.0 * zNear, -1.0 * zNear, -1.0 * zNear);
+
+	glColor3ub (0xff, 0xff, 0x00);
+	glVertex3f ( 1.0 * zNear,  1.0 * zNear, -1.0 * zNear);
+	glVertex3f ( 1.0 * zNear, -1.0 * zNear, -1.0 * zNear);
+	glVertex3f (-1.0 * zNear, -1.0 * zNear, -1.0 * zNear);
+	glVertex3f (-1.0 * zNear,  1.0 * zNear, -1.0 * zNear);
+	glEnd ();
+	glEnable (GL_DEPTH_TEST);
+	glClear (GL_DEPTH_BUFFER_BIT);
+}
+
 
 bool systemToggleAttr (enum system_toggle_states toggle)
 {
