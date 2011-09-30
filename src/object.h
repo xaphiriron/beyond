@@ -33,6 +33,9 @@ typedef enum object_messages {
 	OM_COMPONENT_GET_LOADER_CALLBACK,
 	OM_COMPONENT_GET_WEIGH_CALLBACK,
 
+	// i'd rather not add object junk at this point but input needs a way of signaling to the system that worldgen should happen, since i sure don't want to put the systemLoad () call in input.c
+	OM_FORCEWORLDGEN,
+
   OM_FINAL
 } objMsg;
 

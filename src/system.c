@@ -414,12 +414,15 @@ void systemBootstrap (TIMER t)
 	component_instantiate ("input", titleScreenMenu);
 	input_addEntity (titleScreenMenu, INPUT_FOCUSED);
 
+	entity_message (titleScreenMenu, NULL, "addValue", "New Game");
+	entity_message (titleScreenMenu, NULL, "setAction", (void *)IR_WORLDGEN);
 	entity_message (titleScreenMenu, NULL, "addValue", "this is a test of the menu code and also the ui code and also aaaaah :(");
 	entity_message (titleScreenMenu, NULL, "addValue", "second option");
 	entity_message (titleScreenMenu, NULL, "addValue", "third option");
 	entity_message (titleScreenMenu, NULL, "addValue", "blah blah blah etc");
 	entity_message (titleScreenMenu, NULL, "addValue", "lorem ipsum dolor sit amet");
 	entity_message (titleScreenMenu, NULL, "addValue", "Quit");
+	entity_message (titleScreenMenu, NULL, "setAction", (void *)IR_QUIT);
 
 	entity_message (titleScreenMenu, NULL, "setWidth", (void *)(int)(width / 4));
 	entity_message (titleScreenMenu, NULL, "setPosType", (void *)(PANEL_X_CENTER | PANEL_Y_ALIGN_23));
@@ -687,6 +690,13 @@ int system_message (objMsg msg, void * a, void * b)
 			LOG (E_FUNCLABEL, "...%s[OM_DESTROY]", __FUNCTION__);
 			return EXIT_SUCCESS;
 
+		case OM_FORCEWORLDGEN:
+			dynarr_map (System->uiPanels, (void (*)(void *))entity_destroy);
+			dynarr_clear (System->uiPanels);
+
+			printf ("TRIGGERING WORLDGEN:\n");
+			systemLoad (worldgenAbsHocNihilo, worldgenExpandWorldGraph, worldgenFinalizeCreation);
+			return EXIT_SUCCESS;
 
 		default:
 			// no passing. no reason to.

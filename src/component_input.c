@@ -246,6 +246,9 @@ void input_sendGameEventMessage (const struct input_event * ie)
 		case IR_QUIT:
 			system_message (OM_SHUTDOWN, NULL, NULL);
 			break;
+		case IR_WORLDGEN:
+			system_message (OM_FORCEWORLDGEN, NULL, NULL);
+			break;
 		case IR_VIEW_WIREFRAME_SWITCH:
 			msg = xph_alloc (sizeof (struct comp_message));
 			msg->from = NULL;

@@ -51,6 +51,7 @@ enum input_responses {
 	IR_UI_MOUSECLICK,
 
 
+	IR_WORLDGEN,
 	IR_QUIT,
 
 	IR_FINAL
@@ -91,6 +92,7 @@ void keys_destroy (struct input_keys * k);
 bool input_addEntity (Entity e, enum input_control_types t);
 bool input_rmEntity (Entity e, enum input_control_types t);
 
+void input_sendAction (enum input_responses);
 void input_sendGameEventMessage (const struct input_event * ie);
 
 Entity input_getPlayerEntity ();
