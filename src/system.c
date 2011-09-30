@@ -438,17 +438,6 @@ void systemBootstrap (TIMER t)
 	loadSetLoaded (1);
 }
 
-/*
-void systemStart (void)
-{
-	printf ("DONE W/ SYSTEM START:\n");
-	printf ("ARTIFICIALLY TRIGGERING WORLDGEN:\n");
-	systemLoad (worldgenAbsHocNihilo, worldgenExpandWorldGraph, worldgenFinalizeCreation);
-
-	LOG (E_FUNCLABEL, "...%s", __FUNCTION__);
-}
-*/
-
 /***
  * UPDATING
  */
