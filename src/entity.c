@@ -509,7 +509,7 @@ Dynarr entity_getEntitiesWithComponent (int n, ...)
 		if (c == NULL)
 		{
 			// it's impossible to have any intersection, since there are no entities with this component. Therefore, we can just return the empty dynarr.
-			WARNING ("%s: intersection impossible; no entities have component \"%s\"\n", __FUNCTION__, comp_names[j]);
+			INFO ("%s: intersection impossible; no entities have component \"%s\"", __FUNCTION__, comp_names[j]);
 			xph_free (comp_names);
 			xph_free (components);
 			xph_free (indices);
