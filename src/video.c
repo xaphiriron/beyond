@@ -49,9 +49,10 @@ void video_enableSDLmodules () {
 
 void video_enableGLmodules ()
 {
+	//glClearColor (.22, .18, .22, 0.0);
 	//glClearColor (0.20, 0.03, 0.12, 0.0); // dark purple
 	//glClearColor (0.29, 0.10, 0.19, 0.0); // slightly lighter purple
-	glClearColor (0.84, 0.98, 0.68, 0.0);
+	glClearColor (0.84, 0.98, 0.68, 0.0); // bright green
 	glClearDepth (1.0);
 
 	glEnable (GL_DEPTH_TEST);
