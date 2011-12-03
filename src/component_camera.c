@@ -386,6 +386,7 @@ void camera_classInit (EntComponent camera, void * arg)
 
 	component_registerResponse ("camera", "setTarget", component_cameraSetTarget);
 	component_registerResponse ("camera", "getMatrix", component_cameraGetMatrix);
+	component_registerResponse ("camera", "getTargetMatrix", component_cameraGetTargetMatrix);
 
 	component_registerResponse ("camera", "CONTROL_INPUT", component_cameraControlResponse);
 	/* here we are trusting if we get /any/ position/orientation updates
@@ -514,4 +515,19 @@ void component_cameraGetMatrix (EntComponent camera, void * arg)
 		return;
 	}
 	*matrix = camData->m;
+}
+
+void component_cameraGetTargetMatrix (EntComponent camera, void * arg)
+{
+	cameraComponent
+		camData = component_getData (camera);
+	float
+		** matrix = arg;
+
+	if (camData == NULL)
+	{
+		*matrix = NULL;
+		return;
+	}
+	*matrix = camData->targetMatrix;
 }

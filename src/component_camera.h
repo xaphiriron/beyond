@@ -36,5 +36,6 @@ void component_cameraOrientResponse (EntComponent camera, void * arg);
 void component_cameraPositionResponse (EntComponent camera, void * arg);
 
 void component_cameraGetMatrix (EntComponent camera, void * arg);
+void component_cameraGetTargetMatrix (EntComponent camera, void * arg);
 
 #endif /* XPH_COMPONENT_CAMERA_H */
