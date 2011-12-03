@@ -23,8 +23,8 @@ START_TEST (test_component_attach) {
     cd == NULL,
     "An attempt to get a non-existant component from an entity should return NULL."
   );
-  entity_registerComponentAndSystem (component_name_obj_func);
-  component_instantiateOnEntity ("COMPONENT_NAME", e);
+  entity_registerComponentAndSystem ("COMPONENT_NAME", component_name_obj_func, NULL);
+  component_instantiate ("COMPONENT_NAME", e);
   cd = entity_getAs (e, "COMPONENT_NAME");
   fail_unless (
     cd != NULL,
@@ -37,11 +37,12 @@ END_TEST
 START_TEST (test_component_detach) {
   Entity e = entity_create ();
   EntComponent cd = NULL;
-  entity_registerComponentAndSystem (component_name_obj_func);
-  component_instantiateOnEntity ("COMPONENT_NAME", e);
+
+  entity_registerComponentAndSystem ("COMPONENT_NAME", component_name_obj_func, NULL);
+  component_instantiate ("COMPONENT_NAME", e);
   cd = entity_getAs (e, "COMPONENT_NAME");
   fail_unless (cd != NULL);
-  component_removeFromEntity ("COMPONENT_NAME", e);
+  component_remove ("COMPONENT_NAME", e);
   cd = entity_getAs (e, "COMPONENT_NAME");
   fail_unless (cd == NULL);
   entity_destroy (e);
@@ -55,8 +56,8 @@ START_TEST (test_component_message_entity) {
   Component cd = NULL;
   entity_registerComponentAndSystem (component_name_obj_func);
   entity_registerComponentAndSystem (component_name_2_obj_func);
-  component_instantiateOnEntity ("COMPONENT_NAME", e);
-  component_instantiateOnEntity ("COMPONENT_NAME_2", e);
+  component_instantiate ("COMPONENT_NAME", e);
+  component_instantiate ("COMPONENT_NAME_2", e);
   cd = entity_getAs (e, "COMPONENT_NAME");
   mark_point ();
   component_messageEntity (cd, "COMPONENT_MESSAGE_ENTITY_COMPONENTS", NULL);
@@ -85,9 +86,9 @@ START_TEST (test_system_component_message) {
   Component cd = NULL;
   entity_registerComponentAndSystem (component_name_obj_func);
   entity_registerComponentAndSystem (component_name_2_obj_func);
-  component_instantiateOnEntity ("COMPONENT_NAME", e);
-  component_instantiateOnEntity ("COMPONENT_NAME", f);
-  component_instantiateOnEntity ("COMPONENT_NAME_2", g);
+  component_instantiate ("COMPONENT_NAME", e);
+  component_instantiate ("COMPONENT_NAME", f);
+  component_instantiate ("COMPONENT_NAME_2", g);
   cd = entity_getAs (e, "COMPONENT_NAME");
   component_messageSystem (cd, "COMPONENT_MESSAGE_SYSTEM_COMPONENTS", NULL);
   entitySubsystem_store ("COMPONENT_NAME");
@@ -110,9 +111,9 @@ START_TEST (test_system_system_message) {
   Component cd = NULL;
   entity_registerComponentAndSystem (component_name_obj_func);
   entity_registerComponentAndSystem (component_name_2_obj_func);
-  component_instantiateOnEntity ("COMPONENT_NAME", e);
-  component_instantiateOnEntity ("COMPONENT_NAME", f);
-  component_instantiateOnEntity ("COMPONENT_NAME_2", g);
+  component_instantiate ("COMPONENT_NAME", e);
+  component_instantiate ("COMPONENT_NAME", f);
+  component_instantiate ("COMPONENT_NAME_2", g);
   cd = entity_getAs (e, "COMPONENT_NAME");
   component_messageSystem (cd, "COMPONENT_MESSAGE_OTHER_SYSTEMS", NULL);
   entitySubsystem_store ("COMPONENT_NAME");
@@ -138,7 +139,7 @@ START_TEST (test_manager_iterate_one) {
   Entity
     e = entity_create (),
     f = entity_create ();
-  component_instantiateOnEntity ("COMPONENT_NAME", e);
+  component_instantiate ("COMPONENT_NAME", e);
   entityManager_iterate (debugComponent_update, 1, COMPONENT_NAME);
   fail_unless (debugComponent_updated (e) == TRUE);
   fail_unless (debugComponent_updated (f) == FALSE);
@@ -149,8 +150,8 @@ START_TEST (test_manager_iterate_two) {
   Entity
     e = entity_create (),
     f = entity_create ();
-  component_instantiateOnEntity ("COMPONENT_NAME", e);
-  component_instantiateOnEntity ("COMPONENT_NAME", f);
+  component_instantiate ("COMPONENT_NAME", e);
+  component_instantiate ("COMPONENT_NAME", f);
   entityManager_iterate (debugComponent_update, 1, COMPONENT_NAME);
   fail_unless (debugComponent_updated (e) == TRUE);
   fail_unless (debugComponent_updated (f) == TRUE);
@@ -163,10 +164,10 @@ START_TEST (test_manager_iterate_intersection) {
     f = entity_create (),
     g = entity_create (),
     h = entity_create ();
-  component_instantiateOnEntity ("COMPONENT_NAME", e);
-  component_instantiateOnEntity ("COMPONENT_NAME", f);
-  component_instantiateOnEntity ("COMPONENT_NAME_2", f);
-  component_instantiateOnEntity ("COMPONENT_NAME_2", g);
+  component_instantiate ("COMPONENT_NAME", e);
+  component_instantiate ("COMPONENT_NAME", f);
+  component_instantiate ("COMPONENT_NAME_2", f);
+  component_instantiate ("COMPONENT_NAME_2", g);
   entityManager_iterate (debugComponent_update, 2, COMPONENT_NAME, COMPONENT_NAME_2);
   fail_unless (
     debugComponent_updated (f) == TRUE
@@ -190,12 +191,14 @@ START_TEST (test_manager_fetch_one) {
     p = NULL,
     q = NULL;
   Dynarr v = NULL;
-  entity_registerComponentAndSystem (component_name_obj_func);
-  entity_registerComponentAndSystem (component_name_2_obj_func);
-  component_instantiateOnEntity ("COMPONENT_NAME", e);
-  component_instantiateOnEntity ("COMPONENT_NAME", f);
-  component_instantiateOnEntity ("COMPONENT_NAME_2", f);
-  component_instantiateOnEntity ("COMPONENT_NAME_2", g);
+
+  entity_registerComponentAndSystem ("COMPONENT_NAME", component_name_obj_func, NULL);
+
+  entity_registerComponentAndSystem ("COMPONENT_NAME_2", component_name_2_obj_func, NULL);
+  component_instantiate ("COMPONENT_NAME", e);
+  component_instantiate ("COMPONENT_NAME", f);
+  component_instantiate ("COMPONENT_NAME_2", f);
+  component_instantiate ("COMPONENT_NAME_2", g);
   v = entity_getEntitiesWithComponent (1, "COMPONENT_NAME");
   fail_unless (
     dynarr_size (v) == 2,
@@ -228,12 +231,13 @@ START_TEST (test_manager_fetch_two) {
     g = entity_create (),
     h = entity_create ();
   Dynarr v = NULL;
-  entity_registerComponentAndSystem (component_name_obj_func);
-  entity_registerComponentAndSystem (component_name_2_obj_func);
-  component_instantiateOnEntity ("COMPONENT_NAME", e);
-  component_instantiateOnEntity ("COMPONENT_NAME", f);
-  component_instantiateOnEntity ("COMPONENT_NAME_2", f);
-  component_instantiateOnEntity ("COMPONENT_NAME_2", g);
+
+  entity_registerComponentAndSystem ("COMPONENT_NAME", component_name_obj_func, NULL);
+  entity_registerComponentAndSystem ("COMPONENT_NAME_2", component_name_2_obj_func, NULL);
+  component_instantiate ("COMPONENT_NAME", e);
+  component_instantiate ("COMPONENT_NAME", f);
+  component_instantiate ("COMPONENT_NAME_2", f);
+  component_instantiate ("COMPONENT_NAME_2", g);
   v = entity_getEntitiesWithComponent (2, "COMPONENT_NAME", "COMPONENT_NAME_2");
   fail_unless (
     *(Entity *)dynarr_at (v, 0) == f && dynarr_size (v) == 1
@@ -255,10 +259,10 @@ START_TEST (test_system_iterate_union) {
     f = entity_create (),
     g = entity_create (),
     h = entity_create ();
-  component_instantiateOnEntity ("COMPONENT_NAME", e);
-  component_instantiateOnEntity ("COMPONENT_NAME", f);
-  component_instantiateOnEntity ("COMPONENT_NAME_2", f);
-  component_instantiateOnEntity ("COMPONENT_NAME_2", g);
+  component_instantiate ("COMPONENT_NAME", e);
+  component_instantiate ("COMPONENT_NAME", f);
+  component_instantiate ("COMPONENT_NAME_2", f);
+  component_instantiate ("COMPONENT_NAME_2", g);
   entityManager_iterate_union (???, 2, COMPONENT_NAME, COMPONENT_NAME_2);
   fail_unless (
     debugComponent_updated (f) == TRUE &&

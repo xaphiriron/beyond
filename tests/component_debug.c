@@ -16,7 +16,7 @@ int component_name_obj_func (Object * o, objMsg msg, void * a, void * b) {
   switch (msg) {
 	case OM_COMPONENT_INIT_DATA:
 		if (entity_getAs (b, "COMPONENT_MESSAGE_TRACKER") == NULL)
-			component_instantiateOnEntity ("COMPONENT_MESSAGE_TRACKER", b);
+			component_instantiate ("COMPONENT_MESSAGE_TRACKER", b);
 		obj_pass ();
 		return EXIT_SUCCESS;
     default:
@@ -42,7 +42,7 @@ int component_name_2_obj_func (Object * o, objMsg msg, void * a, void * b) {
   switch (msg) {
 	case OM_COMPONENT_INIT_DATA:
 		if (entity_getAs (b, "COMPONENT_MESSAGE_TRACKER") == NULL)
-			component_instantiateOnEntity ("COMPONENT_MESSAGE_TRACKER", b);
+			component_instantiate ("COMPONENT_MESSAGE_TRACKER", b);
 		obj_pass ();
 		return EXIT_SUCCESS;
     default:
