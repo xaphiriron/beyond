@@ -13,7 +13,12 @@ struct xph_turtle
 	float
 		matrix[16];
 	Dynarr
-		stack;
+		stack,
+		path;
+	TURTLEPENTYPE
+		pen;
+	bool
+		penUpSinceLastMove;
 };
 
 struct xph_turtle_stack
@@ -24,13 +29,30 @@ struct xph_turtle_stack
 		orientation;
 };
 
+static void turtleAddPoint (Turtle t);
+
 Turtle turtleCreate (enum turtle_types type)
 {
-	Turtle t = xph_alloc (sizeof (struct xph_turtle));
+	Turtle
+		t;
+	switch (type)
+	{
+		case TURTLE_2D:
+		case TURTLE_3D:
+		case TURTLE_HEXGRID:
+			break;
+		case TURTLE_INVALID:
+		default:
+			return NULL;
+	}
+	t = xph_alloc (sizeof (struct xph_turtle));
 	t->position = vectorCreate (0.0, 0.0, 0.0);
 	t->orientation = quat_create (1.0, 0.0, 0.0, 0.0);
 	quat_quatToMatrixf (&t->orientation, t->matrix);
 	t->stack = dynarr_create (2, sizeof (struct xph_turtle_stack *));
+	t->path = dynarr_create (2, sizeof (VECTOR3 *));
+	t->pen = TURTLE_PENDOWN;
+	t->penUpSinceLastMove = FALSE;
 /*
 	printf ("\33[35;1mMATRIX\n");
 	printf ("%4.2f %4.2f %4.2f %4.2f\n", t->matrix[0], t->matrix[4], t->matrix[8], t->matrix[12]);
@@ -48,6 +70,8 @@ void turtleDestroy (Turtle t)
 		dynarr_wipe (t->stack, xph_free);
 		dynarr_destroy (t->stack);
 	}
+	dynarr_wipe (t->path, xph_free);
+	dynarr_destroy (t->path);
 	xph_free (t);
 }
 
@@ -71,12 +95,26 @@ VECTOR3 turtleGetRollVector (const Turtle t)
 	return vectorCreate (t->matrix[2], t->matrix[6], t->matrix[10]);
 }
 
+TURTLEPENTYPE turtleGetPen (const Turtle t)
+{
+	return t->pen;
+}
+
+Dynarr turtleGetPath (const Turtle t)
+{
+	return t->path;
+}
+
+
+
 void turtleMoveForward (Turtle t, float m)
 {
 	VECTOR3
 		forward = turtleGetHeadingVector (t),
 		move = vectorMultiplyByScalar (&forward, m);
 	t->position = vectorAdd (&t->position, &move);
+	if (t->pen == TURTLE_PENDOWN)
+		turtleAddPoint (t);
 }
 
 void turtleMoveUp (Turtle t, float m)
@@ -85,6 +123,8 @@ void turtleMoveUp (Turtle t, float m)
 		up = turtleGetPitchVector (t),
 		move = vectorMultiplyByScalar (&up, m);
 	t->position = vectorAdd (&t->position, &move);
+	if (t->pen == TURTLE_PENDOWN)
+		turtleAddPoint (t);
 }
 
 void turtleMoveRight (Turtle t, float m)
@@ -93,6 +133,8 @@ void turtleMoveRight (Turtle t, float m)
 		right = turtleGetRollVector (t),
 		move = vectorMultiplyByScalar (&right, m);
 	t->position = vectorAdd (&t->position, &move);
+	if (t->pen == TURTLE_PENDOWN)
+		turtleAddPoint (t);
 }
 
 void turtleLookDown (Turtle t, float m)
@@ -144,4 +186,28 @@ void turtlePopStack (Turtle t)
 	t->orientation = s->orientation;
 	quat_quatToMatrixf (&t->orientation, t->matrix);
 	xph_free (s);
+}
+
+
+void turtlePenDown (Turtle t)
+{
+	t->pen = TURTLE_PENDOWN;
+}
+
+void turtlePenUp (Turtle t)
+{
+	t->pen = TURTLE_PENUP;
+	t->penUpSinceLastMove = TRUE;
+}
+
+
+
+static void turtleAddPoint (Turtle t)
+{
+	TurtlePath
+		p = xph_alloc (sizeof (struct xph_turtlePath));
+	p->broken = t->penUpSinceLastMove;
+	t->penUpSinceLastMove = FALSE;
+	p->position = t->position;
+	dynarr_push (t->path, p);
 }
