@@ -12,6 +12,41 @@
 GRAPH
 	WorldGraph = NULL;
 
+
+enum worldgenFootprintTypes
+{
+	SHAPE_NONE = 0,
+	SHAPE_HEX,
+	SHAPE_HEXBRANCH,
+};
+
+struct worldFootprintHex
+{
+	enum worldgenFootprintTypes
+		type;
+	unsigned int
+		radius;
+};
+
+struct worldFootprintHexBranch
+{
+	enum worldgenFootprintTypes
+		type;
+	unsigned int
+		maxSize;
+	unsigned char
+		maxBranches,
+		branchChance;
+};
+
+union worldgenFootprint
+{
+	enum worldgenFootprintTypes
+		type;
+	struct worldFootprintHex
+		hex;
+};
+
 #define PATTERN_NAME_LENGTH	64
 
 struct worldgenPattern
