@@ -2,10 +2,10 @@
 
 #include <assert.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <GL/glpng.h>
-#include "bool.h"
 
 #include "video.h"
 #include "xph_log.h"
@@ -83,14 +83,14 @@ void spriteDestroy (struct sprite * sprite) {
 
 bool spriteGetFromSheetOffset (const SPRITESHEET sheet, struct sprite * sprite, int offset) {
   bool r = sheetGetSpriteValuesViaOffset (sheet, offset, &sprite->x, &sprite->y, &sprite->w, &sprite->h, &sprite->f, &sprite->g);
-  if (r == TRUE)
+  if (r == true)
     sprite->sheet = (struct spriteSheet *)sheet;
   return r;
 }
 
 bool spriteGetFromSheetCoordinate (const SPRITESHEET sheet, SPRITE sprite, int column, int row) {
   bool r = sheetGetSpriteValuesViaCoordinate (sheet, column, row, &sprite->x, &sprite->y, &sprite->w, &sprite->h, &sprite->f, &sprite->g);
-  if (r == TRUE)
+  if (r == true)
     sprite->sheet = (struct spriteSheet *)sheet;
   return r;
 }
@@ -165,7 +165,7 @@ bool spriteDraw (const SPRITE sprite, float x, float y, float z, enum xflip xfli
   glEnd ();
   glBindTexture (GL_TEXTURE_2D, 0);
   billboardEnd ();
-  return TRUE;
+  return true;
 }
 
 void spriteGetXY (const SPRITE s, int * x, int * y)
@@ -826,7 +826,7 @@ bool sheetGetSpriteValuesViaOffset (const SPRITESHEET s, int offset, unsigned in
     ty = 0;
   struct sprite * p = NULL;
   if (offset < 0 || offset > s->spriteCount) {
-    return FALSE;
+    return false;
   }
   if (SHEET_MULTISIZE == s->format) {
     p = *(SPRITE *)dynarr_at (s->sprites, offset);
@@ -849,7 +849,7 @@ bool sheetGetSpriteValuesViaOffset (const SPRITESHEET s, int offset, unsigned in
     *x = tx * s->spriteWidth;
     *y = ty * s->spriteHeight;
   }
-  return TRUE;
+  return true;
 }
 
 bool sheetGetSpriteValuesViaCoordinate (const SPRITESHEET s, int column, int row, unsigned int *x, unsigned int *y, unsigned int *w, unsigned int *h, int *f, int *g) {
@@ -861,7 +861,7 @@ bool sheetGetSpriteValuesViaCoordinate (const SPRITESHEET s, int column, int row
       (s->format == SHEET_CONSTANT && column >= s->sheetColumns) ||
       (s->format == SHEET_MULTISIZE && column >= s->spritesPerRow[row])
      ) {
-    return FALSE;
+    return false;
   }
   if (SHEET_MULTISIZE == s->format) {
     while (r < row) {
@@ -883,7 +883,7 @@ bool sheetGetSpriteValuesViaCoordinate (const SPRITESHEET s, int column, int row
     *x = column * s->spriteWidth;
     *y = row * s->spriteHeight;
   }
-  return TRUE;
+  return true;
 }
 
 bool sheetGetCoordinateFVals (const SPRITESHEET s, int column, int row, float * x, float * y, float * w, float * h)
@@ -899,7 +899,7 @@ bool sheetGetCoordinateFVals (const SPRITESHEET s, int column, int row, float * 
 		(s->format == SHEET_MULTISIZE && column >= s->spritesPerRow[row])
 	)
 	{
-		return FALSE;
+		return false;
 	}
 	if (SHEET_MULTISIZE == s->format)
 	{
@@ -918,7 +918,7 @@ bool sheetGetCoordinateFVals (const SPRITESHEET s, int column, int row, float * 
 			*w = (float)sp->w / s->raw->Width;
 		if (h != NULL)
 			*h = (float)sp->h / s->raw->Height;
-		return TRUE;
+		return true;
 	}
 	if (x != NULL)
 		*x = (float)(column * s->spriteWidth) / s->raw->Width;
@@ -928,7 +928,7 @@ bool sheetGetCoordinateFVals (const SPRITESHEET s, int column, int row, float * 
 		*w = (float)s->spriteWidth / s->raw->Width;
 	if (h != NULL)
 		*h = (float)s->spriteHeight / s->raw->Height;
-	return TRUE;
+	return true;
 }
 
 static struct pngColour sheetPixelCoordinate (const SPRITESHEET s, int x, int y) {

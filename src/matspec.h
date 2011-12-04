@@ -1,7 +1,7 @@
 #ifndef XPH_MATSPEC_H
 #define XPH_MATSPEC_H
 
-#include "bool.h"
+#include <stdbool.h>
 
 typedef struct material_specification * MATSPEC;
 enum matOpacity

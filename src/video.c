@@ -22,14 +22,14 @@ void video_destroy (VIDEO * v) {
 
 bool video_loadConfigSettings (VIDEO * v, char * configPath) {
   video_loadDefaultSettings (v);
-  return FALSE;
+  return false;
 }
 
 void video_loadDefaultSettings (VIDEO * v) {
   v->height = 540;
   v->width = 960;
-  v->orthographic = FALSE;
-  v->doublebuffer = TRUE;
+  v->orthographic = false;
+  v->doublebuffer = true;
   v->resolution = VIDEO_DEFAULT_RESOLUTION;
   v->title = xph_alloc_name (16, "video->title");
   strncpy (v->title, "beyond 0.0.0.1", 16);
@@ -38,7 +38,7 @@ void video_loadDefaultSettings (VIDEO * v) {
   v->far = 5000.0;
   v->SDLmode = SDL_OPENGL;
   v->screen = NULL;
-	v->renderWireframe = FALSE;
+	v->renderWireframe = false;
 }
 
 
@@ -74,7 +74,7 @@ bool video_initialize (VIDEO * v) {
   const SDL_VideoInfo * info = NULL;
   if (v->screen == NULL && SDL_Init (SDL_INIT_VIDEO) < 0) {
     fprintf (stderr, "SDL failed to initialize. The error given was \"%s\".\n", SDL_GetError ());
-    return FALSE;
+    return false;
   }
   if (v->icon != NULL) {
     icon = SDL_LoadBMP (v->icon);
@@ -105,7 +105,7 @@ bool video_initialize (VIDEO * v) {
   SDL_GL_SetAttribute (SDL_GL_GREEN_SIZE, 5);
   SDL_GL_SetAttribute (SDL_GL_BLUE_SIZE, 5);
   SDL_GL_SetAttribute (SDL_GL_DEPTH_SIZE, 16);
-  SDL_GL_SetAttribute (SDL_GL_DOUBLEBUFFER, v->doublebuffer == TRUE ? 1 : 0);
+  SDL_GL_SetAttribute (SDL_GL_DOUBLEBUFFER, v->doublebuffer == true ? 1 : 0);
   if (
     v->screen == NULL
       && (v->screen = SDL_SetVideoMode (
@@ -115,11 +115,11 @@ bool video_initialize (VIDEO * v) {
             v->SDLmode)
          ) == NULL) {
     fprintf (stderr, "SDL failed to start video. The error given was \"%s\".\n", SDL_GetError ());
-    return FALSE;
+    return false;
   }
   video_enableGLmodules ();
   video_regenerateDisplay (v);
-  return TRUE;
+  return true;
 }
 
 void video_regenerateDisplay (VIDEO * v) {
@@ -131,7 +131,7 @@ void video_regenerateDisplay (VIDEO * v) {
   glViewport (0, 0, v->width, v->height);
   glMatrixMode (GL_PROJECTION);
   glLoadIdentity ();
-  if (v->orthographic == TRUE) {
+  if (v->orthographic == true) {
     glOrtho (-glWidth, glWidth,
              -glHeight, glHeight,
              glNear, glFar);
@@ -147,21 +147,21 @@ void video_regenerateDisplay (VIDEO * v) {
 
 bool video_setResolution (VIDEO * v, float x, float y) {
   if (x <= 0 || y <= 0) {
-    return FALSE;
+    return false;
   }
   v->width = x;
   v->height = y;
   video_regenerateDisplay (v);
-  return TRUE;
+  return true;
 }
 
 bool video_setScaling (VIDEO * v, float scale) {
   if (scale <= 0) {
-    return FALSE;
+    return false;
   }
   v->resolution = scale;
   video_regenerateDisplay (v);
-  return TRUE;
+  return true;
 }
 
 float video_getZnear ()
@@ -194,10 +194,10 @@ bool video_getDimensions (unsigned int * width, unsigned int * height)
 {
 	const VIDEO * v = obj_getClassData (VideoObject, "video");
 	if (v == NULL || width == NULL || height == NULL)
-		return FALSE;
+		return false;
 	*width = v->width;
 	*height = v->height;
-	return TRUE;
+	return true;
 }
 
 inline float video_pixelYMap (int y)
@@ -275,7 +275,7 @@ int video_handler (Object * o, objMsg msg, void * a, void * b) {
       return EXIT_SUCCESS;
 
     case OM_START:
-      return video_initialize (v) == TRUE
+      return video_initialize (v) == true
         ? EXIT_SUCCESS
         : EXIT_FAILURE;
 

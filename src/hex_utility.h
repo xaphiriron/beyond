@@ -5,7 +5,7 @@
 #include <float.h>
 #include <stdlib.h>
 
-#include "bool.h"
+#include <stdbool.h>
 #include "vector.h"
 
 /***

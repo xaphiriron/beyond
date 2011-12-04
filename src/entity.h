@@ -2,7 +2,7 @@
 #define XPH_ENTITY_H
 
 #include <stdarg.h>
-#include "bool.h"
+#include <stdbool.h>
 #include "timer.h"
 #include "dynarr.h"
 #include "object.h"

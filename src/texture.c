@@ -282,8 +282,8 @@ bool textureOOB (const TEXTURE t, VECTOR3 coord)
 {
 	if ((signed int)coord.x < 0 || (signed int)coord.x >= t->width ||
 		(signed int)coord.y < 0 || (signed int)coord.y >= t->height)
-		return TRUE;
-	return FALSE;
+		return true;
+	return false;
 }
 
 GLuint textureName (const TEXTURE t)

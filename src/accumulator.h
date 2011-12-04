@@ -1,7 +1,7 @@
 #ifndef ACCUMULATOR_H
 #define ACCUMULATOR_H
 
-#include "bool.h"
+#include <stdbool.h>
 #include "xph_memory.h"
 #include "timer.h"
 

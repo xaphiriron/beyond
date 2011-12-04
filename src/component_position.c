@@ -119,7 +119,7 @@ bool position_move (Entity e, VECTOR3 move)
 	SUBHEX
 		newGround = NULL;
 	bool
-		validMove = TRUE;
+		validMove = true;
 	signed int
 		newX, newY;
 
@@ -127,7 +127,7 @@ bool position_move (Entity e, VECTOR3 move)
 	{
 		ERROR ("Can't move: Entity #%d doesn't have a position component", entity_GUID (e));
 		FUNCCLOSE ();
-		return FALSE;
+		return false;
 	}
 	newRawPosition = vectorAdd (&pdata->pos, &move);
 
@@ -143,13 +143,13 @@ bool position_move (Entity e, VECTOR3 move)
 		else
 		{
 			ERROR ("Entity #%d's move has gone awry somehow???", entity_GUID (e));
-			return FALSE;
+			return false;
 		}
 	}
 
 	position_set (e, newPosition, newGround);
 	FUNCCLOSE ();
-	return TRUE;
+	return true;
 }
 
 void position_copy (Entity target, const Entity source)
@@ -167,14 +167,14 @@ void position_setOrientation (Entity e, const QUAT q)
 	if (pdata == NULL)
 		return;
 	pdata->orientation = q;
-	pdata->dirty = TRUE;	// we assume
+	pdata->dirty = true;	// we assume
 }
 
 static void position_updateAxesFromOrientation (POSITION pdata)
 {
 	QUAT
 		r;
-	if (pdata == NULL || pdata->dirty == FALSE)
+	if (pdata == NULL || pdata->dirty == false)
 		return;
 	r = pdata->orientation;
 	/* FIXME?: wait, why are the side and front vectors transposed here? I
@@ -218,7 +218,7 @@ static void position_updateAxesFromOrientation (POSITION pdata)
 	pdata->move.side = vectorNormalize (&pdata->move.side);
 	pdata->move.up = vectorCreate (0, 1, 0);
 	pdata->orientation = quat_normalize (&pdata->orientation);
-	pdata->dirty = FALSE;
+	pdata->dirty = false;
 }
 
 void position_rotateOnMouseInput (Entity e, const struct input_event * ie)
@@ -274,7 +274,7 @@ void position_rotateOnMouseInput (Entity e, const struct input_event * ie)
 		0
 	);
 	pdata->orientation = quat_multiply (&pdata->orientation, &q);
-	pdata->dirty = TRUE;
+	pdata->dirty = true;
 	entity_speak (e, "orientationUpdate", NULL);
 	//printf ("view quat: %7.2f, %7.2f, %7.2f, %7.2f\n", cdata->viewQuat.w, cdata->viewQuat.x, cdata->viewQuat.y, cdata->viewQuat.z);
 }
@@ -301,7 +301,7 @@ float position_getHeadingR (const POSITION p)
 {
 	if (p == NULL)
 		return 0.0;
-	if (p->dirty == TRUE)
+	if (p->dirty == true)
 		WARNING ("Whoops getting outdated axes (heading)");
 	if (fcmp (p->view.up.x, 1.0) || fcmp (p->view.up.x, -1.0))
 		return atan2 (p->view.side.z, p->view.front.z);
@@ -312,7 +312,7 @@ float position_getPitchR (const POSITION p)
 {
 	if (p == NULL)
 		return 0.0;
-	if (p->dirty == TRUE)
+	if (p->dirty == true)
 		WARNING ("Whoops getting outdated axes (pitch)");
 	if (fcmp (p->view.up.x, 1.0))
 		return M_PI_2;
@@ -325,7 +325,7 @@ float position_getRollR (const POSITION p)
 {
 	if (p == NULL)
 		return 0.0;
-	if (p->dirty == TRUE)
+	if (p->dirty == true)
 		WARNING ("Whoops getting outdated axes (roll)");
 	if (fcmp (p->view.up.x, 1.0) || fcmp (p->view.up.x, -1.0))
 		return 0.0;
@@ -349,10 +349,10 @@ bool position_getCoordOffsetR (const POSITION p, signed int * xp, signed int * y
 			*xp = 0;
 		if (yp)
 			*yp = 0;
-		return FALSE;
+		return false;
 	}
 	hex_space2coord (&p->pos, xp, yp);
-	return TRUE;
+	return true;
 }
 
 

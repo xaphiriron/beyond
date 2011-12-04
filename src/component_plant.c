@@ -213,10 +213,10 @@ static bool plant_addSymbol (struct plantSymbolSet * set, struct plantSymbol * s
 	struct plantSymbol
 		* match = *(struct plantSymbol **)dynarr_search (set->symbols, sym_search, sym->x);
 	if (match != NULL)
-		return FALSE;
+		return false;
 	dynarr_push (set->symbols, sym);
 	dynarr_sort (set->symbols, sym_sort);
-	return TRUE;
+	return true;
 }
 
 static const struct plantSymbol * plant_getSymbol (const struct plantSymbolSet * set, const char x)
@@ -245,7 +245,7 @@ bool plant_createRandom (Entity e)
 	PLANT
 		plant = NULL;
 	if (plantComponent != NULL)
-		return FALSE;
+		return false;
 	component_instantiate ("plant", e);
 	// ... this ought to initialize the plant data to an empty struct
 	plantComponent = entity_getAs (e, "plant");
@@ -274,7 +274,7 @@ bool plant_createRandom (Entity e)
 	plant->thickness = plant_generateBranchThickness (plant->growth, plant->symbols);
 	plant->growthsTilDeath = 6;
 	plant->growthThreshhold = 1200;
-	return TRUE;
+	return true;
 }
 
 void plant_update (EntComponent pc)
@@ -529,15 +529,15 @@ static Dynarr plant_generateBranches (const char * growth, const struct plantSym
 	const struct plantSymbol
 		* sym;
 	bool
-		newFork = FALSE,
-		recording = FALSE;
+		newFork = false,
+		recording = false;
 	while (i < l)
 	{
 		c = growth[i++];
 		switch (c)
 		{
 			case ':':
-				newFork = FALSE;
+				newFork = false;
 				t = xph_alloc (sizeof (struct plantBranch));
 				t->id = id++;
 				t->growthUsed = 0;
@@ -562,7 +562,7 @@ static Dynarr plant_generateBranches (const char * growth, const struct plantSym
 				break;
 			case '[':
 				dynarr_push (stack, b);
-				newFork = TRUE;
+				newFork = true;
 				dynarr_push (bufferStack, bufferUsed);
 				break;
 			case ']':
@@ -574,16 +574,16 @@ static Dynarr plant_generateBranches (const char * growth, const struct plantSym
 				}
 				break;
 			default:
-				recording = FALSE;
+				recording = false;
 				if (newFork && bufferUsed < PLANT_BRANCH_MAX)
 				{
 					buffer[bufferUsed++] = c;
-					recording = TRUE;
+					recording = true;
 				}
 				else if (!newFork && b->growthUsed < PLANT_BRANCH_MAX)
 				{
 					b->growth[b->growthUsed++] = c;
-					recording = TRUE;
+					recording = true;
 				}
 				if (recording)
 				{

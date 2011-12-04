@@ -6,10 +6,10 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "bool.h"
 #include "xph_log.h"
 
 typedef struct dynarr * Dynarr;

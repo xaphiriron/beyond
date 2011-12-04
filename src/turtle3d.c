@@ -52,7 +52,7 @@ Turtle turtleCreate (enum turtle_types type)
 	t->stack = dynarr_create (2, sizeof (struct xph_turtle_stack *));
 	t->path = dynarr_create (2, sizeof (VECTOR3 *));
 	t->pen = TURTLE_PENDOWN;
-	t->penUpSinceLastMove = FALSE;
+	t->penUpSinceLastMove = false;
 /*
 	printf ("\33[35;1mMATRIX\n");
 	printf ("%4.2f %4.2f %4.2f %4.2f\n", t->matrix[0], t->matrix[4], t->matrix[8], t->matrix[12]);
@@ -197,7 +197,7 @@ void turtlePenDown (Turtle t)
 void turtlePenUp (Turtle t)
 {
 	t->pen = TURTLE_PENUP;
-	t->penUpSinceLastMove = TRUE;
+	t->penUpSinceLastMove = true;
 }
 
 
@@ -207,7 +207,7 @@ static void turtleAddPoint (Turtle t)
 	TurtlePath
 		p = xph_alloc (sizeof (struct xph_turtlePath));
 	p->broken = t->penUpSinceLastMove;
-	t->penUpSinceLastMove = FALSE;
+	t->penUpSinceLastMove = false;
 	p->position = t->position;
 	dynarr_push (t->path, p);
 }

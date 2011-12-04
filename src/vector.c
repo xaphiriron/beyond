@@ -125,15 +125,15 @@ float vectorDot (const struct vector * a, const struct vector * b) {
 }
 
 bool vector_cmp (const struct vector * a, const struct vector * b) {
-  if (fcmp (a->x, b->x) == FALSE) {
+  if (fcmp (a->x, b->x) == false) {
     //printf ("x != x: %f, %f\n", a->x, b->x);
-    return FALSE;
+    return false;
   } else if (!fcmp (a->y, b->y)) {
     //printf ("y != y: %f, %f\n", a->y, b->y);
-    return FALSE;
+    return false;
   } else if (!fcmp (a->z, b->z)) {
     //printf ("z != z: %f, %f\n", a->z, b->z);
-    return FALSE;
+    return false;
   }
-  return TRUE;
+  return true;
 }

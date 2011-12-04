@@ -74,7 +74,7 @@ static Dynarr
 	SubsystemComponentStore = NULL,
 	ComponentLoader = NULL;
 
-static bool ComponentLoaderUnsorted = FALSE;
+static bool ComponentLoaderUnsorted = false;
 
 static int guid_sort (const void * a, const void * b);
 static int guid_search (const void * k, const void * d);
@@ -186,9 +186,9 @@ bool entity_exists (unsigned int guid)
 {
 	if (guid > EntityGUIDs || (DestroyedEntities != NULL && in_dynarr (DestroyedEntities, (void *)guid) >= 0))
 	{
-		return FALSE;
+		return false;
 	}
-	return TRUE;
+	return true;
 }
 
 Entity entity_get (unsigned int guid)
@@ -234,7 +234,7 @@ bool entity_message (Entity e, Entity from, char * message, void * arg)
 		i = 0;
 	//printf ("%s (#%d, \"%s\", %p)\n", __FUNCTION__, entity_GUID (e), message, arg);
 	if (e == NULL)
-		return FALSE;
+		return false;
 	//msg = xph_alloc (sizeof (struct comp_message));
 	msg.entFrom = from;
 	msg.from = NULL;
@@ -255,7 +255,7 @@ bool entity_message (Entity e, Entity from, char * message, void * arg)
 		obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, &msg, arg);
 		component_message (t, message, arg);
 	}
-	return TRUE;
+	return true;
 }
 
 static void component_messageSystem (const char * comp_name, const char * message, void * arg)
@@ -302,12 +302,12 @@ bool component_instantiate (const char * comp_name, Entity e)
 	struct ent_component
 		* instance = NULL;
 	if (sys == NULL)
-		return FALSE;
+		return false;
 	instance = xph_alloc (sizeof (struct ent_component));
 	instance->e = e;
 	instance->reg = sys;
 	instance->comp_guid = ++ComponentGUIDs;
-	instance->loaded = FALSE;
+	instance->loaded = false;
 	instance->loader = NULL;
 	// we care less about enforcing uniqueness of component guids than we do about entities.
 	dynarr_push (sys->entities, instance);
@@ -318,7 +318,7 @@ bool component_instantiate (const char * comp_name, Entity e)
 	instance->comp_data = NULL;
 	obj_message (sys->system, OM_COMPONENT_INIT_DATA, &instance->comp_data, e);
 	component_message (instance, "__init", NULL);
-	return TRUE;
+	return true;
 }
 
 bool component_remove (const char * comp_name, Entity e)
@@ -329,13 +329,13 @@ bool component_remove (const char * comp_name, Entity e)
 		comp = NULL;
 
 	if (sys == NULL)
-		return FALSE;
+		return false;
 	//printf ("%s: removing component \"%s\" from entity #%d\n", __FUNCTION__, comp_name, entity_GUID (e));
 	comp = *(EntComponent *)dynarr_search (sys->entities, comp_search, e);
 	if (comp == NULL)
 	{
 		WARNING ("Entity #%d doesn't have component \"%s\"", e->guid, comp_name);
-		return FALSE;
+		return false;
 	}
 	obj_message (sys->system, OM_COMPONENT_DESTROY_DATA, &comp->comp_data, e);
 	component_message (comp, "__destroy", NULL);
@@ -344,7 +344,7 @@ bool component_remove (const char * comp_name, Entity e)
 	if (comp->loader != NULL)
 		xph_free (comp->loader);
 	xph_free (comp);
-	return TRUE;
+	return true;
 }
 
 Entity component_entityAttached (EntComponent c)
@@ -357,14 +357,14 @@ Entity component_entityAttached (EntComponent c)
 bool component_setData (EntComponent c, void * data)
 {
 	if (c == NULL)
-		return FALSE;
+		return false;
 	if (c->comp_data)
 	{
 		ERROR ("Could not set component data for \"%s\" on #%d: data already set to %p", c->reg->comp_name, entity_GUID (component_entityAttached (c)), c->comp_data);
-		return FALSE;
+		return false;
 	}
 	c->comp_data = data;
-	return TRUE;
+	return true;
 }
 
 void * component_getData (EntComponent c)
@@ -377,9 +377,9 @@ void * component_getData (EntComponent c)
 bool component_clearData (EntComponent c)
 {
 	if (c == NULL)
-		return FALSE;
+		return false;
 	c->comp_data = NULL;
-	return TRUE;
+	return true;
 }
 
 
@@ -392,7 +392,7 @@ bool component_registerResponse (const char * comp_name, const char * message, c
 	if (sys == NULL)
 	{
 		ERROR ("No component \"%s\" registered", comp_name);
-		return FALSE;
+		return false;
 	}
 	mt = *(struct messageTrigger **)dynarr_search (sys->messageTriggers, mt_search, message);
 	if (mt == NULL)
@@ -403,7 +403,7 @@ bool component_registerResponse (const char * comp_name, const char * message, c
 	}
 	// TODO: this allows for registering the same function multiple times. this should iterate over the set functions and only push if function isn't already set.
 	dynarr_push (mt->funcs, function);
-	return TRUE;
+	return true;
 }
 
 bool component_clearResponses (const char * comp_name, const char * message)
@@ -413,14 +413,14 @@ bool component_clearResponses (const char * comp_name, const char * message)
 	struct messageTrigger
 		* mt;
 	if (sys == NULL)
-		return FALSE;
+		return false;
 	// TODO: this is yet another place that would be served by the existance of dynarr_searchAndReturnIndex or w/e
 	mt = *(struct messageTrigger **)dynarr_search (sys->messageTriggers, mt_search, message);
 	if (mt == NULL)
-		return TRUE;
+		return true;
 	dynarr_remove_condense (sys->messageTriggers, mt);
 	mt_destroy (mt);
-	return TRUE;
+	return true;
 }
 
 
@@ -480,7 +480,7 @@ Dynarr entity_getEntitiesWithComponent (int n, ...)
 		j = 0,
 		highestGUID = 0;
 	bool
-		NULLbreak = FALSE;
+		NULLbreak = false;
 	va_list
 		comps;
 	va_start (comps, n);
@@ -550,7 +550,7 @@ Dynarr entity_getEntitiesWithComponent (int n, ...)
 			}
 			if (c == NULL)
 			{
-				NULLbreak = TRUE;
+				NULLbreak = true;
 				break;
 			}
 			j++;
@@ -644,12 +644,12 @@ bool entity_registerComponentAndSystem (const char * comp_name, objHandler objFu
 	if (!objFunc && !classInit)
 	{
 		ERROR ("Can't create component; must have a object handler or a classInit response.");
-		return FALSE;
+		return false;
 	}
 	if (comp_name[0] == 0)
 	{
 		ERROR ("Can't create component: Needs a name.");
-		return FALSE;
+		return false;
 	}
 	reg = xph_alloc (sizeof (struct ent_system));
 	memset (reg, 0, sizeof (struct ent_system));
@@ -679,7 +679,7 @@ bool entity_registerComponentAndSystem (const char * comp_name, objHandler objFu
 		component_registerResponse (reg->comp_name, "__classInit", classInit);
 		component_messageSystem (reg->comp_name, "__classInit", NULL);
 	}
-	return TRUE;
+	return true;
 }
 
 
@@ -811,29 +811,29 @@ bool entitySubsystem_store (const char * comp_name)
 		SubsystemComponentStore = dynarr_create (6, sizeof (EntSystem));
 	s = entity_getSystemByName (comp_name);
 	if (s == NULL)
-		return FALSE;
+		return false;
 	if (in_dynarr (SubsystemComponentStore, s) >= 0)
 	{
-		return TRUE;
+		return true;
 	}
 	dynarr_push (SubsystemComponentStore, s);
-	return TRUE;
+	return true;
 }
 
 bool entitySubsystem_unstore (const char * comp_name) {
   EntSystem s = NULL;
   if (SubsystemComponentStore == NULL) {
-    return FALSE;
+    return false;
   }
   s = entity_getSystemByName (comp_name);
   if (s == NULL) {
-    return FALSE;
+    return false;
   }
   if (in_dynarr (SubsystemComponentStore, s) < 0) {
-    return TRUE; // already not in store
+    return true; // already not in store
   }
   dynarr_remove_condense (SubsystemComponentStore, s);
-  return TRUE;
+  return true;
 }
 
 bool entitySubsystem_runOnStored (objMsg msg)
@@ -841,12 +841,12 @@ bool entitySubsystem_runOnStored (objMsg msg)
 	EntSystem
 		sys = NULL;
 	bool
-		r = TRUE,
-		t = TRUE;
+		r = true,
+		t = true;
 	int
 		i = 0;
 	if (SubsystemComponentStore == NULL)
-		return FALSE;
+		return false;
 	while ((sys = *(EntSystem *)dynarr_at (SubsystemComponentStore, i++)) != NULL)
 	{
 		t = obj_message (sys->system, msg, NULL, NULL);
@@ -862,7 +862,7 @@ bool entitySubsystem_runOnStored (objMsg msg)
 				WARNING ("%s: Unhandled system message (%d)", __FUNCTION__, msg);
 				break;
 		}
-		r = (r != TRUE) ? FALSE : t;
+		r = (r != true) ? false : t;
 	}
 	return r;
 }
@@ -902,7 +902,7 @@ void component_setLoadComplete (EntComponent c)
 	if (c == NULL || c->loader == NULL)
 		return;
 	c->loader->status = COMPONENT_LOADED;
-	c->loaded = TRUE;
+	c->loaded = true;
 	//printf ("---component %p fully loaded\n", c);
 	dynarr_remove_condense (ComponentLoader, c);
 }
@@ -921,7 +921,7 @@ void component_dropLoad (EntComponent c)
 	if (c->loader != NULL)
 		xph_free (c->loader);
 	c->loader = NULL;
-	c->loaded = FALSE;
+	c->loaded = false;
 }
 
 
@@ -939,7 +939,7 @@ void component_reweigh (EntComponent c)
 void component_forceLoaderResort ()
 {
 	dynarr_sort (ComponentLoader, comp_weight_sort);
-	ComponentLoaderUnsorted = FALSE;
+	ComponentLoaderUnsorted = false;
 }
 
 
@@ -957,23 +957,23 @@ void component_setAsLoadable (EntComponent c)
 	}
 	l = xph_alloc (sizeof (COMPONENT_LOAD));
 	c->loader = l;
-	c->loaded = FALSE;
+	c->loaded = false;
 	l->status = COMPONENT_UNLOADED;
 	component_reweigh (c);
 	if (ComponentLoader == NULL)
 		ComponentLoader = dynarr_create (8, sizeof (EntComponent));
 	dynarr_push (ComponentLoader, c);
-	ComponentLoaderUnsorted = TRUE;
+	ComponentLoaderUnsorted = true;
 	//printf ("...%s\n", __FUNCTION__);
 }
 
 bool component_isLoaderActive ()
 {
 	if (ComponentLoader == NULL)
-		return FALSE;
+		return false;
 	if (dynarr_isEmpty (ComponentLoader))
-		return FALSE;
-	return TRUE;
+		return false;
+	return true;
 }
 
 void component_forceRunLoader (unsigned int load)
@@ -985,7 +985,7 @@ void component_forceRunLoader (unsigned int load)
 	printf ("%s...\n", __FUNCTION__);
 	if (ComponentLoader == NULL)
 		ComponentLoader = dynarr_create (8, sizeof (EntComponent));
-	if (ComponentLoaderUnsorted == TRUE)
+	if (ComponentLoaderUnsorted == true)
 	{
 		component_forceLoaderResort ();
 	}
@@ -1014,11 +1014,11 @@ void component_runLoader (const TIMER t)
 	FUNCOPEN ();
 	if (ComponentLoader == NULL)
 		ComponentLoader = dynarr_create (8, sizeof (EntComponent));
-	if (ComponentLoaderUnsorted == TRUE)
+	if (ComponentLoaderUnsorted == true)
 	{
 		//printf ("%s: resorting components by weight\n", __FUNCTION__);
 		dynarr_sort (ComponentLoader, comp_weight_sort);
-		ComponentLoaderUnsorted = FALSE;
+		ComponentLoaderUnsorted = false;
 	}
 	while (component_isLoaderActive () && (timeElapsed = timerGetTimeSinceLastUpdate (t)) < 0.05)
 	{

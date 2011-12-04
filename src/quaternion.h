@@ -3,7 +3,7 @@
 
 #include <assert.h>
 #include <math.h>
-#include "bool.h"
+#include <stdbool.h>
 #include "fcmp.h"
 
 typedef struct Quaternion

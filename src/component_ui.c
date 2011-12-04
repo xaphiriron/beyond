@@ -993,12 +993,12 @@ static struct uiTextFragment * uiFragmentCreate (const char * text, enum textAli
 	{
 		uit->text = xph_alloc (strlen (text) + 1);
 		strcpy (uit->text, text);
-		uit->reservedText = FALSE;
+		uit->reservedText = false;
 	}
 	else
 	{
 		uit->text = NULL;
-		uit->reservedText = TRUE;
+		uit->reservedText = true;
 	}
 	uit->align = align;
 	if (x < 0)

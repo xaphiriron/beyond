@@ -1,9 +1,9 @@
 #ifndef TIMER_H
 #define TIMER_H
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <sys/time.h>
-#include "bool.h"
 #include "xph_memory.h"
 #include "dynarr.h"
 

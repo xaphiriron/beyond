@@ -77,13 +77,13 @@ bool input_controlActive (const enum input_responses ir)
 	struct input_keys
 		* k;
 	if (Input == NULL)
-		return FALSE;
+		return false;
 	k = *(struct input_keys **)dynarr_at (Input->controlMap, ir);
 	if (k == NULL)
-		return FALSE;
+		return false;
 	return keysPressed (k) > 0
-		? TRUE
-		: FALSE;
+		? true
+		: false;
 }
 
 
@@ -97,7 +97,7 @@ struct input * input_create ()
 	i->controlledEntities = dynarr_create (2, sizeof (Entity *));
 	i->focusedEntities = dynarr_create (2, sizeof (Entity *));
 
-	i->active = TRUE;
+	i->active = true;
 
 	// fill out the control map here or elsewhere (probably elsewhere in the config/defaults function), but it needs to be populated with the actual key data before any SDL events are checked.
 	dynarr_assign (i->controlMap, IR_QUIT, keys_create (1, SDLK_ESCAPE));
@@ -178,15 +178,15 @@ bool input_addEntity (Entity e, enum input_control_types t)
 	{
 		if (in_dynarr (Input->controlledEntities, e) == -1)
 			dynarr_push (Input->controlledEntities, e);
-		return TRUE;
+		return true;
 	}
 	else if (t == INPUT_FOCUSED)
 	{
 		if (in_dynarr (Input->focusedEntities, e) == -1)
 			dynarr_push (Input->focusedEntities, e);
-		return TRUE;
+		return true;
 	}
-	return FALSE;
+	return false;
 }
 
 bool input_rmEntity (Entity e, enum input_control_types t)
@@ -195,14 +195,14 @@ bool input_rmEntity (Entity e, enum input_control_types t)
 	if (t == INPUT_CONTROLLED)
 	{
 		dynarr_remove_condense (Input->controlledEntities, e);
-		return TRUE;
+		return true;
 	}
 	else if (t == INPUT_FOCUSED)
 	{
 		dynarr_remove_condense (Input->focusedEntities, e);
-		return TRUE;
+		return true;
 	}
-	return FALSE;
+	return false;
 }
 
 void input_sendAction (enum input_responses action)
@@ -438,7 +438,7 @@ void input_update (Object * d)
 				{
 					if (Input->event.active.gain)
 					{
-						Input->active = TRUE;
+						Input->active = true;
 						if (systemState () == STATE_FREEVIEW)
 							SDL_ShowCursor (SDL_DISABLE);
 					}
@@ -454,7 +454,7 @@ void input_update (Object * d)
 					dynarr_clear (Input->keysPressed);
 					if (!Input->event.active.gain)
 					{
-						Input->active = FALSE;
+						Input->active = false;
 						if (systemState () == STATE_FREEVIEW)
 							SDL_ShowCursor (SDL_ENABLE);
 					}

@@ -1,7 +1,7 @@
 #ifndef XPH_MAP_H
 #define XPH_MAP_H
 
-#include "bool.h"
+#include <stdbool.h>
 #include "vector.h"
 #include "dynarr.h"
 #include "texture.h"

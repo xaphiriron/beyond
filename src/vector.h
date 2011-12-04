@@ -4,7 +4,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdarg.h>
-#include "bool.h"
+#include <stdbool.h>
 #include "fcmp.h"
 
 typedef struct vector {

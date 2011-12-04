@@ -94,10 +94,10 @@ void hex_nextValidCoord (unsigned int * rp, unsigned int * kp, unsigned int * ip
 bool hex_wellformedRKI (unsigned int r, unsigned int k, unsigned int i)
 {
 	if (r == 0 && i == 0)
-		return TRUE;
+		return true;
 	if (r < 0 || k < 0 || k >= 6 || i < 0 || i >= r)
-		return FALSE;
-	return TRUE;
+		return false;
+	return true;
 }
 
 void hex_rki2xy (unsigned int r, unsigned int k, unsigned int i, signed int * xp, signed int * yp)
@@ -218,10 +218,10 @@ unsigned int hexMagnitude (signed int x, signed int y)
 bool hex_centerDistanceCoord (unsigned int radius, unsigned int dir, signed int * xp, signed int * yp)
 {
 	if (xp == NULL || yp == NULL)
-		return FALSE;
+		return false;
 	*xp = XY[dir][X] * (radius + 1) + XY[DIR1MOD6 (dir)][X] * radius;
 	*yp = XY[dir][Y] * (radius + 1) + XY[DIR1MOD6 (dir)][Y] * radius;
-	return TRUE;
+	return true;
 }
 
 bool hexGround_centerDistanceCoord (unsigned int UNUSED, unsigned int dir, signed int * xp, signed int * yp)
@@ -352,15 +352,15 @@ bool hex_space2coord (const VECTOR3 * space, signed int * xp, signed int * yp)
 		yCoord;
 	if (xp == NULL || yp == NULL)
 	{
-		return FALSE;
+		return false;
 	}
-	if (fcmp (fmod (xGrid1, 90.0), 0.0) == TRUE)
+	if (fcmp (fmod (xGrid1, 90.0), 0.0) == true)
 	{
 		swap = xGrid1;
 		xGrid1 = xGrid2;
 		xGrid2 = swap;
 	}
-	if (fcmp (fmod (yGrid1, 52.0), 0.0) == TRUE)
+	if (fcmp (fmod (yGrid1, 52.0), 0.0) == true)
 	{
 		swap = yGrid1;
 		yGrid1 = yGrid2;
@@ -386,7 +386,7 @@ bool hex_space2coord (const VECTOR3 * space, signed int * xp, signed int * yp)
 	//printf ("\tfinal coord @ %d, %d\n", xCoord, yCoord);
 	*xp = xCoord;
 	*yp = yCoord;
-	return TRUE;
+	return true;
 }
 
 VECTOR3 hexGround_centerDistanceSpace (unsigned int UNUSED, unsigned int dir)

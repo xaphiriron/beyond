@@ -4,8 +4,8 @@
 #include <assert.h>
 #include <math.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
-#include "bool.h"
 #include "vector.h"
 #include "xph_memory.h"
 

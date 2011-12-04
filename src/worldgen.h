@@ -1,7 +1,7 @@
 #ifndef XPH_WORLDGEN_H
 #define XPH_WORLDGEN_H
 
-#include "bool.h"
+#include <stdbool.h>
 #include "timer.h"
 
 typedef struct worldgenPattern * PATTERN;

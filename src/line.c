@@ -95,12 +95,12 @@ float line_findIntersection (struct line * a, struct line * b, enum line_ctype t
 
 bool line_coordsAtT (const struct line * l, float t, float * x, float * y) {
   if (l == NULL)
-    return FALSE;
+    return false;
   if (x != NULL)
     *x = l->x0 + l->f * t;
   if (y != NULL)
     *y = l->y0 + l->g * t;
-  return TRUE;
+  return true;
 }
 
 // we do the "distance of a point from a line" calculation and expect it to be right on the line, or close enough that we don't care.
@@ -110,7 +110,7 @@ float line_tNearestCoords (const LINE * l, float jx, float jy) {
     gsq = l->g * l->g,
     fgsq = fsq + gsq,
     tj = 0;
-  if (fcmp (fgsq, 0.0) == TRUE) {
+  if (fcmp (fgsq, 0.0) == true) {
     // line is broken
     return 0;
   }
@@ -144,8 +144,8 @@ bool line_resize (LINE * l, float t0, float t1) {
   VECTOR3
     a = vectorCreate (0, 0, 0),
     b = vectorCreate (0, 0, 0);
-  if (fcmp (t0, t1) == TRUE) {
-    return FALSE;
+  if (fcmp (t0, t1) == true) {
+    return false;
   }
   line_coordsAtT (l, t0, &a.x, &a.y);
   line_coordsAtT (l, t1, &b.x, &b.y);
@@ -153,7 +153,7 @@ bool line_resize (LINE * l, float t0, float t1) {
   l->y0 = a.y;
   l->f = b.x - a.x;
   l->g = b.y - a.y;
-  return TRUE;
+  return true;
 }
 
 int line_countTvals (const struct line * l) {

@@ -1,10 +1,10 @@
 #ifndef VIDEO_H
 #define VIDEO_H
 
+#include <stdbool.h>
 #include <SDL/SDL.h>
 #include <SDL/SDL_opengl.h>
 #include "assert.h"
-#include "bool.h"
 #include "object.h"
 
 extern Object * VideoObject;

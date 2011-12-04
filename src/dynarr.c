@@ -38,10 +38,10 @@ static bool dynarr_index_used (const Dynarr da, int index)
 		j = index / CHAR_BIT,
 		k = index % CHAR_BIT;
 	if (j > da->capacity / CHAR_BIT) // overrun
-		return FALSE;
+		return false;
 	return (da->indicesUsed[j] & (0x01 << k))
-		? TRUE
-		: FALSE;
+		? true
+		: false;
 }
 
 static void dynarr_set_index (Dynarr da, int index)
@@ -506,10 +506,10 @@ int dynarr_capacity (const Dynarr da)
 bool dynarr_isEmpty (const Dynarr da)
 {
 	if (da == NULL)
-		return TRUE;
+		return true;
 	return da->used == 0
-		? TRUE
-		: FALSE;
+		? true
+		: false;
 }
 
 /***

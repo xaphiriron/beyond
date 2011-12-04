@@ -14,8 +14,8 @@ struct timer
 		* clock;
 	enum
 	{
-		TIMER_PAUSED = TRUE,
-		TIMER_RUNNING = FALSE
+		TIMER_PAUSED = true,
+		TIMER_RUNNING = false
 	} paused;
 };
 
@@ -126,7 +126,7 @@ void timerStart (TIMER t)
 bool outOfTime (TIMER t)
 {
 	if (t == NULL)
-		return FALSE;
+		return false;
 	timerUpdate (t);
 	return t->goal != 0.0 && t->goalElapsed >= t->goal;
 }

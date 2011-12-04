@@ -13,12 +13,12 @@ bool fcmp_t (float a, float b, float tolerance) {
 /* THIS CODE IS REDACTED; SEE NOTE BELOW
   if (sizeof (int) == sizeof (float)) {
     return (fdiff (a, b) <= tolerance)
-      ? TRUE
-      : FALSE;
+      ? true
+      : false;
   }
 */
   if (a == b || diff < tolerance) {
-    return TRUE;
+    return true;
   }
   fa = fabs (a);
   fb = fabs (b);
@@ -28,8 +28,8 @@ bool fcmp_t (float a, float b, float tolerance) {
     e = diff / fa;
   }
   return (e <= tolerance)
-    ? TRUE
-    : FALSE;
+    ? true
+    : false;
 }
 
 /* this code uses the Dark Arts of type-punning and relies on specific results

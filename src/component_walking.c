@@ -16,7 +16,7 @@ walkingComponent walking_create (float move, float turn)
 	w->moveSpd = fabs (move) * 52.0;
 	w->turnSpd = fabs (turn);
 	w->dirsActive = 0;
-	w->automoveActive = FALSE;
+	w->automoveActive = false;
 	return w;
 }
 
@@ -124,14 +124,14 @@ void walking_doControlInputResponse (Entity e, const struct input_event * ie)
 			wdata->automoveActive ^= 1;
 			break;
 		case IR_FREEMOVE_MOVE_FORWARD:
-			wdata->automoveActive = FALSE;
+			wdata->automoveActive = false;
 			walking_begin_movement (e, WALK_MOVE_FORWARD);
 			break;
 		case IR_FREEMOVE_MOVE_BACKWARD:
 			if (wdata->automoveActive)
 			{
 				walking_end_movement (e, WALK_MOVE_FORWARD);
-				wdata->automoveActive = FALSE;
+				wdata->automoveActive = false;
 			}
 			walking_begin_movement (e, WALK_MOVE_BACKWARD);
 			break;

@@ -7,7 +7,7 @@ ACCUMULATOR * accumulator_create (TIMER t, float delta) {
   a->delta = delta;
   a->maxDelta = delta * 50;
   a->accumulated = 0;
-  a->active = TRUE;
+  a->active = true;
   return a;
 }
 
@@ -18,9 +18,9 @@ void accumulator_destroy (ACCUMULATOR * a) {
 bool accumulator_withdrawlTime (ACCUMULATOR * a) {
   //printf ("%s: %f time accumulated with a delta of %f\n", __FUNCTION__, a->accumulated, a->delta);
   if (a->accumulated < a->delta)
-    return FALSE;
+    return false;
   a->accumulated -= a->delta;
-  return TRUE;
+  return true;
 }
 
 void accumulator_update (ACCUMULATOR * a) {

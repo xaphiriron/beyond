@@ -53,8 +53,8 @@ SYSTEM * system_create ()
 	TIMER
 		t;
 
-	s->quit = FALSE;
-	s->debug = FALSE;
+	s->quit = false;
+	s->debug = false;
 
 	s->clock = clock_create ();
 	s->timer_mult = 1.0;
@@ -113,13 +113,13 @@ enum system_states systemState ()
 bool systemPushState (enum system_states state)
 {
 	if (System == NULL)
-		return FALSE;
+		return false;
 	if (*(enum system_states *)dynarr_back (System->state) == STATE_FREEVIEW)
 		SDL_ShowCursor (SDL_ENABLE);
 	dynarr_push (System->state, state);
 	if (state == STATE_FREEVIEW)
 		SDL_ShowCursor (SDL_DISABLE);
-	return TRUE;
+	return true;
 }
 
 enum system_states systemPopState ()
@@ -140,9 +140,9 @@ enum system_states systemPopState ()
 bool systemClearStates ()
 {
 	if (System == NULL)
-		return FALSE;
+		return false;
 	dynarr_wipe (System->state, NULL);
-	return TRUE;
+	return true;
 }
 
 /***
@@ -688,7 +688,7 @@ bool systemToggleAttr (enum system_toggle_states toggle)
 		default:
 			break;
 	}
-	return FALSE;
+	return false;
 }
 
 bool systemAttr (enum system_toggle_states state)
@@ -700,7 +700,7 @@ bool systemAttr (enum system_toggle_states state)
 		default:
 			break;
 	}
-	return FALSE;
+	return false;
 }
 
 char * systemGenDebugStr ()
@@ -765,7 +765,7 @@ int system_message (objMsg msg, void * a, void * b)
 			return EXIT_SUCCESS;
 
 		case OM_SHUTDOWN:
-			System->quit = TRUE;
+			System->quit = true;
 			systemPushState (STATE_QUIT);
 			return EXIT_SUCCESS;
 

@@ -423,7 +423,7 @@ int graphEdgeCount (const GRAPH g)
 
 bool graphHasOutside (const GRAPH g)
 {
-	return FALSE;
+	return false;
 }
 
 

@@ -13,8 +13,8 @@ static int objData_sort (const void * a, const void * b);
 
 static unsigned int ObjectGUID = 0;
 
-static bool ObjectHaltMessaging = FALSE;
-static bool ObjectSkipChildren = FALSE;
+static bool ObjectHaltMessaging = false;
+static bool ObjectSkipChildren = false;
 static Dynarr ObjectMessageCallstack = NULL;
 
 static void obj_recordMessageChildren (Dynarr v, Object * o);
@@ -116,44 +116,44 @@ ObjClass * objClass_get (const char * n) {
 bool objClass_destroy (const char * n) {
   ObjClass * c = objClass_get (n);
   if (c == NULL) {
-    return FALSE;
+    return false;
   }
   return objClass_destroyP (c);
 }
 
 bool objClass_destroyP (ObjClass * c) {
   if (c->instances > 0) {
-    return FALSE;
+    return false;
   }
   c->handler (NULL, OM_CLSFREE, NULL, NULL);
   objClass_rmFromVector (c);
   // does rmChild remove and unlink its kids, too?
   objClass_rmChild (c->parent, c);
   xph_free (c);
-  return TRUE;
+  return true;
 }
 
 bool objClass_addChild (ObjClass * p, ObjClass * c) {
   ObjClass * t = NULL;
   //printf ("%s (%p, %p)\n", __FUNCTION__, p, c);
-  if (objClass_inheritsP (c, p) == TRUE) {
+  if (objClass_inheritsP (c, p) == true) {
 		WARNING ("Cannot make object class \"%s\"(%p) a child of \"%s\"(%p), since \"%s\" is a child of \"%s\".", c->name, c, p->name, p, p->name, c->name);
-    return FALSE;
+    return false;
   }
   c->parent = p;
   if (p == NULL) {
-    return TRUE;
+    return true;
   }
   if (p->firstChild == NULL) {
     p->firstChild = c;
-    return TRUE;
+    return true;
   }
   t = p->firstChild;
   while (t->nextSibling != NULL) {
     t = t->nextSibling;
   }
   t->nextSibling = c;
-  return TRUE;
+  return true;
 }
 
 bool objClass_rmChild (ObjClass * p, ObjClass * c) {
@@ -162,29 +162,29 @@ bool objClass_rmChild (ObjClass * p, ObjClass * c) {
   if (p == NULL) {
     // this happens so often it's not worth warning for. all it means is that this was a useless function call, not anything bad
     //fprintf (stderr, "%s (%p, %p): can't remove %p from null parent\n", __FUNCTION__, p, c, c);
-    return FALSE;
+    return false;
   } else if (c->parent != p) {
 		INFO ("Cannot remove object class \"%s\" (%p) as a child of \"%s\" (%p), since it's not one", c->name, c, p->name, p);
-    return FALSE;
+    return false;
   }
   c->parent = NULL;
   if (p->firstChild == c) {
     p->firstChild = c->nextSibling;
     c->nextSibling = NULL;
-    return TRUE;
+    return true;
   }
   t = p->firstChild;
   while (t->nextSibling != NULL) {
     if (t->nextSibling == c) {
       t->nextSibling = c->nextSibling;
       c->nextSibling = NULL;
-      return TRUE;
+      return true;
     }
     t = t->nextSibling;
   }
   c->nextSibling = NULL;
 	ERROR ("Malformed object class hierarchy: \"%s\" is a child of \"%s\", but wasn't in its list of children.", c->name, p->name);
-  return FALSE;
+  return false;
 }
 
 bool objClass_inheritsP (ObjClass * p, ObjClass * c) {
@@ -204,24 +204,24 @@ bool objClass_inheritsP (ObjClass * p, ObjClass * c) {
       if (u != t) {
 			ERROR ("Malformed object class hierarchy: \"%s\" is a child of \"%s\", but isn't in its list of children.", t->name, t->parent->name);
         exit (1);
-        return FALSE;
+        return false;
       }
     }
     if (t == ecp) {
-      return TRUE;
+      return true;
     }
     t = t->parent;
   }
-  return FALSE;
+  return false;
 #else /* OBJECT_VERIFY */
   const ObjClass * t = c;
   while (t != NULL) {
     if (t == p) {
-      return TRUE;
+      return true;
     }
     t = t->parent;
   }
-  return FALSE;
+  return false;
 #endif /* OBJECT_VERIFY */
 }
 
@@ -230,7 +230,7 @@ bool objClass_inherits (const char * pn, const char * cn) {
     * c = objClass_get (cn),
     * p = objClass_get (pn);
   if (c == NULL || p == NULL) {
-    return FALSE;
+    return false;
   }
   return objClass_inheritsP (p, c);
 }
@@ -240,8 +240,8 @@ bool objClass_chparentP (ObjClass * p, ObjClass * c) {
     return objClass_addChild (p, c);
   return (objClass_rmChild (c->parent, c)
            && objClass_addChild (p, c))
-             ? TRUE
-             : FALSE;
+             ? true
+             : false;
 }
 
 bool objClass_chparent (const char * pn, const char * cn) {
@@ -249,7 +249,7 @@ bool objClass_chparent (const char * pn, const char * cn) {
     * c = objClass_get (cn),
     * p = objClass_get (pn);
   if (c == NULL || (p != NULL && pn == NULL)) {
-    return FALSE;
+    return false;
   }
   //printf ("%s (%s, %s): doing real chparent\n", __FUNCTION__, c, p);
   return objClass_chparentP (p, c);
@@ -399,13 +399,13 @@ bool obj_addChild (Object * p, Object * c) {
   //printf ("%s (%p, %p) ... \n", __FUNCTION__, p, c);
   if (c == NULL) {
 		DEBUG ("Can't add NULL pointer as child of %p", p);
-    return FALSE;
-  } else if (obj_isChild (c, p) == TRUE) {
+    return false;
+  } else if (obj_isChild (c, p) == true) {
 		WARNING ("Can't make object #%d a child of #%d since that would create a hierarchal loop.", c->guid, p == NULL ? 0 : p->guid);
-    return FALSE;
+    return false;
   } else if (c->parent == p) {
 		DEBUG ("Can't make object #%d a child of #%d since it already is.", c->guid, p == NULL ? 0 : p->guid);
-    return FALSE;
+    return false;
   }
   //printf ("past first child/parent check\n");
   if (c->parent != NULL) {
@@ -414,22 +414,22 @@ bool obj_addChild (Object * p, Object * c) {
   }
   if (p == NULL) {
     c->parent = NULL;
-    //printf (" ... %s (TRUE; NULL PARENT)\n", __FUNCTION__);
-    return TRUE;
+    //printf (" ... %s (true; NULL PARENT)\n", __FUNCTION__);
+    return true;
   }
   c->parent = p;
   if (p->firstChild == NULL) {
     p->firstChild = c;
-    //printf (" ... %s (TRUE; ONLY CHILD)\n", __FUNCTION__);
-    return TRUE;
+    //printf (" ... %s (true; ONLY CHILD)\n", __FUNCTION__);
+    return true;
   }
   t = p->firstChild;
   while (t->nextSibling != NULL) {
     t = t->nextSibling;
   }
   t->nextSibling = c;
-  //printf (" ... %s (TRUE)\n", __FUNCTION__);
-  return TRUE;
+  //printf (" ... %s (true)\n", __FUNCTION__);
+  return true;
 }
 
 bool obj_rmChild (Object * p, Object * c) {
@@ -438,31 +438,31 @@ bool obj_rmChild (Object * p, Object * c) {
   if (p == NULL || c == NULL) {
     // this happens so often it's not worth warning for. all it means is that this was a useless function call, not anything bad
     //fprintf (stderr, "%s (%p, %p): got invalid null object\n", __FUNCTION__, p, c, c);
-    return FALSE;
+    return false;
   } else if (c->parent != p) {
 		INFO ("Can't remove object #%d as child of #%d since it isn't one.", c->guid, p->guid);
-    return FALSE;
+    return false;
   }
   c->parent = NULL;
   if (p->firstChild == c) {
     p->firstChild = c->nextSibling;
     c->nextSibling = NULL;
-    //printf (" ... %s (TRUE; FIRST CHILD)\n", __FUNCTION__);
-    return TRUE;
+    //printf (" ... %s (true; FIRST CHILD)\n", __FUNCTION__);
+    return true;
   }
   t = p->firstChild;
   while (t->nextSibling != NULL) {
     if (t->nextSibling == c) {
       t->nextSibling = c->nextSibling;
       c->nextSibling = NULL;
-      //printf (" ... %s (TRUE)\n", __FUNCTION__);
-      return TRUE;
+      //printf (" ... %s (true)\n", __FUNCTION__);
+      return true;
     }
     t = t->nextSibling;
   }
 		ERROR ("Malformed object hierarchy: Object #%d is a child of #%d, but wasn't in its list of children.", c->guid, p->guid);
   c->nextSibling = NULL;
-  return FALSE;
+  return false;
 }
 
 void obj_chparent (Object * p, Object * c) {
@@ -504,7 +504,7 @@ const char * obj_getClassName (const Object * o) {
 bool obj_isa (const Object * o, const char * cn) {
   const ObjClass * c = objClass_get (cn);
   if (c == NULL)
-    return FALSE;
+    return false;
   return obj_isaP (o, c);
 }
 
@@ -512,11 +512,11 @@ bool obj_isaP (const Object * o, const ObjClass * c) {
   ObjClass * t = o->class;
   while (t != NULL) {
     if (t == c) {
-      return TRUE;
+      return true;
     }
     t = t->parent;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -527,17 +527,17 @@ bool obj_isaP (const Object * o, const ObjClass * c) {
 bool obj_isChild (const Object * p, const Object * c) {
   Object * t = NULL;
   if (p == NULL || c == NULL) {
-    return FALSE;
+    return false;
   }
   t = c->parent;
   while (t != NULL) {
     //printf ("%p->parent: %p\n", t, t->parent);
     if (t == p) {
-      return TRUE;
+      return true;
     }
     t = t->parent;
   }
-  return FALSE;
+  return false;
 }
 
 bool obj_areSiblings (const Object * i, const Object * j) {
@@ -547,10 +547,10 @@ bool obj_areSiblings (const Object * i, const Object * j) {
 #endif /* OBJECT_VERIFY */
   if (i == NULL || j == NULL) {
 		DEBUG ("Cannot compare siblings when one or both is NULL (%p and %p)", i, j);
-    return FALSE;
+    return false;
   }
   if (i->parent == NULL || j->parent == NULL) {
-    return FALSE;
+    return false;
   }
 #ifdef OBJECT_VERIFY
   t = i->parent->firstChild;
@@ -565,10 +565,10 @@ bool obj_areSiblings (const Object * i, const Object * j) {
   }
   switch (c) {
     case 5:
-      return TRUE;
+      return true;
     case 2:
     case 3:
-      return FALSE;
+      return false;
     case 0:
 		ERROR ("Malformed object hierarchy: #%d is a child of #%d, but isn't in its list of children", i->guid, i->parent->guid);
       exit (1);
@@ -576,11 +576,11 @@ bool obj_areSiblings (const Object * i, const Object * j) {
 		ERROR ("Malformed entity hierarchy: duplicate entries of #%d or #%d in #%d's list of children\n", i->guid, j->guid, i->parent->guid);
       exit (1);
   }
-  return FALSE;
+  return false;
 #else /* OBJECT_VERIFY */
   return (i->parent == j->parent)
-    ? TRUE
-    : FALSE;
+    ? true
+    : false;
 #endif /* OBJECT_VERIFY */
 }
 
@@ -616,11 +616,11 @@ bool obj_addClassData (Object * o, const char * c, void * d) {
   od->data = d;
   if (od->ref == NULL) {
 		WARNING ("Can't set class data \"%s\" on object #%d, since that class doesn't exist", c, o->guid);
-    return FALSE;
+    return false;
   }
   dynarr_push (o->objData, od);
   dynarr_sort (o->objData, objData_sort);
-  return TRUE;
+  return true;
 }
 
 void * obj_getClassData (Object * o, const char * c) {
@@ -639,7 +639,7 @@ bool obj_rmClassData (Object * o, const char * c) {
   struct objData * od = *(struct objData **)dynarr_search (o->objData, objData_search, c);
   int index;
   if (od == NULL) {
-    return FALSE;
+    return false;
   }
   index = in_dynarr (o->objData, od);
   if (index >= 0) {
@@ -647,7 +647,7 @@ bool obj_rmClassData (Object * o, const char * c) {
     dynarr_condense (o->objData);
   }
   xph_free (od);
-  return TRUE;
+  return true;
 }
 
 
@@ -772,7 +772,7 @@ static void obj_recordMessagePost (Dynarr v, Object * o) {
 }
 
 
-static bool objPassState = TRUE;
+static bool objPassState = true;
 bool objPassEnable (bool o)
 {
 	objPassState = o;
@@ -863,7 +863,7 @@ static int obj_messageBACKEND (Object * o, const char * func, objMsg msg, void *
     //printf ("%s: messaging object %p (%d)\n", __FUNCTION__, t, i);
     r = obj_message (t, msg, a, b);
     //printf ("...done (%d)\n", i);
-    if (ObjectSkipChildren == TRUE) {
+    if (ObjectSkipChildren == true) {
       //printf ("okay, object %p chose to skip children (at offset %d)\n", t, i);
       //printf ("omg we're in the skip children check\n");
       p = dynarr_create (4, sizeof (Object *));
@@ -877,21 +877,21 @@ static int obj_messageBACKEND (Object * o, const char * func, objMsg msg, void *
       //printf ("we're finished looping (on object %p w/ parent %p)\n", t, t == NULL ? NULL : t->parent);
       dynarr_destroy (p);
       p = NULL;
-      ObjectSkipChildren = FALSE;
+      ObjectSkipChildren = false;
     }
-    if (ObjectHaltMessaging == TRUE) {
+    if (ObjectHaltMessaging == true) {
       break;
     }
   }
   //printf ("%s: done.\n", __FUNCTION__);
-  ObjectHaltMessaging = FALSE;
+  ObjectHaltMessaging = false;
 
   dynarr_destroy (v);
   return r;
 }
 
 int obj_pass () {
-	if (objPassEnabled () == FALSE)
+	if (objPassEnabled () == false)
 		return EXIT_FAILURE;
   //printf ("%s: OH GOD, WE'RE IN OBJ_PASS()\n", __FUNCTION__);
   int
@@ -932,11 +932,11 @@ int obj_pass () {
 }
 
 int obj_halt () {
-  ObjectHaltMessaging = TRUE;
+  ObjectHaltMessaging = true;
   return 0;
 }
 
 int obj_skipchildren () {
-  ObjectSkipChildren = TRUE;
+  ObjectSkipChildren = true;
   return 0;
 }

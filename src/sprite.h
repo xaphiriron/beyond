@@ -2,8 +2,8 @@
 #define XPH_SPRITE_H
 
 #include <stdarg.h>
+#include <stdbool.h>
 
-#include "bool.h"
 #include "texture.h"
 
 typedef struct spriteSheet * SPRITESHEET;
@@ -22,13 +22,13 @@ bool spriteGetFromSheetOffset (const SPRITESHEET sheet, SPRITE sprite, int offse
 bool spriteGetFromSheetCoordinate (const SPRITESHEET sheet, SPRITE sprite, int column, int row);
 
 enum xflip {
-  FLIP_X = TRUE,
-  NOFLIP_X = FALSE
+  FLIP_X = true,
+  NOFLIP_X = false
 };
 
 enum yflip {
-  FLIP_Y = TRUE,
-  NOFLIP_Y = FALSE
+  FLIP_Y = true,
+  NOFLIP_Y = false
 };
 
 bool spriteDraw (const SPRITE sprite, float x, float y, float z, enum xflip xflip, enum yflip yflip);

@@ -3,7 +3,7 @@
 
 #include <GL/gl.h>
 
-#include "bool.h"
+#include <stdbool.h>
 #include "vector.h"
 
 typedef struct xph_texture * TEXTURE;

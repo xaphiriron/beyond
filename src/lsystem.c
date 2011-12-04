@@ -40,8 +40,8 @@ void production_addRule (PRODUCTION * p, const char * exp) {
 
 bool lsystem_isDefined (const LSYSTEM * l, const char s) {
   return (*(char **)dynarr_search (l->p, production_search, s) == NULL)
-    ? FALSE
-    : TRUE;
+    ? false
+    : true;
 }
 
 PRODUCTION * lsystem_getProduction (const LSYSTEM * l, char s) {

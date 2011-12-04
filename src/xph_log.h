@@ -4,7 +4,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-#include "bool.h"
+#include <stdbool.h>
 
 #define ERROR(x,...)			logLine (__FILE__, __LINE__, E_ERR, x, ##__VA_ARGS__)
 #define WARNING(x,...)			logLine (__FILE__, __LINE__, E_WARN, x, ##__VA_ARGS__)
@@ -29,8 +29,8 @@ typedef enum logLevels
 
 typedef enum logLoudness
 {
-	LOG_QUIET = FALSE,
-	LOG_LOUD = TRUE,
+	LOG_QUIET = false,
+	LOG_LOUD = true,
 } LogLoudness;
 
 void logLine (const char * file, const unsigned int line, LogLevel level, const char * log, ...)

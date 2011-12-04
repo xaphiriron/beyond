@@ -56,12 +56,12 @@ bool mapSetSpanAndRadius (const unsigned char span, const unsigned char radius)
 	if (Poles != NULL || PoleNames != NULL)
 	{
 		ERROR ("Can't switch map size while there's a map loaded; keeping old values of %d/%d (instead of new values of %d/%d)", MapSpan, MapRadius, span, radius);
-		return FALSE;
+		return false;
 	}
 	// FIXME: add a check to make sure radius is a power of two, since things will break if it's not
 	MapRadius = radius;
 	MapSpan = span;
-	return TRUE;
+	return true;
 }
 
 unsigned char mapGetSpan ()
@@ -89,7 +89,7 @@ bool mapGeneratePoles (const enum mapPoleTypes type)
 			break;
 		default:
 			ERROR ("yeah pole count value of %d isn't supported, sry", type);
-			return FALSE;
+			return false;
 	}
 	PoleCount = count;
 	Poles = xph_alloc (sizeof (SUBHEX) * count);
@@ -99,14 +99,14 @@ bool mapGeneratePoles (const enum mapPoleTypes type)
 		Poles[count] = mapSubdivCreate (NULL, 0, 0);
 	}
 	
-	return FALSE;
+	return false;
 }
 
 bool worldExists ()
 {
 	if (Poles == NULL || PoleNames == NULL)
-		return FALSE;
-	return TRUE;
+		return false;
+	return true;
 }
 
 void worldDestroy ()
@@ -334,8 +334,8 @@ SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 	sh->sub.data = NULL;
 	sh->sub.arches = dynarr_create (1, sizeof (ARCH));
 
-	sh->sub.imprintable = FALSE;
-	sh->sub.loaded = FALSE;
+	sh->sub.imprintable = false;
+	sh->sub.loaded = false;
 
 	if (parent != NULL && parent->type != HS_SUB)
 	{
@@ -347,7 +347,7 @@ SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 
 	if (parent == NULL)
 	{
-		sh->sub.imprintable = TRUE;
+		sh->sub.imprintable = true;
 		sh->sub.span = MapSpan;
 		sh->sub.mapInfo = mapDataCreate ();
 	}
@@ -513,8 +513,8 @@ unsigned char stepParam (HEXSTEP step, const char * param)
 	if (step == NULL || step->material == NULL)
 	{
 		if (strcmp (param, "transparent") == 0)
-			return TRUE;
-		return FALSE;
+			return true;
+		return false;
 	}
 	return materialParam (step->material, param);
 }
@@ -539,7 +539,7 @@ bool mapMove (const SUBHEX start, const VECTOR3 * const position, SUBHEX * finis
 	if (start == NULL || position == NULL)
 	{
 		ERROR ("Can't calculate map movement; starting subhex (%p) or position vector (%p) are NULL", start, position);
-		return FALSE;
+		return false;
 	}
 
 	hex_space2coord (position, &x, &y);
@@ -547,7 +547,7 @@ bool mapMove (const SUBHEX start, const VECTOR3 * const position, SUBHEX * finis
 	{
 		*finish = start;
 		*newPosition = *position;
-		return TRUE;
+		return true;
 	}
 	mapScaleCoordinates (1, x, y, &x, &y, NULL, NULL);
 	newSubhexCentre = mapDistanceFromSubhexCentre (1, x, y);
@@ -560,11 +560,11 @@ bool mapMove (const SUBHEX start, const VECTOR3 * const position, SUBHEX * finis
 		*finish = mapRelativeTarget (rel);
 		mapRelativeDestroy (rel);
 		INFO ("Can't get span-1 fidelity for map movement from %p @ %.2f, %.2f, %.2f; got span-%d instead (addr: %p)", start, position->x, position->y, position->z, subhexSpanLevel (*finish), *finish);
-		return FALSE;
+		return false;
 	}
 	*finish = target;
 	mapRelativeDestroy (rel);
-	return TRUE;
+	return true;
 }
 
 
@@ -1211,7 +1211,7 @@ static signed int * mapCoordinateDistanceStack (const SUBHEX a, const SUBHEX b)
 	}
 
 	bool
-		LOUD = FALSE;
+		LOUD = false;
 	unsigned int
 		sr;
 
@@ -1220,7 +1220,7 @@ static signed int * mapCoordinateDistanceStack (const SUBHEX a, const SUBHEX b)
 	{
 		if (span >= 2 && (goalCoords[span * 2] != 0 || goalCoords[span * 2 + 1] != 0 || startCoords[span * 2] != 0 || startCoords[span * 2 + 1] != 0))
 		{
-			LOUD = TRUE;
+			LOUD = true;
 			WARNING ("LOUD ON at %d,%d vs. %d,%d @ %d", goalCoords[span * 2], goalCoords[span * 2 + 1], startCoords[span * 2], startCoords[span * 2 + 1], span);
 			sr = span;
 			span = MapSpan;
@@ -1284,8 +1284,8 @@ bool mapVectorOverrunsPlatter (const unsigned char span, const VECTOR3 * vector)
 		y = 0;
 	hex_space2coord (vector, &x, &y);
 	if (hexMagnitude (x, y) > MapRadius)
-		return TRUE;
-	return FALSE;
+		return true;
+	return false;
 }
 
 /***
@@ -1307,18 +1307,18 @@ bool mapScaleCoordinates (signed char relativeSpan, signed int x, signed int y, 
 	if (yRemainder)
 		*yRemainder = 0;
 	if (xp == NULL || yp == NULL)
-		return FALSE;
+		return false;
 	else if (relativeSpan == 0)
 	{
 		*xp = x;
 		*yp = y;
-		return TRUE;
+		return true;
 	}
 	else if (x == 0 && y == 0)
 	{
 		*xp = 0;
 		*yp = 0;
-		return TRUE;
+		return true;
 	}
 	
 	/* DEBUG ("starting w/ %d, %d", x, y); */
@@ -1333,12 +1333,12 @@ bool mapScaleCoordinates (signed char relativeSpan, signed int x, signed int y, 
 			ERROR ("\t(tried to shift %d span level%s down)", relativeSpan * -1, relativeSpan == -1 ? "" : "s");
 			*xp = 0;
 			*yp = 0;
-			return FALSE;
+			return false;
 		}
 		*xp = x * centres[0] + y * centres[2];
 		*yp = x * centres[1] + y * centres[3];
 		//DEBUG ("downscale values turns %d, %d into %d, %d", x, y, *xp, *yp);
-		return TRUE;
+		return true;
 	}
 	// step up in span, which means coordinate values gain range but lose resolution, and non-zero values get smaller and may be truncated.
 	centres = mapSpanCentres (relativeSpan);
@@ -1385,7 +1385,7 @@ bool mapScaleCoordinates (signed char relativeSpan, signed int x, signed int y, 
 		*yRemainder = y;
 	if (xRemainder == NULL && yRemainder == NULL && (x || y))
 		INFO ("%s: lost %d,%d to rounding error at relative span %d", __FUNCTION__, x, y, relativeSpan);
-	return TRUE;
+	return true;
 }
 
 
@@ -1513,9 +1513,9 @@ static bool coordinatesOverflow (const signed int x, const signed int y, const s
 		|| (cyy && ay * cyy < ay))
 	{
 		ERROR ("Coordinate overflow while shifting coordinates %d, %d down; using axes %d,%d and %d,%d; coordinate not representable!", x, y, coords[0], coords[1], coords[2], coords[3]);
-		return TRUE;
+		return true;
 	}
-	return FALSE;
+	return false;
 }
 
 /***
@@ -1735,7 +1735,7 @@ SUBHEX subhexParent (const SUBHEX subhex)
 bool subhexLocalCoordinates (const SUBHEX subhex, signed int * xp, signed int * yp)
 {
 	if (subhex == NULL)
-		return FALSE;
+		return false;
 	if (xp != NULL)
 		*xp = (subhex->type == HS_SUB)
 			? subhex->sub.x
@@ -1744,7 +1744,7 @@ bool subhexLocalCoordinates (const SUBHEX subhex, signed int * xp, signed int * 
 		*yp = (subhex->type == HS_SUB)
 			? subhex->sub.y
 			: subhex->hex.y;
-	return TRUE;
+	return true;
 }
 
 bool subhexPartlyLoaded (const SUBHEX subhex)
@@ -1752,7 +1752,7 @@ bool subhexPartlyLoaded (const SUBHEX subhex)
 	SUBHEX
 		val = subhex;
 	if (subhex == NULL)
-		return TRUE;
+		return true;
 	if (subhexSpanLevel (val) == 0)
 	{
 		val = subhexParent (val);
@@ -1806,7 +1806,7 @@ bool hexColor (const HEX hex, unsigned char * rgb)
 	rgb[2] = 64 +
 		!!(hex->light & 0x10) * 127 +
 		!!(hex->light & 0x20) * 64;
-	return TRUE;
+	return true;
 }
 
 WORLDHEX subhexGeneratePosition (const SUBHEX subhex)
@@ -2073,14 +2073,14 @@ static void mapCheckLoadStatusAndImprint (void * rel_v)
 			i++;
 		}
 		if (loadCount == 6)
-			target->sub.imprintable = TRUE;
+			target->sub.imprintable = true;
 		else
 			return;
 	}
 	if (!target->sub.loaded)
 	{
 		/* loaded needs to be set before the imprinting because the imprinting code checks to see if the hexes it's getting are part of a loaded platter and discards them if they're not */
-		target->sub.loaded = TRUE;
+		target->sub.loaded = true;
 		worldgenImprintMapData (target);
 		worldgenImprintAllArches (target);
 		mapBakeHexes (target);
@@ -2088,7 +2088,7 @@ static void mapCheckLoadStatusAndImprint (void * rel_v)
 		while (i < 6)
 		{
 			adjacent = mapHexAtCoordinateAuto (target, 0, XY[i][X], XY[i][Y]);
-			if (adjacent != NULL && subhexSpanLevel (adjacent) == subhexSpanLevel (target) && adjacent->sub.loaded == TRUE)
+			if (adjacent != NULL && subhexSpanLevel (adjacent) == subhexSpanLevel (target) && adjacent->sub.loaded == true)
 			{
 				/* FIXME: only some of these need to be updated (based on the i value) but I have no clue which and I'm too lazy to figure it out right now */
 				mapBakeEdgeHexes (adjacent, 0);
@@ -2244,7 +2244,7 @@ void mapDraw (const float const * matrix)
 		DEBUG (" - centre offset: %f %f %f", centreOffset.x, centreOffset.y, centreOffset.z);
 		//DEBUG (" - target: %p", sub);
 		i++;
-		if (sub == NULL || subhexSpanLevel (sub) != 1 || sub->sub.loaded == FALSE)
+		if (sub == NULL || subhexSpanLevel (sub) != 1 || sub->sub.loaded == false)
 		{
 			//DEBUG ("skipping value; subhex is NULL (%p) or span level isn't 1 (%d)", sub, sub == NULL ? -1 : subhexSpanLevel (sub));
 			continue;
@@ -2316,13 +2316,13 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 	{
 		//printf ("on column %p, #%d; %p\n", hex, columnIndex, step);
 		matspecColor (step->material, &rgb[0], &rgb[1], &rgb[2], NULL);
-		if (stepParam (step, "visible") != FALSE)
+		if (stepParam (step, "visible") != false)
 		{
 			if (hex->light)
 				glColor3ub (rgb[0], rgb[1], rgb[2]);
 			else
 				glColor3ub (rgb[0] - (rgb[0] >> 4), rgb[1] - (rgb[1] >> 4), rgb[2] - (rgb[2] >> 4));
-			if (stepParam (higher, "opaque") == FALSE)
+			if (stepParam (higher, "opaque") == false)
 			{
 				glBegin (GL_TRIANGLE_FAN);
 				glVertex3f (totalOffset.x, step->height * HEX_SIZE_4, totalOffset.z);
@@ -2341,7 +2341,7 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 		j = 1;
 		lower = *(HEXSTEP *)dynarr_at (hex->steps, --columnIndex);
 
-		if (stepParam (step, "visible") != FALSE)
+		if (stepParam (step, "visible") != false)
 		{
 			if (hex->light)
 				glColor3ub (
@@ -2406,7 +2406,7 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 		corners[3] = FULLHEIGHT (lower, 3);
 		corners[4] = FULLHEIGHT (lower, 4);
 		corners[5] = FULLHEIGHT (lower, 5);
-		if (stepParam (lower, "visible") == FALSE)
+		if (stepParam (lower, "visible") == false)
 		{
 			if (hex->light)
 				glColor3ub (
