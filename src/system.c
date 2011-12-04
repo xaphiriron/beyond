@@ -81,12 +81,12 @@ void systemInit ()
 	obj_create ("video", NULL, NULL, NULL);
 
 	//printf ("registering components\n");
-	entity_registerComponentAndSystem ("position", component_position, position_classInit);
-	entity_registerComponentAndSystem ("camera", NULL, camera_classInit);
-	entity_registerComponentAndSystem ("walking", component_walking, NULL);
-	entity_registerComponentAndSystem ("input", component_input, input_classInit);
-	entity_registerComponentAndSystem ("plant", component_plant, NULL);
-	entity_registerComponentAndSystem ("ui", NULL, ui_classInit);
+	component_register ("position", component_position, position_classInit);
+	component_register ("camera", NULL, camera_classInit);
+	component_register ("walking", component_walking, NULL);
+	component_register ("input", component_input, input_classInit);
+	component_register ("plant", component_plant, NULL);
+	component_register ("ui", NULL, ui_classInit);
 
 	// this order DOES matter, since this is the order they're updated later.
 	entitySubsystem_store ("position");

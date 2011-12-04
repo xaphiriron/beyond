@@ -267,6 +267,88 @@ static void component_message (EntComponent c, const char * message, void * arg)
  * COMPONENTS
  */
 
+bool component_register (const char * comp_name, objHandler objFunc, compFunc classInit)
+{
+	struct ent_system
+		* reg;
+	ObjClass
+		* oc;
+	Object
+		* sys;
+	if (!objFunc && !classInit)
+	{
+		ERROR ("Can't create component; must have a object handler or a classInit response.");
+		return false;
+	}
+	if (comp_name[0] == 0)
+	{
+		ERROR ("Can't create component: Needs a name.");
+		return false;
+	}
+	reg = xph_alloc (sizeof (struct ent_system));
+	memset (reg, 0, sizeof (struct ent_system));
+	strncpy (reg->comp_name, comp_name, COMPNAMELENGTH - 1);
+	
+	reg->entities = dynarr_create (4, sizeof (EntComponent *));
+
+	reg->loaderCallback = NULL;
+	reg->weighCallback = NULL;
+
+	reg->messageTriggers = dynarr_create (4, sizeof (struct messageTrigger *));
+	if (SystemRegistry == NULL)
+		SystemRegistry = dynarr_create (4, sizeof (EntSystem *));
+	dynarr_push (SystemRegistry, reg);
+	dynarr_sort (SystemRegistry, sys_sort);
+
+	if (objFunc)
+	{
+		oc = objClass_init (objFunc, NULL, NULL, NULL);
+		sys = obj_create (oc->name, NULL, NULL, NULL);
+		reg->system = sys;
+		obj_message (sys, OM_COMPONENT_GET_LOADER_CALLBACK, &reg->loaderCallback, NULL);
+		obj_message (sys, OM_COMPONENT_GET_WEIGH_CALLBACK, &reg->weighCallback, NULL);
+	}
+	if (classInit)
+	{
+		component_registerResponse (reg->comp_name, "__classInit", classInit);
+		component_messageSystem (reg->comp_name, "__classInit", NULL);
+	}
+	return true;
+}
+
+void component_destroy (const char * comp_name)
+{
+	EntSystem
+		sys = entity_getSystemByName (comp_name);
+	EntComponent
+		c = NULL;
+	//printf ("%s (\"%s\")...\n", __FUNCTION__, comp_name);
+	if (sys == NULL)
+		return;
+
+	if (!dynarr_isEmpty (sys->entities))
+	{
+		WARNING ("EntComponent system \"%s\" still has %d entit%s with instantiations while being destroyed.", sys->comp_name, dynarr_size (sys->entities), dynarr_size (sys->entities) == 1 ? "y" : "ies");
+		while (!dynarr_isEmpty (sys->entities)) {
+			c = *(EntComponent *)dynarr_front (sys->entities);
+			component_remove (sys->comp_name, c->e);
+		}
+	}
+
+	/* TODO: find if there's a __classDestroy response and if so call those
+	 * functions
+	 *  - xph 2011 08 21 */
+
+	dynarr_map (sys->messageTriggers, (void (*)(void *))mt_destroy);
+	dynarr_destroy (sys->messageTriggers);
+
+	dynarr_destroy (sys->entities);
+	dynarr_remove_condense (SystemRegistry, sys);
+	obj_message (sys->system, OM_DESTROY, NULL, NULL);
+	objClass_destroy (sys->comp_name);
+	xph_free (sys);
+}
+
 bool component_instantiate (const char * comp_name, Entity e)
 {
 	EntSystem
@@ -601,56 +683,6 @@ void entity_purgeDestroyed (TIMER t)
 }
 
 
-bool entity_registerComponentAndSystem (const char * comp_name, objHandler objFunc, compFunc classInit)
-{
-	struct ent_system
-		* reg;
-	ObjClass
-		* oc;
-	Object
-		* sys;
-	if (!objFunc && !classInit)
-	{
-		ERROR ("Can't create component; must have a object handler or a classInit response.");
-		return false;
-	}
-	if (comp_name[0] == 0)
-	{
-		ERROR ("Can't create component: Needs a name.");
-		return false;
-	}
-	reg = xph_alloc (sizeof (struct ent_system));
-	memset (reg, 0, sizeof (struct ent_system));
-	strncpy (reg->comp_name, comp_name, COMPNAMELENGTH - 1);
-	
-	reg->entities = dynarr_create (4, sizeof (EntComponent *));
-
-	reg->loaderCallback = NULL;
-	reg->weighCallback = NULL;
-
-	reg->messageTriggers = dynarr_create (4, sizeof (struct messageTrigger *));
-	if (SystemRegistry == NULL)
-		SystemRegistry = dynarr_create (4, sizeof (EntSystem *));
-	dynarr_push (SystemRegistry, reg);
-	dynarr_sort (SystemRegistry, sys_sort);
-
-	if (objFunc)
-	{
-		oc = objClass_init (objFunc, NULL, NULL, NULL);
-		sys = obj_create (oc->name, NULL, NULL, NULL);
-		reg->system = sys;
-		obj_message (sys, OM_COMPONENT_GET_LOADER_CALLBACK, &reg->loaderCallback, NULL);
-		obj_message (sys, OM_COMPONENT_GET_WEIGH_CALLBACK, &reg->weighCallback, NULL);
-	}
-	if (classInit)
-	{
-		component_registerResponse (reg->comp_name, "__classInit", classInit);
-		component_messageSystem (reg->comp_name, "__classInit", NULL);
-	}
-	return true;
-}
-
-
 
 static EntSystem entity_getSystemByName (const char * comp_name) {
   struct ent_system * sys = NULL;
@@ -665,40 +697,6 @@ static EntSystem entity_getSystemByName (const char * comp_name) {
   }
   return sys;
 }
-
-void entity_destroySystem (const char * comp_name)
-{
-	EntSystem
-		sys = entity_getSystemByName (comp_name);
-	EntComponent
-		c = NULL;
-	//printf ("%s (\"%s\")...\n", __FUNCTION__, comp_name);
-	if (sys == NULL)
-		return;
-
-	if (!dynarr_isEmpty (sys->entities))
-	{
-		WARNING ("EntComponent system \"%s\" still has %d entit%s with instantiations while being destroyed.", sys->comp_name, dynarr_size (sys->entities), dynarr_size (sys->entities) == 1 ? "y" : "ies");
-		while (!dynarr_isEmpty (sys->entities)) {
-			c = *(EntComponent *)dynarr_front (sys->entities);
-			component_remove (sys->comp_name, c->e);
-		}
-	}
-
-	/* TODO: find if there's a __classDestroy response and if so call those
-	 * functions
-	 *  - xph 2011 08 21 */
-
-	dynarr_map (sys->messageTriggers, (void (*)(void *))mt_destroy);
-	dynarr_destroy (sys->messageTriggers);
-
-	dynarr_destroy (sys->entities);
-	dynarr_remove_condense (SystemRegistry, sys);
-	obj_message (sys->system, OM_DESTROY, NULL, NULL);
-	objClass_destroy (sys->comp_name);
-	xph_free (sys);
-}
-
 
 EntComponent entity_getAs (Entity e, const char * comp_name)
 {
@@ -763,7 +761,7 @@ void entity_destroyEverything ()
 	{
 		sys = *(EntSystem *)dynarr_front (SystemRegistry);
 		DEBUG ("Destroying system \"%s\"", sys->comp_name);
-		entity_destroySystem (sys->comp_name);
+		component_destroy (sys->comp_name);
 	}
 	dynarr_destroy (SystemRegistry);
 	SystemRegistry = NULL;

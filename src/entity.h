@@ -14,6 +14,7 @@ typedef struct ent_system * EntSystem;
 typedef struct ent_component * EntComponent;
 
 typedef void (compFunc) (EntComponent, void *);
+typedef void (sysFunc) (const Dynarr);
 
 struct comp_message {
 	Entity
@@ -54,6 +55,9 @@ bool entity_message (Entity e, Entity from, char * message, void * arg);
  * COMPONENTS
  */
 
+bool component_register (const char * comp_name, objHandler objFunc, compFunc classInit);
+void component_destroy (const char * comp_name);
+
 bool component_instantiate (const char * comp_name, Entity e);
 bool component_remove (const char * comp_name, Entity e);
 
@@ -76,9 +80,6 @@ Dynarr entity_getEntitiesWithComponent (int n, ...);
 
 void entity_purgeDestroyed (TIMER t);
 
-bool entity_registerComponentAndSystem (const char * comp_name, objHandler objFunc, compFunc classInit);
-
-void entity_destroySystem (const char * comp_name);
 void entity_destroyEverything ();
 
 
