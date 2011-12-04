@@ -1,5 +1,7 @@
 #include "entity.h"
 
+#define ENT_NAMELENGTH 32
+
 struct entity {
 	unsigned int
 		guid;
@@ -12,9 +14,26 @@ struct entity {
 
 struct messageTrigger
 {
-	char * message;
+	char
+		* message;
 	Dynarr
 		funcs;
+};
+
+struct entity_name_map
+{
+	char
+		name[ENT_NAMELENGTH];
+	Entity
+		entity;
+};
+
+struct entity_group_map
+{
+	char
+		name[ENT_NAMELENGTH];
+	Dynarr
+		members;
 };
 
 struct ent_system {
@@ -48,7 +67,10 @@ static Dynarr
 	DestroyedEntities = NULL,		// stores guids
 	ExistantEntities = NULL,		// stores struct entity *
 	SystemRegistry = NULL,
-	SubsystemComponentStore = NULL;
+	SubsystemComponentStore = NULL,
+	EntityNames = NULL,				// stores struct entity_name_map
+	EntityGroups = NULL				// stores struct entity_group_map
+	;
 
 static int guid_sort (const void * a, const void * b);
 static int guid_search (const void * k, const void * d);
@@ -56,6 +78,10 @@ static int comp_sort (const void * a, const void * b);
 static int comp_search (const void * k, const void * d);
 static int sys_sort (const void * a, const void * b);
 static int sys_search (const void * k, const void * d);
+static int entname_sort (const void * a, const void * b);
+static int entname_search (const void * k, const void * d);
+static int entgroup_sort (const void * a, const void * b);
+static int entgroup_search (const void * k, const void * d);
 
 static struct messageTrigger * mt_create (const char * message);
 static void mt_destroy (struct messageTrigger * mt);
@@ -66,6 +92,8 @@ static void component_messageSystem (const char * comp_name, const char * messag
 static void component_message (EntComponent c, const char * message, void * arg);
 
 static EntSystem entity_getSystemByName (const char * comp_name);
+
+static void group_destroy (struct entity_group_map * group);
 
 static int guid_sort (const void * a, const void * b)
 {
@@ -112,6 +140,42 @@ static int sys_search (const void * k, const void * d) {
       *(char **)k,
       (*(const struct ent_system **)d)->comp_name
     );
+}
+
+static int entname_sort (const void * a, const void * b)
+{
+	return strcmp
+	(
+		(*(const struct entity_name_map **)a)->name,
+		(*(const struct entity_name_map **)b)->name
+	);
+}
+
+static int entname_search (const void * k, const void * d)
+{
+	return strcmp
+	(
+		*(char **)k,
+		(*(const struct entity_name_map **)d)->name
+	);
+}
+
+static int entgroup_sort (const void * a, const void * b)
+{
+	return strcmp
+	(
+		(*(const struct entity_group_map **)a)->name,
+		(*(const struct entity_group_map **)b)->name
+	);
+}
+
+static int entgroup_search (const void * k, const void * d)
+{
+	return strcmp
+	(
+		*(char **)k,
+		(*(const struct entity_group_map **)d)->name
+	);
 }
 
 
@@ -168,6 +232,79 @@ Entity entity_get (unsigned int guid)
 	Entity
 		e = *(Entity *)dynarr_search (ExistantEntities, guid_search, guid);
 	return e;
+}
+
+bool entity_name (Entity e, const char * name)
+{
+	struct entity_name_map
+		* map;
+	if (EntityNames == NULL)
+		EntityNames = dynarr_create (4, sizeof (struct entity_name_map *));
+	map = *(struct entity_name_map **)dynarr_search (EntityNames, entname_search, name);
+	if (map)
+	{
+		WARNING ("Replacing named entity #%d with new entity, #%d", entity_GUID (map->entity), entity_GUID (e));
+		map->entity = e;
+		return true;
+	}
+	map = xph_alloc (sizeof (struct entity_name_map));
+	map->entity = e;
+	strncpy (map->name, name, ENT_NAMELENGTH);
+	dynarr_push (EntityNames, map);
+	dynarr_sort (EntityNames, entname_sort);
+	return true;
+}
+
+Entity entity_getByName (const char * name)
+{
+	struct entity_name_map
+		* map;
+	if (EntityNames == NULL)
+		return NULL;
+	map = *(struct entity_name_map **)dynarr_search (EntityNames, entname_search, name);
+	if (map)
+		return map->entity;
+	return NULL;
+}
+
+bool entity_addToGroup (Entity e, const char * groupName)
+{
+	struct entity_group_map
+		* group;
+	if (EntityGroups == NULL)
+		EntityGroups = dynarr_create (4, sizeof (struct entity_group_map *));
+	group = *(struct entity_group_map **)dynarr_search (EntityGroups, entgroup_search, groupName);
+	if (group)
+	{
+		dynarr_push (group->members, e);
+		return true;
+	}
+	group = xph_alloc (sizeof (struct entity_group_map));
+	strncpy (group->name, groupName, ENT_NAMELENGTH);
+	group->members = dynarr_create (4, sizeof (Entity));
+	dynarr_push (group->members, e);
+
+	dynarr_push (EntityGroups, group);
+	dynarr_sort (EntityGroups, entgroup_sort);
+	return true;
+}
+
+const Dynarr entity_getGroup (const char * groupName)
+{
+	struct entity_group_map
+		* group;
+	if (EntityGroups == NULL)
+		return NULL;
+	group = *(struct entity_group_map **)dynarr_search (EntityGroups, entgroup_search, groupName);
+	if (!group)
+		return NULL;
+	return group->members;
+}
+
+static void group_destroy (struct entity_group_map * group)
+{
+	dynarr_destroy (group->members);
+	xph_free (group);
 }
 
 /***
@@ -755,6 +892,21 @@ void entity_destroyEverything ()
 	}
 	dynarr_destroy (SubsystemComponentStore);
 	SubsystemComponentStore = NULL;
+
+	if (EntityNames)
+	{
+		dynarr_map (EntityNames, xph_free);
+		dynarr_destroy (EntityNames);
+		EntityNames = NULL;
+	}
+
+	if (EntityGroups)
+	{
+		dynarr_map (EntityGroups, (void(*)(void *))group_destroy);
+		dynarr_destroy (EntityGroups);
+		EntityGroups = NULL;
+	}
+
 	if (SystemRegistry == NULL)
 		return;
 	while (!dynarr_isEmpty (SystemRegistry))

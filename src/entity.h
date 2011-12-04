@@ -37,6 +37,12 @@ unsigned int entity_GUID (const Entity e);
 bool entity_exists (unsigned int guid);
 Entity entity_get (unsigned int guid);
 
+bool entity_name (Entity e, const char * name);
+Entity entity_getByName (const char * name);
+
+bool entity_addToGroup (Entity e, const char * groupName);
+const Dynarr entity_getGroup (const char * group);
+
 /***
  * MESSAGING
  */
