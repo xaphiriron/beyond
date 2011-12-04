@@ -10,6 +10,9 @@
 
 #include "component_input.h"
 #include "component_ui.h"
+#include "component_camera.h"
+#include "component_walking.h"
+#include "component_plant.h"
 
 static void bootstrap (void);
 static void load (TIMER t);
@@ -40,6 +43,23 @@ void bootstrap (void)
 	 * effects, etc
 	 *  - xph 2011 09 26
 	 */
+
+	//printf ("registering components\n");
+	component_register ("position", component_position, position_classInit);
+	component_register ("camera", NULL, camera_classInit);
+	component_register ("walking", component_walking, NULL);
+	component_register ("input", component_input, input_classInit);
+	component_register ("plant", component_plant, NULL);
+	component_register ("ui", NULL, ui_classInit);
+
+	// this order DOES matter, since this is the order they're updated later.
+	entitySubsystem_store ("position");
+	entitySubsystem_store ("plant");
+	entitySubsystem_store ("walking");
+	entitySubsystem_store ("camera");
+	entitySubsystem_store ("input");
+	entitySubsystem_store ("ui");
+
 	obj_message (VideoObject, OM_START, NULL, NULL);
 	//obj_message (PhysicsObject, OM_START, NULL, NULL);
 	//obj_message (WorldObject, OM_START, NULL, NULL);
