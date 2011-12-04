@@ -31,35 +31,12 @@ struct ent_system {
 };
 
 
-enum componentLoadStatus
-{
-	COMPONENT_NONEXISTANT = 0,
-	COMPONENT_UNLOADED,
-	COMPONENT_LOADING,
-	COMPONENT_LOADED
-};
-
-typedef struct
-{
-	unsigned int
-		totalValues,
-		loadedValues;
-	unsigned char
-		loadWeight;
-	enum componentLoadStatus
-		status;
-} COMPONENT_LOAD;
-
 struct ent_component
 {
   Entity e;
   EntSystem reg;
   void * comp_data;
-	COMPONENT_LOAD
-		* loader;
   unsigned int comp_guid;
-	bool
-		loaded;
 };
 
 
@@ -71,10 +48,7 @@ static Dynarr
 	DestroyedEntities = NULL,		// stores guids
 	ExistantEntities = NULL,		// stores struct entity *
 	SystemRegistry = NULL,
-	SubsystemComponentStore = NULL,
-	ComponentLoader = NULL;
-
-static bool ComponentLoaderUnsorted = false;
+	SubsystemComponentStore = NULL;
 
 static int guid_sort (const void * a, const void * b);
 static int guid_search (const void * k, const void * d);
@@ -82,8 +56,6 @@ static int comp_sort (const void * a, const void * b);
 static int comp_search (const void * k, const void * d);
 static int sys_sort (const void * a, const void * b);
 static int sys_search (const void * k, const void * d);
-
-static int comp_weight_sort (const void * a, const void * b);
 
 static struct messageTrigger * mt_create (const char * message);
 static void mt_destroy (struct messageTrigger * mt);
@@ -307,8 +279,6 @@ bool component_instantiate (const char * comp_name, Entity e)
 	instance->e = e;
 	instance->reg = sys;
 	instance->comp_guid = ++ComponentGUIDs;
-	instance->loaded = false;
-	instance->loader = NULL;
 	// we care less about enforcing uniqueness of component guids than we do about entities.
 	dynarr_push (sys->entities, instance);
 	dynarr_push (e->components, instance);
@@ -341,8 +311,6 @@ bool component_remove (const char * comp_name, Entity e)
 	component_message (comp, "__destroy", NULL);
 	dynarr_remove_condense (sys->entities, comp);
 	dynarr_remove_condense (e->components, comp);
-	if (comp->loader != NULL)
-		xph_free (comp->loader);
 	xph_free (comp);
 	return true;
 }
@@ -872,174 +840,3 @@ void entitySubsystem_clearStored () {
     dynarr_clear (SubsystemComponentStore);
   }
 }
-
-
-
-/***
- * LOADING (old and terrible; should be replaced with something less terrible)
- */
-
-void component_setLoadGoal (EntComponent c, unsigned int m)
-{
-	if (c == NULL || c->loader == NULL)
-		return;
-	c->loader->status = COMPONENT_LOADING;
-	c->loader->totalValues = m;
-}
-
-void component_updateLoadAmount (EntComponent c, unsigned int v)
-{
-	if (c == NULL || c->loader == NULL)
-		return;
-	c->loader->status = COMPONENT_LOADING;
-	c->loader->loadedValues = (v > c->loader->totalValues)
-		? c->loader->totalValues
-		: v;
-}
-
-void component_setLoadComplete (EntComponent c)
-{
-	if (c == NULL || c->loader == NULL)
-		return;
-	c->loader->status = COMPONENT_LOADED;
-	c->loaded = true;
-	//printf ("---component %p fully loaded\n", c);
-	dynarr_remove_condense (ComponentLoader, c);
-}
-
-bool component_isFullyLoaded (const EntComponent c)
-{
-	assert (c != NULL);
-	return c->loaded;
-}
-
-void component_dropLoad (EntComponent c)
-{
-	if (ComponentLoader == NULL || c == NULL)
-		return;
-	dynarr_remove_condense (ComponentLoader, c);
-	if (c->loader != NULL)
-		xph_free (c->loader);
-	c->loader = NULL;
-	c->loaded = false;
-}
-
-
-
-void component_reweigh (EntComponent c)
-{
-	if (c->loader == NULL)
-		return;
-	if (c->reg->weighCallback != NULL)
-		c->loader->loadWeight = c->reg->weighCallback (c);
-	else
-		c->loader->loadWeight = 32;
-}
-
-void component_forceLoaderResort ()
-{
-	dynarr_sort (ComponentLoader, comp_weight_sort);
-	ComponentLoaderUnsorted = false;
-}
-
-
-
-
-void component_setAsLoadable (EntComponent c)
-{
-	COMPONENT_LOAD
-		* l = c->loader;
-	//printf ("%s (%p)...\n", __FUNCTION__, c);
-	if (l != NULL)
-	{
-		fprintf (stderr, "%s (%p): Dual loading??? HOW CAN THIS BE?\not really sure what to do here...\n", __FUNCTION__, c);
-		return;
-	}
-	l = xph_alloc (sizeof (COMPONENT_LOAD));
-	c->loader = l;
-	c->loaded = false;
-	l->status = COMPONENT_UNLOADED;
-	component_reweigh (c);
-	if (ComponentLoader == NULL)
-		ComponentLoader = dynarr_create (8, sizeof (EntComponent));
-	dynarr_push (ComponentLoader, c);
-	ComponentLoaderUnsorted = true;
-	//printf ("...%s\n", __FUNCTION__);
-}
-
-bool component_isLoaderActive ()
-{
-	if (ComponentLoader == NULL)
-		return false;
-	if (dynarr_isEmpty (ComponentLoader))
-		return false;
-	return true;
-}
-
-void component_forceRunLoader (unsigned int load)
-{
-	EntComponent
-		c;
-	unsigned int
-		loaded = 0;
-	printf ("%s...\n", __FUNCTION__);
-	if (ComponentLoader == NULL)
-		ComponentLoader = dynarr_create (8, sizeof (EntComponent));
-	if (ComponentLoaderUnsorted == true)
-	{
-		component_forceLoaderResort ();
-	}
-	while (component_isLoaderActive () && (loaded < load || load == 0))
-	{
-		c = *(EntComponent *)dynarr_front (ComponentLoader);
-		printf ("%s: got %p\n", __FUNCTION__, c);
-		dynarr_remove_condense (ComponentLoader, c);
-		if (c->reg->loaderCallback == NULL)
-		{
-			continue;
-		}
-		// TODO: this makes a mockery of the priority queue.
-		dynarr_push (ComponentLoader, c);
-		c->reg->loaderCallback (NULL, c);
-	}
-	printf ("...%s\n", __FUNCTION__);
-}
-
-void component_runLoader (const TIMER t)
-{
-	EntComponent
-		c;
-	float
-		timeElapsed;
-	FUNCOPEN ();
-	if (ComponentLoader == NULL)
-		ComponentLoader = dynarr_create (8, sizeof (EntComponent));
-	if (ComponentLoaderUnsorted == true)
-	{
-		//printf ("%s: resorting components by weight\n", __FUNCTION__);
-		dynarr_sort (ComponentLoader, comp_weight_sort);
-		ComponentLoaderUnsorted = false;
-	}
-	while (component_isLoaderActive () && (timeElapsed = timerGetTimeSinceLastUpdate (t)) < 0.05)
-	{
-		c = *(EntComponent *)dynarr_back (ComponentLoader);
-		//printf ("%s: got front component with weight %d\n", __FUNCTION__, c->loader->loadWeight);
-		if (c->reg->loaderCallback == NULL)
-		{
-			dynarr_pop (ComponentLoader);
-			continue;
-		}
-		c->reg->loaderCallback (t, c);
-	}
-	FUNCCLOSE ();
-}
-
-static int comp_weight_sort (const void * a, const void * b)
-{
-	return (*(EntComponent *)a)->loader->loadWeight - (*(EntComponent *)b)->loader->loadWeight;
-}
-
-
-
-
-

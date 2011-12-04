@@ -98,8 +98,6 @@ void systemInit ()
 
 	// not really sure where these should go; they're going here for now.
 	system_registerTimedFunction (entity_purgeDestroyed, 0x7f);
-//	system_registerTimedFunction (cameraCache_update, 0x7f);
-	system_registerTimedFunction (component_runLoader, 0x7f);
 
 #ifdef MEM_DEBUG
 	atexit (xph_audit);

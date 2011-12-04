@@ -89,23 +89,4 @@ void entitySubsystem_clearStored ();
 
 
 
-
-/***
- * LOADING (old and terrible; should be replaced with something less terrible)
- */
-
-void component_setLoadGoal (EntComponent c, unsigned int m);
-void component_updateLoadAmount (EntComponent c, unsigned int v);
-void component_setLoadComplete (EntComponent c);
-bool component_isFullyLoaded (const EntComponent c);
-void component_dropLoad (EntComponent c);
-
-void component_reweigh (EntComponent c);
-void component_forceLoaderResort ();
-
-void component_setAsLoadable (EntComponent c);
-bool component_isLoaderActive ();
-void component_forceRunLoader (unsigned int load);
-void component_runLoader (const TIMER t);
-
 #endif /* XPH_ENTITY_H */
