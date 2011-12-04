@@ -348,7 +348,7 @@ void systemPlacePlayerAt (const SUBHEX subhex)
 		pos;
 	worldSetRenderCacheCentre (subhex);
 	pos = vectorCreate (0.0, subhexGetHeight (subhex) + 90.0, 0.0);
-	position_set (player, pos, subhex);
+	position_setDirect (player, pos, subhex);
 	FUNCCLOSE ();
 }
 

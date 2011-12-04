@@ -45,7 +45,7 @@ void bootstrap (void)
 	 */
 
 	//printf ("registering components\n");
-	component_register ("position", component_position, position_classInit);
+	component_register ("position", component_position, position_define);
 	component_register ("camera", NULL, camera_classInit);
 	component_register ("walking", component_walking, NULL);
 	component_register ("input", component_input, input_classInit);
@@ -90,8 +90,6 @@ void load (TIMER t)
 
 	/* this, though, is just a filler that ought to be set elsewhere and remembered */
 	srand (time (NULL));
-
-
 
 	video_getDimensions (&height, &width);
 	titleScreenMenu = entity_create ();

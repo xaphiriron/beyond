@@ -20,6 +20,125 @@ struct position_data { // POSITION
 static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround, SUBHEX newGround);
 static void position_updateAxesFromOrientation (POSITION pdata);
 
+void position_define (EntComponent position, void * arg)
+{
+
+	component_registerResponse ("position", "getHex", position_getHex);
+	component_registerResponse ("position", "getHexAngle", position_getHexAngle);
+}
+
+int component_position (Object * obj, objMsg msg, void * a, void * b) {
+  struct position_data ** cd = NULL;
+	POSITION
+		position = NULL;
+/*
+	struct ground_change
+		* change;
+*/
+	char
+		* message = NULL;
+	Entity
+		e = NULL;
+/*
+	GroundMap
+		ground;
+*/
+  switch (msg) {
+    case OM_CLSNAME:
+      strncpy (a, "position", 32);
+      return EXIT_SUCCESS;
+    case OM_CLSINIT:
+    case OM_CLSFREE:
+    case OM_CLSVARS:
+    case OM_CREATE:
+      return EXIT_FAILURE;
+    default:
+      break;
+  }
+
+  switch (msg) {
+    case OM_SHUTDOWN:
+    case OM_DESTROY:
+      obj_destroy (obj);
+      return EXIT_SUCCESS;
+
+    case OM_COMPONENT_INIT_DATA:
+      cd = a;
+		// this is literally the most tortous way to initialize this. why. why.
+      *cd = xph_alloc (sizeof (struct position_data));
+      (*cd)->pos = vectorCreate (0.0, 0.0, 0.0);
+      (*cd)->ground = NULL;
+      (*cd)->view.side = vectorCreate (1.0, 0.0, 0.0);
+      (*cd)->move.side = vectorCreate (1.0, 0.0, 0.0);
+      (*cd)->view.up = vectorCreate (0.0, 1.0, 0.0);
+      (*cd)->move.up = vectorCreate (0.0, 1.0, 0.0);
+      (*cd)->view.front = vectorCreate (0.0, 0.0, 1.0);
+      (*cd)->move.front = vectorCreate (0.0, 0.0, 1.0);
+      (*cd)->orientation = quat_create (1.0, 0.0, 0.0, 0.0);
+      (*cd)->sensitivity = 0.20;
+      //(*cd)->tileOccupying = NULL;
+      //(*cd)->tileFootprint = NULL;
+      return EXIT_SUCCESS;
+
+    case OM_COMPONENT_DESTROY_DATA:
+      cd = a;
+		position_destroy ((Entity)b);
+      /*
+      if ((*cd)->tileFootprint != NULL) {
+        vector_destroy ((*cd)->tileFootprint);
+      }
+      xph_free (*cd);
+      */
+      return EXIT_SUCCESS;
+
+    case OM_UPDATE:
+      return EXIT_FAILURE;
+
+		case OM_COMPONENT_RECEIVE_MESSAGE:
+			message = ((struct comp_message *)a)->message;
+			e = component_entityAttached (((struct comp_message *)a)->to);
+			position = component_getData (((struct comp_message *)a)->to);
+			
+			if (strcmp (message, "CONTROL_INPUT") == 0)
+			{
+				position_rotateOnMouseInput (e, b);
+				return EXIT_SUCCESS;
+      		}
+/* this will be hypothetically useful when thinking about how the new subdivs handle occupants; right now there's no occupant list. (well, /right now/ the new subdivs don't even work, so...
+ * - xph 2011-05-21
+			else if (!strcmp (message, "GROUND_CHANGE"))
+			{
+				change = b;
+				//printf ("moving from %p (#%d) to %p (#%d)...\n", change->oldGround, entity_GUID (change->oldGround), change->newGround, entity_GUID (change->newGround));
+				ground_removeOccupant (change->oldGround, e);
+				if (change->newGround != NULL)
+					ground_addOccupant (change->newGround, e);
+			}
+*/
+			else if (!strcmp (message, "getWorldPosition"))
+			{
+				*(void **)b = subhexGeneratePosition (position->ground);
+				return EXIT_SUCCESS;
+/*
+				//DEBUG ("position: responding to message. (%p, %p)", a, b);
+				hex_space2coord (&position->pos, &x, &y);
+				hex_xy2rki (x, y, &r, &k, &i);
+				ground = component_getData (entity_getAs (position->mapEntity, "ground"));
+				*(void **)b = worldhexFromPosition (ground_getWorldPos (ground), r, k, i);
+				//DEBUG ("constructed %s", whxPrint (*(void **)b));
+*/
+			}
+			return EXIT_FAILURE;
+
+		default:
+			return obj_pass ();
+	}
+	return EXIT_FAILURE;
+}
+
+
+
+
 static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround, SUBHEX newGround)
 {
 	FUNCOPEN ();
@@ -80,7 +199,7 @@ void position_destroy (Entity e)
 	xph_free (pdata);
 }
 
-void position_set (Entity e, VECTOR3 pos, SUBHEX ground)
+void position_setDirect (Entity e, VECTOR3 pos, SUBHEX ground)
 {
 	FUNCOPEN ();
 
@@ -147,7 +266,7 @@ bool position_move (Entity e, VECTOR3 move)
 		}
 	}
 
-	position_set (e, newPosition, newGround);
+	position_setDirect (e, newPosition, newGround);
 	FUNCCLOSE ();
 	return true;
 }
@@ -157,7 +276,7 @@ void position_copy (Entity target, const Entity source)
 	const POSITION
 		sourcePosition = component_getData (entity_getAs (source, "position"));
 	position_setOrientation (target, sourcePosition->orientation);
-	position_set (target, sourcePosition->pos, sourcePosition->ground);
+	position_setDirect (target, sourcePosition->pos, sourcePosition->ground);
 }
 
 void position_setOrientation (Entity e, const QUAT q)
@@ -428,123 +547,6 @@ const AXES * const position_getMoveAxesR (const POSITION p)
 /***
  * POSITION COMPONENT
  */
-
-void position_classInit (EntComponent position, void * arg)
-{
-
-	component_registerResponse ("position", "getHex", position_getHex);
-	component_registerResponse ("position", "getHexAngle", position_getHexAngle);
-}
-
-int component_position (Object * obj, objMsg msg, void * a, void * b) {
-  struct position_data ** cd = NULL;
-	POSITION
-		position = NULL;
-/*
-	struct ground_change
-		* change;
-*/
-	char
-		* message = NULL;
-	Entity
-		e = NULL;
-/*
-	GroundMap
-		ground;
-*/
-  switch (msg) {
-    case OM_CLSNAME:
-      strncpy (a, "position", 32);
-      return EXIT_SUCCESS;
-    case OM_CLSINIT:
-    case OM_CLSFREE:
-    case OM_CLSVARS:
-    case OM_CREATE:
-      return EXIT_FAILURE;
-    default:
-      break;
-  }
-
-  switch (msg) {
-    case OM_SHUTDOWN:
-    case OM_DESTROY:
-      obj_destroy (obj);
-      return EXIT_SUCCESS;
-
-    case OM_COMPONENT_INIT_DATA:
-      cd = a;
-		// this is literally the most tortous way to initialize this. why. why.
-      *cd = xph_alloc (sizeof (struct position_data));
-      (*cd)->pos = vectorCreate (0.0, 0.0, 0.0);
-      (*cd)->ground = NULL;
-      (*cd)->view.side = vectorCreate (1.0, 0.0, 0.0);
-      (*cd)->move.side = vectorCreate (1.0, 0.0, 0.0);
-      (*cd)->view.up = vectorCreate (0.0, 1.0, 0.0);
-      (*cd)->move.up = vectorCreate (0.0, 1.0, 0.0);
-      (*cd)->view.front = vectorCreate (0.0, 0.0, 1.0);
-      (*cd)->move.front = vectorCreate (0.0, 0.0, 1.0);
-      (*cd)->orientation = quat_create (1.0, 0.0, 0.0, 0.0);
-      (*cd)->sensitivity = 0.20;
-      //(*cd)->tileOccupying = NULL;
-      //(*cd)->tileFootprint = NULL;
-      return EXIT_SUCCESS;
-
-    case OM_COMPONENT_DESTROY_DATA:
-      cd = a;
-		position_destroy ((Entity)b);
-      /*
-      if ((*cd)->tileFootprint != NULL) {
-        vector_destroy ((*cd)->tileFootprint);
-      }
-      xph_free (*cd);
-      */
-      return EXIT_SUCCESS;
-
-    case OM_UPDATE:
-      return EXIT_FAILURE;
-
-		case OM_COMPONENT_RECEIVE_MESSAGE:
-			message = ((struct comp_message *)a)->message;
-			e = component_entityAttached (((struct comp_message *)a)->to);
-			position = component_getData (((struct comp_message *)a)->to);
-			
-			if (strcmp (message, "CONTROL_INPUT") == 0)
-			{
-				position_rotateOnMouseInput (e, b);
-				return EXIT_SUCCESS;
-      		}
-/* this will be hypothetically useful when thinking about how the new subdivs handle occupants; right now there's no occupant list. (well, /right now/ the new subdivs don't even work, so...
- * - xph 2011-05-21
-			else if (!strcmp (message, "GROUND_CHANGE"))
-			{
-				change = b;
-				//printf ("moving from %p (#%d) to %p (#%d)...\n", change->oldGround, entity_GUID (change->oldGround), change->newGround, entity_GUID (change->newGround));
-				ground_removeOccupant (change->oldGround, e);
-				if (change->newGround != NULL)
-					ground_addOccupant (change->newGround, e);
-			}
-*/
-			else if (!strcmp (message, "getWorldPosition"))
-			{
-				*(void **)b = subhexGeneratePosition (position->ground);
-				return EXIT_SUCCESS;
-/*
-				//DEBUG ("position: responding to message. (%p, %p)", a, b);
-				hex_space2coord (&position->pos, &x, &y);
-				hex_xy2rki (x, y, &r, &k, &i);
-				ground = component_getData (entity_getAs (position->mapEntity, "ground"));
-				*(void **)b = worldhexFromPosition (ground_getWorldPos (ground), r, k, i);
-				//DEBUG ("constructed %s", whxPrint (*(void **)b));
-*/
-			}
-			return EXIT_FAILURE;
-
-		default:
-			return obj_pass ();
-	}
-	return EXIT_FAILURE;
-}
-
 
 void position_getHex (EntComponent position, void * arg)
 {
