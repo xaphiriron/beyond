@@ -10,7 +10,10 @@
 
 #include "worldgen.h"
 
+#include "component_input.h"
 #include "component_ui.h"
+#include "component_camera.h"
+#include "component_position.h"
 
 
 #define LOADERTEXTBUFFERSIZE 128
