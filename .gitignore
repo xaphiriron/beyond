@@ -1,0 +1,7 @@
+*.o
+*.la
+*.lo
+*~
+*/.deps/*
+*/.libs/*
+/autom4te.cache/*
