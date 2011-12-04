@@ -332,7 +332,6 @@ SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 	sh->sub.x = x;
 	sh->sub.y = y;
 	sh->sub.data = NULL;
-	sh->sub.arches = dynarr_create (1, sizeof (ARCH));
 
 	sh->sub.imprintable = false;
 	sh->sub.loaded = false;
@@ -1627,29 +1626,6 @@ static int mapExtrCmp (const void * k, const void * d)
 {
 	//DEBUG ("%s: \"%s\" vs. \"%s\"", __FUNCTION__, *(char **)k, (*(struct mapDataEntry **)d)->type);
 	return strcmp (*(char **)k, (*(struct mapDataEntry **)d)->type);
-}
-
-
-
-
-void mapArchSet (SUBHEX at, ARCH arch)
-{
-	if (subhexSpanLevel (at) < 1)
-	{
-		ERROR ("Can't set arch (%p) on platter (%p) with span of %d; Arc not set", arch, at, subhexSpanLevel (at));
-		return;
-	}
-	dynarr_push (at->sub.arches, arch);
-}
-
-ARCH mapArchGet (SUBHEX at, int offset)
-{
-	if (subhexSpanLevel (at) < 1)
-	{
-		ERROR ("Can't get arches from platter (%p) with span on %d", at, subhexSpanLevel (at));
-		return NULL;
-	}
-	return *(ARCH *)dynarr_at (at->sub.arches, offset);
 }
 
 /***

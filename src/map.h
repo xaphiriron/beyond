@@ -116,9 +116,6 @@ void mapDataSet (SUBHEX at, char * type, signed int amount);
 signed int mapDataAdd (SUBHEX at, char * type, signed int amount);
 signed int mapDataGet (SUBHEX at, char * type);
 
-void mapArchSet (SUBHEX at, ARCH arch);
-ARCH mapArchGet (SUBHEX at, int offset);
-
 /***
  * INFORMATIONAL / GETTER FUNCTIONS
  */
