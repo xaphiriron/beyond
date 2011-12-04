@@ -24,7 +24,7 @@ enum system_states
 	STATE_QUIT				= 0x8000
 };
 
-typedef struct system
+typedef struct xph_system
 {
 	Dynarr
 		updateFuncs,
@@ -43,10 +43,14 @@ typedef struct system
 		debug;
 } SYSTEM;
 
-extern SYSTEM * System;
+extern SYSTEM
+	* System;
 
-SYSTEM * system_create ();
-void system_destroy (SYSTEM *);
+void systemInit ();
+void systemDestroy ();
+
+int systemLoop ();
+
 
 const TIMER system_getTimer ();
 
@@ -87,17 +91,6 @@ void loadSetText (char * displayText);
 /* the system should render the loading data however applicable (e.g., progress bar; informational text) and continue calling the loader function (via the system timed functions feature) until it signals that it's done (presumably by setting the loading data to 100%) at which point the system should remove the loader from the timed functions and call the finish callback function, which is responsible for getting the system into a reasonable state before the next tick (i.e., immediately)
  *  - xph 2011 06 16
  */
-
-/* these are the functions called right after the system structure has been
- * allocated; everything that's needed instantly should get loaded here
- *  - xoh 2011 09 26
- */
-void systemBootstrapInit (void);
-void systemBootstrap (TIMER t);
-void systemBootstrapFinalize (void);
-
-void systemUpdate (void);
-void systemRender (void);
 
 Entity systemPopUI ();
 void systemPushUI (Entity p);

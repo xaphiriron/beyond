@@ -1,7 +1,5 @@
 #include "system.h"
 
-#include <time.h>
-
 #include "object.h"
 #include "video.h"
 #include "timer.h"
@@ -41,53 +39,105 @@ char
 static struct loadingdata
 	SysLoader;
 
-static void systemInitialize (void);
+SYSTEM
+	* System = NULL;
 
-SYSTEM * System = NULL;
+void systemUpdate (void);
+void systemRender (void);
 
-
-SYSTEM * system_create ()
+void systemInit ()
 {
-	SYSTEM
-		* s = xph_alloc (sizeof (SYSTEM));
 	TIMER
 		t;
+	if (System != NULL)
+		return;
 
-	s->quit = false;
-	s->debug = false;
+	objPassEnable (false);
 
-	s->clock = clock_create ();
-	s->timer_mult = 1.0;
-	s->timestep = 0.03;
+	System = xph_alloc (sizeof (SYSTEM));
+
+	System->quit = false;
+	System->debug = false;
+
+	System->clock = clock_create ();
+	System->timer_mult = 1.0;
+	System->timestep = 0.03;
  	t = timerCreate ();
-	timerSetClock (t, s->clock);
-	timerSetScale (t, s->timer_mult);
-	s->acc = accumulator_create (t, s->timestep);
+	timerSetClock (t, System->clock);
+	timerSetScale (t, System->timer_mult);
+	System->acc = accumulator_create (t, System->timestep);
 	// this ought to force the update code to run once the first time through - xph 2011 06 17
-	s->acc->accumulated = s->timestep * 1.01;
+	System->acc->accumulated = System->timestep * 1.01;
 
-	s->state = dynarr_create (4, sizeof (enum system_states));
-	dynarr_push (s->state, STATE_LOADING);
+	System->state = dynarr_create (4, sizeof (enum system_states));
+	dynarr_push (System->state, STATE_LOADING);
 	// register system loading %/note callback here
 
-	s->updateFuncs = dynarr_create (2, sizeof (void (*)(TIMER)));
-	s->uiPanels = dynarr_create (2, sizeof (Entity));
-	return s;
+	System->updateFuncs = dynarr_create (2, sizeof (void (*)(TIMER)));
+	System->uiPanels = dynarr_create (2, sizeof (Entity));
+
+	//printf ("initializing other objects\n");
+	objClass_init (video_handler, NULL, NULL, NULL);
+	obj_create ("video", NULL, NULL, NULL);
+
+	//printf ("registering components\n");
+	entity_registerComponentAndSystem ("position", component_position, position_classInit);
+	entity_registerComponentAndSystem ("camera", NULL, camera_classInit);
+	entity_registerComponentAndSystem ("walking", component_walking, NULL);
+	entity_registerComponentAndSystem ("input", component_input, input_classInit);
+	entity_registerComponentAndSystem ("plant", component_plant, NULL);
+	entity_registerComponentAndSystem ("ui", NULL, ui_classInit);
+
+	// this order DOES matter, since this is the order they're updated later.
+	entitySubsystem_store ("position");
+	entitySubsystem_store ("plant");
+	entitySubsystem_store ("walking");
+	entitySubsystem_store ("camera");
+	entitySubsystem_store ("input");
+	entitySubsystem_store ("ui");
+
+	// not really sure where these should go; they're going here for now.
+	system_registerTimedFunction (entity_purgeDestroyed, 0x7f);
+//	system_registerTimedFunction (cameraCache_update, 0x7f);
+	system_registerTimedFunction (component_runLoader, 0x7f);
+
+#ifdef MEM_DEBUG
+	atexit (xph_audit);
+#endif /* MEM_DEBUG */
+	return;
 }
 
-void system_destroy (SYSTEM * s)
+void systemDestroy ()
 {
-	FUNCOPEN ();
-	dynarr_map (s->uiPanels, (void (*)(void *))entity_destroy);
-	dynarr_destroy (s->uiPanels);
-	dynarr_destroy (s->updateFuncs);
-	dynarr_destroy (s->state);
-	accumulator_destroy (s->acc);
+	obj_messagePost (VideoObject, OM_DESTROY, NULL, NULL);
+
+	dynarr_map (System->uiPanels, (void (*)(void *))entity_destroy);
+	dynarr_destroy (System->uiPanels);
+	dynarr_destroy (System->updateFuncs);
+	dynarr_destroy (System->state);
+	accumulator_destroy (System->acc);
 	xtimerDestroyRegistry ();
-	clock_destroy (s->clock);
-	xph_free (s);
-	FUNCCLOSE ();
+	clock_destroy (System->clock);
+	xph_free (System);
+
+	System = NULL;
+
+	entity_destroyEverything ();
+	SDL_Quit ();
+
+	objects_destroyEverything ();
 }
+
+int systemLoop ()
+{
+	while (!System->quit)
+	{
+		systemUpdate ();
+		systemRender ();
+	}
+	return 0;
+}
+
 
 const TIMER system_getTimer ()
 {
@@ -320,122 +370,6 @@ void systemPlacePlayerAt (const SUBHEX subhex)
 	pos = vectorCreate (0.0, subhexGetHeight (subhex) + 90.0, 0.0);
 	position_set (player, pos, subhex);
 	FUNCCLOSE ();
-}
-
-/***
- * INITIALIZATION
- */
-
-/* all these functions -- initialize, start, and update -- are relics from the awful object code; they used to be the code called by obj_message (SystemObject, (OM_CLSINIT|OM_START|OM_UPDATE), NULL, NULL), and so their structure is pointless. i ought to rewrite and clarify them at some point
- * - xph 2011-05-28
- */
-static void systemInitialize (void)
-{
-	printf ("STARTING CLASS INIT\n");
-	if (System != NULL)
-		return;
-	System = system_create ();
-
-	//printf ("initializing other objects\n");
-	objClass_init (video_handler, NULL, NULL, NULL);
-	obj_create ("video", NULL, NULL, NULL);
-
-	//printf ("registering components\n");
-	entity_registerComponentAndSystem ("position", component_position, position_classInit);
-	entity_registerComponentAndSystem ("camera", NULL, camera_classInit);
-	entity_registerComponentAndSystem ("walking", component_walking, NULL);
-	entity_registerComponentAndSystem ("input", component_input, input_classInit);
-	entity_registerComponentAndSystem ("plant", component_plant, NULL);
-	entity_registerComponentAndSystem ("ui", NULL, ui_classInit);
-
-	// this order DOES matter, since this is the order they're updated later.
-	entitySubsystem_store ("position");
-	entitySubsystem_store ("plant");
-	entitySubsystem_store ("walking");
-	entitySubsystem_store ("camera");
-	entitySubsystem_store ("input");
-	entitySubsystem_store ("ui");
-
-	// not really sure where these should go; they're going here for now.
-	system_registerTimedFunction (entity_purgeDestroyed, 0x7f);
-//	system_registerTimedFunction (cameraCache_update, 0x7f);
-	system_registerTimedFunction (component_runLoader, 0x7f);
-
-#ifdef MEM_DEBUG
-	atexit (xph_audit);
-#endif /* MEM_DEBUG */
-	printf ("DONE WITH SYSTEM CLASS INIT\n");
-	return;
-}
-
-
-void systemBootstrapInit (void)
-{
-	/* this is where any loading that's absolutely needed from the first frame
-	 * onwards should go -- sdl initialization, font loading, loading screen
-	 * effects, etc
-	 *  - xph 2011 09 26
-	 */
-	obj_message (VideoObject, OM_START, NULL, NULL);
-	//obj_message (PhysicsObject, OM_START, NULL, NULL);
-	//obj_message (WorldObject, OM_START, NULL, NULL);
-	//entitySubsystem_message ("ground", OM_START, NULL, NULL);
-
-	loadFont ("../img/default.png");
-	uiLoadPanelTexture ("../img/frame.png");
-	loadSetText ("Loading...");
-}
-
-void systemBootstrapFinalize (void)
-{
-	systemClearStates();
-	systemPushState (STATE_UI);
-}
-
-void systemBootstrap (TIMER t)
-{
-	Entity
-		titleScreenMenu;
-	unsigned int
-		height,
-		width;
-	/* this is where any loading that's needed for the system ui or for title
-	 * screen effects should go
-	 *  - xph 2011 09 26
-	 */
-
-	/* this, though, is just a filler that ought to be set elsewhere and remembered */
-	srand (time (NULL));
-
-
-
-	video_getDimensions (&height, &width);
-	titleScreenMenu = entity_create ();
-	component_instantiate ("ui", titleScreenMenu);
-	entity_message (titleScreenMenu, NULL, "setType", (void *)UI_MENU);
-	component_instantiate ("input", titleScreenMenu);
-	input_addEntity (titleScreenMenu, INPUT_FOCUSED);
-
-	entity_message (titleScreenMenu, NULL, "addValue", "New Game");
-	entity_message (titleScreenMenu, NULL, "setAction", (void *)IR_WORLDGEN);
-	entity_message (titleScreenMenu, NULL, "addValue", "this is a test of the menu code and also the ui code and also aaaaah :(");
-	entity_message (titleScreenMenu, NULL, "addValue", "second option");
-	entity_message (titleScreenMenu, NULL, "addValue", "third option");
-	entity_message (titleScreenMenu, NULL, "addValue", "blah blah blah etc");
-	entity_message (titleScreenMenu, NULL, "addValue", "lorem ipsum dolor sit amet");
-	entity_message (titleScreenMenu, NULL, "addValue", "Quit");
-	entity_message (titleScreenMenu, NULL, "setAction", (void *)IR_QUIT);
-
-	entity_message (titleScreenMenu, NULL, "setWidth", (void *)(int)(width / 4));
-	entity_message (titleScreenMenu, NULL, "setPosType", (void *)(PANEL_X_CENTER | PANEL_Y_ALIGN_23));
-	entity_message (titleScreenMenu, NULL, "setFrameBG", (void *)FRAMEBG_SOLID);
-	entity_message (titleScreenMenu, NULL, "setBorder", (void *)6);
-	entity_message (titleScreenMenu, NULL, "setLineSpacing", (void *)4);
-
-	systemPushUI (titleScreenMenu);
-
-	loadSetGoal (1);
-	loadSetLoaded (1);
 }
 
 /***
@@ -753,47 +687,9 @@ int system_message (objMsg msg, void * a, void * b)
 {
 	switch (msg)
 	{
-		case OM_CLSINIT:
-			systemInitialize ();
-			return EXIT_SUCCESS;
-
-		case OM_CLSFREE:
-			LOG (E_FUNCLABEL, "%s[OM_CLSFREE]...", __FUNCTION__);
-			entity_destroyEverything ();
-			SDL_Quit ();
-			LOG (E_FUNCLABEL, "...%s[OM_CLSFREE]", __FUNCTION__);
-			return EXIT_SUCCESS;
-
 		case OM_SHUTDOWN:
 			System->quit = true;
 			systemPushState (STATE_QUIT);
-			return EXIT_SUCCESS;
-
-		case OM_DESTROY:
-			LOG (E_FUNCLABEL, "%s[OM_DESTROY]...", __FUNCTION__);
-			/* this is post-order because if it was pre-order it wouldn't hit
-			 * all its children due to an annoying issue I can't fix easily.
-			 * When an entity is destroyed it detatches itself from the entity
-			 * hierarchy, and since the *Entity globals are at the top of the
-			 * entity tree, destroying them makes their children no longer
-			 * siblings and thus unable to message each other. most likely
-			 * I'll need to rework how messaging works internally, so I can
-			 * ensure a message sent pre/post/in/whatever will hit all of the
-			 * entities it should, at the moment the message was first sent
-			 * (messages that change the entity tree that use the entity tree
-			 * to flow are kind of a challenge, as you might imagine :/)
-			 */
-			/* i think the preceeding comment is outdated -- the object
-			 * messaging functions traverse the tree prior to sending the
-			 * message now. also, all the object code is terrible and ought to
-			 * be removed as soon as is feasible.
-			 *  - xph 2011-05-22
-			 */
-			obj_messagePost (VideoObject, OM_DESTROY, NULL, NULL);
-//			obj_messagePost (PhysicsObject, OM_DESTROY, NULL, NULL);
-			system_destroy (System);
-			System = NULL;
-			LOG (E_FUNCLABEL, "...%s[OM_DESTROY]", __FUNCTION__);
 			return EXIT_SUCCESS;
 
 		case OM_FORCEWORLDGEN:
