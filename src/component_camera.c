@@ -157,20 +157,11 @@ void camera_setAsActive (Entity e)
 
 void camera_switchMode (Entity camera, enum camera_modes mode)
 {
-	struct comp_message
-		* msg = NULL;
 	cameraComponent
 		cd = component_getData (entity_getAs (camera, "camera"));
 	if (cd->mode == CAMERA_ISOMETRIC && mode != CAMERA_ISOMETRIC)
 	{
-			msg = xph_alloc (sizeof (struct comp_message));
-			msg->from = NULL;
-			msg->message = xph_alloc (17);
-			strcpy (msg->message, "ORTHOGRAPHIC_OFF");
-			obj_message (VideoObject, OM_SYSTEM_RECEIVE_MESSAGE, msg, msg->message);
-			xph_free (msg->message);
-			xph_free (msg);
-			msg = NULL;
+			video_orthoOff ();
 	}
 	cd->mode = mode;
 	switch (mode)
@@ -193,14 +184,8 @@ void camera_switchMode (Entity camera, enum camera_modes mode)
 			cd->rotation = 0;
 			camera_setCameraOffset (camera, 45, 0, 600);
 
-			msg = xph_alloc (sizeof (struct comp_message));
-			msg->from = NULL;
-			msg->message = xph_alloc (16);
-			strcpy (msg->message, "ORTHOGRAPHIC_ON");
-			obj_message (VideoObject, OM_SYSTEM_RECEIVE_MESSAGE, msg, msg->message);
-			xph_free (msg->message);
-			xph_free (msg);
-			msg = NULL;
+			video_orthoOn ();
+
 			break;
 		default:
 			return;
@@ -373,7 +358,7 @@ void camera_updatePosition (Entity camera)
 
 static Dynarr
 	comp_entdata = NULL;
-void camera_classInit (EntComponent camera, void * arg)
+void camera_classInit (EntComponent camera, EntSpeech speech)
 {
 	comp_entdata = dynarr_create (8, sizeof (Entity));
 
@@ -398,13 +383,13 @@ void camera_classInit (EntComponent camera, void * arg)
 	component_registerResponse ("camera", "positionUpdate", component_cameraPositionResponse);
 }
 
-void camera_classDestroy (EntComponent camrea, void * arg)
+void camera_classDestroy (EntComponent camrea, EntSpeech speech)
 {
 	dynarr_destroy (comp_entdata);
 	comp_entdata = NULL;
 }
 
-void component_cameraInitialize (EntComponent camera, void * arg)
+void component_cameraInitialize (EntComponent camera, EntSpeech speech)
 {
 	Entity
 		camEntity = component_entityAttached (camera);
@@ -418,7 +403,7 @@ void component_cameraInitialize (EntComponent camera, void * arg)
 	dynarr_push (comp_entdata, camEntity);
 }
 
-void component_cameraDestroy (EntComponent camera, void * arg)
+void component_cameraDestroy (EntComponent camera, EntSpeech speech)
 {
 	Entity
 		camEntity = component_entityAttached (camera);
@@ -431,7 +416,7 @@ void component_cameraDestroy (EntComponent camera, void * arg)
 	dynarr_remove_condense (comp_entdata, camEntity);
 }
 
-void component_cameraActivate (EntComponent camera, void * arg)
+void component_cameraActivate (EntComponent camera, EntSpeech speech)
 {
 	Entity
 		camEntity = component_entityAttached (camera);
@@ -439,16 +424,16 @@ void component_cameraActivate (EntComponent camera, void * arg)
 	camera_setAsActive (camEntity);
 }
 
-void component_cameraSetTarget (EntComponent camera, void * arg)
+void component_cameraSetTarget (EntComponent camera, EntSpeech speech)
 {
 	Entity
 		camEntity = component_entityAttached (camera),
-		target = arg;
+		target = speech->arg;
 
 	camera_attachToTarget (camEntity, target);
 }
 
-void component_cameraControlResponse (EntComponent camera, void * arg)
+void component_cameraControlResponse (EntComponent camera, EntSpeech speech)
 {
 	Entity
 		camEntity = component_entityAttached (camera);
@@ -457,7 +442,7 @@ void component_cameraControlResponse (EntComponent camera, void * arg)
 	enum camera_modes
 		newMode;
 	const struct input_event
-		* ie = arg;
+		* ie = speech->arg;
 
 	switch (ie->ir)
 	{
@@ -473,7 +458,7 @@ void component_cameraControlResponse (EntComponent camera, void * arg)
 	}
 }
 
-void component_cameraOrientResponse (EntComponent camera, void * arg)
+void component_cameraOrientResponse (EntComponent camera, EntSpeech speech)
 {
 	Entity
 		camEntity = component_entityAttached (camera);
@@ -481,12 +466,12 @@ void component_cameraOrientResponse (EntComponent camera, void * arg)
 	camera_update (camEntity);
 }
 
-void component_cameraPositionResponse (EntComponent camera, void * arg)
+void component_cameraPositionResponse (EntComponent camera, EntSpeech speech)
 {
 	Entity
 		camEntity = component_entityAttached (camera);
 	POSITIONUPDATE
-		update = arg;
+		update = speech->arg;
 
 	camera_update (camEntity);
 	/* this should do an additional check on the platter distance between
@@ -502,12 +487,12 @@ void component_cameraPositionResponse (EntComponent camera, void * arg)
 }
 
 
-void component_cameraGetMatrix (EntComponent camera, void * arg)
+void component_cameraGetMatrix (EntComponent camera, EntSpeech speech)
 {
 	cameraComponent
 		camData = component_getData (camera);
 	float
-		** matrix = arg;
+		** matrix = speech->arg;
 
 	if (camData == NULL)
 	{
@@ -517,12 +502,12 @@ void component_cameraGetMatrix (EntComponent camera, void * arg)
 	*matrix = camData->m;
 }
 
-void component_cameraGetTargetMatrix (EntComponent camera, void * arg)
+void component_cameraGetTargetMatrix (EntComponent camera, EntSpeech speech)
 {
 	cameraComponent
 		camData = component_getData (camera);
 	float
-		** matrix = arg;
+		** matrix = speech->arg;
 
 	if (camData == NULL)
 	{

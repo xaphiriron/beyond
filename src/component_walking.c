@@ -175,6 +175,8 @@ int component_walking (Object * o, objMsg msg, void * a, void * b)
 	Entity
 		e = NULL,
 		ce = NULL;
+	EntSpeech
+		speech = a;
 	switch (msg)
 	{
 		case OM_CLSNAME:
@@ -227,9 +229,9 @@ int component_walking (Object * o, objMsg msg, void * a, void * b)
 			return EXIT_FAILURE;
 
 		case OM_COMPONENT_RECEIVE_MESSAGE:
-			c = ((struct comp_message *)a)->to;
+			c = speech->to;
 			ce = component_entityAttached (c);
-			message = ((struct comp_message *)a)->message;
+			message = speech->message;
 			if (strcmp (message, "CONTROL_INPUT") == 0) {
 				walking_doControlInputResponse (ce, b);
 				return EXIT_SUCCESS;

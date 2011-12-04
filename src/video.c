@@ -236,8 +236,6 @@ inline float video_pixelYOffset (signed int y)
 
 int video_handler (Object * o, objMsg msg, void * a, void * b) {
   VIDEO * v = NULL;
-	char
-		* message;
   switch (msg) {
     case OM_CLSNAME:
       strncpy (a, "video", 32);
@@ -294,32 +292,39 @@ int video_handler (Object * o, objMsg msg, void * a, void * b) {
       return EXIT_SUCCESS;
 
 		case OM_SYSTEM_RECEIVE_MESSAGE:
-			message = b;
-			if (strcmp (message, "WIREFRAME_SWITCH") == 0)
-			{
-				v->renderWireframe ^= 1;
-				if (v->renderWireframe)
-					glPolygonMode (GL_FRONT, GL_LINE);
-				else
-					glPolygonMode (GL_FRONT, GL_FILL);
-				return EXIT_SUCCESS;
-			}
-			else if (strcmp (message, "ORTHOGRAPHIC_OFF") == 0)
-			{
-				v->orthographic = 0;
-				video_setScaling (v, VIDEO_DEFAULT_RESOLUTION);
-				video_regenerateDisplay (v);
-			}
-			else if (strcmp (message, "ORTHOGRAPHIC_ON") == 0)
-			{
-				v->orthographic = 1;
-				video_setScaling (v, 1.00);
-				video_regenerateDisplay (v);
-			}
 			return EXIT_FAILURE;
 
     default:
       return obj_pass ();
   }
   return EXIT_FAILURE;
+}
+
+void video_orthoOff ()
+{
+	VIDEO
+		* v = obj_getClassData (VideoObject, "video");
+	v->orthographic = 0;
+	video_setScaling (v, VIDEO_DEFAULT_RESOLUTION);
+	video_regenerateDisplay (v);
+}
+
+void video_orthoOn ()
+{
+	VIDEO
+		* v = obj_getClassData (VideoObject, "video");
+	v->orthographic = 1;
+	video_setScaling (v, 1.00);
+	video_regenerateDisplay (v);
+}
+
+void video_wireframeSwitch ()
+{
+	VIDEO
+		* v = obj_getClassData (VideoObject, "video");
+	v->renderWireframe ^= 1;
+	if (v->renderWireframe)
+		glPolygonMode (GL_FRONT, GL_LINE);
+	else
+		glPolygonMode (GL_FRONT, GL_FILL);
 }

@@ -47,29 +47,29 @@ void ui_getXY (UIPANEL ui, signed int * x, signed int * y);
 void ui_getWH (UIPANEL ui, signed int * w, signed int * h);
 
 
-void ui_classInit (EntComponent ui, void * arg);
+void ui_classInit (EntComponent ui, EntSpeech speech);
 
-void ui_create (EntComponent ui, void * arg);
-void ui_destroy (EntComponent ui, void * arg);
+void ui_create (EntComponent ui, EntSpeech speech);
+void ui_destroy (EntComponent ui, EntSpeech speech);
 
-void ui_update (EntComponent ui, void * arg);
+void ui_update (EntComponent ui, EntSpeech speech);
 
-void ui_setType (EntComponent ui, void * arg);
-void ui_getType (EntComponent ui, void * arg);
+void ui_setType (EntComponent ui, EntSpeech speech);
+void ui_getType (EntComponent ui, EntSpeech speech);
 
-void ui_addValue (EntComponent ui, void * arg);
-void ui_setAction (EntComponent ui, void * arg);
+void ui_addValue (EntComponent ui, EntSpeech speech);
+void ui_setAction (EntComponent ui, EntSpeech speech);
 
-void ui_setPositionType (EntComponent ui, void * arg);
-void ui_setBackground (EntComponent ui, void * arg);
-void ui_setBorder (EntComponent ui, void * arg);
-void ui_setLineSpacing (EntComponent ui, void * arg);
-void ui_setXPosition (EntComponent ui, void * arg);
-void ui_setYPosition (EntComponent ui, void * arg);
-void ui_setWidth (EntComponent ui, void * arg);
+void ui_setPositionType (EntComponent ui, EntSpeech speech);
+void ui_setBackground (EntComponent ui, EntSpeech speech);
+void ui_setBorder (EntComponent ui, EntSpeech speech);
+void ui_setLineSpacing (EntComponent ui, EntSpeech speech);
+void ui_setXPosition (EntComponent ui, EntSpeech speech);
+void ui_setYPosition (EntComponent ui, EntSpeech speech);
+void ui_setWidth (EntComponent ui, EntSpeech speech);
 
-void ui_handleInput (EntComponent ui, void * inputEvent);
+void ui_handleInput (EntComponent ui, EntSpeech speech);
 
-void ui_draw (EntComponent ui, void * arg);
+void ui_draw (EntComponent ui, EntSpeech speech);
 
 #endif /* XPH_COMPONENT_UI_H */

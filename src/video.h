@@ -67,4 +67,8 @@ inline float video_pixelYOffset (signed int y);
 
 int video_handler (Object * e, objMsg msg, void * a, void * b);
 
+void video_orthoOff ();
+void video_orthoOn ();
+void video_wireframeSwitch ();
+
 #endif /* VIDEO_H */

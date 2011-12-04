@@ -33,7 +33,7 @@ typedef struct axes
 
 #include "component_input.h"
 
-void position_define (EntComponent position, void * arg);
+void position_define (EntComponent position, EntSpeech speech);
 int component_position (Object * obj, objMsg msg, void * a, void * b);
 
 
@@ -71,8 +71,8 @@ const AXES * const position_getMoveAxes (const Entity e);
 const AXES * const position_getMoveAxesR (const POSITION p);
 
 
-void position_getHex (EntComponent position, void * arg);
-void position_getHexAngle (EntComponent position, void * arg);
+void position_getHex (EntComponent position, EntSpeech speech);
+void position_getHexAngle (EntComponent position, EntSpeech speech);
 
 
 #endif /* XPH_COMPONENT_POSITION_H */

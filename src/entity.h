@@ -13,17 +13,26 @@ typedef struct entity * Entity;
 typedef struct ent_system * EntSystem;
 typedef struct ent_component * EntComponent;
 
-typedef void (compFunc) (EntComponent, void *);
-typedef void (sysFunc) (const Dynarr);
-
-struct comp_message {
+struct entity_speech
+{
 	Entity
-		entFrom;
-  EntComponent
-    from,
-    to;
-  char * message;
+		from;
+	EntComponent
+		to;
+	unsigned int
+		fromGUID;
+	char
+		* message;
+	void
+		* arg;
+	signed int
+		references;
 };
+
+typedef struct entity_speech * EntSpeech;
+
+typedef void (compFunc) (EntComponent, EntSpeech);
+typedef void (sysFunc) (const Dynarr);
 
 /***
  * ENTITIES

@@ -612,12 +612,12 @@ int component_plant (Object * obj, objMsg msg, void * a, void * b)
 {
 	Entity
 		e;
+	EntSpeech
+		speech = a;
 	PLANT
 		pd;
 	DynIterator
 		it;
-	struct comp_message
-		* c_msg;
 	switch (msg)
 	{
 		case OM_CLSNAME:
@@ -681,14 +681,13 @@ int component_plant (Object * obj, objMsg msg, void * a, void * b)
 			return EXIT_FAILURE;
 
 		case OM_COMPONENT_RECEIVE_MESSAGE:
-			c_msg = a;
-			e = component_entityAttached (c_msg->to);
-			if (strcmp (c_msg->message, "RENDER") == 0)
+			e = component_entityAttached (speech->to);
+			if (strcmp (speech->message, "RENDER") == 0)
 			{
 				plant_draw (e);
 				return EXIT_SUCCESS;
 			}
-			else if (strcmp (c_msg->message, "PLANT_DEATH") == 0)
+			else if (strcmp (speech->message, "PLANT_DEATH") == 0)
 			{
 				// FIXME: if there is ever something that is a plant in addition to being other things, this is not a good thing to do
 				position_unset (e);

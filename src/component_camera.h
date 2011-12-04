@@ -22,20 +22,20 @@ float camera_getRoll (Entity e);
 const Entity camera_getActiveCamera ();
 
 
-void camera_classInit (EntComponent camera, void * arg);
-void camera_classDestroy (EntComponent camrea, void * arg);
+void camera_classInit (EntComponent camera, EntSpeech speech);
+void camera_classDestroy (EntComponent camrea, EntSpeech speech);
 
-void component_cameraInitialize (EntComponent camera, void * arg);
-void component_cameraDestroy (EntComponent camera, void * arg);
+void component_cameraInitialize (EntComponent camera, EntSpeech speech);
+void component_cameraDestroy (EntComponent camera, EntSpeech speech);
 
-void component_cameraActivate (EntComponent camera, void * arg);
-void component_cameraSetTarget (EntComponent camera, void * arg);
+void component_cameraActivate (EntComponent camera, EntSpeech speech);
+void component_cameraSetTarget (EntComponent camera, EntSpeech speech);
 
-void component_cameraControlResponse (EntComponent camera, void * arg);
-void component_cameraOrientResponse (EntComponent camera, void * arg);
-void component_cameraPositionResponse (EntComponent camera, void * arg);
+void component_cameraControlResponse (EntComponent camera, EntSpeech speech);
+void component_cameraOrientResponse (EntComponent camera, EntSpeech speech);
+void component_cameraPositionResponse (EntComponent camera, EntSpeech speech);
 
-void component_cameraGetMatrix (EntComponent camera, void * arg);
-void component_cameraGetTargetMatrix (EntComponent camera, void * arg);
+void component_cameraGetMatrix (EntComponent camera, EntSpeech speech);
+void component_cameraGetTargetMatrix (EntComponent camera, EntSpeech speech);
 
 #endif /* XPH_COMPONENT_CAMERA_H */

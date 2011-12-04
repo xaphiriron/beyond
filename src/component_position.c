@@ -20,9 +20,8 @@ struct position_data { // POSITION
 static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround, SUBHEX newGround);
 static void position_updateAxesFromOrientation (POSITION pdata);
 
-void position_define (EntComponent position, void * arg)
+void position_define (EntComponent position, EntSpeech speech)
 {
-
 	component_registerResponse ("position", "getHex", position_getHex);
 	component_registerResponse ("position", "getHexAngle", position_getHexAngle);
 }
@@ -39,6 +38,8 @@ int component_position (Object * obj, objMsg msg, void * a, void * b) {
 		* message = NULL;
 	Entity
 		e = NULL;
+	EntSpeech
+		speech = a;
 /*
 	GroundMap
 		ground;
@@ -95,9 +96,9 @@ int component_position (Object * obj, objMsg msg, void * a, void * b) {
       return EXIT_FAILURE;
 
 		case OM_COMPONENT_RECEIVE_MESSAGE:
-			message = ((struct comp_message *)a)->message;
-			e = component_entityAttached (((struct comp_message *)a)->to);
-			position = component_getData (((struct comp_message *)a)->to);
+			message = speech->message;
+			e = component_entityAttached (speech->to);
+			position = component_getData (speech->to);
 			
 			if (strcmp (message, "CONTROL_INPUT") == 0)
 			{
@@ -548,23 +549,23 @@ const AXES * const position_getMoveAxesR (const POSITION p)
  * POSITION COMPONENT
  */
 
-void position_getHex (EntComponent position, void * arg)
+void position_getHex (EntComponent position, EntSpeech speech)
 {
 	POSITION
 		pData = component_getData (position);
 	SUBHEX
-		* hex = arg;
+		* hex = speech->arg;
 	signed int
 		x, y;
 	hex_space2coord (&pData->pos, &x, &y);
 	*hex = subhexData (pData->ground, x, y);
 }
 
-void position_getHexAngle (EntComponent position, void * arg)
+void position_getHexAngle (EntComponent position, EntSpeech speech)
 {
 	POSITION
 		pData = component_getData (position);
 	float
-		* hexAngle = arg;
+		* hexAngle = speech->arg;
 	*hexAngle = position_getHeadingR (pData);
 }

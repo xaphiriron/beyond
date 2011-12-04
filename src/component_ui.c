@@ -332,7 +332,7 @@ void ui_getWH (UIPANEL ui, signed int * w, signed int * h)
  * UI COMPONENT RESPONSES
  */
 
-void ui_classInit (EntComponent ui, void * arg)
+void ui_classInit (EntComponent ui, EntSpeech speech)
 {
 	video_getDimensions (&width, &height);
 
@@ -360,7 +360,7 @@ void ui_classInit (EntComponent ui, void * arg)
 	component_registerResponse ("ui", "draw", ui_draw);
 }
 
-void ui_create (EntComponent ui, void * arg)
+void ui_create (EntComponent ui, EntSpeech speech)
 {
 	UIPANEL
 		uiData = uiPanel_createEmpty ();
@@ -368,7 +368,7 @@ void ui_create (EntComponent ui, void * arg)
 	component_setData (ui, uiData);
 }
 
-void ui_destroy (EntComponent ui, void * arg)
+void ui_destroy (EntComponent ui, EntSpeech speech)
 {
 	UIPANEL
 		uiData = component_getData (ui);
@@ -377,7 +377,7 @@ void ui_destroy (EntComponent ui, void * arg)
 	component_clearData (ui);
 }
 
-void ui_update (EntComponent ui, void * arg)
+void ui_update (EntComponent ui, EntSpeech speech)
 {
 	Dynarr
 		uiEntities = entity_getEntitiesWithComponent (1, "ui");
@@ -415,14 +415,14 @@ void ui_update (EntComponent ui, void * arg)
 	}
 }
 
-void ui_setType (EntComponent ui, void * arg)
+void ui_setType (EntComponent ui, EntSpeech speech)
 {
 	Entity
 		uiEntity = component_entityAttached (ui);
 	UIPANEL
 		uiData = component_getData (ui);
 	enum uiPanelTypes
-		type = (enum uiPanelTypes)arg;
+		type = (enum uiPanelTypes)speech->arg;
 	struct uiTextFragment
 		* systemText;
 
@@ -476,16 +476,16 @@ void ui_setType (EntComponent ui, void * arg)
 	}
 }
 
-void ui_getType (EntComponent ui, void * arg)
+void ui_getType (EntComponent ui, EntSpeech speech)
 {
 	UIPANEL
 		uiData = component_getData (ui);
 	enum uiPanelTypes
-		* type = arg;
+		* type = speech->arg;
 	*type = uiData->type;
 }
 
-void ui_addValue (EntComponent ui, void * arg)
+void ui_addValue (EntComponent ui, EntSpeech speech)
 {
 	UIPANEL
 		uiData = component_getData (ui);
@@ -515,21 +515,21 @@ void ui_addValue (EntComponent ui, void * arg)
 	uiFrame_getXY (frame, &x, &y);
 
 	yOffset = dynarr_size (fragments) * systemLineHeight ();
-	dynarr_push (fragments, uiFragmentCreate (arg, ALIGN_LEFT, x, y + yOffset));
+	dynarr_push (fragments, uiFragmentCreate (speech->arg, ALIGN_LEFT, x, y + yOffset));
 	if (uiData->type == UI_MENU)
 	{
 		dynarr_push (uiData->menu.menuOpt, uiMenuOpt_createEmpty ());
 	}
 }
 
-void ui_setAction (EntComponent ui, void * arg)
+void ui_setAction (EntComponent ui, EntSpeech speech)
 {
 	UIPANEL
 		uiData = component_getData (ui);
 	struct uiMenuOpt
 		* opt;
 	enum input_responses
-		action = (enum input_responses)arg;
+		action = (enum input_responses)speech->arg;
 
 	if (uiData->type != UI_MENU)
 		return;
@@ -537,12 +537,12 @@ void ui_setAction (EntComponent ui, void * arg)
 	opt->action = action;
 }
 
-void ui_setPositionType (EntComponent ui, void * arg)
+void ui_setPositionType (EntComponent ui, EntSpeech speech)
 {
 	UIPANEL
 		uiData = component_getData (ui);
 	enum uiFramePos
-		posType = (enum uiFramePos)arg;
+		posType = (enum uiFramePos)speech->arg;
 	struct uiFrame
 		* frame;
 	Dynarr
@@ -587,12 +587,12 @@ void ui_setPositionType (EntComponent ui, void * arg)
 	}
 }
 
-void ui_setBackground (EntComponent ui, void * arg)
+void ui_setBackground (EntComponent ui, EntSpeech speech)
 {
 	UIPANEL
 		uiData = component_getData (ui);
 	enum uiFrameBackground
-		bg = (enum uiFrameBackground)arg;
+		bg = (enum uiFrameBackground)speech->arg;
 	struct uiFrame
 		* frame;
 	if (uiData->type != UI_STATICTEXT && uiData->type != UI_MENU)
@@ -607,14 +607,14 @@ void ui_setBackground (EntComponent ui, void * arg)
 	frame->background = bg;
 }
 
-void ui_setBorder (EntComponent ui, void * arg)
+void ui_setBorder (EntComponent ui, EntSpeech speech)
 {
 	UIPANEL
 		uiData = component_getData (ui);
 	struct uiFrame
 		* frame;
 	signed int
-		border = (signed int)arg;
+		border = (signed int)speech->arg;
 
 	if (uiData->type != UI_MENU && uiData->type != UI_STATICTEXT)
 		return;
@@ -626,14 +626,14 @@ void ui_setBorder (EntComponent ui, void * arg)
 	frame->border = border;
 }
 
-void ui_setLineSpacing (EntComponent ui, void * arg)
+void ui_setLineSpacing (EntComponent ui, EntSpeech speech)
 {
 	UIPANEL
 		uiData = component_getData (ui);
 	struct uiFrame
 		* frame;
 	signed int
-		lineSpacing = (signed int)arg;
+		lineSpacing = (signed int)speech->arg;
 
 	if (uiData->type != UI_MENU && uiData->type != UI_STATICTEXT)
 		return;
@@ -645,17 +645,17 @@ void ui_setLineSpacing (EntComponent ui, void * arg)
 	frame->lineSpacing = systemLineHeight () + lineSpacing;
 
 	/* if we change the spacing we need to recalculate the text fragments - xph 2011 09 27 */
-	ui_setPositionType (ui, (void *)frame->positionType);
+	entity_message (component_entityAttached (ui), NULL, "setPosType", (void *)frame->positionType);
 }
 
-void ui_setXPosition (EntComponent ui, void * arg)
+void ui_setXPosition (EntComponent ui, EntSpeech speech)
 {
 	UIPANEL
 		uiData = component_getData (ui);
 	struct uiFrame
 		* frame;
 	signed int
-		xPos = (signed int)arg;
+		xPos = (signed int)speech->arg;
 
 	if (uiData->type != UI_MENU && uiData->type != UI_STATICTEXT)
 		return;
@@ -670,14 +670,14 @@ void ui_setXPosition (EntComponent ui, void * arg)
 	frame->x = xPos;
 }
 
-void ui_setYPosition (EntComponent ui, void * arg)
+void ui_setYPosition (EntComponent ui, EntSpeech speech)
 {
 	UIPANEL
 		uiData = component_getData (ui);
 	struct uiFrame
 		* frame;
 	signed int
-		yPos = (signed int)arg;
+		yPos = (signed int)speech->arg;
 
 
 	if (uiData->type != UI_MENU && uiData->type != UI_STATICTEXT)
@@ -692,7 +692,7 @@ void ui_setYPosition (EntComponent ui, void * arg)
 	frame->y = yPos;
 }
 
-void ui_setWidth (EntComponent ui, void * arg)
+void ui_setWidth (EntComponent ui, EntSpeech speech)
 {
 	UIPANEL
 		uiData = component_getData (ui);
@@ -700,7 +700,7 @@ void ui_setWidth (EntComponent ui, void * arg)
 		* frame;
 
 	signed int
-		width = (signed int)arg;
+		width = (signed int)speech->arg;
 
 	if (uiData->type != UI_MENU && uiData->type != UI_STATICTEXT)
 		return;
@@ -713,16 +713,16 @@ void ui_setWidth (EntComponent ui, void * arg)
 	if (frame->positionType & PANEL_X_CENTER)
 	{
 		/* if we change the width and this is a centered frame we need to recalculate the text fragments - xph 2011 09 26*/
-		ui_setPositionType (ui, (void *)frame->positionType);
+		entity_message (component_entityAttached (ui), NULL, "setPosType", (void *)frame->positionType);
 	}
 }
 
-void ui_handleInput (EntComponent ui, void * arg)
+void ui_handleInput (EntComponent ui, EntSpeech speech)
 {
 	UIPANEL
 		uiData = component_getData (ui);
 	struct input_event
-		* inputEvent = arg;
+		* inputEvent = speech->arg;
 	struct uiMenuOpt
 		* opt;
 	signed int
@@ -800,7 +800,7 @@ void ui_handleInput (EntComponent ui, void * arg)
 	}
 }
 
-void ui_draw (EntComponent ui, void * arg)
+void ui_draw (EntComponent ui, EntSpeech speech)
 {
 	UIPANEL
 		uiData = component_getData (ui);

@@ -232,8 +232,6 @@ void input_sendGameEventMessage (const struct input_event * ie)
 	Entity
 		e = NULL,
 		newUI = NULL;
-	struct comp_message
-		* msg = NULL;
 	// CATCH AND HANDLE EVENTS THAT HAVE SYSTEM-WIDE REPERCUSSIONS
 	//DEBUG ("GOT INPUTEVENT TYPE %d", ie->ir);
 	/* this has become the home of the UI switching; this isn't a good thing. i don't know how to break it apart (presumably to be handled by the ui component??) but it's something that should be done. in the mean time, try to avoid tying the ui code with the input code any further.
@@ -250,14 +248,7 @@ void input_sendGameEventMessage (const struct input_event * ie)
 			system_message (OM_FORCEWORLDGEN, NULL, NULL);
 			break;
 		case IR_VIEW_WIREFRAME_SWITCH:
-			msg = xph_alloc (sizeof (struct comp_message));
-			msg->from = NULL;
-			msg->message = xph_alloc (17);
-			strcpy (msg->message, "WIREFRAME_SWITCH");
-			obj_message (VideoObject, OM_SYSTEM_RECEIVE_MESSAGE, msg, msg->message);
-			xph_free (msg->message);
-			xph_free (msg);
-			msg = NULL;
+			video_wireframeSwitch ();
 			break;
 		case IR_WORLDMAP_SWITCH:
 			if (systemState() == STATE_UI &&
@@ -474,7 +465,7 @@ void input_update (Object * d)
 	}
 }
 
-void input_classInit (EntComponent inputComponent, void * arg)
+void input_classInit (EntComponent inputComponent, EntSpeech speech)
 {
 	component_registerResponse ("input", "__destroy", input_componentDestroy);
 }
@@ -483,6 +474,8 @@ int component_input (Object * o, objMsg msg, void * a, void * b)
 {
 	Entity
 		e = NULL;
+	EntSpeech
+		speech = a;
 	char
 		* message = NULL;
   switch (msg) {
@@ -515,8 +508,8 @@ int component_input (Object * o, objMsg msg, void * a, void * b)
 			input_update (o);
 			return EXIT_SUCCESS;
 		case OM_COMPONENT_RECEIVE_MESSAGE:
-			message = ((struct comp_message *)a)->message;
-			e = component_entityAttached (((struct comp_message *)a)->to);
+			message = speech->message;
+			e = component_entityAttached (speech->to);
 
 			return EXIT_FAILURE;
 		default:
@@ -525,7 +518,7 @@ int component_input (Object * o, objMsg msg, void * a, void * b)
 	return EXIT_FAILURE;
 }
 
-void input_componentDestroy (EntComponent inputComponent, void * arg)
+void input_componentDestroy (EntComponent inputComponent, EntSpeech speech)
 {
 	Entity
 		inputEntity = component_entityAttached (inputComponent);

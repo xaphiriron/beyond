@@ -337,21 +337,24 @@ bool entity_message (Entity e, Entity from, char * message, void * arg)
 {
 	EntComponent
 		t;
-	struct comp_message
-		msg;
 	int
 		i = 0;
+	struct entity_speech
+		speech;
 	//printf ("%s (#%d, \"%s\", %p)\n", __FUNCTION__, entity_GUID (e), message, arg);
 	if (e == NULL)
 		return false;
-	//msg = xph_alloc (sizeof (struct comp_message));
-	msg.entFrom = from;
-	msg.from = NULL;
-	msg.to = NULL;
-	msg.message = message;
+	speech.from = from;
+	if (from)
+		speech.fromGUID = entity_GUID (from);
+	else
+		speech.fromGUID = 0;
+	speech.message = message;
+	speech.arg = arg;
+	speech.references = 0;
 	while ((t = *(EntComponent *)dynarr_at (e->components, i++)) != NULL)
 	{
-		msg.to = t;
+		speech.to = t;
 		/* this does two separate things to received messages (sending an
 		 * object system message and checking the component message triggers)
 		 * because the entity system is currently in a strange
@@ -361,8 +364,9 @@ bool entity_message (Entity e, Entity from, char * message, void * arg)
 		 * object system, but in the mean time both potential responses are
 		 * messaged here
 		 *  - xph 2011 08 19 */
-		obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, &msg, arg);
-		component_message (t, message, arg);
+		if (t->reg->system)
+			obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, &speech, arg);
+		component_message (t, message, &speech);
 	}
 	return true;
 }
