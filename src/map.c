@@ -548,6 +548,11 @@ void map_freePos (hexPos pos)
 	xph_free (pos);
 }
 
+SUBHEX map_posFocusedPlatter (const hexPos pos)
+{
+	return pos->platter[pos->focus];
+}
+
 /***
  * MAP TRAVERSAL FUNCTIONS
  */

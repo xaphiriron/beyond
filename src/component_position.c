@@ -199,6 +199,15 @@ void position_set (Entity e, hexPos pos)
 	positionData->position = pos;
 }
 
+hexPos position_get (Entity e)
+{
+	POSITION
+		positionData = component_getData (entity_getAs (e, "position"));
+	if (!positionData)
+		return NULL;
+	return positionData->position;
+}
+
 void position_alignToLevel (Entity e, int spanLevel)
 {
 	POSITION

@@ -289,15 +289,11 @@ void system_removeTimedFunction (void (*func)(TIMER))
 
 
 
-void systemCreatePlayer ()
+void systemCreatePlayer (Entity base)
 {
 	Entity
 		player,
 		camera;
-	SUBHEX
-		base;
-	unsigned char
-		mapRadius = mapGetRadius ();
 
 	FUNCOPEN ();
 
@@ -310,17 +306,7 @@ void systemCreatePlayer ()
 		/* NOTE: this is a placeholder; player positioning in the generated world is a worldgen thing, not a system thing. maybe this entire function is misguided, idk.
 		 *  - xph 2011 06 09
 		 */
-		base = mapPole ('g');
-		while (subhexSpanLevel (base) > 1)
-		{
-			if (base == NULL)
-			{
-				ERROR ("lost player base in unloaded platter");
-			}
-			mapForceGrowChildAt (base, mapRadius, -mapRadius);
-			base = mapHexAtCoordinateAuto (base, -1, mapRadius, -mapRadius);
-		}
-		systemPlacePlayerAt (base);
+		systemPlacePlayerAt (map_posFocusedPlatter (position_get (base)));
 	}
 	component_instantiate ("walking", player);
 
