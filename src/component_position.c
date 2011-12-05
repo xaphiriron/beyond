@@ -1,21 +1,27 @@
 #include "component_position.h"
 
+#include "map_internal.h"
+
 struct position_data { // POSITION
 	AXES
 		view,
 		move;
 	QUAT
 		orientation;
+	bool
+		dirty;		// view axes don't match the orientation quaternion
+
 	VECTOR3
 		pos;		// distance from the center of {ground}
 	SUBHEX
 		ground;
+
+	hexPos
+		position;
+
 	float
 		sensitivity;
-	bool
-		dirty;		// view axes don't match the orientation quaternion
 };
-
 
 static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround, SUBHEX newGround);
 static void position_updateAxesFromOrientation (POSITION pdata);
@@ -136,6 +142,78 @@ int component_position (Object * obj, objMsg msg, void * a, void * b) {
 	}
 	return EXIT_FAILURE;
 }
+
+hexPos position_random ()
+{
+	hexPos
+		position = map_blankPos ();
+	int
+		pole = rand () % 3,
+		r, k, i,
+		x, y,
+		radius = mapGetRadius (),
+		spanMax = mapGetSpan (),
+		span = spanMax,
+		index;
+	
+	position->platter[0] = mapPole
+	(
+		pole == 0
+			? 'r'
+			: pole == 1
+			? 'g'
+			: 'b'
+	);
+
+	while (--span > 0)
+	{
+		k = i = 0;
+		r = rand () % radius;
+		if (r > 1)
+			i = rand () % (r - 1);
+		if (r > 0)
+			k = rand () % 6;
+
+		hex_rki2xy (r, k, i, &x, &y);
+
+		index = spanMax - span;
+		position->x[index] = x;
+		position->y[index] = y;
+		position->platter[index] = subhexData (position->platter[index - 1], x, y);
+	}
+
+	position->focus = mapGetSpan ();
+	position->from = vectorCreate (0.0, 0.0, 0.0);
+
+	return position;
+}
+
+void position_set (Entity e, hexPos pos)
+{
+	POSITION
+		positionData = component_getData (entity_getAs (e, "position"));
+	if (!positionData)
+		return;
+	if (positionData->position)
+		map_freePos (positionData->position);
+	positionData->position = pos;
+}
+
+void position_alignToLevel (Entity e, int spanLevel)
+{
+	POSITION
+		positionData = component_getData (entity_getAs (e, "position"));
+	if (!positionData || !positionData->position)
+		return;
+	// FIXME: if ->position->from is set, scale it?? maybe??
+	if (spanLevel < 0 || spanLevel > mapGetSpan ())
+	{
+		WARNING ("Attempt to set position focus past the span limits (%d; valid values are 0-%d).", spanLevel, mapGetSpan ());
+		return;
+	}
+	positionData->position->focus = spanLevel;
+}
+
 
 
 

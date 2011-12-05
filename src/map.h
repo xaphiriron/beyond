@@ -17,6 +17,9 @@ typedef struct hexStep * HEXSTEP;
 typedef struct hexWorldPosition * WORLDHEX;
 typedef struct hexRelativePosition * RELATIVEHEX;
 
+// for the love of god use hexPos instead of worldhex or relativehex or w/e; once everything uses it i can remove the relativehex and worldhex code entirely and simplify things - xph 2011 12 04
+typedef struct xph_world_hex_position * hexPos;
+
 #include "worldgen.h"
 
 enum hexOrSubdivType
@@ -57,6 +60,14 @@ void subhexDestroy (SUBHEX subhex);
 HEXSTEP hexSetBase (HEX hex, unsigned int height, MATSPEC material);
 HEXSTEP hexCreateStep (HEX hex, unsigned int height, MATSPEC material);
 unsigned char stepParam (HEXSTEP step, const char * param);
+
+/***
+ * LOCATIONS
+ */
+
+hexPos map_blankPos ();
+
+void map_freePos (hexPos pos);
 
 /***
  * MAP TRAVERSAL FUNCTIONS

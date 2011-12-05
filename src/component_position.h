@@ -36,6 +36,10 @@ typedef struct axes
 void position_define (EntComponent position, EntSpeech speech);
 int component_position (Object * obj, objMsg msg, void * a, void * b);
 
+hexPos position_random ();
+void position_set (Entity e, hexPos pos);
+void position_alignToLevel (Entity e, int spanLevel);
+
 
 
 void position_destroy (Entity e);

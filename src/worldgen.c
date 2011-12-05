@@ -9,6 +9,8 @@
 
 #include <time.h>
 
+#include "component_position.h"
+
 enum worldMaterialList
 {
 	MATERIAL_AIR,
@@ -18,11 +20,12 @@ enum worldMaterialList
 static Dynarr
 	worldMaterials = NULL;
 
-
 void worldgenAbsHocNihilo ()
 {
 	static unsigned long
 		seed = 0;
+	Entity
+		base;
 	FUNCOPEN ();
 	
 	mapSetSpanAndRadius (4, 8);
@@ -35,6 +38,12 @@ void worldgenAbsHocNihilo ()
 	seed = time (NULL);
 	INFO ("%s: using seed of \'%ld\'", __FUNCTION__, seed);
 	loadSetText ("Initializing...");
+
+	base = entity_create ();
+	component_instantiate ("position", base);
+	position_set (base, position_random ());
+	position_alignToLevel (base, 1);
+	component_instantiate ("worldArch", base);
 
 	FUNCCLOSE ();
 }

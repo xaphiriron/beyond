@@ -121,6 +121,21 @@ struct hexRelativePosition // RELATIVEHEX
 		target;
 };
 
+struct xph_world_hex_position
+{
+	signed int
+		* x,
+		* y;
+	// platter[0] will always be loaded; it's a pole
+	SUBHEX
+		* platter;
+	// focus is the last level the x,y values should be considered meaningful (i.e., 0,0 values past that point aren't specific references to the centre of the platter above)
+	unsigned char
+		focus;
+	VECTOR3
+		from;
+};
+
 extern SUBHEX
 	* Poles;
 extern char

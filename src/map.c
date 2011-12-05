@@ -519,6 +519,36 @@ unsigned char stepParam (HEXSTEP step, const char * param)
 }
 
 /***
+ * LOCATIONS
+ */
+
+hexPos map_blankPos ()
+{
+	hexPos
+		position = xph_alloc (sizeof (struct xph_world_hex_position));
+	int
+		spanLevels = mapGetSpan () + 1;
+	// span level x goes from pole at 0 to individual hex at x so x + 1 slots are needed (x[0] and y[0] are useless and always 0)
+	position->x = xph_alloc (sizeof (int) * spanLevels);
+	memset (position->x, 0, sizeof (int) * spanLevels);
+	position->y = xph_alloc (sizeof (int) * spanLevels);
+	memset (position->y, 0, sizeof (int) * spanLevels);
+	position->platter = xph_alloc (sizeof (SUBHEX) * spanLevels);
+	memset (position->platter, 0, sizeof (SUBHEX) * spanLevels);
+	position->focus = 0;
+
+	return position;
+}
+
+void map_freePos (hexPos pos)
+{
+	xph_free (pos->x);
+	xph_free (pos->y);
+	xph_free (pos->platter);
+	xph_free (pos);
+}
+
+/***
  * MAP TRAVERSAL FUNCTIONS
  */
 
@@ -1686,8 +1716,7 @@ SUBHEX subhexData (const SUBHEX subhex, signed int x, signed int y)
 	unsigned int
 		r, k, i,
 		offset = 0;
-	assert (subhex != NULL);
-	if (subhex->type != HS_SUB)
+	if (!subhex || subhex->type != HS_SUB)
 		return NULL;
 	if (subhex->sub.data == NULL)
 		return NULL;
