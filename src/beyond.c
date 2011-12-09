@@ -14,6 +14,8 @@
 #include "component_walking.h"
 #include "component_plant.h"
 
+#include "comp_worldarch.h"
+
 static void bootstrap (void);
 static void load (TIMER t);
 static void finalize (void);
@@ -51,6 +53,8 @@ void bootstrap (void)
 	component_register ("input", component_input, input_classInit);
 	component_register ("plant", component_plant, NULL);
 	component_register ("ui", NULL, ui_classInit);
+	component_register ("worldArch", NULL, worldarch_define);
+	component_register ("pattern", NULL, pattern_define);
 
 	// this order DOES matter, since this is the order they're updated later.
 	entitySubsystem_store ("position");

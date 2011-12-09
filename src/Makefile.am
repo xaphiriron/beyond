@@ -35,6 +35,8 @@ beyond_SOURCES = \
 	matspec.c matspec.h \
 	map.c map.h \
 	worldgen.c worldgen.h \
+	comp_worldarch.c comp_worldarch.h \
+	\
   component_position.c component_position.h	\
   component_integrate.c component_integrate.h	\
   component_camera.c component_camera.h		\

@@ -663,7 +663,7 @@ int system_message (objMsg msg, void * a, void * b)
 			dynarr_clear (System->uiPanels);
 
 			printf ("TRIGGERING WORLDGEN:\n");
-			systemLoad (worldgenAbsHocNihilo, worldgenExpandWorldGraph, worldgenFinalizeCreation);
+			systemLoad (worldInit, worldGenerate, worldFinalize);
 			return EXIT_SUCCESS;
 
 		default:

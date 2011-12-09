@@ -23,13 +23,15 @@ static Dynarr
 static Entity
 	base;
 
-void worldgenAbsHocNihilo ()
+static Dynarr worldArchOrderFor (SUBHEX platter);
+
+void worldInit ()
 {
 	static unsigned long
 		seed = 0;
 	FUNCOPEN ();
 	
-	mapSetSpanAndRadius (4, 8);
+	mapSetSpanAndRadius (2, 8);
 	mapGeneratePoles (POLE_TRI);
 
 	worldMaterials = dynarr_create (3, sizeof (MATSPEC));
@@ -49,7 +51,7 @@ void worldgenAbsHocNihilo ()
 	FUNCCLOSE ();
 }
 
-void worldgenFinalizeCreation ()
+void worldFinalize ()
 {
 	int
 		i = 1,
@@ -60,7 +62,8 @@ void worldgenFinalizeCreation ()
 		platter;
 	FUNCOPEN ();
 
-	position_alignToLevel (base, 3);
+
+	position_alignToLevel (base, mapGetSpan () - 1);
 	centre = position_get (base);
 	platter = centre->platter[0];
 	while (i <= span)
@@ -79,10 +82,10 @@ void worldgenFinalizeCreation ()
 	FUNCCLOSE ();
 }
 
-void worldgenExpandWorldGraph (TIMER timer)
+void worldGenerate (TIMER timer)
 {
 
-	// pick unfinished arch at the highest level; expand its graph; repeat until there are no more arches on that level; imprint all arches; repeat from top
+	// pick unexpanded arch at the highest level; expand it; repeat until there are no more arches on that level; repeat from top
 
 	loadSetGoal (1);
 	loadSetLoaded (1);
@@ -92,10 +95,38 @@ void worldgenExpandWorldGraph (TIMER timer)
  * IMPRINTING FUNCTIONS
  */
 
-void worldgenImprintMapData (SUBHEX at)
+void worldImprint (SUBHEX at)
 {
+	int
+		i = 0,
+		max = hx (mapGetRadius () + 1);
+	Entity
+		arch;
+	Dynarr
+		arches;
+
+	if (subhexSpanLevel (at) != 1)
+		return;
+
+	while (i < max)
+	{
+		hexSetBase ((HEX)at->sub.data[i], 0, *(MATSPEC *)dynarr_at (worldMaterials, MATERIAL_GROUND));
+		i++;
+	}
+
+	arches = worldArchOrderFor (at);
+	i = 0;
+	while ((arch = *(Entity *)dynarr_at (arches, i++)))
+	{
+	}
+	dynarr_destroy (arches);
+
 }
 
-void worldgenImprintAllArches (SUBHEX at)
+
+static Dynarr worldArchOrderFor (SUBHEX platter)
 {
+	Dynarr
+		r = dynarr_create (2, sizeof (Entity));
+	return r;
 }

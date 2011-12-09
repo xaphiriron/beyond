@@ -5,12 +5,11 @@
 #include "timer.h"
 #include "map.h"
 
-void worldgenAbsHocNihilo ();
-void worldgenFinalizeCreation ();
+void worldInit ();
+void worldFinalize ();
 
-void worldgenExpandWorldGraph (TIMER t);
+void worldGenerate (TIMER t);
 
-void worldgenImprintMapData (SUBHEX at);
-void worldgenImprintAllArches (SUBHEX at);
+void worldImprint (SUBHEX at);
 
 #endif /* XPH_WORLDGEN_H */

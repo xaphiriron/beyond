@@ -1971,6 +1971,7 @@ static void mapQueueLoadAround (SUBHEX origin)
 	if (loadedPlatters == NULL)
 		initMapLoad ();
 */
+	mapForceGrowAtLevelForDistance (origin, 1, 5);
 }
 
 /* i feel like this function is ignoring the fact that subhexes will
@@ -2035,7 +2036,6 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 	 * though, but for now an instant load will suffice.
 	 *  - xph 2011 08 01
 	 */
-	mapForceGrowAtLevelForDistance (origin, 1, 5);
 
 	mapQueueLoadAround (origin);
 
@@ -2089,10 +2089,9 @@ static void mapCheckLoadStatusAndImprint (void * rel_v)
 	}
 	if (!target->sub.loaded)
 	{
-		/* loaded needs to be set before the imprinting because the imprinting code checks to see if the hexes it's getting are part of a loaded platter and discards them if they're not */
+		/* loaded needs to be set before the imprinting because the imprinting code checks to see if the hexes it's getting (i.e., nearby hexes it's using to get information about the world) are part of a loaded platter and discards them if they're not */
 		target->sub.loaded = true;
-		worldgenImprintMapData (target);
-		worldgenImprintAllArches (target);
+		worldImprint (target);
 		mapBakeHexes (target);
 		i = 0;
 		while (i < 6)
