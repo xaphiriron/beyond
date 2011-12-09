@@ -336,7 +336,7 @@ void ui_classInit (EntComponent ui, EntSpeech speech)
 {
 	video_getDimensions (&width, &height);
 
-	component_registerResponse ("ui", "__init", ui_create);
+	component_registerResponse ("ui", "__create", ui_create);
 	component_registerResponse ("ui", "__destroy", ui_destroy);
 
 	component_registerResponse ("ui", "__update", ui_update);

@@ -510,7 +510,7 @@ bool component_instantiate (const char * comp_name, Entity e)
 
 	instance->comp_data = NULL;
 	obj_message (sys->system, OM_COMPONENT_INIT_DATA, &instance->comp_data, e);
-	component_message (instance, "__init", NULL);
+	component_message (instance, "__create", NULL);
 	return true;
 }
 

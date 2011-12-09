@@ -362,7 +362,7 @@ void camera_classInit (EntComponent camera, EntSpeech speech)
 {
 	comp_entdata = dynarr_create (8, sizeof (Entity));
 
-	component_registerResponse ("camera", "__init", component_cameraInitialize);
+	component_registerResponse ("camera", "__create", component_cameraInitialize);
 	component_registerResponse ("camera", "__destroy", component_cameraDestroy);
 
 	component_registerResponse ("camera", "__classDestroy", camera_classDestroy);
