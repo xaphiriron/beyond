@@ -11,7 +11,7 @@
 #include "hex_utility.h"
 
 #include "map_internal.h"
-
+#include "component_position.h"
 
 SUBHEX
 	* Poles = NULL;
@@ -37,6 +37,7 @@ static void mapDataDestroy (struct mapData * mb);
 static void mapCheckLoadStatusAndImprint (void * rel_v);
 static void mapBakeHex (HEX hex);
 
+static void map_posRecalcPlatters (hexPos pos);
 
 /***
  * MAP LOADING INTERNAL FUNCTION DECLARATIONS
@@ -305,6 +306,10 @@ SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 		subdivLocation,
 		intLoc1,
 		intLoc2;
+	Entity
+		arch;
+	hexPos
+		pos;
 	struct mapDataEntry
 		* mapData = NULL;
 
@@ -536,14 +541,122 @@ hexPos map_blankPos ()
 		spanLevels = mapGetSpan () + 1;
 	// span level x goes from pole at 0 to individual hex at x so x + 1 slots are needed (x[0] and y[0] are useless and always 0)
 	position->x = xph_alloc (sizeof (int) * spanLevels);
-	memset (position->x, 0, sizeof (int) * spanLevels);
 	position->y = xph_alloc (sizeof (int) * spanLevels);
-	memset (position->y, 0, sizeof (int) * spanLevels);
 	position->platter = xph_alloc (sizeof (SUBHEX) * spanLevels);
+	memset (position->x, 0, sizeof (int) * spanLevels);
+	memset (position->y, 0, sizeof (int) * spanLevels);
 	memset (position->platter, 0, sizeof (SUBHEX) * spanLevels);
 	position->focus = 0;
 
 	return position;
+}
+
+hexPos map_at (const SUBHEX at)
+{
+	hexPos
+		pos = map_blankPos ();
+	int
+		x = 0,
+		y = 0,
+		span = subhexSpanLevel (at);
+	SUBHEX
+		platter = at;
+	
+	// i have no clue if this loop is correct but i suspect it's not - xph 2011 12 10
+	pos->focus = span;
+	pos->platter[pos->focus] = at;
+	while (span > 0 && platter)
+	{
+		subhexLocalCoordinates (platter, &x, &y);
+		platter = subhexParent (platter);
+		span--;
+		//printf ("writing to offset %d: %d, %d, %p\n", span, x, y, platter);
+		pos->x[span] = x;
+		pos->y[span] = y;
+		pos->platter[span] = platter;
+	}
+	//assert (pos->platter[0] != NULL);
+
+	return pos;
+}
+
+hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y)
+{
+	hexPos
+		scratch = NULL;
+	SUBHEX
+		focus = at;
+	short
+		span;
+	int
+		higherX = 0,
+		higherY = 0,
+		xRemainder = 0,
+		yRemainder = 0;
+
+	while (relativeSpan < 0)
+	{
+		if (!subhexData (focus, 0, 0))
+		{
+			DEBUG ("Hit unloaded/invalid subdiv while focusing downwards from subhex %p (at span %d)", at, subhexSpanLevel (at));
+			scratch = map_at (focus);
+			scratch->focus -= relativeSpan;
+			assert (scratch->focus <= mapGetSpan ());
+			if (scratch->focus > mapGetSpan ())
+			{
+				ERROR ("Hit tile layer while focusing downwards from subhex %p (at span %d)", at, subhexSpanLevel (at));
+				map_freePos (scratch);
+				return NULL;
+			}
+			break;
+		}
+		focus = subhexData (focus, 0, 0);
+		relativeSpan++;
+	}
+	while (relativeSpan > 0)
+	{
+		if (!subhexParent (focus))
+		{
+			ERROR ("Hit pole layer while focusing upwards from subhex %p (at span %d)", at, subhexSpanLevel (at));
+			return NULL;
+		}
+		focus = subhexParent (focus);
+		
+		relativeSpan--;
+	}
+	if (!scratch)
+		scratch = map_at (focus);
+	scratch->x[scratch->focus] += x;
+	scratch->y[scratch->focus] += y;
+
+	span = scratch->focus;
+	while (hexMagnitude (scratch->x[span], scratch->y[span]) > MapRadius)
+	{
+		//printf (" - coordinate %d, %d outside map radius; rescaling\n", scratch->x[span], scratch->y[span]);
+		mapScaleCoordinates
+		(
+			1,
+			scratch->x[span], scratch->y[span],
+			&higherX, &higherY,
+			&xRemainder, &yRemainder
+		);
+		printf ("original: %d, %d; upscaled: %d, %d; remainder: %d, %d\n", scratch->x[span], scratch->y[span], higherX, higherY, xRemainder, yRemainder);
+		// this isn't how you actually use the remainder i think - xph 2011 12 10
+		scratch->x[span] = xRemainder;
+		scratch->y[span] = yRemainder;
+		span--;
+		if (span == 0)
+		{
+			scratch->platter[0] = mapPole (mapPoleTraversal (subhexPoleName (scratch->platter[0]), higherX, higherY));
+			break;
+		}
+		scratch->x[span] += higherX;
+		scratch->y[span] += higherY;
+	}
+
+
+	map_posRecalcPlatters (scratch);
+	return scratch;
 }
 
 void map_freePos (hexPos pos)
@@ -552,6 +665,27 @@ void map_freePos (hexPos pos)
 	xph_free (pos->y);
 	xph_free (pos->platter);
 	xph_free (pos);
+}
+
+static void map_posRecalcPlatters (hexPos pos)
+{
+	int
+		span = 1;
+	while (span <= pos->focus)
+	{
+		printf ("platter %d: %p\n", span, pos->platter[span]);
+		pos->platter[span] = pos->platter[span - 1]
+			? subhexData (pos->platter[span - 1], pos->x[span], pos->y[span])
+			: NULL;
+		span++;
+		printf ("  set to %p\n", pos->platter[span]);
+	}
+}
+
+
+unsigned char map_posFocusLevel (const hexPos pos)
+{
+	return pos->focus;
 }
 
 SUBHEX map_posFocusedPlatter (const hexPos pos)
@@ -601,6 +735,28 @@ void map_posUpdateWith (hexPos pos, const SUBHEX div)
 	pos->platter[i + 1] = div;
 	//printf ("MATCH!!\n");
 }
+
+
+Dynarr map_posAround (const SUBHEX subhex, unsigned int distance)
+{
+	Dynarr
+		arr = dynarr_create (fx (distance) + 1, sizeof (hexPos));
+	unsigned int
+		r = 0,
+		k = 0,
+		i = 0;
+	signed int
+		x, y;
+	while (r <= distance)
+	{
+		hex_rki2xy (r, k, i, &x, &y);
+		//printf (" getting offset {%d %d %d} (%d, %d)\n", r, k, i, x, y);
+		dynarr_push (arr, map_from (subhex, 0, x, y));
+		hex_nextValidCoord (&r, &k, &i);
+	}
+	return arr;
+}
+
 /***
  * MAP TRAVERSAL FUNCTIONS
  */
