@@ -327,6 +327,8 @@ void entity_speak (const Entity speaker, char * message, void * arg)
 		listener;
 	int
 		i = 0;
+	entity_message (speaker, speaker, message, arg);
+
 	while ((listener = *(Entity *)dynarr_at (speaker->listeners, i++)) != NULL)
 	{
 		entity_message (listener, speaker, message, arg);
