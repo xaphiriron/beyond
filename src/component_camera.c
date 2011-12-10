@@ -470,8 +470,13 @@ void component_cameraPositionResponse (EntComponent camera, EntSpeech speech)
 {
 	Entity
 		camEntity = component_entityAttached (camera);
+	cameraComponent
+		camData = component_getData (camera);
 	POSITIONUPDATE
 		update = speech->arg;
+
+	if (speech->from != camData->target)
+		return;
 
 	camera_update (camEntity);
 	/* this should do an additional check on the platter distance between
