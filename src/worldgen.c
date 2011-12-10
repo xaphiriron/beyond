@@ -32,7 +32,7 @@ void worldInit ()
 	FUNCOPEN ();
 	
 	mapSetSpanAndRadius (2, 8);
-	mapGeneratePoles (POLE_TRI);
+	mapGeneratePoles ();
 
 	worldMaterials = dynarr_create (3, sizeof (MATSPEC));
 	dynarr_assign (worldMaterials, MATERIAL_AIR, makeMaterial (MAT_TRANSPARENT));

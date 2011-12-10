@@ -74,23 +74,15 @@ unsigned char mapGetRadius ()
 	return MapRadius;
 }
 
-bool mapGeneratePoles (const enum mapPoleTypes type)
+bool mapGeneratePoles ()
 {
 	int
-		count = type;
+		count = 3;
 	// blah blah warn/error here if the pole values aren't already null
 	Poles = NULL;
 	PoleNames = NULL;
-	switch (type)
-	{
-		case POLE_TRI:
-			PoleNames = xph_alloc (count + 1);
-			strcpy (PoleNames, "rgb");
-			break;
-		default:
-			ERROR ("yeah pole count value of %d isn't supported, sry", type);
-			return false;
-	}
+	PoleNames = xph_alloc (count + 1);
+	strcpy (PoleNames, "rgb");
 	PoleCount = count;
 	Poles = xph_alloc (sizeof (SUBHEX) * count);
 	while (count > 0)

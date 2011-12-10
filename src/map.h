@@ -28,18 +28,10 @@ enum hexOrSubdivType
 	HS_SUB,
 };
 
-enum mapPoleTypes
-{
-// 	POLE_ONE = 1,
-	POLE_TRI = 3,		// <-- this is the only one that works
-// 	POLE_QUAD = 4,
-// 	POLE_HEX = 6,
-};
-
 bool mapSetSpanAndRadius (const unsigned char span, const unsigned char radius);
 unsigned char mapGetSpan ();
 unsigned char mapGetRadius ();
-bool mapGeneratePoles (const enum mapPoleTypes type);
+bool mapGeneratePoles ();
 bool worldExists ();
 
 void worldDestroy ();
