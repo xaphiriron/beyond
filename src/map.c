@@ -35,11 +35,6 @@ static void mapDataDestroy (struct mapData * mb);
 
 
 static void mapCheckLoadStatusAndImprint (void * rel_v);
-/*
-static void mapRelativeTargetImprintMap (void * rel_v);
-static void mapRelativeTargetImprintArches (void * rel_v);
-static void mapRelativeTargetBake (void * rel_v);
-*/
 static void mapBakeHex (HEX hex);
 
 
@@ -2045,11 +2040,6 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 	 *   - xph 2011 07 28
 	 */
 	dynarr_map (RenderCache, mapCheckLoadStatusAndImprint);
-	/*
-	dynarr_map (RenderCache, mapRelativeTargetImprintMap);
-	dynarr_map (RenderCache, mapRelativeTargetImprintArches);
-	dynarr_map (RenderCache, mapRelativeTargetBake);
-     */
 }
 
 static void mapCheckLoadStatusAndImprint (void * rel_v)
@@ -2103,21 +2093,6 @@ static void mapCheckLoadStatusAndImprint (void * rel_v)
 		}
 	}
 }
-
-/*
-static void mapRelativeTargetImprintMap (void * rel_v)
-{
-	worldgenImprintMapData (mapRelativeTarget (rel_v));
-}
-static void mapRelativeTargetImprintArches (void * rel_v)
-{
-	worldgenImprintAllArches (mapRelativeTarget (rel_v));
-}
-static void mapRelativeTargetBake (void * rel_v)
-{
-	mapBakeHexes (mapRelativeTarget (rel_v));
-}
-*/
 
 void mapBakeEdgeHexes (SUBHEX subhex, unsigned int dir)
 {
