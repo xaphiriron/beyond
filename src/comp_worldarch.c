@@ -1,5 +1,8 @@
 #include "comp_worldarch.h"
 
+#include "map.h"
+#include "component_position.h"
+
 struct xph_worldarch
 {
 	unsigned int
@@ -31,6 +34,8 @@ void worldarch_destroy (EntComponent comp, EntSpeech speech);
 void worldarch_setParent (EntComponent comp, EntSpeech speech);
 void worldarch_setPattern (EntComponent comp, EntSpeech speech);
 
+void worldarch_updatePosition (EntComponent comp, EntSpeech speech);
+
 void worldarch_define (EntComponent comp, EntSpeech speech)
 {
 
@@ -40,17 +45,26 @@ void worldarch_define (EntComponent comp, EntSpeech speech)
 	component_registerResponse ("worldArch", "setArchParent", worldarch_setParent);
 	component_registerResponse ("worldArch", "setArchPattern", worldarch_setPattern);
 
+	component_registerResponse ("worldArch", "positionSet", worldarch_updatePosition);
+
 }
 
 void worldarch_create (EntComponent comp, EntSpeech speech)
 {
+	Entity
+		this = component_entityAttached (comp);
 	worldArch
 		arch = xph_alloc (sizeof (struct xph_worldarch));
+	hexPos
+		pos;
 	memset (arch, 0, sizeof (struct xph_worldarch));
 
 	arch->connectedArches = dynarr_create (2, sizeof (Entity));
 
 	component_setData (comp, arch);
+
+	if ((pos = position_get (this)))
+		subhexAddArch (map_posBestMatchPlatter (pos), this);
 }
 
 void worldarch_destroy (EntComponent comp, EntSpeech speech)
@@ -75,6 +89,19 @@ void worldarch_setPattern (EntComponent comp, EntSpeech speech)
 	worldArch
 		arch = component_getData (comp);
 	arch->pattern = speech->arg;
+}
+
+void worldarch_updatePosition (EntComponent comp, EntSpeech speech)
+{
+	Entity
+		this = component_entityAttached (comp);
+	hexPos
+		pos;
+	// TODO: if the arch is moving (?!) remove arch from old platter
+	pos = position_get (this);
+	if (!pos)
+		return;
+	subhexAddArch (map_posBestMatchPlatter (pos), this);
 }
 
 
