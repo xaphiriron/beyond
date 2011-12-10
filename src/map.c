@@ -1650,6 +1650,28 @@ static int mapExtrCmp (const void * k, const void * d)
 	return strcmp (*(char **)k, (*(struct mapDataEntry **)d)->type);
 }
 
+
+void subhexAddArch (SUBHEX at, Entity arch)
+{
+	if (!at || subhexSpanLevel (at) < 1)
+		return;
+	dynarr_push (at->sub.arches, arch);
+}
+
+void subhexRemoveArch (SUBHEX at, Entity arch)
+{
+	if (!at || subhexSpanLevel (at) < 1)
+		return;
+	dynarr_remove_condense (at->sub.arches, arch);
+}
+
+const Dynarr subhexGetArches (const SUBHEX at)
+{
+	if (!at || subhexSpanLevel (at) < 1)
+		return NULL;
+	return at->sub.arches;
+}
+
 /***
  * INFORMATIONAL / GETTER FUNCTIONS
  */

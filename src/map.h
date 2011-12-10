@@ -121,6 +121,10 @@ void mapDataSet (SUBHEX at, char * type, signed int amount);
 signed int mapDataAdd (SUBHEX at, char * type, signed int amount);
 signed int mapDataGet (SUBHEX at, char * type);
 
+void subhexAddArch (SUBHEX at, Entity arch);
+void subhexRemoveArch (SUBHEX at, Entity arch);
+const Dynarr subhexGetArches (const SUBHEX at);
+
 /***
  * INFORMATIONAL / GETTER FUNCTIONS
  */
