@@ -197,6 +197,7 @@ void position_set (Entity e, hexPos pos)
 	if (positionData->position)
 		map_freePos (positionData->position);
 	positionData->position = pos;
+	entity_speak (e, "positionSet", NULL);
 }
 
 hexPos position_get (Entity e)
