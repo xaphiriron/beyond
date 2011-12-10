@@ -70,6 +70,11 @@ unsigned int hx (unsigned int n)
 	return 3 * n * (n - 1) + 1;
 }
 
+unsigned int fx (unsigned int n)
+{
+	return 3 * n * (n + 1) + 1;
+}
+
 
 void hex_nextValidCoord (unsigned int * rp, unsigned int * kp, unsigned int * ip)
 {
