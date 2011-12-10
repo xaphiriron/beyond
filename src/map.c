@@ -320,6 +320,8 @@ SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 	sh->sub.y = y;
 	sh->sub.data = NULL;
 
+	sh->sub.arches = dynarr_create (2, sizeof (Entity));
+
 	sh->sub.imprintable = false;
 	sh->sub.loaded = false;
 
@@ -371,6 +373,22 @@ SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 				//printf ("sent {%u %u %u} w/ %d, %d and %d, %d (%d and %d) -- vals %u %u %u\n", r, k, i, XY[k][X], XY[k][Y], XY[otherDir][X], XY[otherDir][Y], k, otherDir, mapData->value, intVal1, intVal2);
 				mapData->value = baryInterpolate (&subdivLocation, &intLoc1, &intLoc2, mapData->value, intVal1, intVal2);
 				//printf ("  got %u\n", mapData->value);
+			}
+		}
+		// take any arches that
+		//  1. are more tightly focused than the resolution of the parent and
+		//  2. actually apply to this subhex
+		o = 0;
+		while ((arch = *(Entity *)dynarr_at (parent->sub.arches, o++)))
+		{
+			pos = position_get (arch);
+			//printf ("updating arch w/ focus level %d; currently at level %d\n", map_posFocusLevel (pos), parent->sub.span);
+			map_posUpdateWith (pos, sh);
+			if (map_posBestMatchPlatter (pos) == sh)
+			{
+				subhexRemoveArch (parent, arch);
+				subhexAddArch (sh, arch);
+				printf ("shifted arch down; was attached to a subdiv on level %d (%p), now attached to its %d,%d child on level %d (%p)\n", parent->sub.span, parent, x, y, sh->sub.span, sh);
 			}
 		}
 	}
@@ -434,6 +452,7 @@ void subhexDestroy (SUBHEX subhex)
 			subhex->sub.data = NULL;
 		}
 		mapDataDestroy (subhex->sub.mapInfo);
+		dynarr_destroy (subhex->sub.arches);
 	}
 	else if (subhex->type == HS_HEX)
 	{
@@ -540,6 +559,48 @@ SUBHEX map_posFocusedPlatter (const hexPos pos)
 	return pos->platter[pos->focus];
 }
 
+SUBHEX map_posBestMatchPlatter (const hexPos pos)
+{
+	unsigned char
+		i = pos->focus;
+	while (i >= 0)
+	{
+		if (pos->platter[i])
+			return pos->platter[i];
+		i--;
+	}
+	ERROR ("Position exists with absolutely no loaded platters");
+	return NULL;
+}
+
+void map_posUpdateWith (hexPos pos, const SUBHEX div)
+{
+	int
+		i = mapGetSpan (),
+		x = 0,
+		y = 0;
+	
+	while (i >= 0)
+	{
+		if (pos->platter[i])
+			break;
+		i--;
+	}
+	if (pos->platter[i] != subhexParent (div))
+	{
+		//printf ("  bestmatch platter (%p; span %d) not current subdiv's parent (%p; span %d)\n", pos->platter[i], subhexSpanLevel (pos->platter[i]), subhexParent (div), subhexSpanLevel (subhexParent (div)));
+		return;
+	}
+	subhexLocalCoordinates (div, &x, &y);
+	assert (i + 1 <= mapGetSpan ());
+	if (pos->x[i + 1] != x || pos->y[i + 1] != y)
+	{
+		//printf ("  desired coordinates (%d, %d) not current subdivs (%d, %d)\n", pos->x[i + 1], pos->y[i + 1], x, y);
+		return;
+	}
+	pos->platter[i + 1] = div;
+	//printf ("MATCH!!\n");
+}
 /***
  * MAP TRAVERSAL FUNCTIONS
  */

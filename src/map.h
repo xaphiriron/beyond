@@ -62,6 +62,8 @@ hexPos map_blankPos ();
 void map_freePos (hexPos pos);
 
 SUBHEX map_posFocusedPlatter (const hexPos pos);
+SUBHEX map_posBestMatchPlatter (const hexPos pos);
+void map_posUpdateWith (hexPos pos, const SUBHEX div);
 
 /***
  * MAP TRAVERSAL FUNCTIONS
