@@ -61,9 +61,7 @@ static struct camera_data * camera_create ()
 {
 	struct camera_data
 		* cd = xph_alloc (sizeof (struct camera_data));
-	memset (cd->targetMatrix, '\0', sizeof (float) * 16);
-	memset (cd->offset, '\0', sizeof (float) * 16);
-	memset (cd->m, '\0', sizeof (float) * 16);
+	memset (cd, 0, sizeof (struct camera_data));
 	cd->targetMatrix[0] = cd->targetMatrix[5] = cd->targetMatrix[10] = cd->targetMatrix[15] = 1.0;
 	cd->offset[0] = cd->offset[5] = cd->offset[10] = cd->offset[15] = 1.0;
 	cd->m[0] = cd->m[5] = cd->m[10] = cd->m[15] = 1.0;
