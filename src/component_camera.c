@@ -460,6 +460,11 @@ void component_cameraOrientResponse (EntComponent camera, EntSpeech speech)
 {
 	Entity
 		camEntity = component_entityAttached (camera);
+	cameraComponent
+		camData = component_getData (camera);
+
+	if (speech->from != camData->target)
+		return;
 
 	camera_update (camEntity);
 }
@@ -473,6 +478,7 @@ void component_cameraPositionResponse (EntComponent camera, EntSpeech speech)
 	POSITIONUPDATE
 		update = speech->arg;
 
+	// this has to ignore its own position updates (so there's not a speech->from != camEntity check) because if it doesn't, its own movement will trigger another position update, which it will repond to by updating its position again, etc etc. - xph 2011 12 12
 	if (speech->from != camData->target)
 		return;
 

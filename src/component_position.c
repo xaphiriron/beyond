@@ -231,7 +231,8 @@ void position_alignToLevel (Entity e, int spanLevel)
 static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround, SUBHEX newGround)
 {
 	FUNCOPEN ();
-
+	Entity
+		this = component_entityAttached (c);
 	static struct position_update
 		posUpdate;
 	posUpdate.oldGround = oldGround;
@@ -253,7 +254,7 @@ static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround
 		}
 	}
 	posUpdate.difference = mapRelativeDistance (posUpdate.relPosition);
-	entity_message (component_entityAttached (c), NULL, "positionUpdate", &posUpdate);
+	entity_speak (this, "positionUpdate", &posUpdate);
 	memset (&posUpdate, '\0', sizeof (struct position_update));
 	FUNCCLOSE ();
 }
