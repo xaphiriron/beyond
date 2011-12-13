@@ -42,6 +42,8 @@ void mapForceSubdivide (SUBHEX subhex);
 void mapForceGrowAtLevelForDistance (SUBHEX subhex, unsigned char absoluteSpan, unsigned int distance);
 void mapForceGrowChildAt (SUBHEX subhex, signed int x, signed int y);
 
+void mapLoadAround (hexPos pos);
+
 /***
  * SIMPLE CREATION AND INITIALIZATION FUNCTIONS
  */

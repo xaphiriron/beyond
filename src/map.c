@@ -246,6 +246,33 @@ void mapForceGrowChildAt (SUBHEX subhex, signed int x, signed int y)
 	}
 }
 
+void mapLoadAround (hexPos pos)
+{
+	SUBHEX
+		platter = NULL;
+	int
+		i = MapSpan;
+	while (i > pos->focus && pos->platter[i])
+	{
+		platter = pos->platter[i];
+		i--;
+	}
+	i++;
+	//printf ("focused on %p at index (span) %d\n", platter, i);
+	if (!platter)
+		return;
+
+	while (subhexSpanLevel (platter) > pos->focus)
+	{
+		platter = map_posBestMatchPlatter (pos);
+		assert (i >= 0);
+		mapForceGrowChildAt (platter, pos->x[i], pos->y[i]);
+		//printf ("growing %p (%d) at %d, %d\n", platter, subhexSpanLevel (platter), pos->x[i], pos->y[i]);
+		i--;
+	}
+	//printf ("done\n");
+}
+
 /***
  * SIMPLE CREATION AND INITIALIZATION FUNCTIONS
  */
@@ -388,12 +415,12 @@ SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 		{
 			pos = position_get (arch);
 			//printf ("updating arch w/ focus level %d; currently at level %d\n", map_posFocusLevel (pos), parent->sub.span);
-			map_posUpdateWith (pos, sh);
+			map_posRecalcPlatters (pos);
 			if (map_posBestMatchPlatter (pos) == sh)
 			{
 				subhexRemoveArch (parent, arch);
 				subhexAddArch (sh, arch);
-				printf ("shifted arch down; was attached to a subdiv on level %d (%p), now attached to its %d,%d child on level %d (%p)\n", parent->sub.span, parent, x, y, sh->sub.span, sh);
+				//printf ("shifted arch down; was attached to a subdiv on level %d (%p), now attached to its %d,%d child on level %d (%p)\n", parent->sub.span, parent, x, y, sh->sub.span, sh);
 			}
 		}
 	}
@@ -561,10 +588,9 @@ hexPos map_randomPos ()
 		x, y,
 		radius = mapGetRadius (),
 		spanMax = mapGetSpan (),
-		span = spanMax,
-		index;
+		span = spanMax;
 	
-	position->platter[0] = mapPole
+	position->platter[span] = mapPole
 	(
 		pole == 0
 			? 'r'
@@ -573,7 +599,7 @@ hexPos map_randomPos ()
 			: 'b'
 	);
 
-	while (--span > 0)
+	while (span > 0)
 	{
 		k = i = 0;
 		r = rand () % radius;
@@ -581,16 +607,14 @@ hexPos map_randomPos ()
 			i = rand () % (r - 1);
 		if (r > 0)
 			k = rand () % 6;
-
 		hex_rki2xy (r, k, i, &x, &y);
 
-		index = spanMax - span;
-		position->x[index] = x;
-		position->y[index] = y;
-		//position->platter[index] = subhexData (position->platter[index - 1], x, y);
+		position->x[span] = x;
+		position->y[span] = y;
+		span--;
 	}
 
-	position->focus = mapGetSpan ();
+	position->focus = 0;
 	position->from = vectorCreate (0.0, 0.0, 0.0);
 
 	map_posRecalcPlatters (position);
@@ -605,24 +629,29 @@ hexPos map_at (const SUBHEX at)
 	int
 		x = 0,
 		y = 0,
-		span = subhexSpanLevel (at);
+		span;
 	SUBHEX
 		platter = at;
-	
-	// i have no clue if this loop is correct but i suspect it's not - xph 2011 12 10
-	pos->focus = span;
+
+	pos->focus = subhexSpanLevel (at);
 	pos->platter[pos->focus] = at;
-	while (span > 0 && platter)
+	span = subhexSpanLevel (at);
+	while (span < MapSpan)
 	{
+		span++;
 		subhexLocalCoordinates (platter, &x, &y);
 		platter = subhexParent (platter);
-		span--;
 		//printf ("writing to offset %d: %d, %d, %p\n", span, x, y, platter);
 		pos->x[span] = x;
 		pos->y[span] = y;
-		pos->platter[span] = platter;
+		//pos->platter[span] = platter;
 	}
-	//assert (pos->platter[0] != NULL);
+	pos->platter[MapSpan] = platter;
+	assert (pos->platter[MapSpan] != NULL);
+	assert (subhexParent (pos->platter[MapSpan]) == NULL);
+	assert (subhexSpanLevel (pos->platter[MapSpan]) == MapSpan);
+
+	map_posRecalcPlatters (pos);
 
 	return pos;
 }
@@ -633,6 +662,7 @@ hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y)
 		scratch = NULL;
 	SUBHEX
 		focus = at;
+
 	short
 		span;
 	int
@@ -641,6 +671,7 @@ hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y)
 		xRemainder = 0,
 		yRemainder = 0;
 
+/*
 	while (relativeSpan < 0)
 	{
 		if (!subhexData (focus, 0, 0))
@@ -671,10 +702,12 @@ hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y)
 		
 		relativeSpan--;
 	}
+*/
 	if (!scratch)
 		scratch = map_at (focus);
-	scratch->x[scratch->focus] += x;
-	scratch->y[scratch->focus] += y;
+	assert (scratch->focus > 0);
+	scratch->x[scratch->focus - 1] += x;
+	scratch->y[scratch->focus - 1] += y;
 
 	span = scratch->focus;
 	while (hexMagnitude (scratch->x[span], scratch->y[span]) > MapRadius)
@@ -701,8 +734,18 @@ hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y)
 		scratch->y[span] += higherY;
 	}
 
-
 	map_posRecalcPlatters (scratch);
+
+/*
+	int
+		sx = 0, sy = 0;
+	subhexLocalCoordinates (at, &sx, &sy);
+	printf ("started w/ %d: %d, %d;", subhexSpanLevel (at), sx, sy);
+	printf (" moved %d: %d, %d;", relativeSpan, x, y);
+	
+	subhexLocalCoordinates (map_posBestMatchPlatter (scratch), &sx, &sy);
+	printf (" ended w/ %d: %d, %d\n", subhexSpanLevel (map_posBestMatchPlatter (scratch)), sx, sy);
+*/
 	return scratch;
 }
 
@@ -717,15 +760,14 @@ void map_freePos (hexPos pos)
 static void map_posRecalcPlatters (hexPos pos)
 {
 	int
-		span = 1;
-	while (span <= pos->focus)
+		span = MapSpan;
+	while (span > pos->focus)
 	{
-		printf ("platter %d: %p\n", span, pos->platter[span]);
-		pos->platter[span] = pos->platter[span - 1]
-			? subhexData (pos->platter[span - 1], pos->x[span], pos->y[span])
+		pos->platter[span - 1] = pos->platter[span]
+			? subhexData (pos->platter[span], pos->x[span], pos->y[span])
 			: NULL;
-		span++;
-		printf ("  set to %p\n", pos->platter[span]);
+		//printf ("  calculated %p from %p & %d, %d\n", pos->platter[span - 1], pos->platter[span], pos->x[span], pos->y[span]);
+		span--;
 	}
 }
 
@@ -744,11 +786,11 @@ SUBHEX map_posBestMatchPlatter (const hexPos pos)
 {
 	unsigned char
 		i = pos->focus;
-	while (i >= 0)
+	while (i <= MapSpan)
 	{
 		if (pos->platter[i])
 			return pos->platter[i];
-		i--;
+		i++;
 	}
 	ERROR ("Position exists with absolutely no loaded platters");
 	return NULL;
@@ -762,40 +804,10 @@ void map_posSwitchFocus (hexPos pos, unsigned char focus)
 		WARNING ("Attempt to set position focus past the span limits (%d; valid values are 0-%d).", focus, MapSpan);
 		return;
 	}
-	// TODO: if pos->from is set, scale/move the vector to maintain the same point with the new focus?? maybe??
+	// TODO: if pos->from is set (or even not set since even a 0,0 vector can encode useful position data), scale/move the vector to maintain the same point with the new focus?? maybe??
 	pos->focus = focus;
 	map_posRecalcPlatters (pos);
 }
-
-void map_posUpdateWith (hexPos pos, const SUBHEX div)
-{
-	int
-		i = mapGetSpan (),
-		x = 0,
-		y = 0;
-	
-	while (i >= 0)
-	{
-		if (pos->platter[i])
-			break;
-		i--;
-	}
-	if (pos->platter[i] != subhexParent (div))
-	{
-		//printf ("  bestmatch platter (%p; span %d) not current subdiv's parent (%p; span %d)\n", pos->platter[i], subhexSpanLevel (pos->platter[i]), subhexParent (div), subhexSpanLevel (subhexParent (div)));
-		return;
-	}
-	subhexLocalCoordinates (div, &x, &y);
-	assert (i + 1 <= mapGetSpan ());
-	if (pos->x[i + 1] != x || pos->y[i + 1] != y)
-	{
-		//printf ("  desired coordinates (%d, %d) not current subdivs (%d, %d)\n", pos->x[i + 1], pos->y[i + 1], x, y);
-		return;
-	}
-	pos->platter[i + 1] = div;
-	//printf ("MATCH!!\n");
-}
-
 
 Dynarr map_posAround (const SUBHEX subhex, unsigned int distance)
 {

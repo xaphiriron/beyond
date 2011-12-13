@@ -47,7 +47,7 @@ void worldInit ()
 	base = entity_create ();
 	component_instantiate ("position", base);
 	pos = map_randomPos ();
-	map_posSwitchFocus (pos, mapGetSpan () - 1);
+	map_posSwitchFocus (pos, 1);
 	position_set (base, pos);
 	component_instantiate ("worldArch", base);
 
@@ -56,28 +56,15 @@ void worldInit ()
 
 void worldFinalize ()
 {
-	int
-		i = 1,
-		span = mapGetSpan ();
 	hexPos
 		centre;
-	SUBHEX
-		platter;
 	FUNCOPEN ();
 
-
-	//position_alignToLevel (base, mapGetSpan () - 1);
+	printf ("loading map around base arch\n");
 	centre = position_get (base);
-	platter = centre->platter[0];
-	while (i <= span)
-	{
-		mapForceGrowChildAt (platter, centre->x[i], centre->y[i]);
-		platter = mapHexAtCoordinateAuto (platter, -1, centre->x[i], centre->y[i]);
-		centre->platter[i] = platter;
-		//printf ("generated platter %p at level %d (%d) on %d,%d\n", platter, span - i, i, centre->x[i], centre->y[i]);
-		i++;
-	}
+	mapLoadAround (centre);
 
+	printf ("creating player\n");
 	systemCreatePlayer (base);
 
 	systemClearStates();
@@ -123,13 +110,18 @@ void worldImprint (SUBHEX at)
 	int
 		x, y;
 	subhexLocalCoordinates (at, &x, &y);
-	printf ("got %d applicable arch%s for subhex %p (at: %d, %d)\n", dynarr_size (arches), dynarr_size (arches) == 1 ? "" : "es", at, x, y);
+	//printf ("got %d applicable arch%s for subhex %p (at: %d, %d)\n", dynarr_size (arches), dynarr_size (arches) == 1 ? "" : "es", at, x, y);
 	while ((arch = *(Entity *)dynarr_at (arches, i++)))
 	{
 		printf ("imprinting arch %p on subhex %p\n", arch, at);
+		i = 0;
+		while (i < max)
+		{
+			hexSetBase ((HEX)at->sub.data[i], 12, *(MATSPEC *)dynarr_at (worldMaterials, MATERIAL_GROUND));
+			i++;
+		}
 	}
 	dynarr_destroy (arches);
-
 }
 
 
