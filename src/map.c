@@ -665,13 +665,14 @@ hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y)
 
 	short
 		span;
+/*
 	int
 		higherX = 0,
 		higherY = 0,
 		xRemainder = 0,
 		yRemainder = 0;
+*/
 
-/*
 	while (relativeSpan < 0)
 	{
 		if (!subhexData (focus, 0, 0))
@@ -702,17 +703,25 @@ hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y)
 		
 		relativeSpan--;
 	}
-*/
+
 	if (!scratch)
 		scratch = map_at (focus);
-	assert (scratch->focus > 0);
-	scratch->x[scratch->focus - 1] += x;
-	scratch->y[scratch->focus - 1] += y;
-
 	span = scratch->focus;
+	if (span < MapSpan)
+	{
+		scratch->x[span + 1] += x;
+		scratch->y[span + 1] += y;
+	}
+	else
+	{
+		scratch->platter[MapSpan] = mapPole (mapPoleTraversal (subhexPoleName (scratch->platter[MapSpan]), x, y));
+	}
+
+/*
+	// this code block isn't tested
 	while (hexMagnitude (scratch->x[span], scratch->y[span]) > MapRadius)
 	{
-		//printf (" - coordinate %d, %d outside map radius; rescaling\n", scratch->x[span], scratch->y[span]);
+		printf (" - coordinate %d, %d outside map radius; rescaling\n", scratch->x[span], scratch->y[span]);
 		mapScaleCoordinates
 		(
 			1,
@@ -724,28 +733,18 @@ hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y)
 		// this isn't how you actually use the remainder i think - xph 2011 12 10
 		scratch->x[span] = xRemainder;
 		scratch->y[span] = yRemainder;
-		span--;
-		if (span == 0)
+		span++;
+		if (span == MapSpan)
 		{
-			scratch->platter[0] = mapPole (mapPoleTraversal (subhexPoleName (scratch->platter[0]), higherX, higherY));
+			scratch->platter[MapSpan] = mapPole (mapPoleTraversal (subhexPoleName (scratch->platter[MapSpan]), higherX, higherY));
 			break;
 		}
 		scratch->x[span] += higherX;
 		scratch->y[span] += higherY;
 	}
+*/
 
 	map_posRecalcPlatters (scratch);
-
-/*
-	int
-		sx = 0, sy = 0;
-	subhexLocalCoordinates (at, &sx, &sy);
-	printf ("started w/ %d: %d, %d;", subhexSpanLevel (at), sx, sy);
-	printf (" moved %d: %d, %d;", relativeSpan, x, y);
-	
-	subhexLocalCoordinates (map_posBestMatchPlatter (scratch), &sx, &sy);
-	printf (" ended w/ %d: %d, %d\n", subhexSpanLevel (map_posBestMatchPlatter (scratch)), sx, sy);
-*/
 	return scratch;
 }
 

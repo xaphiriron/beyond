@@ -106,11 +106,6 @@ void worldImprint (SUBHEX at)
 
 	arches = worldArchOrderFor (at);
 	i = 0;
-
-	int
-		x, y;
-	subhexLocalCoordinates (at, &x, &y);
-	//printf ("got %d applicable arch%s for subhex %p (at: %d, %d)\n", dynarr_size (arches), dynarr_size (arches) == 1 ? "" : "es", at, x, y);
 	while ((arch = *(Entity *)dynarr_at (arches, i++)))
 	{
 		printf ("imprinting arch %p on subhex %p\n", arch, at);
@@ -166,12 +161,18 @@ static Dynarr worldArchOrderFor (SUBHEX platter)
 	while (span > 1)
 	{
 		current = platterList[--span];
-		//printf ("getting positions arond subhex %p\n", current);
+/*
+		int
+			x = 0, y = 0;
+		subhexLocalCoordinates (current, &x, &y);
+		printf ("getting positions around %p (%d) at %d, %d\n", current, subhexSpanLevel (current), x, y);
+*/
 		nearbyPlatters = map_posAround (current, 1);
 		i = 0;
 		while ((pos = *(hexPos *)dynarr_at (nearbyPlatters, i++)))
 		{
 			platter = map_posFocusedPlatter (pos);
+			//printf ("got %p (%d) at %d, %d (i think?)\n", platter, span, pos->x[span == mapGetSpan () ? mapGetSpan () : span + 1], pos->y[span == mapGetSpan () ? mapGetSpan () : span + 1]);
 			if (!platter)
 				continue;
 			platterArches = subhexGetArches (platter);
@@ -182,12 +183,8 @@ static Dynarr worldArchOrderFor (SUBHEX platter)
 				dynarr_push (r, arch);
 			}
 		}
-		//printf ("destroying platter list [1]\n");
 		dynarr_map (nearbyPlatters, (void (*)(void *))map_freePos);
-		//printf ("destroying platter list [2]\n");
 		dynarr_destroy (nearbyPlatters);
 	}
-	//printf ("done generating arch order\n");
-
 	return r;
 }
