@@ -29,6 +29,8 @@ void worldInit ()
 {
 	static unsigned long
 		seed = 0;
+	hexPos
+		pos;
 	FUNCOPEN ();
 	
 	mapSetSpanAndRadius (4, 8);
@@ -44,8 +46,9 @@ void worldInit ()
 
 	base = entity_create ();
 	component_instantiate ("position", base);
-	position_set (base, position_random ());
-	position_alignToLevel (base, mapGetSpan () - 1);
+	pos = map_randomPos ();
+	map_posSwitchFocus (pos, mapGetSpan () - 1);
+	position_set (base, pos);
 	component_instantiate ("worldArch", base);
 
 	FUNCCLOSE ();

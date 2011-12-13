@@ -60,6 +60,7 @@ unsigned char stepParam (HEXSTEP step, const char * param);
  */
 
 hexPos map_blankPos ();
+hexPos map_randomPos ();
 hexPos map_at (const SUBHEX at);
 hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y);
 
@@ -68,6 +69,7 @@ void map_freePos (hexPos pos);
 unsigned char map_posFocusLevel (const hexPos pos);
 SUBHEX map_posFocusedPlatter (const hexPos pos);
 SUBHEX map_posBestMatchPlatter (const hexPos pos);
+void map_posSwitchFocus (hexPos pos, unsigned char focus);
 void map_posUpdateWith (hexPos pos, const SUBHEX div);
 
 /* ditto with mapAdjacentSubhexes only this returns hexPos positions (returns a list of hexPos focused at the level of the subhex given, hitting all coordinates within a radius given by distance) */

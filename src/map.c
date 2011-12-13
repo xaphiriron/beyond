@@ -551,6 +551,53 @@ hexPos map_blankPos ()
 	return position;
 }
 
+hexPos map_randomPos ()
+{
+	hexPos
+		position = map_blankPos ();
+	int
+		pole = rand () % 3,
+		r, k, i,
+		x, y,
+		radius = mapGetRadius (),
+		spanMax = mapGetSpan (),
+		span = spanMax,
+		index;
+	
+	position->platter[0] = mapPole
+	(
+		pole == 0
+			? 'r'
+			: pole == 1
+			? 'g'
+			: 'b'
+	);
+
+	while (--span > 0)
+	{
+		k = i = 0;
+		r = rand () % radius;
+		if (r > 1)
+			i = rand () % (r - 1);
+		if (r > 0)
+			k = rand () % 6;
+
+		hex_rki2xy (r, k, i, &x, &y);
+
+		index = spanMax - span;
+		position->x[index] = x;
+		position->y[index] = y;
+		//position->platter[index] = subhexData (position->platter[index - 1], x, y);
+	}
+
+	position->focus = mapGetSpan ();
+	position->from = vectorCreate (0.0, 0.0, 0.0);
+
+	map_posRecalcPlatters (position);
+
+	return position;
+}
+
 hexPos map_at (const SUBHEX at)
 {
 	hexPos
@@ -705,6 +752,19 @@ SUBHEX map_posBestMatchPlatter (const hexPos pos)
 	}
 	ERROR ("Position exists with absolutely no loaded platters");
 	return NULL;
+}
+
+void map_posSwitchFocus (hexPos pos, unsigned char focus)
+{
+	assert (pos);
+	if (focus > MapSpan)
+	{
+		WARNING ("Attempt to set position focus past the span limits (%d; valid values are 0-%d).", focus, MapSpan);
+		return;
+	}
+	// TODO: if pos->from is set, scale/move the vector to maintain the same point with the new focus?? maybe??
+	pos->focus = focus;
+	map_posRecalcPlatters (pos);
 }
 
 void map_posUpdateWith (hexPos pos, const SUBHEX div)
