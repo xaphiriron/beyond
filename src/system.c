@@ -390,8 +390,7 @@ void systemRender (void)
 	Entity
 		camera;
 	const float
-		* matrix,
-		* firstpersonMatrix;
+		* matrix;
 	float
 		fakeMatrix[16];
 	int
@@ -457,52 +456,6 @@ void systemRender (void)
 
 		mapDraw (matrix);
 
-
-		entity_message (camera, NULL, "getTargetMatrix", &firstpersonMatrix);
-		glLineWidth (10);
-		glBegin (GL_LINES);
-		glColor3ub (0x99, 0xff, 0x00);
-		glVertex3f
-		(
-			firstpersonMatrix[12] - matrix[12],
-			firstpersonMatrix[13] - matrix[13],
-			firstpersonMatrix[14] - matrix[14]
-		);
-		glVertex3f
-		(
-			(matrix[12] - firstpersonMatrix[12]) + firstpersonMatrix[2] * 100,
-			(matrix[13] - firstpersonMatrix[13]) + firstpersonMatrix[6] * 100,
-			(matrix[14] - firstpersonMatrix[14]) + firstpersonMatrix[10] * 100
-		);
-
-		glColor3ub (0x00, 0x99, 0xff);
-		glVertex3f
-		(
-			-firstpersonMatrix[12] - firstpersonMatrix[0] * 100,
-			-firstpersonMatrix[13] - firstpersonMatrix[4] * 100,
-			-firstpersonMatrix[14] - firstpersonMatrix[8] * 100
-		);
-		glVertex3f
-		(
-			-firstpersonMatrix[12] + firstpersonMatrix[0] * 100,
-			-firstpersonMatrix[13] + firstpersonMatrix[4] * 100,
-			-firstpersonMatrix[14] + firstpersonMatrix[8] * 100
-		);
-
-		glColor3ub (0xff, 0x99, 0x00);
-		glVertex3f
-		(
-			-firstpersonMatrix[12] - firstpersonMatrix[1] * 100,
-			-firstpersonMatrix[13] - firstpersonMatrix[5] * 100,
-			-firstpersonMatrix[14] - firstpersonMatrix[9] * 100
-		);
-		glVertex3f
-		(
-			-firstpersonMatrix[12] + firstpersonMatrix[1] * 100,
-			-firstpersonMatrix[13] + firstpersonMatrix[5] * 100,
-			-firstpersonMatrix[14] + firstpersonMatrix[9] * 100
-		);
-		glEnd ();
 
 		if (systemState (System) == STATE_FREEVIEW && camera_getMode (camera) == CAMERA_FIRST_PERSON)
 		{
