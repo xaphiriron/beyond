@@ -94,6 +94,8 @@ void worldImprint (SUBHEX at)
 		arch;
 	Dynarr
 		arches;
+	hexPos
+		archFocus;
 
 	if (subhexSpanLevel (at) != 1)
 		return;
@@ -109,10 +111,15 @@ void worldImprint (SUBHEX at)
 	while ((arch = *(Entity *)dynarr_at (arches, i++)))
 	{
 		printf ("imprinting arch %p on subhex %p\n", arch, at);
+		archFocus = position_get (arch);
+		
 		i = 0;
 		while (i < max)
 		{
-			hexSetBase ((HEX)at->sub.data[i], 12, *(MATSPEC *)dynarr_at (worldMaterials, MATERIAL_GROUND));
+			if (mapDistanceFrom (archFocus, at->sub.data[i]) < 5)
+			{
+				hexSetBase (&at->sub.data[i]->hex, 24, *(MATSPEC *)dynarr_at (worldMaterials, MATERIAL_GROUND));
+			}
 			i++;
 		}
 	}
@@ -142,7 +149,6 @@ static Dynarr worldArchOrderFor (SUBHEX platter)
 		platterList = xph_alloc (sizeof (SUBHEX *) * (mapGetSpan () + 1));
 	// note: if we ever start loading multiple worlds in one game execution frame (as in, loading up a world and then discarding it and loading up a different one) AND we allow for worlds with different span sizes then this becomes buggy broken code since mapGetSpan will change its value between the inital alloc and the memset
 	memset (platterList, 0, sizeof (SUBHEX *) * (mapGetSpan () + 1));
-
 
 	// traverse up the platter hierarchy to pole level
 	span = subhexSpanLevel (platter);
