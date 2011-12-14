@@ -167,6 +167,8 @@ void worldhexDestroy (WORLDHEX whx);
 SUBHEX worldhexSubhex (const WORLDHEX whx);
 char worldhexPole (const WORLDHEX whx);
 
+int mapDistanceFrom (const hexPos pos, const SUBHEX hex);
+
 /***
  * RENDERING FUNCTIONS
  */

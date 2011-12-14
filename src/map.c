@@ -2227,6 +2227,45 @@ char worldhexPole (const WORLDHEX whx)
 	return whx->pole;
 }
 
+int mapDistanceFrom (const hexPos pos, const SUBHEX hex)
+{
+	int
+		span,
+		x = 0, y = 0,
+		xStepDiff = 0,
+		yStepDiff = 0,
+		xTotalDiff = 0,
+		yTotalDiff = 0;
+	SUBHEX
+		active = hex;
+	if (!pos || !hex)
+		return INT_MAX;
+	span = subhexSpanLevel (hex);
+	printf ("comparing...\n");
+
+	// if the hexPos is focused at a span level higher than the subhex exists (e.g., the hexPos is focused at span level 3 but the subhex is a level 0 hex) then the distance should be measured between the lvl 0 hex and the lvl 3 platter. since hexPos shouldn't store the platters below their focus threshhold (i think...?) it should be reasonable to do this, since the not-equals will pass for whatever subhex vs. a NULL pointer - xph 2011 12 14
+	while (active != pos->platter[span])
+	{
+
+		subhexLocalCoordinates (active, &x, &y);
+		mapScaleCoordinates
+		(
+			-span,
+			x - pos->x[span + 1], y - pos->y[span + 1],
+			&xStepDiff, &yStepDiff,
+			NULL, NULL
+		);
+		xTotalDiff += xStepDiff;
+		yTotalDiff += yStepDiff;
+		printf ("difference on span %d: %d, %d vs. %d, %d: %d, %d -- scaled: %d, %d\n", span, x, y, pos->x[span + 1], pos->y[span + 1], x - pos->x[span + 1], y - pos->y[span + 1], xStepDiff, yStepDiff);
+
+		span++;
+		active = subhexParent (active);
+	}
+	printf ("total difference: %d, %d: %d\n", xTotalDiff, yTotalDiff, hexMagnitude (xTotalDiff, yTotalDiff));
+
+	return hexMagnitude (xTotalDiff, yTotalDiff);
+}
 
 /***
  * MAP LOADING FUNCTIONS
