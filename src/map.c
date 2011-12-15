@@ -37,6 +37,8 @@ static void mapDataDestroy (struct mapData * mb);
 static void mapCheckLoadStatusAndImprint (void * rel_v);
 static void mapBakeHex (HEX hex);
 
+
+static hexPos map_blankPos ();
 static void map_posRecalcPlatters (hexPos pos);
 
 /***
@@ -560,13 +562,13 @@ unsigned char stepParam (HEXSTEP step, const char * param)
  * LOCATIONS
  */
 
-hexPos map_blankPos ()
+static hexPos map_blankPos ()
 {
 	hexPos
 		position = xph_alloc (sizeof (struct xph_world_hex_position));
 	int
 		spanLevels = mapGetSpan () + 1;
-	// span level x goes from pole at 0 to individual hex at x so x + 1 slots are needed (x[0] and y[0] are useless and always 0)
+	// span level x goes from individual hex at 0 to pole at MapSpan so MapSpan + 1 slots are needed (x[0] and y[0] are useless and always 0, but platter[0] is the individual hex if it's loaded)
 	position->x = xph_alloc (sizeof (int) * spanLevels);
 	position->y = xph_alloc (sizeof (int) * spanLevels);
 	position->platter = xph_alloc (sizeof (SUBHEX) * spanLevels);
