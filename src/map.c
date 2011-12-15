@@ -665,13 +665,11 @@ hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y)
 
 	short
 		span;
-/*
 	int
 		higherX = 0,
 		higherY = 0,
 		xRemainder = 0,
 		yRemainder = 0;
-*/
 
 	while (relativeSpan < 0)
 	{
@@ -707,42 +705,42 @@ hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y)
 	if (!scratch)
 		scratch = map_at (focus);
 	span = scratch->focus;
-	if (span < MapSpan)
+	if (span == MapSpan)
 	{
-		scratch->x[span + 1] += x;
-		scratch->y[span + 1] += y;
-	}
-	else
-	{
+		// i'm unsure if this actually works right -- shouldn't there be some sort of calculation with the lower-span coordinates to update them? or something? something in some way similar to the hexMagnitude update block below?
 		scratch->platter[MapSpan] = mapPole (mapPoleTraversal (subhexPoleName (scratch->platter[MapSpan]), x, y));
+		map_posRecalcPlatters (scratch);
+		return scratch;
 	}
 
-/*
-	// this code block isn't tested
-	while (hexMagnitude (scratch->x[span], scratch->y[span]) > MapRadius)
+	scratch->x[span + 1] += x;
+	scratch->y[span + 1] += y;
+
+	if (hexMagnitude (scratch->x[span + 1], scratch->y[span + 1]) > MapRadius)
+		WARNING ("altering span %d coords to %d,%d which has a magnitude of %d (max: %d)", span, scratch->x[span + 1], scratch->y[span + 1], hexMagnitude (scratch->x[span + 1], scratch->y[span + 1]), MapRadius);
+
+	while (hexMagnitude (scratch->x[span + 1], scratch->y[span + 1]) > MapRadius)
 	{
-		printf (" - coordinate %d, %d outside map radius; rescaling\n", scratch->x[span], scratch->y[span]);
+		printf (" - coordinate %d, %d outside map radius; rescaling\n", scratch->x[span + 1], scratch->y[span + 1]);
 		mapScaleCoordinates
 		(
 			1,
-			scratch->x[span], scratch->y[span],
+			scratch->x[span + 1], scratch->y[span + 1],
 			&higherX, &higherY,
 			&xRemainder, &yRemainder
 		);
-		printf ("original: %d, %d; upscaled: %d, %d; remainder: %d, %d\n", scratch->x[span], scratch->y[span], higherX, higherY, xRemainder, yRemainder);
-		// this isn't how you actually use the remainder i think - xph 2011 12 10
-		scratch->x[span] = xRemainder;
-		scratch->y[span] = yRemainder;
+		//printf ("original: %d, %d; upscaled: %d, %d; remainder: %d, %d\n", scratch->x[span + 1], scratch->y[span + 1], higherX, higherY, xRemainder, yRemainder);
+		scratch->x[span + 1] = xRemainder;
+		scratch->y[span + 1] = yRemainder;
 		span++;
-		if (span == MapSpan)
+		if (span > MapSpan)
 		{
 			scratch->platter[MapSpan] = mapPole (mapPoleTraversal (subhexPoleName (scratch->platter[MapSpan]), higherX, higherY));
 			break;
 		}
-		scratch->x[span] += higherX;
-		scratch->y[span] += higherY;
+		scratch->x[span + 1] += higherX;
+		scratch->y[span + 1] += higherY;
 	}
-*/
 
 	map_posRecalcPlatters (scratch);
 	return scratch;
