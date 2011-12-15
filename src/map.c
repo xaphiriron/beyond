@@ -586,9 +586,8 @@ hexPos map_randomPos ()
 		position = map_blankPos ();
 	int
 		pole = rand () % 3,
-		r, k, i,
+		displacement,
 		x, y,
-		radius = mapGetRadius (),
 		spanMax = mapGetSpan (),
 		span = spanMax;
 	
@@ -603,13 +602,8 @@ hexPos map_randomPos ()
 
 	while (span > 0)
 	{
-		k = i = 0;
-		r = rand () % radius;
-		if (r > 1)
-			i = rand () % (r - 1);
-		if (r > 0)
-			k = rand () % 6;
-		hex_rki2xy (r, k, i, &x, &y);
+		displacement = rand () % fx (MapRadius);
+		hex_unlineate (displacement, &x, &y);
 
 		position->x[span] = x;
 		position->y[span] = y;
