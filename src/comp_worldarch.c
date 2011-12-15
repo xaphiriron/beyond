@@ -60,6 +60,7 @@ void worldarch_create (EntComponent comp, EntSpeech speech)
 	memset (arch, 0, sizeof (struct xph_worldarch));
 
 	arch->connectedArches = dynarr_create (2, sizeof (Entity));
+	arch->subarches = dynarr_create (2, sizeof (Entity));
 
 	component_setData (comp, arch);
 
@@ -72,6 +73,7 @@ void worldarch_destroy (EntComponent comp, EntSpeech speech)
 	worldArch
 		arch = component_getData (comp);
 	dynarr_destroy (arch->connectedArches);
+	dynarr_destroy (arch->subarches);
 	xph_free (arch);
 
 	component_clearData (comp);
