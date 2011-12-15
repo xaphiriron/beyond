@@ -71,6 +71,7 @@ int component_position (Object * obj, objMsg msg, void * a, void * b) {
       cd = a;
 		// this is literally the most tortous way to initialize this. why. why.
       *cd = xph_alloc (sizeof (struct position_data));
+      memset (*cd, 0, sizeof (struct position_data));
       (*cd)->pos = vectorCreate (0.0, 0.0, 0.0);
       (*cd)->ground = NULL;
       (*cd)->view.side = vectorCreate (1.0, 0.0, 0.0);
