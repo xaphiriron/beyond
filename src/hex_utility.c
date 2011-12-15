@@ -202,6 +202,37 @@ unsigned int hex_linearXY (signed int x, signed int y)
 	return hex_linearCoord (r, k, i);
 }
 
+void hex_unlineate (int l, signed int * x, signed int * y)
+{
+	unsigned int
+		r = 0,
+		k = 0,
+		i = 0;
+	int
+		remainder;
+	if (l == 0)
+	{
+		*x = 0;
+		*y = 0;
+		return;
+	}
+	//printf ("%s: have %d\n", __FUNCTION__, l);
+	while (fx (r) <= l)
+	{
+		r++;
+	}
+	//printf ("%s: %d (fx (%d)) is smallest hex larger than l-val\n", __FUNCTION__, fx (r), r);
+	remainder = l - fx (r - 1);
+	//printf ("%s: %d remaining with r assigned as %d\n", __FUNCTION__, remainder, r);
+	assert (r != 0);
+	k = remainder / r;
+	i = remainder % r;
+	//printf ("got {%d %d %d} from %d\n", r, k, i, l);
+	hex_rki2xy (r, k, i, x, y);
+	
+	return;
+}
+
 unsigned int hex_distanceBetween (signed int ax, signed int ay, signed int bx, signed int by)
 {
 	signed int

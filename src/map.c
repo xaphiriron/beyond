@@ -810,18 +810,14 @@ Dynarr map_posAround (const SUBHEX subhex, unsigned int distance)
 {
 	Dynarr
 		arr = dynarr_create (fx (distance) + 1, sizeof (hexPos));
-	unsigned int
-		r = 0,
-		k = 0,
+	int
+		x, y,
 		i = 0;
-	signed int
-		x, y;
-	while (r <= distance)
+	while (i < fx (distance))
 	{
-		hex_rki2xy (r, k, i, &x, &y);
-		//printf (" getting offset {%d %d %d} (%d, %d)\n", r, k, i, x, y);
+		hex_unlineate (i, &x, &y);
 		dynarr_push (arr, map_from (subhex, 0, x, y));
-		hex_nextValidCoord (&r, &k, &i);
+		i++;
 	}
 	return arr;
 }

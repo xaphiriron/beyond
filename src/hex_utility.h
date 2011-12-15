@@ -34,6 +34,7 @@ void hex_xy2rki (signed int x, signed int y, unsigned int * rp, unsigned int * k
 
 unsigned int hex_linearCoord (unsigned int r, unsigned int k, unsigned int i);
 unsigned int hex_linearXY (signed int x, signed int y);
+void hex_unlineate (int l, signed int * x, signed int * y);
 
 unsigned int hex_distanceBetween (signed int ax, signed int ay, signed int bx, signed int by);
 unsigned int hexMagnitude (signed int x, signed int y);
