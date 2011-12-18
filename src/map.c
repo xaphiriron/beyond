@@ -619,6 +619,61 @@ hexPos map_randomPos ()
 	return position;
 }
 
+hexPos map_randomPositionNear (const hexPos base, int range)
+{
+	hexPos
+		pos;
+	int
+		spanLevels,
+		focus,
+		displacement,
+		x = 0,
+		y = 0;
+
+	if (base->focus == MapSpan && range != 0)
+	{
+		// come on why would you even do this
+		return map_randomPos ();
+	}
+	pos = map_blankPos ();
+
+	spanLevels = MapSpan + 1;
+	memcpy (pos->x, base->x, sizeof (int) * spanLevels);
+	memcpy (pos->y, base->y, sizeof (int) * spanLevels);
+	memcpy (pos->platter, base->platter, sizeof (SUBHEX) * spanLevels);
+	focus = base->focus;
+
+	if (range > 0)
+	{
+		displacement = rand () % fx (range);
+		hex_unlineate (displacement, &x, &y);
+
+		pos->x[focus + 1] += x;
+		pos->y[focus + 1] += y;
+	}
+
+	while (focus > 0)
+	{
+		displacement = rand () % fx (MapRadius);
+		hex_unlineate (displacement, &x, &y);
+
+		pos->x[focus] = x;
+		pos->y[focus] = y;
+		focus--;
+	}
+
+	pos->focus = 0;
+	pos->from = vectorCreate (0.0, 0.0, 0.0);
+
+	assert (pos->platter[MapSpan] != NULL);
+	assert (subhexParent (pos->platter[MapSpan]) == NULL);
+	assert (subhexSpanLevel (pos->platter[MapSpan]) == MapSpan);
+
+	map_posRecalcPlatters (pos);
+
+	return pos;
+}
+
 hexPos map_at (const SUBHEX at)
 {
 	hexPos

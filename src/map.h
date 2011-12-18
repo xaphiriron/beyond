@@ -62,6 +62,7 @@ unsigned char stepParam (HEXSTEP step, const char * param);
  */
 
 hexPos map_randomPos ();
+hexPos map_randomPositionNear (const hexPos base, int range);
 hexPos map_at (const SUBHEX at);
 hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y);
 
