@@ -158,8 +158,6 @@ bool hexColor (const HEX hex, unsigned char * rgb);
 // what was the idea of this...???
 //bool subhexCoordinateOffset (const SUBHEX subhex, const SUBHEX offset, unsigned char * spanLevel, signed int * xp, signed int * yp);
 
-WORLDHEX subhexGeneratePosition (const SUBHEX subhex);
-
 WORLDHEX worldhexDuplicate (const WORLDHEX whx);
 const char * const worldhexPrint (const WORLDHEX whx);
 void worldhexDestroy (WORLDHEX whx);

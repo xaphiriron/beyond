@@ -21,125 +21,60 @@ struct position_data { // POSITION
 		sensitivity;
 };
 
+static void position_create (EntComponent comp, EntSpeech speech);
+static void position_destroy (EntComponent comp, EntSpeech speech);
+
+static void position_inputResponse (EntComponent comp, EntSpeech speech);
+
+
 static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround, SUBHEX newGround);
 static void position_updateAxesFromOrientation (POSITION pdata);
 
 void position_define (EntComponent position, EntSpeech speech)
 {
+	component_registerResponse ("position", "__create", position_create);
+	component_registerResponse ("position", "__destroy", position_destroy);
+
+	component_registerResponse ("position", "CONTROL_INPUT", position_inputResponse);
+
 	component_registerResponse ("position", "getHex", position_getHex);
 	component_registerResponse ("position", "getHexAngle", position_getHexAngle);
 }
 
-int component_position (Object * obj, objMsg msg, void * a, void * b) {
-  struct position_data ** cd = NULL;
-	POSITION
-		position = NULL;
-/*
-	struct ground_change
-		* change;
-*/
-	char
-		* message = NULL;
+static void position_create (EntComponent comp, EntSpeech speech)
+{
+	struct position_data
+		* position = xph_alloc (sizeof (struct position_data));
+	position->sensitivity = 0.20;
+
+	position->view.side = vectorCreate (1.0, 0.0, 0.0);
+	position->move.side = vectorCreate (1.0, 0.0, 0.0);
+	position->view.up = vectorCreate (0.0, 1.0, 0.0);
+	position->move.up = vectorCreate (0.0, 1.0, 0.0);
+	position->view.front = vectorCreate (0.0, 0.0, 1.0);
+	position->move.front = vectorCreate (0.0, 0.0, 1.0);
+	position->orientation = quat_create (1.0, 0.0, 0.0, 0.0);
+
+	component_setData (comp, position);
+}
+
+static void position_destroy (EntComponent comp, EntSpeech speech)
+{
 	Entity
-		e = NULL;
-	EntSpeech
-		speech = a;
-/*
-	GroundMap
-		ground;
-*/
-  switch (msg) {
-    case OM_CLSNAME:
-      strncpy (a, "position", 32);
-      return EXIT_SUCCESS;
-    case OM_CLSINIT:
-    case OM_CLSFREE:
-    case OM_CLSVARS:
-    case OM_CREATE:
-      return EXIT_FAILURE;
-    default:
-      break;
-  }
+		this = component_entityAttached (comp);
+	POSITION
+		position = component_getData (comp);
+	position_unset (this);
+	xph_free (position);
 
-  switch (msg) {
-    case OM_SHUTDOWN:
-    case OM_DESTROY:
-      obj_destroy (obj);
-      return EXIT_SUCCESS;
+	component_clearData (comp);
+}
 
-    case OM_COMPONENT_INIT_DATA:
-      cd = a;
-		// this is literally the most tortous way to initialize this. why. why.
-      *cd = xph_alloc (sizeof (struct position_data));
-      memset (*cd, 0, sizeof (struct position_data));
-      (*cd)->pos = vectorCreate (0.0, 0.0, 0.0);
-      (*cd)->ground = NULL;
-      (*cd)->view.side = vectorCreate (1.0, 0.0, 0.0);
-      (*cd)->move.side = vectorCreate (1.0, 0.0, 0.0);
-      (*cd)->view.up = vectorCreate (0.0, 1.0, 0.0);
-      (*cd)->move.up = vectorCreate (0.0, 1.0, 0.0);
-      (*cd)->view.front = vectorCreate (0.0, 0.0, 1.0);
-      (*cd)->move.front = vectorCreate (0.0, 0.0, 1.0);
-      (*cd)->orientation = quat_create (1.0, 0.0, 0.0, 0.0);
-      (*cd)->sensitivity = 0.20;
-      //(*cd)->tileOccupying = NULL;
-      //(*cd)->tileFootprint = NULL;
-      return EXIT_SUCCESS;
-
-    case OM_COMPONENT_DESTROY_DATA:
-      cd = a;
-		position_destroy ((Entity)b);
-      /*
-      if ((*cd)->tileFootprint != NULL) {
-        vector_destroy ((*cd)->tileFootprint);
-      }
-      xph_free (*cd);
-      */
-      return EXIT_SUCCESS;
-
-    case OM_UPDATE:
-      return EXIT_FAILURE;
-
-		case OM_COMPONENT_RECEIVE_MESSAGE:
-			message = speech->message;
-			e = component_entityAttached (speech->to);
-			position = component_getData (speech->to);
-			
-			if (strcmp (message, "CONTROL_INPUT") == 0)
-			{
-				position_rotateOnMouseInput (e, b);
-				return EXIT_SUCCESS;
-      		}
-/* this will be hypothetically useful when thinking about how the new subdivs handle occupants; right now there's no occupant list. (well, /right now/ the new subdivs don't even work, so...
- * - xph 2011-05-21
-			else if (!strcmp (message, "GROUND_CHANGE"))
-			{
-				change = b;
-				//printf ("moving from %p (#%d) to %p (#%d)...\n", change->oldGround, entity_GUID (change->oldGround), change->newGround, entity_GUID (change->newGround));
-				ground_removeOccupant (change->oldGround, e);
-				if (change->newGround != NULL)
-					ground_addOccupant (change->newGround, e);
-			}
-*/
-			else if (!strcmp (message, "getWorldPosition"))
-			{
-				*(void **)b = subhexGeneratePosition (position->ground);
-				return EXIT_SUCCESS;
-/*
-				//DEBUG ("position: responding to message. (%p, %p)", a, b);
-				hex_space2coord (&position->pos, &x, &y);
-				hex_xy2rki (x, y, &r, &k, &i);
-				ground = component_getData (entity_getAs (position->mapEntity, "ground"));
-				*(void **)b = worldhexFromPosition (ground_getWorldPos (ground), r, k, i);
-				//DEBUG ("constructed %s", whxPrint (*(void **)b));
-*/
-			}
-			return EXIT_FAILURE;
-
-		default:
-			return obj_pass ();
-	}
-	return EXIT_FAILURE;
+static void position_inputResponse (EntComponent comp, EntSpeech speech)
+{
+	Entity
+		this = component_entityAttached (comp);
+	position_rotateOnMouseInput (this, speech->arg);
 }
 
 void position_set (Entity e, hexPos pos)
@@ -214,16 +149,6 @@ void position_unset (Entity e)
 	position_messageGroundChange (pc, oldGround, NULL);
 
 	FUNCCLOSE ();
-}
-
-void position_destroy (Entity e)
-{
-	POSITION
-		pdata = component_getData (entity_getAs (e, "position"));
-	if (pdata == NULL)
-		return;
-	position_unset (e);
-	xph_free (pdata);
 }
 
 void position_setDirect (Entity e, VECTOR3 pos, SUBHEX ground)

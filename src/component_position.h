@@ -34,14 +34,11 @@ typedef struct axes
 #include "component_input.h"
 
 void position_define (EntComponent position, EntSpeech speech);
-int component_position (Object * obj, objMsg msg, void * a, void * b);
 
 void position_set (Entity e, hexPos pos);
 hexPos position_get (Entity e);
 
 
-
-void position_destroy (Entity e);
 
 void position_unset (Entity e);
 void position_setDirect (Entity e, VECTOR3 pos, SUBHEX ground);
