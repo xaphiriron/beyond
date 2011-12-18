@@ -2162,51 +2162,6 @@ bool hexColor (const HEX hex, unsigned char * rgb)
 	return true;
 }
 
-WORLDHEX worldhexDuplicate (const WORLDHEX whx)
-{
-	WORLDHEX
-		dup = xph_alloc (sizeof (struct hexWorldPosition));
-	size_t
-		size;
-	memcpy (dup, whx, sizeof (struct hexWorldPosition));
-	if (whx->spanDepth == 0)
-	{
-		return dup;
-	}
-	size = sizeof (signed int) * dup->spanDepth;
-	dup->x = xph_alloc (size);
-	dup->y = xph_alloc (size);
-	memcpy (dup->x, whx->x, size);
-	memcpy (dup->y, whx->y, size);
-	return dup;
-}
-
-static char
-	WorldhexPrintBuffer[128];
-const char * const worldhexPrint (const WORLDHEX whx)
-{
-	return WorldhexPrintBuffer;
-}
-
-void worldhexDestroy (WORLDHEX whx)
-{
-	if (whx->x != NULL)
-		xph_free (whx->x);
-	if (whx->y != NULL)
-		xph_free (whx->y);
-	xph_free (whx);
-}
-
-SUBHEX worldhexSubhex (const WORLDHEX whx)
-{
-	return whx->subhex;
-}
-
-char worldhexPole (const WORLDHEX whx)
-{
-	return whx->pole;
-}
-
 int mapDistanceFrom (const hexPos pos, const SUBHEX hex)
 {
 	int

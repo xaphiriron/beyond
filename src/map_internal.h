@@ -88,19 +88,6 @@ union hexOrSubdiv		// SUBHEX is union hexOrSubdiv *
 		hex;
 };
 
-struct hexWorldPosition // WORLDHEX
-{
-	SUBHEX
-		subhex;
-	signed int
-		* x,
-		* y;
-	char
-		pole;
-	unsigned char
-		spanDepth;
-};
-
 struct hexRelativePosition // RELATIVEHEX
 {
 	/* both these values have (maxSpan - minSpan) + 1 indices allocated

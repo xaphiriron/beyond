@@ -16,10 +16,9 @@ typedef struct hexSubdivided * SUBDIV;
 typedef struct hexColumn * HEX;
 typedef struct hexStep * HEXSTEP;
 
-typedef struct hexWorldPosition * WORLDHEX;
 typedef struct hexRelativePosition * RELATIVEHEX;
 
-// for the love of god use hexPos instead of worldhex or relativehex or w/e; once everything uses it i can remove the relativehex and worldhex code entirely and simplify things - xph 2011 12 04
+// for the love of god use hexPos instead of relativehex or w/e; once everything uses it i can remove the relativehex code entirely and simplify things - xph 2011 12 04
 typedef struct xph_world_hex_position * hexPos;
 
 #include "worldgen.h"
@@ -157,13 +156,6 @@ bool hexColor (const HEX hex, unsigned char * rgb);
 
 // what was the idea of this...???
 //bool subhexCoordinateOffset (const SUBHEX subhex, const SUBHEX offset, unsigned char * spanLevel, signed int * xp, signed int * yp);
-
-WORLDHEX worldhexDuplicate (const WORLDHEX whx);
-const char * const worldhexPrint (const WORLDHEX whx);
-void worldhexDestroy (WORLDHEX whx);
-
-SUBHEX worldhexSubhex (const WORLDHEX whx);
-char worldhexPole (const WORLDHEX whx);
 
 int mapDistanceFrom (const hexPos pos, const SUBHEX hex);
 
