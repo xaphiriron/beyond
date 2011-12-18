@@ -41,8 +41,8 @@ struct mdata * xph_isallocated (void * d);
 int memory_sort (const void * a, const void * b);
 int memory_search (const void * key, const void * datum);
 #else /* MEM_DEBUG */
-#define xph_alloc(a)			malloc(a)
-#define xph_alloc_name(a, b)	malloc(a)
+#define xph_alloc(a)			calloc(1, a)
+#define xph_alloc_name(a, b)	calloc(1, a)
 #define xph_realloc(a, b)		realloc(a, b)
 //#define xph_free(a)				free(a)
 #define xph_free				free
