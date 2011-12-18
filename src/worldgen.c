@@ -115,9 +115,7 @@ void worldImprint (SUBHEX at)
 	i = 0;
 	while ((arch = *(Entity *)dynarr_at (arches, i++)))
 	{
-		printf ("imprinting arch %p on subhex %p\n", arch, at);
 		archFocus = position_get (arch);
-		
 		j = 0;
 		while (j < max)
 		{
@@ -181,10 +179,8 @@ static Dynarr worldArchOrderFor (SUBHEX platter)
 				continue;
 			platterArches = subhexGetArches (platter);
 			j = 0;
-			printf ("platter %p has %d arch(es)\n", platter, dynarr_size (platterArches));
 			while ((arch = *(Entity *)dynarr_at (platterArches, j++)))
 			{
-				printf ("adding arch %p to list\n", arch);
 				dynarr_push (r, arch);
 			}
 		}

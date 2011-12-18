@@ -260,27 +260,16 @@ void mapLoadAround (hexPos pos)
 		i--;
 	}
 	i++;
-	printf ("loading around position %p; focused on platter %p at index (span) %d\n", pos, platter, i);
 	if (!platter)
 		return;
 
-	while (i >= 0)
-	{
-		printf ("%d: %3d, %3d || %p\n",i, pos->x[i], pos->y[i], pos->platter[i]);
-		i--;
-	}
-
-	i = MapSpan;
 	while (subhexSpanLevel (platter) > pos->focus)
 	{
 		platter = map_posBestMatchPlatter (pos);
-		printf ("have platter %p (span: %d) at iteration %d\n", platter, subhexSpanLevel (platter), i);
 		assert (i >= 0);
 		mapForceGrowChildAt (platter, pos->x[i], pos->y[i]);
-		printf ("grew %p (%d) at %d, %d\n", platter, subhexSpanLevel (platter), pos->x[i], pos->y[i]);
 		i--;
 	}
-	//printf ("done\n");
 }
 
 /***
@@ -373,8 +362,6 @@ SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 		parent = NULL;
 	}
 
-	printf ("Creating subdiv %p @ %p; %d, %d\n", sh, parent, x, y);
-
 	if (parent == NULL)
 	{
 		sh->sub.imprintable = true;
@@ -420,30 +407,19 @@ SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 		// take any arches that
 		//  1. are more tightly focused than the resolution of the parent and
 		//  2. actually apply to this subhex
-		if (dynarr_size (parent->sub.arches))
-		{
-
-		printf (" --- %s: updating arches (count: %d) for subhex %p w/ parent %p\n", __FUNCTION__, dynarr_size (parent->sub.arches), sh, parent);
 		o = 0;
 		while ((arch = *(Entity *)dynarr_at (parent->sub.arches, o++)))
 		{
-			printf ("[%d]:\n", o - 1);
 			pos = position_get (arch);
-			printf ("%s: updating arch (%p/ pos: \033[32;1m%p\033[0m) at span %d w/ focus of %d (next: %d, %d)\n", __FUNCTION__, arch, pos, parent->sub.span, map_posFocusLevel (pos), pos->x[parent->sub.span], pos->y[parent->sub.span]);
 			map_posRecalcPlatters (pos);
-			printf ("sh: %p; best match: %p\n", sh, map_posBestMatchPlatter (pos));
 			if (map_posBestMatchPlatter (pos) == sh)
 			{
 				subhexRemoveArch (parent, arch);
 				subhexAddArch (sh, arch);
-				printf ("\033[31;1m%s: shifted arch (%p/ pos: \033[32;1m%p\033[31;1m) down; was on %p @ span %d, now on its %d,%d child %p @ span %d\033[0m\n", __FUNCTION__, arch, pos, parent, parent->sub.span, x, y, sh, sh->sub.span);
 				// since we just removed the latest entry in the list we're going through, repeat this index over.
 				o--;
 			}
 		}
-		printf (" --- DONE UPDATING ARCHES FOR %p\n", sh);
-		}
-
 	}
 
 	// a span-one subdiv is REQUIRED to have all its hexes generated
@@ -862,10 +838,7 @@ SUBHEX map_posBestMatchPlatter (const hexPos pos)
 	while (i <= MapSpan)
 	{
 		if (pos->platter[i])
-		{
-			printf ("best match: %p at index %d\n", pos->platter[i], i);
 			return pos->platter[i];
-		}
 		i++;
 	}
 	ERROR ("Position exists with absolutely no loaded platters");
@@ -2016,7 +1989,6 @@ void subhexAddArch (SUBHEX at, Entity arch)
 {
 	if (!at || subhexSpanLevel (at) < 1)
 		return;
-	printf ("\033[33;1mADDING ARCH %p TO SUBHEX %p\033[0m\n", arch, at);
 	dynarr_push (at->sub.arches, arch);
 }
 
@@ -2024,7 +1996,6 @@ void subhexRemoveArch (SUBHEX at, Entity arch)
 {
 	if (!at || subhexSpanLevel (at) < 1)
 		return;
-	printf ("\033[33;1mREMOVING ARCH %p FROM SUBHEX %p\033[0m\n", arch, at);
 	dynarr_remove_condense (at->sub.arches, arch);
 }
 

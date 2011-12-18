@@ -108,7 +108,6 @@ void worldarch_updatePosition (EntComponent comp, EntSpeech speech)
 		ERROR ("can't update arch (%p) position: no position\n", this);
 		return;
 	}
-	printf ("added arch %p to platter %p\n", this, map_posBestMatchPlatter (pos));
 	subhexAddArch (map_posBestMatchPlatter (pos), this);
 }
 
@@ -141,7 +140,6 @@ void worldarch_expand (EntComponent comp, EntSpeech speech)
 		component_instantiate ("worldArch", child);
 		childPos = map_randomPositionNear (pos, 0);
 		map_posSwitchFocus (childPos, 1);
-		printf ("created arch %p\n", child);
 		position_set (child, childPos);
 
 		entity_message (child, this, "setArchParent", this);
