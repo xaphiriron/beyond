@@ -20,6 +20,7 @@ enum worldMaterialList
 static Dynarr
 	worldMaterials = NULL;
 
+// this is very much a makeshift way of addressing arches; it's to be replaced with a general arch list or something??
 static Entity
 	base;
 
@@ -60,10 +61,12 @@ void worldFinalize ()
 		centre;
 	FUNCOPEN ();
 
-	printf ("loading map around base arch\n");
 	centre = position_get (base);
+	printf ("loading around %p\n", centre);
 	mapLoadAround (centre);
+	printf ("...\n");
 
+	map_posSwitchFocus (centre, 1);
 	printf ("creating player\n");
 	systemCreatePlayer (base);
 
@@ -76,6 +79,7 @@ void worldGenerate (TIMER timer)
 {
 
 	// pick unexpanded arch at the highest level; expand it; repeat until there are no more arches on that level; repeat from top
+	entity_message (base, NULL, "archExpand", NULL);
 
 	loadSetGoal (1);
 	loadSetLoaded (1);
@@ -103,7 +107,7 @@ void worldImprint (SUBHEX at)
 
 	while (i < max)
 	{
-		hexSetBase ((HEX)at->sub.data[i], 0, *(MATSPEC *)dynarr_at (worldMaterials, MATERIAL_GROUND));
+		hexSetBase (&at->sub.data[i]->hex, 0, *(MATSPEC *)dynarr_at (worldMaterials, MATERIAL_GROUND));
 		i++;
 	}
 
@@ -168,25 +172,19 @@ static Dynarr worldArchOrderFor (SUBHEX platter)
 	while (span > 1)
 	{
 		current = platterList[--span];
-/*
-		int
-			x = 0, y = 0;
-		subhexLocalCoordinates (current, &x, &y);
-		printf ("getting positions around %p (%d) at %d, %d\n", current, subhexSpanLevel (current), x, y);
-*/
 		nearbyPlatters = map_posAround (current, 1);
 		i = 0;
 		while ((pos = *(hexPos *)dynarr_at (nearbyPlatters, i++)))
 		{
 			platter = map_posFocusedPlatter (pos);
-			//printf ("got %p (%d) at %d, %d (i think?)\n", platter, span, pos->x[span == mapGetSpan () ? mapGetSpan () : span + 1], pos->y[span == mapGetSpan () ? mapGetSpan () : span + 1]);
 			if (!platter)
 				continue;
 			platterArches = subhexGetArches (platter);
-			//printf (" - hit platter %p (which has %d arch%s)\n", platter, dynarr_size (platterArches), dynarr_size (platterArches) == 1 ? "" : "es");
 			j = 0;
+			printf ("platter %p has %d arch(es)\n", platter, dynarr_size (platterArches));
 			while ((arch = *(Entity *)dynarr_at (platterArches, j++)))
 			{
+				printf ("adding arch %p to list\n", arch);
 				dynarr_push (r, arch);
 			}
 		}

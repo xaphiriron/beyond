@@ -5,8 +5,6 @@
 
 struct xph_worldarch
 {
-	unsigned int
-		scale;
 	Entity
 		parent,
 		pattern;
@@ -36,6 +34,8 @@ void worldarch_setPattern (EntComponent comp, EntSpeech speech);
 
 void worldarch_updatePosition (EntComponent comp, EntSpeech speech);
 
+void worldarch_expand (EntComponent comp, EntSpeech speech);
+
 void worldarch_define (EntComponent comp, EntSpeech speech)
 {
 
@@ -46,6 +46,8 @@ void worldarch_define (EntComponent comp, EntSpeech speech)
 	component_registerResponse ("worldArch", "setArchPattern", worldarch_setPattern);
 
 	component_registerResponse ("worldArch", "positionSet", worldarch_updatePosition);
+
+	component_registerResponse ("worldArch", "archExpand", worldarch_expand);
 
 }
 
@@ -102,8 +104,53 @@ void worldarch_updatePosition (EntComponent comp, EntSpeech speech)
 	// TODO: if the arch is moving (?!) remove arch from old platter
 	pos = position_get (this);
 	if (!pos)
+	{
+		ERROR ("can't update arch (%p) position: no position\n", this);
 		return;
+	}
+	printf ("added arch %p to platter %p\n", this, map_posBestMatchPlatter (pos));
 	subhexAddArch (map_posBestMatchPlatter (pos), this);
+}
+
+void worldarch_expand (EntComponent comp, EntSpeech speech)
+{
+	Entity
+		this = component_entityAttached (comp);
+	worldArch
+		arch = component_getData (comp);
+	hexPos
+		pos;
+
+	int
+		i = 0,
+		childNumber = 10;
+	Entity
+		child;
+	hexPos
+		childPos;
+
+	if (arch->expanded)
+		return;
+
+	pos = position_get (this);
+
+	while (i < childNumber)
+	{
+		child = entity_create ();
+		component_instantiate ("position", child);
+		component_instantiate ("worldArch", child);
+		childPos = map_randomPositionNear (pos, 0);
+		map_posSwitchFocus (childPos, 1);
+		printf ("created arch %p\n", child);
+		position_set (child, childPos);
+
+		entity_message (child, this, "setArchParent", this);
+		dynarr_push (arch->subarches, child);
+
+		i++;
+	}
+
+	arch->expanded = true;
 }
 
 

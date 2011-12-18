@@ -260,16 +260,24 @@ void mapLoadAround (hexPos pos)
 		i--;
 	}
 	i++;
-	//printf ("focused on %p at index (span) %d\n", platter, i);
+	printf ("loading around position %p; focused on platter %p at index (span) %d\n", pos, platter, i);
 	if (!platter)
 		return;
 
+	while (i >= 0)
+	{
+		printf ("%d: %3d, %3d || %p\n",i, pos->x[i], pos->y[i], pos->platter[i]);
+		i--;
+	}
+
+	i = MapSpan;
 	while (subhexSpanLevel (platter) > pos->focus)
 	{
 		platter = map_posBestMatchPlatter (pos);
+		printf ("have platter %p (span: %d) at iteration %d\n", platter, subhexSpanLevel (platter), i);
 		assert (i >= 0);
 		mapForceGrowChildAt (platter, pos->x[i], pos->y[i]);
-		//printf ("growing %p (%d) at %d, %d\n", platter, subhexSpanLevel (platter), pos->x[i], pos->y[i]);
+		printf ("grew %p (%d) at %d, %d\n", platter, subhexSpanLevel (platter), pos->x[i], pos->y[i]);
 		i--;
 	}
 	//printf ("done\n");
@@ -365,7 +373,7 @@ SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 		parent = NULL;
 	}
 
-	//INFO ("Creating subdiv %p @ %p, %d, %d", sh, parent, x, y);
+	printf ("Creating subdiv %p @ %p; %d, %d\n", sh, parent, x, y);
 
 	if (parent == NULL)
 	{
@@ -412,20 +420,30 @@ SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 		// take any arches that
 		//  1. are more tightly focused than the resolution of the parent and
 		//  2. actually apply to this subhex
+		if (dynarr_size (parent->sub.arches))
+		{
+
+		printf (" --- %s: updating arches (count: %d) for subhex %p w/ parent %p\n", __FUNCTION__, dynarr_size (parent->sub.arches), sh, parent);
 		o = 0;
 		while ((arch = *(Entity *)dynarr_at (parent->sub.arches, o++)))
 		{
+			printf ("[%d]:\n", o - 1);
 			pos = position_get (arch);
-			//printf ("updating arch w/ focus level %d; currently at level %d\n", map_posFocusLevel (pos), parent->sub.span);
+			printf ("%s: updating arch (%p/ pos: \033[32;1m%p\033[0m) at span %d w/ focus of %d (next: %d, %d)\n", __FUNCTION__, arch, pos, parent->sub.span, map_posFocusLevel (pos), pos->x[parent->sub.span], pos->y[parent->sub.span]);
 			map_posRecalcPlatters (pos);
+			printf ("sh: %p; best match: %p\n", sh, map_posBestMatchPlatter (pos));
 			if (map_posBestMatchPlatter (pos) == sh)
 			{
 				subhexRemoveArch (parent, arch);
 				subhexAddArch (sh, arch);
-				//printf ("shifted arch down; was attached to a subdiv on level %d (%p), now attached to its %d,%d child on level %d (%p)\n", parent->sub.span, parent, x, y, sh->sub.span, sh);
+				printf ("\033[31;1m%s: shifted arch (%p/ pos: \033[32;1m%p\033[31;1m) down; was on %p @ span %d, now on its %d,%d child %p @ span %d\033[0m\n", __FUNCTION__, arch, pos, parent, parent->sub.span, x, y, sh, sh->sub.span);
+				// since we just removed the latest entry in the list we're going through, repeat this index over.
 				o--;
 			}
 		}
+		printf (" --- DONE UPDATING ARCHES FOR %p\n", sh);
+		}
+
 	}
 
 	// a span-one subdiv is REQUIRED to have all its hexes generated
@@ -601,11 +619,20 @@ hexPos map_randomPos ()
 			: 'b'
 	);
 
+	printf ("position: '%c'\n", 
+		pole == 0
+			? 'r'
+			: pole == 1
+			? 'g'
+			: 'b');
+
+	// FIXME: this should be span >= 0 since it should generate positions down to hex fidelity by default HOWEVER before that change is made it should be ensured that all the hexPos functions actually work with max fidelity positions (they should but it hasn't been tested since this function doesn't really generate max fidelity positions that are near platter borders) - xph 2011 12 15
 	while (span > 0)
 	{
 		displacement = rand () % fx (MapRadius);
 		hex_unlineate (displacement, &x, &y);
 
+		printf (" %d: %d, %d\n", span, x, y);
 		position->x[span] = x;
 		position->y[span] = y;
 		span--;
@@ -693,10 +720,8 @@ hexPos map_at (const SUBHEX at)
 		span++;
 		subhexLocalCoordinates (platter, &x, &y);
 		platter = subhexParent (platter);
-		//printf ("writing to offset %d: %d, %d, %p\n", span, x, y, platter);
 		pos->x[span] = x;
 		pos->y[span] = y;
-		//pos->platter[span] = platter;
 	}
 	pos->platter[MapSpan] = platter;
 	assert (pos->platter[MapSpan] != NULL);
@@ -759,7 +784,6 @@ hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y)
 	span = scratch->focus;
 	if (span == MapSpan)
 	{
-		printf ("pole transfer while calculating displacement at level %d\n", subhexSpanLevel (at));
 		// i'm unsure if this actually works right -- shouldn't there be some sort of calculation with the lower-span coordinates to update them? or something? something in some way similar to the hexMagnitude update block below? - xph 2011 12 15
 		scratch->platter[MapSpan] = mapPole (mapPoleTraversal (subhexPoleName (scratch->platter[MapSpan]), x, y));
 		map_posRecalcPlatters (scratch);
@@ -799,6 +823,7 @@ hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y)
 
 void map_freePos (hexPos pos)
 {
+	assert (pos != NULL);
 	xph_free (pos->x);
 	xph_free (pos->y);
 	xph_free (pos->platter);
@@ -811,10 +836,10 @@ static void map_posRecalcPlatters (hexPos pos)
 		span = MapSpan;
 	while (span > pos->focus)
 	{
+		assert (span > 0);
 		pos->platter[span - 1] = pos->platter[span]
 			? subhexData (pos->platter[span], pos->x[span], pos->y[span])
 			: NULL;
-		//printf ("  calculated %p from %p & %d, %d\n", pos->platter[span - 1], pos->platter[span], pos->x[span], pos->y[span]);
 		span--;
 	}
 }
@@ -837,7 +862,10 @@ SUBHEX map_posBestMatchPlatter (const hexPos pos)
 	while (i <= MapSpan)
 	{
 		if (pos->platter[i])
+		{
+			printf ("best match: %p at index %d\n", pos->platter[i], i);
 			return pos->platter[i];
+		}
 		i++;
 	}
 	ERROR ("Position exists with absolutely no loaded platters");
@@ -1988,6 +2016,7 @@ void subhexAddArch (SUBHEX at, Entity arch)
 {
 	if (!at || subhexSpanLevel (at) < 1)
 		return;
+	printf ("\033[33;1mADDING ARCH %p TO SUBHEX %p\033[0m\n", arch, at);
 	dynarr_push (at->sub.arches, arch);
 }
 
@@ -1995,6 +2024,7 @@ void subhexRemoveArch (SUBHEX at, Entity arch)
 {
 	if (!at || subhexSpanLevel (at) < 1)
 		return;
+	printf ("\033[33;1mREMOVING ARCH %p FROM SUBHEX %p\033[0m\n", arch, at);
 	dynarr_remove_condense (at->sub.arches, arch);
 }
 
@@ -2286,7 +2316,7 @@ int mapDistanceFrom (const hexPos pos, const SUBHEX hex)
 	if (!pos || !hex)
 		return INT_MAX;
 	span = subhexSpanLevel (hex);
-	printf ("comparing...\n");
+	//printf ("comparing...\n");
 
 	// if the hexPos is focused at a span level higher than the subhex exists (e.g., the hexPos is focused at span level 3 but the subhex is a level 0 hex) then the distance should be measured between the lvl 0 hex and the lvl 3 platter. since hexPos shouldn't store the platters below their focus threshhold (i think...?) it should be reasonable to do this, since the not-equals will pass for whatever subhex vs. a NULL pointer - xph 2011 12 14
 	while (active != pos->platter[span])
@@ -2302,12 +2332,12 @@ int mapDistanceFrom (const hexPos pos, const SUBHEX hex)
 		);
 		xTotalDiff += xStepDiff;
 		yTotalDiff += yStepDiff;
-		printf ("difference on span %d: %d, %d vs. %d, %d: %d, %d -- scaled: %d, %d\n", span, x, y, pos->x[span + 1], pos->y[span + 1], x - pos->x[span + 1], y - pos->y[span + 1], xStepDiff, yStepDiff);
+		//printf ("difference on span %d: %d, %d vs. %d, %d: %d, %d -- scaled: %d, %d\n", span, x, y, pos->x[span + 1], pos->y[span + 1], x - pos->x[span + 1], y - pos->y[span + 1], xStepDiff, yStepDiff);
 
 		span++;
 		active = subhexParent (active);
 	}
-	printf ("total difference: %d, %d: %d\n", xTotalDiff, yTotalDiff, hexMagnitude (xTotalDiff, yTotalDiff));
+	//printf ("total difference: %d, %d: %d\n", xTotalDiff, yTotalDiff, hexMagnitude (xTotalDiff, yTotalDiff));
 
 	return hexMagnitude (xTotalDiff, yTotalDiff);
 }
@@ -2420,9 +2450,7 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 
 	mapQueueLoadAround (origin);
 
-	DEBUG ("remaking render cache");
 	RenderCache = mapAdjacentSubhexes (origin, AbsoluteViewLimit);
-	DEBUG ("set render cache to %p", RenderCache);
 
 	mapUnloadDistant ();
 
@@ -2439,11 +2467,13 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 static void mapCheckLoadStatusAndImprint (void * rel_v)
 {
 	SUBHEX
-		target = mapRelativeTarget (rel_v),
+		target,
 		adjacent = NULL;
 	int
 		i = 0,
 		loadCount = 0;
+	assert (rel_v != NULL);
+	target = mapRelativeTarget (rel_v);
 	/* higher span platters can still be imprinted and 'loaded' in the sense that their data values can be used to, like, the raycasting bg or something. ultimately they shouldn't be ignored, but for the time being they are */
 	if (subhexSpanLevel (target) != 1)
 		return;
