@@ -423,6 +423,7 @@ SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 				subhexRemoveArch (parent, arch);
 				subhexAddArch (sh, arch);
 				//printf ("shifted arch down; was attached to a subdiv on level %d (%p), now attached to its %d,%d child on level %d (%p)\n", parent->sub.span, parent, x, y, sh->sub.span, sh);
+				o--;
 			}
 		}
 	}
