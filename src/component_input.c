@@ -313,7 +313,39 @@ Entity input_getPlayerEntity ()
 }
 
 
-void input_update (Object * d)
+
+static void input_classDestroy (EntComponent comp, EntSpeech speech);
+static void input_componentDestroy (EntComponent inputComponent, EntSpeech speech);
+static void input_update (EntComponent inputComponent, EntSpeech speech);
+
+void input_define (EntComponent inputComponent, EntSpeech speech)
+{
+	component_registerResponse ("input", "__classDestroy", input_classDestroy);
+
+	component_registerResponse ("input", "__destroy", input_componentDestroy);
+
+	component_registerResponse ("input", "__update", input_update);
+
+	Input = input_create ();
+}
+
+static void input_classDestroy (EntComponent comp, EntSpeech speech)
+{
+	input_destroy (Input);
+	Input = NULL;
+}
+
+static void input_componentDestroy (EntComponent inputComponent, EntSpeech speech)
+{
+	Entity
+		inputEntity = component_entityAttached (inputComponent);
+
+	input_rmEntity (inputEntity, INPUT_CONTROLLED);
+	input_rmEntity (inputEntity, INPUT_FOCUSED);
+}
+
+
+static void input_update (EntComponent inputComponent, EntSpeech speech)
 {
 	int
 		i,
@@ -463,66 +495,4 @@ void input_update (Object * d)
 				break;
 		}
 	}
-}
-
-void input_classInit (EntComponent inputComponent, EntSpeech speech)
-{
-	component_registerResponse ("input", "__destroy", input_componentDestroy);
-}
-
-int component_input (Object * o, objMsg msg, void * a, void * b)
-{
-	Entity
-		e = NULL;
-	EntSpeech
-		speech = a;
-	char
-		* message = NULL;
-  switch (msg) {
-    case OM_CLSNAME:
-      strncpy (a, "input", 32);
-      return EXIT_SUCCESS;
-    case OM_CLSINIT:
-      Input = input_create ();
-      return EXIT_SUCCESS;
-    case OM_CLSFREE:
-      input_destroy (Input);
-      Input = NULL;
-      return EXIT_SUCCESS;
-    case OM_CLSVARS:
-      return EXIT_FAILURE;
-    case OM_CREATE:
-      return EXIT_SUCCESS;
-    default:
-      break;
-  }
-
-	switch (msg)
-	{
-		case OM_SHUTDOWN:
-		case OM_DESTROY:
-			obj_destroy (o);
-			return EXIT_SUCCESS;
-
-		case OM_UPDATE:
-			input_update (o);
-			return EXIT_SUCCESS;
-		case OM_COMPONENT_RECEIVE_MESSAGE:
-			message = speech->message;
-			e = component_entityAttached (speech->to);
-
-			return EXIT_FAILURE;
-		default:
-			return obj_pass ();
-	}
-	return EXIT_FAILURE;
-}
-
-void input_componentDestroy (EntComponent inputComponent, EntSpeech speech)
-{
-	Entity
-		inputEntity = component_entityAttached (inputComponent);
-
-	input_rmEntity (inputEntity, INPUT_CONTROLLED);
-	input_rmEntity (inputEntity, INPUT_FOCUSED);
 }

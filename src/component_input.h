@@ -97,11 +97,6 @@ void input_sendGameEventMessage (const struct input_event * ie);
 
 Entity input_getPlayerEntity ();
 
-void input_update ();
-
-void input_classInit (EntComponent inputComponent, EntSpeech speech);
-int component_input (Object * o, objMsg msg, void * a, void * b);
-
-void input_componentDestroy (EntComponent inputComponent, EntSpeech speech);
+void input_define (EntComponent inputComponent, EntSpeech speech);
 
 #endif /* XPH_COMPONENT_INPUT_H */

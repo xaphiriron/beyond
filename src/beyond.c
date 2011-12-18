@@ -50,7 +50,7 @@ void bootstrap (void)
 	component_register ("position", NULL, position_define);
 	component_register ("camera", NULL, camera_classInit);
 	component_register ("walking", component_walking, NULL);
-	component_register ("input", component_input, input_classInit);
+	component_register ("input", NULL, input_define);
 	component_register ("plant", component_plant, NULL);
 	component_register ("ui", NULL, ui_classInit);
 	component_register ("worldArch", NULL, worldarch_define);
