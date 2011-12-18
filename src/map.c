@@ -703,39 +703,38 @@ hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y)
 	span = scratch->focus;
 	if (span == MapSpan)
 	{
-		// i'm unsure if this actually works right -- shouldn't there be some sort of calculation with the lower-span coordinates to update them? or something? something in some way similar to the hexMagnitude update block below?
+		printf ("pole transfer while calculating displacement at level %d\n", subhexSpanLevel (at));
+		// i'm unsure if this actually works right -- shouldn't there be some sort of calculation with the lower-span coordinates to update them? or something? something in some way similar to the hexMagnitude update block below? - xph 2011 12 15
 		scratch->platter[MapSpan] = mapPole (mapPoleTraversal (subhexPoleName (scratch->platter[MapSpan]), x, y));
 		map_posRecalcPlatters (scratch);
 		return scratch;
 	}
 
-	scratch->x[span + 1] += x;
-	scratch->y[span + 1] += y;
+	span++;
 
-	if (hexMagnitude (scratch->x[span + 1], scratch->y[span + 1]) > MapRadius)
-		WARNING ("altering span %d coords to %d,%d which has a magnitude of %d (max: %d)", span, scratch->x[span + 1], scratch->y[span + 1], hexMagnitude (scratch->x[span + 1], scratch->y[span + 1]), MapRadius);
+	scratch->x[span] += x;
+	scratch->y[span] += y;
 
-	while (hexMagnitude (scratch->x[span + 1], scratch->y[span + 1]) > MapRadius)
+	while (hexMagnitude (scratch->x[span], scratch->y[span]) > MapRadius)
 	{
-		printf (" - coordinate %d, %d outside map radius; rescaling\n", scratch->x[span + 1], scratch->y[span + 1]);
+		assert (span <= MapSpan);
 		mapScaleCoordinates
 		(
 			1,
-			scratch->x[span + 1], scratch->y[span + 1],
+			scratch->x[span], scratch->y[span],
 			&higherX, &higherY,
 			&xRemainder, &yRemainder
 		);
-		//printf ("original: %d, %d; upscaled: %d, %d; remainder: %d, %d\n", scratch->x[span + 1], scratch->y[span + 1], higherX, higherY, xRemainder, yRemainder);
-		scratch->x[span + 1] = xRemainder;
-		scratch->y[span + 1] = yRemainder;
+		scratch->x[span] = xRemainder;
+		scratch->y[span] = yRemainder;
 		span++;
 		if (span > MapSpan)
 		{
 			scratch->platter[MapSpan] = mapPole (mapPoleTraversal (subhexPoleName (scratch->platter[MapSpan]), higherX, higherY));
 			break;
 		}
-		scratch->x[span + 1] += higherX;
-		scratch->y[span + 1] += higherY;
+		scratch->x[span] += higherX;
+		scratch->y[span] += higherY;
 	}
 
 	map_posRecalcPlatters (scratch);
