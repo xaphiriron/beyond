@@ -89,6 +89,7 @@ void worldImprint (SUBHEX at)
 {
 	int
 		i = 0,
+		j = 0,
 		max = fx (mapGetRadius ());
 	Entity
 		arch;
@@ -113,14 +114,14 @@ void worldImprint (SUBHEX at)
 		printf ("imprinting arch %p on subhex %p\n", arch, at);
 		archFocus = position_get (arch);
 		
-		i = 0;
-		while (i < max)
+		j = 0;
+		while (j < max)
 		{
-			if (mapDistanceFrom (archFocus, at->sub.data[i]) < 5)
+			if (mapDistanceFrom (archFocus, at->sub.data[j]) < 5)
 			{
-				hexSetBase (&at->sub.data[i]->hex, 24, *(MATSPEC *)dynarr_at (worldMaterials, MATERIAL_GROUND));
+				hexSetBase (&at->sub.data[j]->hex, 18 - mapDistanceFrom (archFocus, at->sub.data[j]) * 3, *(MATSPEC *)dynarr_at (worldMaterials, MATERIAL_GROUND));
 			}
-			i++;
+			j++;
 		}
 	}
 	dynarr_destroy (arches);
