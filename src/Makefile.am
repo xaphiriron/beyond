@@ -19,32 +19,32 @@ libmatrix_la_SOURCES = matrix.c matrix.h
 bin_PROGRAMS = beyond
 #bin_PROGRAMS = beyond logo
 beyond_SOURCES = \
-  xph_memory.c xph_memory.h \
+	xph_memory.c xph_memory.h \
 	xph_log.c xph_log.h \
 	path.c path.h \
-  shapes.c shapes.h \
+	shapes.c shapes.h \
 	turtle3d.c turtle3d.h \
 	texture.c texture.h \
-  dynarr.c dynarr.h \
-  lsystem.c lsystem.h \
-  object.c object.h	\
-  video.c video.h	\
-  timer.c timer.h	\
-  accumulator.c accumulator.h \
-  entity.c entity.h	\
+	dynarr.c dynarr.h \
+	lsystem.c lsystem.h \
+	object.c object.h	\
+	video.c video.h	\
+	timer.c timer.h	\
+	accumulator.c accumulator.h \
+	entity.c entity.h	\
 	matspec.c matspec.h \
 	map.c map.h \
 	worldgen.c worldgen.h \
 	comp_worldarch.c comp_worldarch.h \
 	\
-  component_position.c component_position.h	\
-  component_integrate.c component_integrate.h	\
-  component_camera.c component_camera.h		\
-  component_input.c component_input.h		\
+	component_position.c component_position.h	\
+	component_integrate.c component_integrate.h	\
+	component_camera.c component_camera.h		\
+	component_input.c component_input.h		\
 	component_ui.c component_ui.h \
-  component_walking.c component_walking.h	\
-  component_plant.c component_plant.h		\
-  hex_utility.h hex_utility.c \
+	component_walking.c component_walking.h	\
+	component_plant.c component_plant.h		\
+	hex_utility.h hex_utility.c \
 	sprite.c sprite.h \
 	font.c font.h \
 	system.c system.h \
