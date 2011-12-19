@@ -372,9 +372,7 @@ void systemUpdate (void)
 			func (t);
 			i++;
 		}
-		entitySubsystem_runOnStored (OM_UPDATE);
-		entitySubsystem_runOnStored (OM_POSTUPDATE);
-		//printf ("done w/ one iteration\n");
+		entitySystem_updateAll ();
 	}
 	FUNCCLOSE ();
 }

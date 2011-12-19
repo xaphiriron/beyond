@@ -37,8 +37,6 @@ struct entity_group_map
 };
 
 struct ent_system {
-	Object
-		* system;
 	char
 		comp_name[COMPNAMELENGTH];
 	Dynarr
@@ -67,7 +65,6 @@ static Dynarr
 	DestroyedEntities = NULL,		// stores guids
 	ExistantEntities = NULL,		// stores struct entity *
 	SystemRegistry = NULL,
-	SubsystemComponentStore = NULL,
 	EntityNames = NULL,				// stores struct entity_name_map
 	EntityGroups = NULL				// stores struct entity_group_map
 	;
@@ -357,17 +354,6 @@ bool entity_message (Entity e, Entity from, char * message, void * arg)
 	while ((t = *(EntComponent *)dynarr_at (e->components, i++)) != NULL)
 	{
 		speech.to = t;
-		/* this does two separate things to received messages (sending an
-		 * object system message and checking the component message triggers)
-		 * because the entity system is currently in a strange
-		 * half-transitioned state, moving away from the object system.
-		 * Eventually all the 'object' code will be removed and old components
-		 * will be rewritten to use message triggers instead of a monolithic
-		 * object system, but in the mean time both potential responses are
-		 * messaged here
-		 *  - xph 2011 08 19 */
-		if (t->reg->system)
-			obj_message (t->reg->system, OM_COMPONENT_RECEIVE_MESSAGE, &speech, arg);
 		component_message (t, message, &speech);
 	}
 	return true;
@@ -410,17 +396,13 @@ static void component_message (EntComponent c, const char * message, void * arg)
  * COMPONENTS
  */
 
-bool component_register (const char * comp_name, objHandler objFunc, compFunc classInit)
+bool component_register (const char * comp_name, compFunc classInit)
 {
 	struct ent_system
 		* reg;
-	ObjClass
-		* oc;
-	Object
-		* sys;
-	if (!objFunc && !classInit)
+	if (!classInit)
 	{
-		ERROR ("Can't create component; must have a object handler or a classInit response.");
+		ERROR ("Can't create component; must have a component definition.");
 		return false;
 	}
 	if (comp_name[0] == 0)
@@ -443,19 +425,8 @@ bool component_register (const char * comp_name, objHandler objFunc, compFunc cl
 	dynarr_push (SystemRegistry, reg);
 	dynarr_sort (SystemRegistry, sys_sort);
 
-	if (objFunc)
-	{
-		oc = objClass_init (objFunc, NULL, NULL, NULL);
-		sys = obj_create (oc->name, NULL, NULL, NULL);
-		reg->system = sys;
-		obj_message (sys, OM_COMPONENT_GET_LOADER_CALLBACK, &reg->loaderCallback, NULL);
-		obj_message (sys, OM_COMPONENT_GET_WEIGH_CALLBACK, &reg->weighCallback, NULL);
-	}
-	if (classInit)
-	{
-		component_registerResponse (reg->comp_name, "__classInit", classInit);
-		component_messageSystem (reg->comp_name, "__classInit", NULL);
-	}
+	component_registerResponse (reg->comp_name, "__classInit", classInit);
+	component_messageSystem (reg->comp_name, "__classInit", NULL);
 	return true;
 }
 
@@ -478,17 +449,13 @@ void component_destroy (const char * comp_name)
 		}
 	}
 
-	/* TODO: find if there's a __classDestroy response and if so call those
-	 * functions
-	 *  - xph 2011 08 21 */
+	component_messageSystem (sys->comp_name, "__classDestroy", NULL);
 
 	dynarr_map (sys->messageTriggers, (void (*)(void *))mt_destroy);
 	dynarr_destroy (sys->messageTriggers);
 
 	dynarr_destroy (sys->entities);
 	dynarr_remove_condense (SystemRegistry, sys);
-	obj_message (sys->system, OM_DESTROY, NULL, NULL);
-	objClass_destroy (sys->comp_name);
 	xph_free (sys);
 }
 
@@ -511,7 +478,6 @@ bool component_instantiate (const char * comp_name, Entity e)
 	dynarr_sort (e->components, comp_sort);
 
 	instance->comp_data = NULL;
-	obj_message (sys->system, OM_COMPONENT_INIT_DATA, &instance->comp_data, e);
 	component_message (instance, "__create", NULL);
 	return true;
 }
@@ -532,7 +498,6 @@ bool component_remove (const char * comp_name, Entity e)
 		WARNING ("Entity #%d doesn't have component \"%s\"", e->guid, comp_name);
 		return false;
 	}
-	obj_message (sys->system, OM_COMPONENT_DESTROY_DATA, &comp->comp_data, e);
 	component_message (comp, "__destroy", NULL);
 	dynarr_remove_condense (sys->entities, comp);
 	dynarr_remove_condense (e->components, comp);
@@ -896,8 +861,6 @@ void entity_destroyEverything ()
 		dynarr_destroy (DestroyedEntities);
 		DestroyedEntities = NULL;
 	}
-	dynarr_destroy (SubsystemComponentStore);
-	SubsystemComponentStore = NULL;
 
 	if (EntityNames)
 	{
@@ -927,72 +890,21 @@ void entity_destroyEverything ()
 }
 
 
-bool entitySubsystem_store (const char * comp_name)
+void entitySystem_updateAll ()
 {
 	EntSystem
-		s = NULL;
-	if (SubsystemComponentStore == NULL)
-		SubsystemComponentStore = dynarr_create (6, sizeof (EntSystem));
-	s = entity_getSystemByName (comp_name);
-	if (s == NULL)
-		return false;
-	if (in_dynarr (SubsystemComponentStore, s) >= 0)
-	{
-		return true;
-	}
-	dynarr_push (SubsystemComponentStore, s);
-	return true;
-}
-
-bool entitySubsystem_unstore (const char * comp_name) {
-  EntSystem s = NULL;
-  if (SubsystemComponentStore == NULL) {
-    return false;
-  }
-  s = entity_getSystemByName (comp_name);
-  if (s == NULL) {
-    return false;
-  }
-  if (in_dynarr (SubsystemComponentStore, s) < 0) {
-    return true; // already not in store
-  }
-  dynarr_remove_condense (SubsystemComponentStore, s);
-  return true;
-}
-
-bool entitySubsystem_runOnStored (objMsg msg)
-{
-	EntSystem
-		sys = NULL;
-	bool
-		r = true,
-		t = true;
+		sys;
 	int
 		i = 0;
-	if (SubsystemComponentStore == NULL)
-		return false;
-	while ((sys = *(EntSystem *)dynarr_at (SubsystemComponentStore, i++)) != NULL)
+	if (!SystemRegistry)
+		return;
+	while ((sys = *(EntSystem *)dynarr_at (SystemRegistry, i++)) != NULL)
 	{
-		t = obj_message (sys->system, msg, NULL, NULL);
-		switch (msg)
-		{
-			case OM_UPDATE:
-				component_messageSystem (sys->comp_name, "__update", NULL);
-				break;
-			case OM_POSTUPDATE:
-				component_messageSystem (sys->comp_name, "__postupdate", NULL);
-				break;
-			default:
-				WARNING ("%s: Unhandled system message (%d)", __FUNCTION__, msg);
-				break;
-		}
-		r = (r != true) ? false : t;
+		component_messageSystem (sys->comp_name, "__update", NULL);
 	}
-	return r;
-}
-
-void entitySubsystem_clearStored () {
-  if (SubsystemComponentStore != NULL) {
-    dynarr_clear (SubsystemComponentStore);
-  }
+	i = 0;
+	while ((sys = *(EntSystem *)dynarr_at (SystemRegistry, i++)) != NULL)
+	{
+		component_messageSystem (sys->comp_name, "__postupdate", NULL);
+	}
 }

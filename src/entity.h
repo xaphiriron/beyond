@@ -5,7 +5,6 @@
 #include <stdbool.h>
 #include "timer.h"
 #include "dynarr.h"
-#include "object.h"
 
 #define COMPNAMELENGTH 32
 
@@ -70,7 +69,7 @@ bool entity_message (Entity e, Entity from, char * message, void * arg);
  * COMPONENTS
  */
 
-bool component_register (const char * comp_name, objHandler objFunc, compFunc classInit);
+bool component_register (const char * comp_name, compFunc classInit);
 void component_destroy (const char * comp_name);
 
 bool component_instantiate (const char * comp_name, Entity e);
@@ -97,12 +96,7 @@ void entity_purgeDestroyed (TIMER t);
 
 void entity_destroyEverything ();
 
-
-bool entitySubsystem_store (const char * comp_name);
-bool entitySubsystem_unstore (const char * comp_name);
-bool entitySubsystem_runOnStored (objMsg);
-void entitySubsystem_clearStored ();
-
+void entitySystem_updateAll ();
 
 
 #endif /* XPH_ENTITY_H */
