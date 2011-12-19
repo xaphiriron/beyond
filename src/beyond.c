@@ -12,7 +12,6 @@
 #include "component_ui.h"
 #include "component_camera.h"
 #include "component_walking.h"
-#include "component_plant.h"
 
 #include "comp_worldarch.h"
 
@@ -51,14 +50,12 @@ void bootstrap (void)
 	component_register ("camera", NULL, camera_classInit);
 	component_register ("walking", NULL, walking_define);
 	component_register ("input", NULL, input_define);
-	component_register ("plant", component_plant, NULL);
 	component_register ("ui", NULL, ui_classInit);
 	component_register ("worldArch", NULL, worldarch_define);
 	component_register ("pattern", NULL, pattern_define);
 
 	// this order DOES matter, since this is the order they're updated later.
 	entitySubsystem_store ("position");
-	entitySubsystem_store ("plant");
 	entitySubsystem_store ("walking");
 	entitySubsystem_store ("camera");
 	entitySubsystem_store ("input");

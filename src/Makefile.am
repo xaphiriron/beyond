@@ -43,7 +43,6 @@ beyond_SOURCES = \
 	component_input.c component_input.h		\
 	component_ui.c component_ui.h \
 	component_walking.c component_walking.h	\
-	component_plant.c component_plant.h		\
 	hex_utility.h hex_utility.c \
 	sprite.c sprite.h \
 	font.c font.h \
