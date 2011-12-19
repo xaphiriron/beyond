@@ -4,8 +4,45 @@
 
 #define VIDEO_DEFAULT_RESOLUTION	0.05
 
+struct video {
+  float
+    near,
+    far,
+    resolution;
+  char
+    * title,
+    * icon;
+  unsigned int
+    height,
+    width;
+  bool
+    orthographic,
+    doublebuffer;
+
+  unsigned int SDLmode;
+  SDL_Surface * screen;
+
+	bool
+		renderWireframe;
+
+};
+
+typedef struct video VIDEO;
+
 static VIDEO
 	* Video = NULL;
+
+
+static VIDEO * video_create ();
+static void video_destroy (VIDEO * v);
+
+static void video_loadDefaultSettings (VIDEO * v);
+
+static void video_enableSDLmodules ();
+static void video_enableGLmodules ();
+
+static bool video_initialize (VIDEO *);
+static void video_regenerateDisplay (VIDEO *);
 
 
 void videoInit ()
@@ -41,50 +78,49 @@ void videoPostrender ()
 		SDL_GL_SwapBuffers();
 }
 
-VIDEO * video_create () {
-  VIDEO * v = xph_alloc (sizeof (VIDEO));
-  return v;
+static VIDEO * video_create ()
+{
+	VIDEO
+		* v = xph_alloc (sizeof (VIDEO));
+	return v;
 }
 
-void video_destroy (VIDEO * v) {
-  if (v->title != NULL) {
-    xph_free (v->title);
-  }
-  if (v->icon != NULL) {
-    xph_free (v->icon);
-  }
-  xph_free (v);
+static void video_destroy (VIDEO * v)
+{
+	if (v->title != NULL)
+		xph_free (v->title);
+	if (v->icon != NULL)
+		xph_free (v->icon);
+	xph_free (v);
 }
 
-
-bool video_loadConfigSettings (VIDEO * v, char * configPath) {
-  video_loadDefaultSettings (v);
-  return false;
-}
-
-void video_loadDefaultSettings (VIDEO * v) {
-  v->height = 540;
-  v->width = 960;
-  v->orthographic = false;
-  v->doublebuffer = true;
-  v->resolution = VIDEO_DEFAULT_RESOLUTION;
-  v->title = xph_alloc_name (16, "video->title");
-  strncpy (v->title, "beyond 0.0.0.1", 16);
-  v->icon = NULL;
-  v->near = 20.0;
-  v->far = 5000.0;
-  v->SDLmode = SDL_OPENGL;
-  v->screen = NULL;
+static void video_loadDefaultSettings (VIDEO * v)
+{
+	char
+		title[] = "beyond 0.1";
+	v->height = 540;
+	v->width = 960;
+	v->orthographic = false;
+	v->doublebuffer = true;
+	v->resolution = VIDEO_DEFAULT_RESOLUTION;
+	v->title = xph_alloc (strlen (title) + 1);
+	strncpy (v->title, title, strlen (title) + 1);
+	v->icon = NULL;
+	v->near = 20.0;
+	v->far = 5000.0;
+	v->SDLmode = SDL_OPENGL;
+	v->screen = NULL;
 	v->renderWireframe = false;
 }
 
 
-void video_enableSDLmodules () {
-  //SDL_ShowCursor (SDL_DISABLE);
-  //SDL_WM_GrabInput (SDL_GRAB_ON);
+static void video_enableSDLmodules ()
+{
+	//SDL_ShowCursor (SDL_DISABLE);
+	//SDL_WM_GrabInput (SDL_GRAB_ON);
 }
 
-void video_enableGLmodules ()
+static void video_enableGLmodules ()
 {
 	//glClearColor (.22, .18, .22, 0.0);
 	//glClearColor (0.20, 0.03, 0.12, 0.0); // dark purple
@@ -95,7 +131,6 @@ void video_enableGLmodules ()
 	glEnable (GL_DEPTH_TEST);
 	glEnable (GL_CULL_FACE);
 	glPolygonMode (GL_FRONT, GL_FILL);
-	//glPolygonMode (GL_BACK, GL_LINE);
 
 	glEnable (GL_TEXTURE_2D);
 	glEnable (GL_BLEND);
@@ -106,34 +141,43 @@ void video_enableGLmodules ()
 }
 
 
-bool video_initialize (VIDEO * v) {
-  SDL_Surface * icon = NULL;
-  const SDL_VideoInfo * info = NULL;
-  if (v->screen == NULL && SDL_Init (SDL_INIT_VIDEO) < 0) {
-    fprintf (stderr, "SDL failed to initialize. The error given was \"%s\".\n", SDL_GetError ());
-    return false;
-  }
-  if (v->icon != NULL) {
-    icon = SDL_LoadBMP (v->icon);
-    SDL_WM_SetIcon (icon, NULL);
-    free (icon);
-  }
-  if (v->title != NULL) {
-    SDL_WM_SetCaption (v->title, NULL);
-  }
+static bool video_initialize (VIDEO * v)
+{
+	SDL_Surface
+		* icon = NULL;
+	const SDL_VideoInfo
+		* info = NULL;
+	if (!v->screen && SDL_Init (SDL_INIT_VIDEO) < 0)
+	{
+		fprintf (stderr, "SDL failed to initialize. The error given was \"%s\".\n", SDL_GetError ());
+		return false;
+	}
+	if (v->icon)
+	{
+		icon = SDL_LoadBMP (v->icon);
+		SDL_WM_SetIcon (icon, NULL);
+		free (icon);
+	}
+	if (v->title)
+	{
+		SDL_WM_SetCaption (v->title, NULL);
+	}
 
-  info = SDL_GetVideoInfo ();
-  if (info == NULL) {
-    fprintf (stderr, "Can't get video info: %s; bad things are probably going to happen soon.\n", SDL_GetError());
-  } else {
-    v->SDLmode |= (info->hw_available ? SDL_HWSURFACE : 0);
+	info = SDL_GetVideoInfo ();
+	if (!info)
+	{
+		fprintf (stderr, "Can't get video info: %s; bad things are probably going to happen soon.\n", SDL_GetError());
+	}
+	else
+	{
+		v->SDLmode |= (info->hw_available ? SDL_HWSURFACE : 0);
 /* evidently the documentation lied to me and this does not in fact exist
     if (v->width > info->current_w || v->height > info->current_h) {
       printf ("The resolution we're about to try (%d,%d) is larger than your current resolution (%d,%d)... this might end badly.\n", v->width, v->height, info->current_w, info->current_h);
     }
 */
-  }
-  video_enableSDLmodules ();
+	}
+	video_enableSDLmodules ();
 
   /* TODO: the perennial refrain here is that colour depth should be tested
    * and stored in the config, instead of dictated by fiat here in the source.
@@ -143,62 +187,35 @@ bool video_initialize (VIDEO * v) {
   SDL_GL_SetAttribute (SDL_GL_BLUE_SIZE, 5);
   SDL_GL_SetAttribute (SDL_GL_DEPTH_SIZE, 16);
   SDL_GL_SetAttribute (SDL_GL_DOUBLEBUFFER, v->doublebuffer == true ? 1 : 0);
-  if (
-    v->screen == NULL
-      && (v->screen = SDL_SetVideoMode (
-            v->width,
-            v->height,
-            info == NULL ? 16 : info->vfmt->BitsPerPixel,
-            v->SDLmode)
-         ) == NULL) {
-    fprintf (stderr, "SDL failed to start video. The error given was \"%s\".\n", SDL_GetError ());
-    return false;
-  }
-  video_enableGLmodules ();
-  video_regenerateDisplay (v);
-  return true;
+	if (v->screen == NULL)
+	{
+		v->screen = SDL_SetVideoMode (v->width, v->height, info == NULL ? 16 : info->vfmt->BitsPerPixel, v->SDLmode);
+		if (v->screen == NULL)
+		{
+			fprintf (stderr, "SDL failed to start video. The error given was \"%s\".\n", SDL_GetError ());
+			return false;
+		}
+	}
+	video_enableGLmodules ();
+	video_regenerateDisplay (v);
+	return true;
 }
 
-void video_regenerateDisplay (VIDEO * v) {
-  float
-    glWidth = video_getXResolution () / 2.0,
-    glHeight = video_getYResolution () / 2.0,
-    glNear = v->near,
-    glFar = v->far;
-  glViewport (0, 0, v->width, v->height);
-  glMatrixMode (GL_PROJECTION);
-  glLoadIdentity ();
-  if (v->orthographic == true) {
-    glOrtho (-glWidth, glWidth,
-             -glHeight, glHeight,
-             glNear, glFar);
-  } else {
-    glFrustum (-glWidth, glWidth,
-               -glHeight, glHeight,
-               glNear, glFar);
-  }
-  //printf ("%s: opengl frustum is %5.3f by %5.3f with a resolution of %5.3f and a near/far value of %5.3f/%5.3f\n", __FUNCTION__, glWidth, glHeight, v->resolution, glNear, glFar);
-  glMatrixMode (GL_MODELVIEW);
-  glLoadIdentity ();
-}
-
-bool video_setResolution (VIDEO * v, float x, float y) {
-  if (x <= 0 || y <= 0) {
-    return false;
-  }
-  v->width = x;
-  v->height = y;
-  video_regenerateDisplay (v);
-  return true;
-}
-
-bool video_setScaling (VIDEO * v, float scale) {
-  if (scale <= 0) {
-    return false;
-  }
-  v->resolution = scale;
-  video_regenerateDisplay (v);
-  return true;
+static void video_regenerateDisplay (VIDEO * v)
+{
+	float
+		glWidth = video_getXResolution () / 2.0,
+		glHeight = video_getYResolution () / 2.0;
+	glViewport (0, 0, v->width, v->height);
+	glMatrixMode (GL_PROJECTION);
+	glLoadIdentity ();
+	if (v->orthographic == true)
+		glOrtho (-glWidth, glWidth, -glHeight, glHeight, v->near, v->far);
+	else
+		glFrustum (-glWidth, glWidth, -glHeight, glHeight, v->near, v->far);
+	//printf ("%s: opengl frustum is %5.3f by %5.3f with a resolution of %5.3f and a near/far value of %5.3f/%5.3f\n", __FUNCTION__, glWidth, glHeight, v->resolution, glNear, glFar);
+	glMatrixMode (GL_MODELVIEW);
+	glLoadIdentity ();
 }
 
 float video_getZnear ()
@@ -220,6 +237,29 @@ float video_getYResolution ()
 	if (!Video)
 		return -1;
 	return Video->resolution * Video->height;
+}
+
+bool video_setScaling (float scale)
+{
+	if (!Video)
+		return false;
+	if (scale <= 0)
+		return false;
+	Video->resolution = scale;
+	video_regenerateDisplay (Video);
+	return true;
+}
+
+bool video_setDimensions (signed int width, signed int height)
+{
+	if (width <= 0 || height <= 0)
+		return false;
+	if (!Video)
+		return false;
+	Video->width = width;
+	Video->height = height;
+	video_regenerateDisplay (Video);
+	return true;
 }
 
 bool video_getDimensions (unsigned int * width, unsigned int * height)
@@ -264,7 +304,7 @@ void video_orthoOff ()
 	if (!Video)
 		return;
 	Video->orthographic = 0;
-	video_setScaling (Video, VIDEO_DEFAULT_RESOLUTION);
+	video_setScaling (VIDEO_DEFAULT_RESOLUTION);
 	video_regenerateDisplay (Video);
 }
 
@@ -273,7 +313,7 @@ void video_orthoOn ()
 	if (!Video)
 		return;
 	Video->orthographic = 1;
-	video_setScaling (Video, 1.00);
+	video_setScaling (1.00);
 	video_regenerateDisplay (Video);
 }
 
