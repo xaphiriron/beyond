@@ -49,7 +49,7 @@ void bootstrap (void)
 	//printf ("registering components\n");
 	component_register ("position", NULL, position_define);
 	component_register ("camera", NULL, camera_classInit);
-	component_register ("walking", component_walking, NULL);
+	component_register ("walking", NULL, walking_define);
 	component_register ("input", NULL, input_define);
 	component_register ("plant", component_plant, NULL);
 	component_register ("ui", NULL, ui_classInit);

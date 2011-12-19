@@ -9,21 +9,6 @@ struct walkmove_data {
   bool automoveActive;
 };
 
-// the MOVE value is as follows: a value of 1 will result in the entity crossing tiles at a speed of one per second. 2 is two per second. etc.
-walkingComponent walking_create (float move, float turn)
-{
-	walkingComponent w = xph_alloc (sizeof (struct walkmove_data));
-	w->moveSpd = fabs (move) * 52.0;
-	w->turnSpd = fabs (turn);
-	w->dirsActive = 0;
-	w->automoveActive = false;
-	return w;
-}
-
-void walking_destroy (walkingComponent w) {
-  xph_free (w);
-}
-
 void walking_begin_movement (Entity e, enum walk_move mtype) {
 	walkingComponent
 		wdata = component_getData (entity_getAs (e, "walking"));
@@ -162,87 +147,78 @@ void walking_doControlInputResponse (Entity e, const struct input_event * ie)
 
 static Dynarr
 	comp_entdata = NULL;
-int component_walking (Object * o, objMsg msg, void * a, void * b)
+
+static void walking_classDestroy (EntComponent comp, EntSpeech speech);
+static void walking_create (EntComponent comp, EntSpeech speech);
+static void walking_destroy (EntComponent comp, EntSpeech speech);
+static void walking_update (EntComponent comp, EntSpeech speech);
+static void walking_inputResponse (EntComponent comp, EntSpeech speech);
+
+void walking_define (EntComponent comp, EntSpeech speech)
 {
-	walkingComponent
-		* wd;
-	char
-		* message = NULL;
-	EntComponent
-		c = NULL;
-	DynIterator
-		it = NULL;
+	component_registerResponse ("walking", "__classDestroy", walking_classDestroy);
+
+	component_registerResponse ("walking", "__create", walking_create);
+	component_registerResponse ("walking", "__destroy", walking_destroy);
+
+	component_registerResponse ("walking", "__update", walking_update);
+
+	component_registerResponse ("walking", "CONTROL_INPUT", walking_inputResponse);
+
+	comp_entdata = dynarr_create (8, sizeof (Entity));
+}
+
+static void walking_classDestroy (EntComponent comp, EntSpeech speech)
+{
+	dynarr_destroy (comp_entdata);
+	comp_entdata = NULL;
+}
+
+static void walking_create (EntComponent comp, EntSpeech speech)
+{
 	Entity
-		e = NULL,
-		ce = NULL;
-	EntSpeech
-		speech = a;
-	switch (msg)
+		this = component_entityAttached (comp);
+	walkData
+		walk = xph_alloc (sizeof (struct walkmove_data));
+	// the MOVE value is as follows: a value of 1 will result in the entity crossing tiles at a speed of one per second. 2 is two per second. etc.
+	walk->moveSpd = 5.0 * 52.0;
+	walk->turnSpd = 2.0;
+	walk->dirsActive = 0;
+	walk->automoveActive = false;
+
+	component_setData (comp, walk);
+
+	dynarr_push (comp_entdata, this);
+}
+
+static void walking_destroy (EntComponent comp, EntSpeech speech)
+{
+	Entity
+		this = component_entityAttached (comp);
+	walkData
+		walk = component_getData (comp);
+	xph_free (walk);
+
+	component_clearData (comp);
+
+	dynarr_remove_condense (comp_entdata, this);
+}
+
+static void walking_update (EntComponent comp, EntSpeech speech)
+{
+	Entity
+		e;
+	int
+		i = 0;
+	while ((e = *(Entity *)dynarr_at (comp_entdata, i++)))
 	{
-		case OM_CLSNAME:
-			strncpy (a, "walking", 32);
-			return EXIT_SUCCESS;
-		case OM_CLSINIT:
-			comp_entdata = dynarr_create (8, sizeof (Entity));
-			return EXIT_SUCCESS;
-		case OM_CLSFREE:
-			dynarr_destroy (comp_entdata);
-			comp_entdata = NULL;
-			return EXIT_SUCCESS;
-		case OM_CLSVARS:
-		case OM_CREATE:
-			return EXIT_FAILURE;
-		default:
-			break;
+		walk_move (e);
 	}
-	switch (msg)
-	{
-		case OM_SHUTDOWN:
-		case OM_DESTROY:
-			obj_destroy (o);
-			return EXIT_SUCCESS;
-		case OM_COMPONENT_INIT_DATA:
-			e = (Entity)b;
-			wd = a;
-			*wd = walking_create (5.0, 2.0);
-			dynarr_push (comp_entdata, e);
-			return EXIT_SUCCESS;
-		case OM_COMPONENT_DESTROY_DATA:
-			e = (Entity)b;
-			wd = a;
-			walking_destroy (*wd);
-			*wd = NULL;
-			dynarr_remove_condense (comp_entdata, e);
-			return EXIT_SUCCESS;
-		case OM_UPDATE:
-			it = dynIterator_create (comp_entdata);
-			while (!dynIterator_done (it))
-			{
-				e = *(Entity *)dynIterator_next (it);
-				walk_move (e);
-			}
-			dynIterator_destroy (it);
-			it = NULL;
-			return EXIT_SUCCESS;
+}
 
-		case OM_POSTUPDATE:
-			return EXIT_FAILURE;
-
-		case OM_COMPONENT_RECEIVE_MESSAGE:
-			c = speech->to;
-			ce = component_entityAttached (c);
-			message = speech->message;
-			if (strcmp (message, "CONTROL_INPUT") == 0) {
-				walking_doControlInputResponse (ce, b);
-				return EXIT_SUCCESS;
-			}
-			return EXIT_FAILURE;
-
-		case OM_SYSTEM_RECEIVE_MESSAGE:
-			message = b;
-			return EXIT_FAILURE;
-
-		default:
-			return obj_pass ();
-	}
+static void walking_inputResponse (EntComponent comp, EntSpeech speech)
+{
+	Entity
+		this = component_entityAttached (comp);
+	walking_doControlInputResponse (this, speech->arg);
 }

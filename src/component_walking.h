@@ -21,15 +21,13 @@ enum walk_move {
 };
 
 typedef struct walkmove_data * walkingComponent;
-
-walkingComponent walking_create (float forward, float turn);
-void walking_destroy (walkingComponent w);
+typedef struct walkmove_data * walkData;
 
 void walking_begin_movement (Entity e, enum walk_move w);
 void walking_end_movement (Entity e, enum walk_move w);
 
 void walk_move (Entity e);
 
-int component_walking (Object * o, objMsg msg, void * a, void * b);
+void walking_define (EntComponent comp, EntSpeech speech);
 
 #endif
