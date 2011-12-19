@@ -5,7 +5,6 @@
 #include <SDL/SDL.h>
 
 #include "entity.h"
-#include "object.h"
 
 #include "xph_memory.h"
 #include "dynarr.h"

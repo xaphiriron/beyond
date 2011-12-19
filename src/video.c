@@ -1,8 +1,45 @@
 #include "video.h"
 
+#include "xph_memory.h"
+
 #define VIDEO_DEFAULT_RESOLUTION	0.05
 
-Object * VideoObject = NULL;
+static VIDEO
+	* Video = NULL;
+
+
+void videoInit ()
+{
+	if (Video)
+		return;
+	Video = video_create ();
+	video_loadDefaultSettings (Video);
+	video_initialize (Video);
+};
+
+void videoDestroy ()
+{
+	video_destroy (Video);
+	Video = NULL;
+
+	SDL_Quit ();
+};
+
+void videoPrerender ()
+{
+	/* i really have no clue what video steps need to be taken each frame-- if i'm actually using the buffers to speed up rendering, then i don't actually want to clear the color and depth buffers each frame. but right now i'm not, so i am!
+	 */
+	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glMatrixMode (GL_MODELVIEW);
+	glLoadIdentity ();
+}
+
+void videoPostrender ()
+{
+	glFlush();
+	if (Video->doublebuffer)
+		SDL_GL_SwapBuffers();
+}
 
 VIDEO * video_create () {
   VIDEO * v = xph_alloc (sizeof (VIDEO));
@@ -166,164 +203,86 @@ bool video_setScaling (VIDEO * v, float scale) {
 
 float video_getZnear ()
 {
-	const VIDEO * v = obj_getClassData (VideoObject, "video");
-	if (v == NULL)
+	if (!Video)
 		return 0.0;
-	return -v->near;
+	return -Video->near;
 }
 
-float video_getXResolution () {
-  const VIDEO * v = NULL;
-  if (VideoObject == NULL) {
-    return -1;
-  }
-  v = obj_getClassData (VideoObject, "video");
-  return v->resolution * v->width;
+float video_getXResolution ()
+{
+	if (!Video)
+		return -1;
+	return Video->resolution * Video->width;
 }
 
-float video_getYResolution () {
-  const VIDEO * v = NULL;
-  if (VideoObject == NULL) {
-    return -1;
-  }
-  v = obj_getClassData (VideoObject, "video");
-  return v->resolution * v->height;
+float video_getYResolution ()
+{
+	if (!Video)
+		return -1;
+	return Video->resolution * Video->height;
 }
 
 bool video_getDimensions (unsigned int * width, unsigned int * height)
 {
-	const VIDEO * v = obj_getClassData (VideoObject, "video");
-	if (v == NULL || width == NULL || height == NULL)
+	if (Video == NULL || width == NULL || height == NULL)
 		return false;
-	*width = v->width;
-	*height = v->height;
+	*width = Video->width;
+	*height = Video->height;
 	return true;
 }
 
 inline float video_pixelYMap (int y)
 {
-	const VIDEO * v = obj_getClassData (VideoObject, "video");
-	if (v == NULL)
+	if (!Video)
 		return 0.0;
-	return (v->height / 2.0 - y) * v->resolution;
+	return (Video->height / 2.0 - y) * Video->resolution;
 }
 
 inline float video_pixelXMap (int x)
 {
-	const VIDEO * v = obj_getClassData (VideoObject, "video");
-	if (v == NULL)
+	if (!Video)
 		return 0.0;
-	return (x - v->width / 2.0) * v->resolution;
+	return (x - Video->width / 2.0) * Video->resolution;
 }
 
 inline float video_pixelXOffset (signed int x)
 {
-	const VIDEO
-		* v =  obj_getClassData (VideoObject, "video");
-	if (v == NULL)
+	if (!Video)
 		return 0.0;
-	return x * v->resolution;
+	return x * Video->resolution;
 }
 
 inline float video_pixelYOffset (signed int y)
 {
-	const VIDEO
-		* v =  obj_getClassData (VideoObject, "video");
-	if (v == NULL)
+	if (!Video)
 		return 0.0;
-	return y * -v->resolution;
-}
-
-int video_handler (Object * o, objMsg msg, void * a, void * b) {
-  VIDEO * v = NULL;
-  switch (msg) {
-    case OM_CLSNAME:
-      strncpy (a, "video", 32);
-      return EXIT_SUCCESS;
-    case OM_CLSINIT:
-    case OM_CLSFREE:
-      return EXIT_FAILURE;
-    case OM_CLSVARS:
-      return EXIT_FAILURE;
-    case OM_CREATE:
-      if (VideoObject != NULL) {
-        obj_destroy (o);
-        return EXIT_FAILURE;
-      }
-      v = video_create ();
-      if (a != NULL) {
-        video_loadConfigSettings (v, a);
-      } else {
-        video_loadDefaultSettings (v);
-      }
-      obj_addClassData (o, "video", v);
-      VideoObject = o;
-      return EXIT_SUCCESS;
-    default:
-      break;
-  }
-  v = obj_getClassData (o, "video");
-  switch (msg) {
-    case OM_SHUTDOWN:
-    case OM_DESTROY:
-      VideoObject = NULL;
-      video_destroy (v);
-      obj_rmClassData (o, "video");
-      obj_destroy (o);
-      return EXIT_SUCCESS;
-
-    case OM_START:
-      return video_initialize (v) == true
-        ? EXIT_SUCCESS
-        : EXIT_FAILURE;
-
-    case OM_PRERENDER:
-      /* i really have no clue what video steps need to be taken each frame-- if i'm actually using the buffers to speed up rendering, then i don't actually want to clear the color and depth buffers each frame. but right now i'm not, so i am!
-       */
-      glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-      glMatrixMode (GL_MODELVIEW);
-		glLoadIdentity ();
-      return EXIT_SUCCESS;
-    case OM_POSTRENDER:
-      glFlush();
-      if (v->doublebuffer) {
-        SDL_GL_SwapBuffers();
-      }
-      return EXIT_SUCCESS;
-
-		case OM_SYSTEM_RECEIVE_MESSAGE:
-			return EXIT_FAILURE;
-
-    default:
-      return obj_pass ();
-  }
-  return EXIT_FAILURE;
+	return y * -Video->resolution;
 }
 
 void video_orthoOff ()
 {
-	VIDEO
-		* v = obj_getClassData (VideoObject, "video");
-	v->orthographic = 0;
-	video_setScaling (v, VIDEO_DEFAULT_RESOLUTION);
-	video_regenerateDisplay (v);
+	if (!Video)
+		return;
+	Video->orthographic = 0;
+	video_setScaling (Video, VIDEO_DEFAULT_RESOLUTION);
+	video_regenerateDisplay (Video);
 }
 
 void video_orthoOn ()
 {
-	VIDEO
-		* v = obj_getClassData (VideoObject, "video");
-	v->orthographic = 1;
-	video_setScaling (v, 1.00);
-	video_regenerateDisplay (v);
+	if (!Video)
+		return;
+	Video->orthographic = 1;
+	video_setScaling (Video, 1.00);
+	video_regenerateDisplay (Video);
 }
 
 void video_wireframeSwitch ()
 {
-	VIDEO
-		* v = obj_getClassData (VideoObject, "video");
-	v->renderWireframe ^= 1;
-	if (v->renderWireframe)
+	if (!Video)
+		return;
+	Video->renderWireframe ^= 1;
+	if (Video->renderWireframe)
 		glPolygonMode (GL_FRONT, GL_LINE);
 	else
 		glPolygonMode (GL_FRONT, GL_FILL);

@@ -5,12 +5,12 @@
 
 #include "vector.h"
 
-#include "object.h"
 #include "entity.h"
 
 #include "component_position.h"
-#include "component_integrate.h"
 #include "component_input.h"
+
+#include "system.h"
 
 enum walk_move {
   WALK_MOVE_NONE     = 0x00,

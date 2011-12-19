@@ -27,7 +27,6 @@ beyond_SOURCES = \
 	texture.c texture.h \
 	dynarr.c dynarr.h \
 	lsystem.c lsystem.h \
-	object.c object.h	\
 	video.c video.h	\
 	timer.c timer.h	\
 	accumulator.c accumulator.h \
@@ -38,7 +37,6 @@ beyond_SOURCES = \
 	comp_worldarch.c comp_worldarch.h \
 	\
 	component_position.c component_position.h	\
-	component_integrate.c component_integrate.h	\
 	component_camera.c component_camera.h		\
 	component_input.c component_input.h		\
 	component_ui.c component_ui.h \

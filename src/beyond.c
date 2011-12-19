@@ -1,7 +1,6 @@
 #include <time.h>
 
 #include "video.h"
-#include "object.h"
 #include "entity.h"
 #include "system.h"
 
@@ -53,11 +52,6 @@ void bootstrap (void)
 	component_register ("ui", ui_classInit);
 	component_register ("worldArch", worldarch_define);
 	component_register ("pattern", pattern_define);
-
-	obj_message (VideoObject, OM_START, NULL, NULL);
-	//obj_message (PhysicsObject, OM_START, NULL, NULL);
-	//obj_message (WorldObject, OM_START, NULL, NULL);
-	//entitySubsystem_message ("ground", OM_START, NULL, NULL);
 
 	loadFont ("../img/default.png");
 	uiLoadPanelTexture ("../img/frame.png");

@@ -5,9 +5,6 @@
 #include <SDL/SDL.h>
 #include <SDL/SDL_opengl.h>
 #include "assert.h"
-#include "object.h"
-
-extern Object * VideoObject;
 
 typedef struct video {
   float
@@ -31,6 +28,12 @@ typedef struct video {
 		renderWireframe;
 
 } VIDEO;
+
+void videoInit ();
+void videoDestroy ();
+
+void videoPrerender ();
+void videoPostrender ();
 
 VIDEO * video_create ();
 void video_destroy (VIDEO * v);
@@ -64,8 +67,6 @@ inline float video_pixelXMap (int x);
  */
 inline float video_pixelXOffset (signed int x);
 inline float video_pixelYOffset (signed int y);
-
-int video_handler (Object * e, objMsg msg, void * a, void * b);
 
 void video_orthoOff ();
 void video_orthoOn ();

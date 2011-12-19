@@ -1,6 +1,5 @@
 #include "system.h"
 
-#include "object.h"
 #include "video.h"
 #include "timer.h"
 
@@ -50,8 +49,6 @@ void systemInit ()
 	if (System != NULL)
 		return;
 
-	objPassEnable (false);
-
 	System = xph_alloc (sizeof (SYSTEM));
 
 	System->quit = false;
@@ -74,22 +71,21 @@ void systemInit ()
 	System->updateFuncs = dynarr_create (2, sizeof (void (*)(TIMER)));
 	System->uiPanels = dynarr_create (2, sizeof (Entity));
 
-	//printf ("initializing other objects\n");
-	objClass_init (video_handler, NULL, NULL, NULL);
-	obj_create ("video", NULL, NULL, NULL);
-
 	// not really sure where these should go; they're going here for now.
 	system_registerTimedFunction (entity_purgeDestroyed, 0x7f);
 
 #ifdef MEM_DEBUG
 	atexit (xph_audit);
 #endif /* MEM_DEBUG */
+
+	videoInit ();
+
 	return;
 }
 
 void systemDestroy ()
 {
-	obj_messagePost (VideoObject, OM_DESTROY, NULL, NULL);
+	videoDestroy ();
 
 	dynarr_map (System->uiPanels, (void (*)(void *))entity_destroy);
 	dynarr_destroy (System->uiPanels);
@@ -103,9 +99,6 @@ void systemDestroy ()
 	System = NULL;
 
 	entity_destroyEverything ();
-	SDL_Quit ();
-
-	objects_destroyEverything ();
 }
 
 int systemLoop ()
@@ -404,7 +397,7 @@ void systemRender (void)
 	if (System == NULL)
 		return;
 	video_getDimensions (&width, &height);
-	obj_messagePre (VideoObject, OM_PRERENDER, NULL, NULL);
+	videoPrerender ();
 	if (systemState (System) == STATE_LOADING)
 	{
 		glDisable (GL_DEPTH_TEST);
@@ -432,7 +425,7 @@ void systemRender (void)
 		drawLine (SysLoader.displayText, width/2, height/1.5);
 
 		glEnable (GL_DEPTH_TEST);
-		obj_messagePre (VideoObject, OM_POSTRENDER, NULL, NULL);
+		videoPostrender ();
 		return;
 	}
 
@@ -476,7 +469,7 @@ void systemRender (void)
 		glEnable (GL_DEPTH_TEST);
 	}
 	glEnable (GL_DEPTH_TEST);
-	obj_messagePre (VideoObject, OM_POSTRENDER, NULL, NULL);
+	videoPostrender ();
 }
 
 static void renderSkyCube ()

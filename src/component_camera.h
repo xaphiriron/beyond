@@ -2,7 +2,6 @@
 #define XPH_COMPONENT_CAMERA_H
 
 #include "entity.h"
-#include "object.h"
 
 enum camera_modes
 {

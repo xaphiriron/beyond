@@ -30,11 +30,9 @@ void walk_move (Entity e)
 {
   EntComponent
     p = NULL,
-    i = NULL,
     w = NULL;
 	POSITION
 		pdata = NULL;
-  struct integrate_data * idata = NULL;
   walkingComponent wdata = NULL;
   //const PHYSICS * physics = obj_getClassData (PhysicsObject, "physics");
 	const SYSTEM
@@ -48,9 +46,8 @@ void walk_move (Entity e)
   int
     dirs = 0;
   p = entity_getAs (e, "position");
-  i = entity_getAs (e, "integrate");
   w = entity_getAs (e, "walking");
-  if ((i == NULL && p == NULL) || w == NULL) {
+  if ((p == NULL) || w == NULL) {
     return;
   }
   pdata = component_getData (p);
@@ -84,13 +81,8 @@ void walk_move (Entity e)
     moveDirs = vectorMultiplyByScalar (&moveDirs, .7);
   }
 
-  if (i != NULL) {
-    idata = component_getData (i);
-    addExtraVelocity (idata, &moveDirs);
-  } else {
     newpos = vectorMultiplyByScalar (&moveDirs, sys->timestep);
     position_move (e, newpos);
-  }
 }
 
 void walking_doControlInputResponse (Entity e, const struct input_event * ie)
