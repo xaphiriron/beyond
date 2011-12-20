@@ -47,6 +47,9 @@ Entity entity_getByName (const char * name);
 bool entity_addToGroup (Entity e, const char * groupName);
 const Dynarr entity_getGroup (const char * group);
 
+/* call after adding or removing components; this updates the system lists the entity is on - xph 2011 10 27 */
+void entity_refresh (Entity e);
+
 /***
  * MESSAGING
  */
@@ -81,7 +84,8 @@ bool component_clearData (EntComponent c);
 bool component_registerResponse (const char * comp_name, const char * message, compFunc * function);
 bool component_clearResponses (const char * comp_name, const char * message);
 
-Dynarr entity_getEntitiesWithComponent (int n, ...);
+Dynarr entity_getWithv (int n, va_list comps);
+Dynarr entity_getWith (int n, ...);
 
 
 /***
@@ -91,6 +95,11 @@ Dynarr entity_getEntitiesWithComponent (int n, ...);
 void entity_purgeDestroyed (TIMER t);
 void entity_destroyEverything ();
 
+void entitySystem_register (const char * name, sysFunc updateFunc, int components, ...);
+
+EntSpeech entitySystem_dequeueMessage (const char * system);
+
+void entitySystem_update (const char * name);
 void entitySystem_updateAll ();
 
 

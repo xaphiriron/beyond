@@ -30,4 +30,6 @@ void walk_move (Entity e);
 
 void walking_define (EntComponent comp, EntSpeech speech);
 
+void walking_system (Dynarr entities);
+
 #endif

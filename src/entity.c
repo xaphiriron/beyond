@@ -10,7 +10,8 @@ struct entity {
   // this is a local variable to make fetching components from a specific entity faster. It stores the same data as a componentSpec->entities vector, which is to say EntComponents (something todo: this is named "components" whereas the system vector is named "entities". this is confusing and dumb.)
   Dynarr
 		components,
-		listeners;
+		listeners,
+		systems;
 };
 
 struct messageTrigger
@@ -63,6 +64,19 @@ struct ent_component
 		comp_guid;
 };
 
+struct xph_entity_system
+{
+	char
+		name[ENT_NAMELENGTH];
+	sysFunc
+		* update;
+	Dynarr
+		relevantComponents,		// const char * component names
+		relevantEntities,		// Entity,
+		messages;				// EntSpeech
+};
+typedef struct xph_entity_system * entitySystem;
+
 
 static unsigned int EntityGUIDs = 0;
 static unsigned int ComponentGUIDs = 0;
@@ -72,6 +86,8 @@ static Dynarr
 	DestroyedEntities = NULL,		// stores guids
 	ExistantEntities = NULL,		// stores struct entity *
 	CompSpecRegistry = NULL,
+	EntitySystemRegistry = NULL,
+	UnusedSpeech = NULL,
 	EntityNames = NULL,				// stores struct entity_name_map
 	EntityGroups = NULL				// stores struct entity_group_map
 	;
@@ -82,6 +98,8 @@ static int comp_sort (const void * a, const void * b);
 static int comp_search (const void * k, const void * d);
 static int spec_sort (const void * a, const void * b);
 static int spec_search (const void * k, const void * d);
+static int sys_sort (const void * a, const void * b);
+static int sys_search (const void * k, const void * d);
 static int entname_sort (const void * a, const void * b);
 static int entname_search (const void * k, const void * d);
 static int entgroup_sort (const void * a, const void * b);
@@ -92,12 +110,20 @@ static void mt_destroy (struct messageTrigger * mt);
 static int mt_sort (const void * a, const void * b);
 static int mt_search (const void * k, const void * d);
 
+void entity_purge (Entity e);
+
+static componentSpec comp_getSpec (const char * comp_name);
 static void component_messageSystem (const char * comp_name, const char * message, void * arg);
 static void component_message (EntComponent c, const char * message, void * arg);
 
-static componentSpec comp_getSpec (const char * comp_name);
-
 static void group_destroy (struct entity_group_map * group);
+
+static void entity_freeSpeech (struct entity_speech * speech);
+static entitySystem entitySystem_get (const char * name);
+static void entitySystem_removeEntity (entitySystem system, Entity entity);
+static bool entitySystem_entityRelevant (const entitySystem system, const Entity entity);
+static void entitySystem_messageAll (Entity from, const char * message, void * arg);
+static void entitySystem_destroy (entitySystem sys);
 
 static int guid_sort (const void * a, const void * b)
 {
@@ -146,6 +172,25 @@ static int spec_search (const void * k, const void * d) {
     );
 }
 
+static int sys_sort (const void * a, const void * b)
+{
+	return strcmp
+	(
+		(*(const entitySystem *)a)->name,
+		(*(const entitySystem *)b)->name
+	);
+}
+
+static int sys_search (const void * k, const void * d)
+{
+	return strcmp
+	(
+		*(char **)k,
+		(*(const entitySystem *)d)->name
+	);
+}
+
+
 static int entname_sort (const void * a, const void * b)
 {
 	return strcmp
@@ -182,7 +227,9 @@ static int entgroup_search (const void * k, const void * d)
 	);
 }
 
-
+/***
+ * ENTITIES
+ */
 
 Entity entity_create ()
 {
@@ -199,6 +246,7 @@ Entity entity_create ()
 	}
 	e->components = dynarr_create (2, sizeof (EntComponent));
 	e->listeners = dynarr_create (2, sizeof (Entity));
+	e->systems = dynarr_create (2, sizeof (entitySystem));
 	if (ExistantEntities == NULL)
 		ExistantEntities = dynarr_create (128, sizeof (Entity));
 	dynarr_push (ExistantEntities, e);
@@ -311,6 +359,25 @@ static void group_destroy (struct entity_group_map * group)
 	xph_free (group);
 }
 
+void entity_refresh (Entity e)
+{
+	entitySystem
+		sys;
+	int
+		i = 0;
+
+	if (EntitySystemRegistry == NULL)
+		return;
+	while ((sys = *(entitySystem *)dynarr_at (EntitySystemRegistry, i++)) != NULL)
+	{
+		if (entitySystem_entityRelevant (sys, e))
+		{
+			dynarr_push (sys->relevantEntities, e);
+			dynarr_push (e->systems, sys);
+		}
+	}
+}
+
 /***
  * MESSAGING
  */
@@ -333,6 +400,7 @@ void entity_speak (const Entity speaker, char * message, void * arg)
 		i = 0;
 	entity_message (speaker, speaker, message, arg);
 
+	entitySystem_messageAll (speaker, message, arg);
 	while ((listener = *(Entity *)dynarr_at (speaker->listeners, i++)) != NULL)
 	{
 		entity_message (listener, speaker, message, arg);
@@ -622,7 +690,7 @@ static int mt_search (const void * k, const void * d)
 
 /* returns a dynarr, which must be destroyed. In the event of a non-existant component or an intersection with no members, an empty dynarr is returned.
  */
-Dynarr entity_getEntitiesWithComponent (int n, ...)
+Dynarr entity_getWithv (int n, va_list comps)
 {
 	int
 		* indices = xph_alloc_name (sizeof (int) * n, "indices");
@@ -641,10 +709,14 @@ Dynarr entity_getEntitiesWithComponent (int n, ...)
 		highestGUID = 0;
 	bool
 		NULLbreak = false;
-	va_list
-		comps;
-	va_start (comps, n);
 	m = 0;
+	if (n == 0)
+	{
+		xph_free (comp_names);
+		xph_free (components);
+		xph_free (indices);
+		return final;
+	}
 	while (m < n)
 	{
 		comp_names[m] = va_arg (comps, char *);
@@ -669,7 +741,7 @@ Dynarr entity_getEntitiesWithComponent (int n, ...)
 		if (c == NULL)
 		{
 			// it's impossible to have any intersection, since there are no entities with this component. Therefore, we can just return the empty dynarr.
-			INFO ("%s: intersection impossible; no entities have component \"%s\"", __FUNCTION__, comp_names[j]);
+			DEBUG ("%s: intersection impossible; no entities have component \"%s\"", __FUNCTION__, comp_names[j]);
 			xph_free (comp_names);
 			xph_free (components);
 			xph_free (indices);
@@ -742,54 +814,103 @@ Dynarr entity_getEntitiesWithComponent (int n, ...)
 	return final;
 }
 
-
-
+Dynarr entity_getWith (int n, ...)
+{
+	va_list
+		components;
+	Dynarr
+		r;
+	va_start (components, n);
+	r = entity_getWithv (n, components);
+	va_end (components);
+	return r;
+}
 
 /***
  * ENTITY SYSTEM
  */
 
-
-void entity_purgeDestroyed (TIMER t)
+void entity_purgeDestroyed (TIMER timer)
 {
-	struct ent_component
-		* c = NULL;
 	Entity
 		e;
+	EntSpeech
+		speech;
 	FUNCOPEN ();
-	if (ToBeDestroyed == NULL)
+
+
+	if (UnusedSpeech != NULL)
 	{
-		FUNCCLOSE ();
-		return;
+		while ((speech = *(struct entity_speech **)dynarr_pop (UnusedSpeech)) != NULL)
+		{
+			entity_freeSpeech (speech);
+			if (timer != NULL && outOfTime (timer))
+				return;
+		}
 	}
+
+	if (ToBeDestroyed == NULL)
+		return;
+
 	while ((e = entity_get (*(unsigned int *)dynarr_pop (ToBeDestroyed))) != NULL)
 	{
 		DEBUG ("Destroying entity #%d", entity_GUID (e));
-		//printf ("destroying entity #%d; removing components:\n", e->guid);
-		while (!dynarr_isEmpty (e->components))
-		{
-			//printf ("%d component%s.\n", dynarr_size (e->components), (dynarr_size (e->components) == 1 ? "" : "s"));
-			c = *(struct ent_component **)dynarr_front (e->components);
-			DEBUG ("Destroying #%d:\"%s\"", e->guid, c->spec->comp_name);
-			component_remove (c->spec->comp_name, e);
-		}
-		dynarr_destroy (e->components);
-		dynarr_destroy (e->listeners);
-		//printf ("adding #%d to the destroyed list, to be reused\n", e->guid);
-		if (DestroyedEntities == NULL)
-		{
-			DestroyedEntities = dynarr_create (32, sizeof (unsigned int));
-		}
-		// TODO: this function requires two passes through the array even though since ExistantEntities is kept sorted it ought to be possible to search for the entity by GUID, unset it, and then condense from that index.
-		dynarr_remove_condense (ExistantEntities, e);
-		dynarr_push (DestroyedEntities, e->guid);
-		//printf ("done\n");
-		xph_free (e);
-		if (t != NULL && outOfTime (t))
+		entity_purge (e);
+		if (timer != NULL && outOfTime (timer))
 			return;
 	}
 	//printf ("...%s ()\n", __FUNCTION__);
 	FUNCCLOSE ();
+}
+
+void entity_purge (Entity e)
+{
+	struct ent_component
+		* c = NULL;
+	entitySystem
+		sys;
+	int
+		i = 0;
+	EntSpeech
+		speech = NULL;
+	//printf ("destroying entity #%d; removing components:\n", e->guid);
+	while (!dynarr_isEmpty (e->components))
+	{
+		//printf ("%d component%s.\n", dynarr_size (e->components), (dynarr_size (e->components) == 1 ? "" : "s"));
+		c = *(struct ent_component **)dynarr_front (e->components);
+		DEBUG ("Destroying #%d:\"%s\"", e->guid, c->spec->comp_name);
+		component_remove (c->spec->comp_name, e);
+	}
+	dynarr_destroy (e->components);
+	dynarr_destroy (e->listeners);
+	while (!dynarr_isEmpty (e->systems))
+	{
+		sys = *(entitySystem *)dynarr_front (e->systems);
+		i = 0;
+		if (sys->messages != NULL)
+		{
+			while ((speech = *(struct entity_speech **)dynarr_at (sys->messages, i)) != NULL)
+			{
+				if (speech->from == e)
+				{
+					dynarr_unset (sys->messages, i);
+					entity_freeSpeech (speech);
+				}
+				i++;
+			}
+			dynarr_condense (sys->messages);
+		}
+		entitySystem_removeEntity (sys, e);
+	}
+	//printf ("adding #%d to the destroyed list, to be reused\n", e->guid);
+	if (DestroyedEntities == NULL)
+	{
+		DestroyedEntities = dynarr_create (32, sizeof (unsigned int));
+	}
+	dynarr_remove_condense (ExistantEntities, e);
+	dynarr_push (DestroyedEntities, e->guid);
+	//printf ("done\n");
+	xph_free (e);
 }
 
 
@@ -865,6 +986,13 @@ void entity_destroyEverything ()
 		DestroyedEntities = NULL;
 	}
 
+	if (EntitySystemRegistry != NULL)
+	{
+		dynarr_map (EntitySystemRegistry, (void (*)(void *))entitySystem_destroy);
+		dynarr_destroy (EntitySystemRegistry);
+		EntitySystemRegistry = NULL;
+	}
+
 	if (EntityNames)
 	{
 		dynarr_map (EntityNames, xph_free);
@@ -893,6 +1021,159 @@ void entity_destroyEverything ()
 }
 
 
+/***
+ * ENTITY SYSTEMS
+ */
+
+static void entity_freeSpeech (struct entity_speech * speech)
+{
+	DEBUG ("Freeing speech from #%d (\"%s\") (%p)", speech->fromGUID, speech->message, speech);
+	if (speech->arg != NULL)
+		xph_free (speech->arg);
+	xph_free (speech->message);
+	xph_free (speech);
+}
+
+static entitySystem entitySystem_get (const char * sys_name)
+{
+	entitySystem
+		sys = NULL;
+	if (EntitySystemRegistry == NULL)
+	{
+		ERROR ("%s: no systems registered", __FUNCTION__);
+		return NULL;
+	}
+	sys = *(entitySystem *)dynarr_search (EntitySystemRegistry, sys_search, sys_name);
+	return sys;
+}
+
+void entitySystem_register (const char * name, sysFunc updateFunc, int components, ...)
+{
+	entitySystem
+		sys = xph_alloc (sizeof (struct xph_entity_system));
+	va_list
+		args;
+	const char
+		* comp_name = NULL;
+	char
+		* stored = NULL;
+	strncpy (sys->name, name, ENT_NAMELENGTH);
+	sys->update = updateFunc;
+
+	va_start (args, components);
+	sys->relevantEntities = entity_getWithv (components, args);
+	va_end (args);
+
+	sys->relevantComponents = dynarr_create (components + 1, sizeof (char *));
+	va_start (args, components);
+	while (components > 0)
+	{
+		comp_name = va_arg (args, char *);
+		stored = xph_alloc (strlen (comp_name) + 1);
+		strcpy (stored, comp_name);
+		dynarr_push (sys->relevantComponents, stored);
+		components--;
+	}
+	va_end (args);
+
+	sys->messages = dynarr_create (4, sizeof (EntSpeech));
+
+	if (EntitySystemRegistry == NULL)
+		EntitySystemRegistry = dynarr_create (2, sizeof (entitySystem));
+	dynarr_push (EntitySystemRegistry, sys);
+	dynarr_sort (EntitySystemRegistry, sys_sort);
+	return;
+}
+
+static bool entitySystem_entityRelevant (const entitySystem system, const Entity entity)
+{
+	EntComponent
+		comp;
+	const char
+		* comp_name;
+	int
+		i = 0,
+		j = 0,
+		match = 0,
+		total = dynarr_size (system->relevantComponents);
+	while ((comp_name = *(char **)dynarr_at (system->relevantComponents, i++)) != NULL)
+	{
+		j = 0;
+		while ((comp = *(EntComponent *)dynarr_at (entity->components, j++)) != NULL)
+		{
+			if (strcmp (comp_name, comp->spec->comp_name) == 0)
+			{
+				match++;
+				if (match == total)
+					return true;
+				break;
+			}
+		}
+	}
+	return false;
+}
+
+static void entitySystem_messageAll (Entity from, const char * message, void * arg)
+{
+	struct entity_speech
+		* speech;
+	entitySystem
+		sys;
+	int
+		 i = 0;
+	if (dynarr_size (from->systems) == 0)
+		return;
+	speech = xph_alloc (sizeof (struct entity_speech));
+	speech->from = from;
+	speech->fromGUID = entity_GUID (from);
+	speech->arg = arg;
+	speech->message = xph_alloc (strlen (message) + 1);
+	strcpy (speech->message, message);
+	speech->references = 0;
+	while ((sys = *(entitySystem *)dynarr_at (from->systems, i++)) != NULL)
+	{
+		if (sys->messages == NULL)
+			continue;
+		DEBUG ("Queuing speech from #%d (\"%s\") on system %s (%p)", speech->fromGUID, speech->message, sys->name, speech);
+		dynarr_push (sys->messages, speech);
+		speech->references++;
+	}
+	if (speech->references == 0)
+		entity_freeSpeech (speech);
+}
+
+EntSpeech entitySystem_dequeueMessage (const char * system)
+{
+	FUNCOPEN ();
+	entitySystem
+		sys = entitySystem_get (system);
+	EntSpeech
+		speech;
+	if (sys == NULL || sys->messages == NULL)
+		return NULL;
+
+	speech = *(EntSpeech *)dynarr_pop (sys->messages);
+	if (speech)
+		DEBUG ("Dequeueing speech from #%d (\"%s\") from system %s (%p)", speech->fromGUID, speech->message, system, speech);
+	if (speech && --speech->references == 0)
+	{
+		if (!UnusedSpeech)
+			UnusedSpeech = dynarr_create (4, sizeof (struct entity_speech *));
+		dynarr_push (UnusedSpeech, speech);
+	}
+	FUNCCLOSE ();
+	return speech;
+}
+
+void entitySystem_update (const char * name)
+{
+	entitySystem
+		sys = entitySystem_get (name);
+	if (!sys)
+		return;
+	sys->update (sys->relevantEntities);
+}
+
 void entitySystem_updateAll ()
 {
 	componentSpec
@@ -910,4 +1191,21 @@ void entitySystem_updateAll ()
 	{
 		component_messageSystem (sys->comp_name, "__postupdate", NULL);
 	}
+}
+
+static void entitySystem_removeEntity (entitySystem system, Entity entity)
+{
+	dynarr_remove_condense (system->relevantEntities, entity);
+	dynarr_remove_condense (entity->systems, system);
+}
+
+static void entitySystem_destroy (entitySystem sys)
+{
+	dynarr_destroy (sys->relevantEntities);
+	dynarr_map (sys->relevantComponents, xph_free);
+	dynarr_destroy (sys->relevantComponents);
+	// TODO: dynarr_map (sys->messages, {SOMETHING TO DECREMENT + DESTROY REFERENCE 0 MESSAGES}) ???
+	if (sys->messages != NULL)
+		dynarr_destroy (sys->messages);
+	xph_free (sys);
 }

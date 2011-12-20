@@ -365,6 +365,7 @@ void systemUpdate (void)
 			func (t);
 			i++;
 		}
+		entitySystem_update ("walking");
 		entitySystem_updateAll ();
 	}
 	FUNCCLOSE ();

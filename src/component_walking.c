@@ -143,7 +143,6 @@ static Dynarr
 static void walking_classDestroy (EntComponent comp, EntSpeech speech);
 static void walking_create (EntComponent comp, EntSpeech speech);
 static void walking_destroy (EntComponent comp, EntSpeech speech);
-static void walking_update (EntComponent comp, EntSpeech speech);
 static void walking_inputResponse (EntComponent comp, EntSpeech speech);
 
 void walking_define (EntComponent comp, EntSpeech speech)
@@ -152,8 +151,6 @@ void walking_define (EntComponent comp, EntSpeech speech)
 
 	component_registerResponse ("walking", "__create", walking_create);
 	component_registerResponse ("walking", "__destroy", walking_destroy);
-
-	component_registerResponse ("walking", "__update", walking_update);
 
 	component_registerResponse ("walking", "CONTROL_INPUT", walking_inputResponse);
 
@@ -196,21 +193,29 @@ static void walking_destroy (EntComponent comp, EntSpeech speech)
 	dynarr_remove_condense (comp_entdata, this);
 }
 
-static void walking_update (EntComponent comp, EntSpeech speech)
-{
-	Entity
-		e;
-	int
-		i = 0;
-	while ((e = *(Entity *)dynarr_at (comp_entdata, i++)))
-	{
-		walk_move (e);
-	}
-}
-
 static void walking_inputResponse (EntComponent comp, EntSpeech speech)
 {
 	Entity
 		this = component_entityAttached (comp);
 	walking_doControlInputResponse (this, speech->arg);
+}
+
+
+void walking_system (Dynarr entities)
+{
+	Entity
+		e;
+	EntSpeech
+		speech;
+	int
+		i = 0;
+
+	while ((speech = entitySystem_dequeueMessage ("walking")))
+	{
+	}
+
+	while ((e = *(Entity *)dynarr_at (comp_entdata, i++)))
+	{
+		walk_move (e);
+	}
 }

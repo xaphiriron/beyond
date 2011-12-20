@@ -380,7 +380,7 @@ void ui_destroy (EntComponent ui, EntSpeech speech)
 void ui_update (EntComponent ui, EntSpeech speech)
 {
 	Dynarr
-		uiEntities = entity_getEntitiesWithComponent (1, "ui");
+		uiEntities = entity_getWith (1, "ui");
 	Entity
 		uiEntity;
 	UIPANEL

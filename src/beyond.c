@@ -44,7 +44,6 @@ void bootstrap (void)
 	 *  - xph 2011 09 26
 	 */
 
-	//printf ("registering components\n");
 	component_register ("position", position_define);
 	component_register ("camera", camera_classInit);
 	component_register ("walking", walking_define);
@@ -52,6 +51,8 @@ void bootstrap (void)
 	component_register ("ui", ui_classInit);
 	component_register ("worldArch", worldarch_define);
 	component_register ("pattern", pattern_define);
+
+	entitySystem_register ("walking", walking_system, 1, "walking");
 
 	loadFont ("../img/default.png");
 	uiLoadPanelTexture ("../img/frame.png");
