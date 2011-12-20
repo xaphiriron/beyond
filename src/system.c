@@ -302,6 +302,7 @@ void systemCreatePlayer (Entity base)
 		systemPlacePlayerAt (map_posFocusedPlatter (position_get (base)));
 	}
 	component_instantiate ("walking", player);
+	entity_refresh (player);
 
 	camera = entity_create ();
 	component_instantiate ("position", camera);
@@ -314,6 +315,7 @@ void systemCreatePlayer (Entity base)
 	{
 		input_addEntity (camera, INPUT_CONTROLLED);
 	}
+	entity_refresh (camera);
 
 	FUNCCLOSE ();
 }

@@ -86,6 +86,7 @@ void load (TIMER t)
 	entity_message (titleScreenMenu, NULL, "setType", (void *)UI_MENU);
 	component_instantiate ("input", titleScreenMenu);
 	input_addEntity (titleScreenMenu, INPUT_FOCUSED);
+	entity_refresh (titleScreenMenu);
 
 	entity_message (titleScreenMenu, NULL, "addValue", "New Game");
 	entity_message (titleScreenMenu, NULL, "setAction", (void *)IR_WORLDGEN);

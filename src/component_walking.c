@@ -155,36 +155,21 @@ void walking_doControlInputResponse (Entity e, const struct input_event * ie)
 	}
 }
 
-static Dynarr
-	comp_entdata = NULL;
-
-static void walking_classDestroy (EntComponent comp, EntSpeech speech);
 static void walking_create (EntComponent comp, EntSpeech speech);
 static void walking_destroy (EntComponent comp, EntSpeech speech);
 static void walking_inputResponse (EntComponent comp, EntSpeech speech);
 
 void walking_define (EntComponent comp, EntSpeech speech)
 {
-	component_registerResponse ("walking", "__classDestroy", walking_classDestroy);
 
 	component_registerResponse ("walking", "__create", walking_create);
 	component_registerResponse ("walking", "__destroy", walking_destroy);
 
 	component_registerResponse ("walking", "CONTROL_INPUT", walking_inputResponse);
-
-	comp_entdata = dynarr_create (8, sizeof (Entity));
-}
-
-static void walking_classDestroy (EntComponent comp, EntSpeech speech)
-{
-	dynarr_destroy (comp_entdata);
-	comp_entdata = NULL;
 }
 
 static void walking_create (EntComponent comp, EntSpeech speech)
 {
-	Entity
-		this = component_entityAttached (comp);
 	walkData
 		walk = xph_alloc (sizeof (struct walkmove_data));
 	// the MOVE value is as follows: a value of 1 will result in the entity crossing tiles at a speed of one per second. 2 is two per second. etc.
@@ -195,20 +180,15 @@ static void walking_create (EntComponent comp, EntSpeech speech)
 
 	component_setData (comp, walk);
 
-	dynarr_push (comp_entdata, this);
 }
 
 static void walking_destroy (EntComponent comp, EntSpeech speech)
 {
-	Entity
-		this = component_entityAttached (comp);
 	walkData
 		walk = component_getData (comp);
 	xph_free (walk);
 
 	component_clearData (comp);
-
-	dynarr_remove_condense (comp_entdata, this);
 }
 
 static void walking_inputResponse (EntComponent comp, EntSpeech speech)
@@ -232,7 +212,7 @@ void walking_system (Dynarr entities)
 	{
 	}
 
-	while ((e = *(Entity *)dynarr_at (comp_entdata, i++)))
+	while ((e = *(Entity *)dynarr_at (entities, i++)))
 	{
 		walk_move (e);
 	}
