@@ -1,12 +1,13 @@
 #include "entity.h"
 
+// this same value is used for entity names, system names, and component specification names. i just don't think it's reasonable to use separate defines for each because i am lazy. - xph 2011 12 20
 #define ENT_NAMELENGTH 32
 
 struct entity {
 	unsigned int
 		guid;
 
-  // this is a local variable to make fetching components from a specific entity faster. It stores the same data as a EntSystem->entities vector, which is to say EntComponents (something todo: this is named "components" whereas the system vector is named "entities". this is confusing and dumb.)
+  // this is a local variable to make fetching components from a specific entity faster. It stores the same data as a componentSpec->entities vector, which is to say EntComponents (something todo: this is named "components" whereas the system vector is named "entities". this is confusing and dumb.)
   Dynarr
 		components,
 		listeners;
@@ -36,9 +37,10 @@ struct entity_group_map
 		members;
 };
 
-struct ent_system {
+struct xph_component_specification
+{
 	char
-		comp_name[COMPNAMELENGTH];
+		comp_name[ENT_NAMELENGTH];
 	Dynarr
 		entities,
 		messageTriggers;
@@ -46,14 +48,19 @@ struct ent_system {
 	void (* loaderCallback) (TIMER, EntComponent);
 	unsigned char (* weighCallback) (EntComponent);
 };
+typedef struct xph_component_specification * componentSpec;
 
 
 struct ent_component
 {
-  Entity e;
-  EntSystem reg;
-  void * comp_data;
-  unsigned int comp_guid;
+	Entity
+		e;
+	componentSpec
+		spec;
+	void
+		* comp_data;
+	unsigned int
+		comp_guid;
 };
 
 
@@ -64,7 +71,7 @@ static Dynarr
 	ToBeDestroyed = NULL,			// stores guids
 	DestroyedEntities = NULL,		// stores guids
 	ExistantEntities = NULL,		// stores struct entity *
-	SystemRegistry = NULL,
+	CompSpecRegistry = NULL,
 	EntityNames = NULL,				// stores struct entity_name_map
 	EntityGroups = NULL				// stores struct entity_group_map
 	;
@@ -73,8 +80,8 @@ static int guid_sort (const void * a, const void * b);
 static int guid_search (const void * k, const void * d);
 static int comp_sort (const void * a, const void * b);
 static int comp_search (const void * k, const void * d);
-static int sys_sort (const void * a, const void * b);
-static int sys_search (const void * k, const void * d);
+static int spec_sort (const void * a, const void * b);
+static int spec_search (const void * k, const void * d);
 static int entname_sort (const void * a, const void * b);
 static int entname_search (const void * k, const void * d);
 static int entgroup_sort (const void * a, const void * b);
@@ -88,7 +95,7 @@ static int mt_search (const void * k, const void * d);
 static void component_messageSystem (const char * comp_name, const char * message, void * arg);
 static void component_message (EntComponent c, const char * message, void * arg);
 
-static EntSystem entity_getSystemByName (const char * comp_name);
+static componentSpec comp_getSpec (const char * comp_name);
 
 static void group_destroy (struct entity_group_map * group);
 
@@ -121,21 +128,21 @@ static int comp_search (const void * k, const void * d) {
     (*(const struct ent_component **)d)->e->guid;
 }
 
-static int sys_sort (const void * a, const void * b) {
+static int spec_sort (const void * a, const void * b) {
   //printf ("%s: got \"%s\" vs. \"%s\"\n", __FUNCTION__, (*(const struct ent_system **)a)->comp_name, (*(const struct ent_system **)b)->comp_name);
   return
     strcmp (
-      (*(const struct ent_system **)a)->comp_name,
-      (*(const struct ent_system **)b)->comp_name
+      (*(const componentSpec *)a)->comp_name,
+      (*(const componentSpec *)b)->comp_name
     );
 }
 
-static int sys_search (const void * k, const void * d) {
+static int spec_search (const void * k, const void * d) {
   //printf ("%s: got \"%s\" vs. \"%s\"\n", __FUNCTION__, *(char **)k, (*(const struct ent_system **)d)->comp_name);
   return
     strcmp (
       *(char **)k,
-      (*(const struct ent_system **)d)->comp_name
+      (*(const componentSpec *)d)->comp_name
     );
 }
 
@@ -361,8 +368,8 @@ bool entity_message (Entity e, Entity from, char * message, void * arg)
 
 static void component_messageSystem (const char * comp_name, const char * message, void * arg)
 {
-	EntSystem
-		component = entity_getSystemByName (comp_name);
+	componentSpec
+		component = comp_getSpec (comp_name);
 	struct messageTrigger
 		* mt;
 	int
@@ -381,7 +388,7 @@ static void component_messageSystem (const char * comp_name, const char * messag
 static void component_message (EntComponent c, const char * message, void * arg)
 {
 	struct messageTrigger
-		* mt = *(struct messageTrigger **)dynarr_search (c->reg->messageTriggers, mt_search, message);
+		* mt = *(struct messageTrigger **)dynarr_search (c->spec->messageTriggers, mt_search, message);
 	int
 		i = 0;
 	if (mt == NULL)
@@ -398,42 +405,37 @@ static void component_message (EntComponent c, const char * message, void * arg)
 
 bool component_register (const char * comp_name, compFunc classInit)
 {
-	struct ent_system
-		* reg;
-	if (!classInit)
+	componentSpec
+		spec;
+	if (!classInit || !comp_name || !comp_name[0])
 	{
-		ERROR ("Can't create component; must have a component definition.");
+		ERROR ("Can't create component; must have a component definition and name.");
 		return false;
 	}
-	if (comp_name[0] == 0)
-	{
-		ERROR ("Can't create component: Needs a name.");
-		return false;
-	}
-	reg = xph_alloc (sizeof (struct ent_system));
-	memset (reg, 0, sizeof (struct ent_system));
-	strncpy (reg->comp_name, comp_name, COMPNAMELENGTH - 1);
+	spec = xph_alloc (sizeof (struct xph_component_specification));
+
+	strncpy (spec->comp_name, comp_name, ENT_NAMELENGTH - 1);
 	
-	reg->entities = dynarr_create (4, sizeof (EntComponent *));
+	spec->entities = dynarr_create (4, sizeof (EntComponent *));
 
-	reg->loaderCallback = NULL;
-	reg->weighCallback = NULL;
+	spec->loaderCallback = NULL;
+	spec->weighCallback = NULL;
 
-	reg->messageTriggers = dynarr_create (4, sizeof (struct messageTrigger *));
-	if (SystemRegistry == NULL)
-		SystemRegistry = dynarr_create (4, sizeof (EntSystem *));
-	dynarr_push (SystemRegistry, reg);
-	dynarr_sort (SystemRegistry, sys_sort);
+	spec->messageTriggers = dynarr_create (4, sizeof (struct messageTrigger *));
+	if (CompSpecRegistry == NULL)
+		CompSpecRegistry = dynarr_create (4, sizeof (componentSpec *));
+	dynarr_push (CompSpecRegistry, spec);
+	dynarr_sort (CompSpecRegistry, spec_sort);
 
-	component_registerResponse (reg->comp_name, "__classInit", classInit);
-	component_messageSystem (reg->comp_name, "__classInit", NULL);
+	component_registerResponse (spec->comp_name, "__classInit", classInit);
+	component_messageSystem (spec->comp_name, "__classInit", NULL);
 	return true;
 }
 
 void component_destroy (const char * comp_name)
 {
-	EntSystem
-		sys = entity_getSystemByName (comp_name);
+	componentSpec
+		sys = comp_getSpec (comp_name);
 	EntComponent
 		c = NULL;
 	//printf ("%s (\"%s\")...\n", __FUNCTION__, comp_name);
@@ -455,26 +457,26 @@ void component_destroy (const char * comp_name)
 	dynarr_destroy (sys->messageTriggers);
 
 	dynarr_destroy (sys->entities);
-	dynarr_remove_condense (SystemRegistry, sys);
+	dynarr_remove_condense (CompSpecRegistry, sys);
 	xph_free (sys);
 }
 
 bool component_instantiate (const char * comp_name, Entity e)
 {
-	EntSystem
-		sys = entity_getSystemByName (comp_name);
+	componentSpec
+		spec = comp_getSpec (comp_name);
 	struct ent_component
 		* instance = NULL;
-	if (sys == NULL)
+	if (!spec)
 		return false;
 	instance = xph_alloc (sizeof (struct ent_component));
 	instance->e = e;
-	instance->reg = sys;
+	instance->spec = spec;
 	instance->comp_guid = ++ComponentGUIDs;
 	// we care less about enforcing uniqueness of component guids than we do about entities.
-	dynarr_push (sys->entities, instance);
+	dynarr_push (spec->entities, instance);
 	dynarr_push (e->components, instance);
-	dynarr_sort (sys->entities, comp_sort);
+	dynarr_sort (spec->entities, comp_sort);
 	dynarr_sort (e->components, comp_sort);
 
 	instance->comp_data = NULL;
@@ -484,8 +486,8 @@ bool component_instantiate (const char * comp_name, Entity e)
 
 bool component_remove (const char * comp_name, Entity e)
 {
-	EntSystem
-		sys = entity_getSystemByName (comp_name);
+	componentSpec
+		sys = comp_getSpec (comp_name);
 	EntComponent
 		comp = NULL;
 
@@ -518,7 +520,7 @@ bool component_setData (EntComponent c, void * data)
 		return false;
 	if (c->comp_data)
 	{
-		ERROR ("Could not set component data for \"%s\" on #%d: data already set to %p", c->reg->comp_name, entity_GUID (component_entityAttached (c)), c->comp_data);
+		ERROR ("Could not set component data for \"%s\" on #%d: data already set to %p", c->spec->comp_name, entity_GUID (component_entityAttached (c)), c->comp_data);
 		return false;
 	}
 	c->comp_data = data;
@@ -543,8 +545,8 @@ bool component_clearData (EntComponent c)
 
 bool component_registerResponse (const char * comp_name, const char * message, compFunc * function)
 {
-	EntSystem
-		sys = entity_getSystemByName (comp_name);
+	componentSpec
+		sys = comp_getSpec (comp_name);
 	struct messageTrigger
 		* mt;
 	if (sys == NULL)
@@ -566,8 +568,8 @@ bool component_registerResponse (const char * comp_name, const char * message, c
 
 bool component_clearResponses (const char * comp_name, const char * message)
 {
-	EntSystem
-		sys = entity_getSystemByName (comp_name);
+	componentSpec
+		sys = comp_getSpec (comp_name);
 	struct messageTrigger
 		* mt;
 	if (sys == NULL)
@@ -629,7 +631,7 @@ Dynarr entity_getEntitiesWithComponent (int n, ...)
 		final = dynarr_create (2, sizeof (Entity *));
 	const char
 		** comp_names = xph_alloc_name (sizeof (char *) * n, "names");
-	EntSystem
+	componentSpec
 		sys = NULL;
 	EntComponent
 		c = NULL;
@@ -646,7 +648,7 @@ Dynarr entity_getEntitiesWithComponent (int n, ...)
 	while (m < n)
 	{
 		comp_names[m] = va_arg (comps, char *);
-		sys = entity_getSystemByName (comp_names[m]);
+		sys = comp_getSpec (comp_names[m]);
 		if (sys == NULL)
 		{
 			// it's impossible to have any intersection with an invalid component, since no entity will have it. Therefore, we can just return the empty dynarr.
@@ -768,8 +770,8 @@ void entity_purgeDestroyed (TIMER t)
 		{
 			//printf ("%d component%s.\n", dynarr_size (e->components), (dynarr_size (e->components) == 1 ? "" : "s"));
 			c = *(struct ent_component **)dynarr_front (e->components);
-			DEBUG ("Destroying #%d:\"%s\"", e->guid, c->reg->comp_name);
-			component_remove (c->reg->comp_name, e);
+			DEBUG ("Destroying #%d:\"%s\"", e->guid, c->spec->comp_name);
+			component_remove (c->spec->comp_name, e);
 		}
 		dynarr_destroy (e->components);
 		dynarr_destroy (e->listeners);
@@ -792,24 +794,25 @@ void entity_purgeDestroyed (TIMER t)
 
 
 
-static EntSystem entity_getSystemByName (const char * comp_name) {
-  struct ent_system * sys = NULL;
-  if (SystemRegistry == NULL) {
-    fprintf (stderr, "%s: no components registered\n", __FUNCTION__);
-    return NULL;
-  }
-  sys = *(struct ent_system **)dynarr_search (SystemRegistry, sys_search, comp_name);
-  if (sys == NULL) {
-    //fprintf (stderr, "%s: no component named \"%s\" registered\n", __FUNCTION__, comp_name);
-    return NULL;
-  }
-  return sys;
+static componentSpec comp_getSpec (const char * comp_name)
+{
+	componentSpec
+		spec = NULL;
+	if (CompSpecRegistry == NULL)
+	{
+		fprintf (stderr, "%s: no components registered\n", __FUNCTION__);
+		return NULL;
+	}
+	spec = *(componentSpec *)dynarr_search (CompSpecRegistry, spec_search, comp_name);
+	if (!spec)
+		return NULL;
+	return spec;
 }
 
 EntComponent entity_getAs (Entity e, const char * comp_name)
 {
-	EntSystem
-		sys = entity_getSystemByName (comp_name);
+	componentSpec
+		sys = comp_getSpec (comp_name);
 	EntComponent
 		comp = NULL;
 
@@ -826,7 +829,7 @@ EntComponent entity_getAs (Entity e, const char * comp_name)
 
 void entity_destroyEverything ()
 {
-	EntSystem
+	componentSpec
 		sys = NULL;
 	Entity
 		e = NULL;
@@ -876,34 +879,34 @@ void entity_destroyEverything ()
 		EntityGroups = NULL;
 	}
 
-	if (SystemRegistry == NULL)
+	if (CompSpecRegistry == NULL)
 		return;
-	while (!dynarr_isEmpty (SystemRegistry))
+	while (!dynarr_isEmpty (CompSpecRegistry))
 	{
-		sys = *(EntSystem *)dynarr_front (SystemRegistry);
+		sys = *(componentSpec *)dynarr_front (CompSpecRegistry);
 		DEBUG ("Destroying system \"%s\"", sys->comp_name);
 		component_destroy (sys->comp_name);
 	}
-	dynarr_destroy (SystemRegistry);
-	SystemRegistry = NULL;
+	dynarr_destroy (CompSpecRegistry);
+	CompSpecRegistry = NULL;
 	FUNCCLOSE ();
 }
 
 
 void entitySystem_updateAll ()
 {
-	EntSystem
+	componentSpec
 		sys;
 	int
 		i = 0;
-	if (!SystemRegistry)
+	if (!CompSpecRegistry)
 		return;
-	while ((sys = *(EntSystem *)dynarr_at (SystemRegistry, i++)) != NULL)
+	while ((sys = *(componentSpec *)dynarr_at (CompSpecRegistry, i++)) != NULL)
 	{
 		component_messageSystem (sys->comp_name, "__update", NULL);
 	}
 	i = 0;
-	while ((sys = *(EntSystem *)dynarr_at (SystemRegistry, i++)) != NULL)
+	while ((sys = *(componentSpec *)dynarr_at (CompSpecRegistry, i++)) != NULL)
 	{
 		component_messageSystem (sys->comp_name, "__postupdate", NULL);
 	}

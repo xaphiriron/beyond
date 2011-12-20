@@ -6,11 +6,12 @@
 #include "timer.h"
 #include "dynarr.h"
 
-#define COMPNAMELENGTH 32
-
 typedef struct entity * Entity;
-typedef struct ent_system * EntSystem;
 typedef struct ent_component * EntComponent;
+typedef struct entity_speech * EntSpeech;
+
+typedef void (compFunc) (EntComponent, EntSpeech);
+typedef void (sysFunc) (const Dynarr);
 
 struct entity_speech
 {
@@ -27,11 +28,6 @@ struct entity_speech
 	signed int
 		references;
 };
-
-typedef struct entity_speech * EntSpeech;
-
-typedef void (compFunc) (EntComponent, EntSpeech);
-typedef void (sysFunc) (const Dynarr);
 
 /***
  * ENTITIES
@@ -93,7 +89,6 @@ Dynarr entity_getEntitiesWithComponent (int n, ...);
  */
 
 void entity_purgeDestroyed (TIMER t);
-
 void entity_destroyEverything ();
 
 void entitySystem_updateAll ();
