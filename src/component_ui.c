@@ -136,6 +136,27 @@ struct panelTexture
 		inside;	// repeatable inside
 };
 
+void ui_create (EntComponent ui, EntSpeech speech);
+void ui_destroy (EntComponent ui, EntSpeech speech);
+
+void ui_setType (EntComponent ui, EntSpeech speech);
+void ui_getType (EntComponent ui, EntSpeech speech);
+
+void ui_addValue (EntComponent ui, EntSpeech speech);
+void ui_setAction (EntComponent ui, EntSpeech speech);
+
+void ui_setPositionType (EntComponent ui, EntSpeech speech);
+void ui_setBackground (EntComponent ui, EntSpeech speech);
+void ui_setBorder (EntComponent ui, EntSpeech speech);
+void ui_setLineSpacing (EntComponent ui, EntSpeech speech);
+void ui_setXPosition (EntComponent ui, EntSpeech speech);
+void ui_setYPosition (EntComponent ui, EntSpeech speech);
+void ui_setWidth (EntComponent ui, EntSpeech speech);
+
+void ui_handleInput (EntComponent ui, EntSpeech speech);
+
+void ui_draw (EntComponent ui, EntSpeech speech);
+
 static void panelTextureDestroy (struct panelTexture * pt);
 static struct panelTexture * panelTextureLoad (const char * path);
 
@@ -332,14 +353,12 @@ void ui_getWH (UIPANEL ui, signed int * w, signed int * h)
  * UI COMPONENT RESPONSES
  */
 
-void ui_classInit (EntComponent ui, EntSpeech speech)
+void ui_define (EntComponent ui, EntSpeech speech)
 {
 	video_getDimensions (&width, &height);
 
 	component_registerResponse ("ui", "__create", ui_create);
 	component_registerResponse ("ui", "__destroy", ui_destroy);
-
-	component_registerResponse ("ui", "__update", ui_update);
 
 	component_registerResponse ("ui", "setType", ui_setType);
 	component_registerResponse ("ui", "getType", ui_getType);
@@ -377,43 +396,6 @@ void ui_destroy (EntComponent ui, EntSpeech speech)
 	component_clearData (ui);
 }
 
-void ui_update (EntComponent ui, EntSpeech speech)
-{
-	Dynarr
-		uiEntities = entity_getWith (1, "ui");
-	Entity
-		uiEntity;
-	UIPANEL
-		uiData;
-	struct uiMenuOpt
-		* opt;
-	int
-		i = 0,
-		j = 0;
-
-	while ((uiEntity = *(Entity *)dynarr_at (uiEntities, i++)) != NULL)
-	{
-		uiData = component_getData (entity_getAs (uiEntity, "ui"));
-		j = 0;
-
-		switch (uiData->type)
-		{
-			case UI_MENU:
-				while ((opt = *(struct uiMenuOpt **)dynarr_at (uiData->menu.menuOpt, j++)) != NULL)
-				{
-					if (opt->highlight == 0.0)
-						continue;
-					opt->highlight -= lastTimestep (uiData->menu.timer) * uiData->menu.fadeScale;
-					if (opt->highlight < 0.0)
-						opt->highlight = 0.0;
-				}
-				break;
-			default:
-				break;
-		}
-
-	}
-}
 
 void ui_setType (EntComponent ui, EntSpeech speech)
 {
@@ -870,6 +852,64 @@ void ui_draw (EntComponent ui, EntSpeech speech)
 		default:
 			break;
 	}
+}
+
+/***
+ * SYSTEMS
+ */
+
+void ui_system (Dynarr entities)
+{
+	Entity
+		uiEntity;
+	UIPANEL
+		uiData;
+	struct uiMenuOpt
+		* opt;
+	int
+		i = 0,
+		j = 0;
+
+	while ((uiEntity = *(Entity *)dynarr_at (entities, i++)) != NULL)
+	{
+		uiData = component_getData (entity_getAs (uiEntity, "ui"));
+		j = 0;
+
+		switch (uiData->type)
+		{
+			case UI_MENU:
+				while ((opt = *(struct uiMenuOpt **)dynarr_at (uiData->menu.menuOpt, j++)) != NULL)
+				{
+					if (opt->highlight == 0.0)
+						continue;
+					opt->highlight -= lastTimestep (uiData->menu.timer) * uiData->menu.fadeScale;
+					if (opt->highlight < 0.0)
+						opt->highlight = 0.0;
+				}
+				break;
+			default:
+				break;
+		}
+
+	}
+}
+
+void uiRender_system (Dynarr entities)
+{
+	int
+		i = 0;
+	Entity
+		ui;
+
+	glLoadIdentity ();
+	glDisable (GL_DEPTH_TEST);
+
+	while ((ui = *(Entity *)dynarr_at (entities, i++)))
+	{
+		entity_message (ui, NULL, "draw", NULL);
+	}
+
+	glEnable (GL_DEPTH_TEST);
 }
 
 /***

@@ -40,7 +40,6 @@ SYSTEM
 	* System = NULL;
 
 void systemUpdate (void);
-void systemRender (void);
 
 void systemInit ()
 {
@@ -106,7 +105,6 @@ int systemLoop ()
 	while (!System->quit)
 	{
 		systemUpdate ();
-		systemRender ();
 	}
 	return 0;
 }
@@ -345,6 +343,7 @@ void systemUpdate (void)
 	int
 		i;
 	FUNCOPEN ();
+
 	if (System == NULL)
 		return;
 	clock_update (System->clock);
@@ -368,8 +367,16 @@ void systemUpdate (void)
 			i++;
 		}
 		entitySystem_update ("walking");
+		entitySystem_update ("ui");
+
 		entitySystem_updateAll ();
 	}
+
+	videoPrerender ();
+	entitySystem_update ("TEMPsystemRender");
+	entitySystem_update ("uiRender");
+	videoPostrender ();
+
 	FUNCCLOSE ();
 }
 
@@ -379,7 +386,7 @@ void systemUpdate (void)
 
 static void renderSkyCube ();
 
-void systemRender (void)
+void systemRender (Dynarr entities)
 {
 	Entity
 		camera;
@@ -387,8 +394,6 @@ void systemRender (void)
 		* matrix;
 	float
 		fakeMatrix[16];
-	int
-		i;
 	unsigned int
 		width,
 		height;
@@ -400,7 +405,6 @@ void systemRender (void)
 	if (System == NULL)
 		return;
 	video_getDimensions (&width, &height);
-	videoPrerender ();
 	if (systemState (System) == STATE_LOADING)
 	{
 		glDisable (GL_DEPTH_TEST);
@@ -428,7 +432,6 @@ void systemRender (void)
 		drawLine (SysLoader.displayText, width/2, height/1.5);
 
 		glEnable (GL_DEPTH_TEST);
-		videoPostrender ();
 		return;
 	}
 
@@ -458,21 +461,6 @@ void systemRender (void)
 		}
 	}
 
-	if (dynarr_size (System->uiPanels))
-	{
-		glLoadIdentity ();
-		glDisable (GL_DEPTH_TEST);
-		i = 0;
-		while (i < dynarr_size (System->uiPanels))
-		{
-			// draw ui stuff
-			entity_message (*(Entity *)dynarr_at (System->uiPanels, i), NULL, "draw", NULL);
-			i++;
-		}
-		glEnable (GL_DEPTH_TEST);
-	}
-	glEnable (GL_DEPTH_TEST);
-	videoPostrender ();
 }
 
 static void renderSkyCube ()
@@ -608,6 +596,7 @@ int system_message (objMsg msg, void * a, void * b)
 		case OM_FORCEWORLDGEN:
 			dynarr_map (System->uiPanels, (void (*)(void *))entity_destroy);
 			dynarr_clear (System->uiPanels);
+			dynarr_map (entity_getWith (1, "ui"), (void (*)(void *))entity_destroy);
 
 			printf ("TRIGGERING WORLDGEN:\n");
 			systemLoad (worldInit, worldGenerate, worldFinalize);

@@ -48,11 +48,18 @@ void bootstrap (void)
 	component_register ("camera", camera_classInit);
 	component_register ("walking", walking_define);
 	component_register ("input", input_define);
-	component_register ("ui", ui_classInit);
+	component_register ("ui", ui_define);
 	component_register ("worldArch", worldarch_define);
 	component_register ("pattern", pattern_define);
 
 	entitySystem_register ("walking", walking_system, 1, "walking");
+	entitySystem_register ("ui", ui_system, 1, "ui");
+
+	entitySystem_register ("uiRender", uiRender_system, 1, "ui");
+	entitySystem_disableMessages ("uiRender");
+
+	entitySystem_register ("TEMPsystemRender", systemRender, 0);
+	entitySystem_disableMessages ("TEMPsystemRender");
 
 	loadFont ("../img/default.png");
 	uiLoadPanelTexture ("../img/frame.png");

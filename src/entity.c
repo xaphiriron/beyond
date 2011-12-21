@@ -1142,6 +1142,21 @@ static void entitySystem_messageAll (Entity from, const char * message, void * a
 		entity_freeSpeech (speech);
 }
 
+void entitySystem_disableMessages (const char * system)
+{
+	entitySystem
+		sys = entitySystem_get (system);
+	if (!sys)
+		return;
+	if (dynarr_size (sys->messages))
+	{
+		WARNING ("Can't disable messages for system \"%s\"; there are already messages in the queue", system);
+		return;
+	}
+	dynarr_destroy (sys->messages);
+	sys->messages = NULL;
+}
+
 EntSpeech entitySystem_dequeueMessage (const char * system)
 {
 	FUNCOPEN ();

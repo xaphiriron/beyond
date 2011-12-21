@@ -50,6 +50,8 @@ void systemDestroy ();
 
 int systemLoop ();
 
+void systemRender (Dynarr entities);
+
 
 const TIMER system_getTimer ();
 

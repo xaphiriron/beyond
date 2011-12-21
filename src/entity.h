@@ -97,6 +97,7 @@ void entity_destroyEverything ();
 
 void entitySystem_register (const char * name, sysFunc updateFunc, int components, ...);
 
+void entitySystem_disableMessages (const char * system);
 EntSpeech entitySystem_dequeueMessage (const char * system);
 
 void entitySystem_update (const char * name);

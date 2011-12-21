@@ -47,29 +47,9 @@ void ui_getXY (UIPANEL ui, signed int * x, signed int * y);
 void ui_getWH (UIPANEL ui, signed int * w, signed int * h);
 
 
-void ui_classInit (EntComponent ui, EntSpeech speech);
+void ui_define (EntComponent ui, EntSpeech speech);
 
-void ui_create (EntComponent ui, EntSpeech speech);
-void ui_destroy (EntComponent ui, EntSpeech speech);
-
-void ui_update (EntComponent ui, EntSpeech speech);
-
-void ui_setType (EntComponent ui, EntSpeech speech);
-void ui_getType (EntComponent ui, EntSpeech speech);
-
-void ui_addValue (EntComponent ui, EntSpeech speech);
-void ui_setAction (EntComponent ui, EntSpeech speech);
-
-void ui_setPositionType (EntComponent ui, EntSpeech speech);
-void ui_setBackground (EntComponent ui, EntSpeech speech);
-void ui_setBorder (EntComponent ui, EntSpeech speech);
-void ui_setLineSpacing (EntComponent ui, EntSpeech speech);
-void ui_setXPosition (EntComponent ui, EntSpeech speech);
-void ui_setYPosition (EntComponent ui, EntSpeech speech);
-void ui_setWidth (EntComponent ui, EntSpeech speech);
-
-void ui_handleInput (EntComponent ui, EntSpeech speech);
-
-void ui_draw (EntComponent ui, EntSpeech speech);
+void ui_system (Dynarr uiEntities);
+void uiRender_system (Dynarr entities);
 
 #endif /* XPH_COMPONENT_UI_H */

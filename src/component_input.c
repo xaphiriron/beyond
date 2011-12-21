@@ -264,6 +264,7 @@ void input_sendGameEventMessage (const struct input_event * ie)
 				entity_message (newUI, NULL, "setType", (void *)UI_WORLDMAP);
 				component_instantiate ("input", newUI);
 				input_addEntity (newUI, INPUT_FOCUSED);
+				entity_refresh (newUI);
 
 				systemPushUI (newUI);
 				systemPushState (STATE_UI);
@@ -282,6 +283,7 @@ void input_sendGameEventMessage (const struct input_event * ie)
 				newUI = entity_create ();
 				component_instantiate ("ui", newUI);
 				entity_message (newUI, NULL, "setType", (void *)UI_DEBUG_OVERLAY);
+				entity_refresh (newUI);
 
 				systemPushUI (newUI);
 				systemToggleAttr (SYS_DEBUG);
