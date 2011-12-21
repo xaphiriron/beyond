@@ -2176,12 +2176,10 @@ int mapDistanceFrom (const hexPos pos, const SUBHEX hex)
 	if (!pos || !hex)
 		return INT_MAX;
 	span = subhexSpanLevel (hex);
-	//printf ("comparing...\n");
 
 	// if the hexPos is focused at a span level higher than the subhex exists (e.g., the hexPos is focused at span level 3 but the subhex is a level 0 hex) then the distance should be measured between the lvl 0 hex and the lvl 3 platter. since hexPos shouldn't store the platters below their focus threshhold (i think...?) it should be reasonable to do this, since the not-equals will pass for whatever subhex vs. a NULL pointer - xph 2011 12 14
 	while (active != pos->platter[span])
 	{
-
 		subhexLocalCoordinates (active, &x, &y);
 		mapScaleCoordinates
 		(
@@ -2200,6 +2198,37 @@ int mapDistanceFrom (const hexPos pos, const SUBHEX hex)
 	//printf ("total difference: %d, %d: %d\n", xTotalDiff, yTotalDiff, hexMagnitude (xTotalDiff, yTotalDiff));
 
 	return hexMagnitude (xTotalDiff, yTotalDiff);
+}
+
+VECTOR3 mapDistanceBetween (const SUBHEX a, const SUBHEX b)
+{
+	hexPos
+		aPos = map_at (a),
+		bPos = map_at (b);
+	int
+		focus = aPos->focus < bPos->focus
+			? aPos->focus
+			: bPos->focus;
+	VECTOR3
+		level,
+		r = vectorCreate (0.0, 0.0, 0.0);
+
+	while (focus <= MapSpan)
+	{
+		printf ("using %p (%d, %d) and %p (%d, %d)\n", aPos->platter[focus], aPos->x[focus], aPos->y[focus], bPos->platter[focus], bPos->x[focus], bPos->y[focus]);
+		if (aPos->platter[focus] == bPos->platter[focus])
+			break;
+		printf ("using %d: %d, %d\n", focus, aPos->x[focus] - bPos->x[focus], aPos->y[focus] - bPos->y[focus]);
+		level = mapDistanceFromSubhexCentre (focus, aPos->x[focus] - bPos->x[focus], aPos->y[focus] - bPos->y[focus]);
+		r = vectorAdd (&r, &level);
+
+		focus++;
+	}
+
+	map_freePos (aPos);
+	map_freePos (bPos);
+
+	return r;
 }
 
 /***
@@ -2322,6 +2351,11 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 	 *   - xph 2011 07 28
 	 */
 	dynarr_map (RenderCache, mapCheckLoadStatusAndImprint);
+}
+
+VECTOR3 renderOriginDistance (const SUBHEX hex)
+{
+	return mapDistanceBetween (RenderOrigin, hex);
 }
 
 static void mapCheckLoadStatusAndImprint (void * rel_v)

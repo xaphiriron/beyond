@@ -158,6 +158,7 @@ bool hexColor (const HEX hex, unsigned char * rgb);
 //bool subhexCoordinateOffset (const SUBHEX subhex, const SUBHEX offset, unsigned char * spanLevel, signed int * xp, signed int * yp);
 
 int mapDistanceFrom (const hexPos pos, const SUBHEX hex);
+VECTOR3 mapDistanceBetween (const SUBHEX a, const SUBHEX b);
 
 /***
  * RENDERING FUNCTIONS
@@ -167,6 +168,7 @@ void mapBakeEdgeHexes (SUBHEX subhex, unsigned int dir);
 void mapBakeHexes (SUBHEX subhex);
 
 void worldSetRenderCacheCentre (SUBHEX origin);
+VECTOR3 renderOriginDistance (const SUBHEX hex);
 void mapDraw (const float const * matrix);
 void subhexDraw (const SUBDIV sub, const VECTOR3 offset);
 void hexDraw (const HEX hex, const VECTOR3 centreOffset);

@@ -13,6 +13,7 @@
 #include "component_walking.h"
 
 #include "comp_worldarch.h"
+#include "comp_body.h"
 
 static void bootstrap (void);
 static void load (TIMER t);
@@ -51,12 +52,15 @@ void bootstrap (void)
 	component_register ("ui", ui_define);
 	component_register ("worldArch", worldarch_define);
 	component_register ("pattern", pattern_define);
+	component_register ("body", pattern_define);
 
 	entitySystem_register ("walking", walking_system, 1, "walking");
 	entitySystem_register ("ui", ui_system, 1, "ui");
 
 	entitySystem_register ("uiRender", uiRender_system, 1, "ui");
 	entitySystem_disableMessages ("uiRender");
+	entitySystem_register ("bodyRender", bodyRender_system, 2, "body", "position");
+	entitySystem_disableMessages ("bodyRender");
 
 	entitySystem_register ("TEMPsystemRender", systemRender, 0);
 	entitySystem_disableMessages ("TEMPsystemRender");

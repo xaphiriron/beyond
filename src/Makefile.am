@@ -30,20 +30,24 @@ beyond_SOURCES = \
 	video.c video.h	\
 	timer.c timer.h	\
 	accumulator.c accumulator.h \
-	entity.c entity.h	\
+	\
 	matspec.c matspec.h \
+	hex_utility.h hex_utility.c \
 	map.c map.h \
 	worldgen.c worldgen.h \
-	comp_worldarch.c comp_worldarch.h \
 	\
+	sprite.c sprite.h \
+	font.c font.h \
+	\
+	entity.c entity.h	\
+	comp_body.c comp_body.h \
+	comp_worldarch.c comp_worldarch.h \
 	component_position.c component_position.h	\
 	component_camera.c component_camera.h		\
 	component_input.c component_input.h		\
 	component_ui.c component_ui.h \
 	component_walking.c component_walking.h	\
-	hex_utility.h hex_utility.c \
-	sprite.c sprite.h \
-	font.c font.h \
+	\
 	system.c system.h \
 	beyond.c
 beyond_LDADD = \

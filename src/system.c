@@ -109,6 +109,52 @@ int systemLoop ()
 	return 0;
 }
 
+void systemUpdate (void)
+{
+	static TIMER
+		t = NULL;
+	void (*func)(TIMER);
+	int
+		i;
+	FUNCOPEN ();
+
+	if (System == NULL)
+		return;
+	clock_update (System->clock);
+	xtimerUpdateAll ();
+	accumulator_update (System->acc);
+
+	if (t == NULL)
+		t = timerCreate ();
+
+	timerSetClock (t, System->clock);
+	while (accumulator_withdrawlTime (System->acc))
+	{
+		i = 0;
+		while ((func = *(void (**)(TIMER))dynarr_at (System->updateFuncs, i)) != NULL)
+		{
+			// FIXME: this is the amount of time in seconds to give each function. it ought to 1) be related to the accumulator delta and 2) be divided between update funcs by their priority (which is the second arg of the register function, but it's ignored completely right now)
+			timerSetGoal (t, 0.05);
+			timerUpdate (t);
+			func (t);
+			i++;
+		}
+		entitySystem_update ("walking");
+		entitySystem_update ("ui");
+
+		entitySystem_updateAll ();
+	}
+
+	videoPrerender ();
+	entitySystem_update ("TEMPsystemRender");
+	entitySystem_update ("bodyRender");
+
+	entitySystem_update ("uiRender");
+	videoPostrender ();
+
+	FUNCCLOSE ();
+}
+
 
 const TIMER system_getTimer ()
 {
@@ -284,7 +330,8 @@ void systemCreatePlayer (Entity base)
 {
 	Entity
 		player,
-		camera;
+		camera,
+		npc;
 
 	FUNCOPEN ();
 
@@ -300,7 +347,9 @@ void systemCreatePlayer (Entity base)
 		systemPlacePlayerAt (map_posFocusedPlatter (position_get (base)));
 	}
 	component_instantiate ("walking", player);
+	component_instantiate ("body", player);
 	entity_refresh (player);
+	entity_name (player, "PLAYER");
 
 	camera = entity_create ();
 	component_instantiate ("position", camera);
@@ -314,6 +363,13 @@ void systemCreatePlayer (Entity base)
 		input_addEntity (camera, INPUT_CONTROLLED);
 	}
 	entity_refresh (camera);
+	entity_name (camera, "CAMERA");
+
+	npc = entity_create ();
+	component_instantiate ("position", npc);
+	component_instantiate ("body", npc);
+	position_copy (npc, player);
+	entity_refresh (npc);
 
 	FUNCCLOSE ();
 }
@@ -328,55 +384,6 @@ void systemPlacePlayerAt (const SUBHEX subhex)
 	worldSetRenderCacheCentre (subhex);
 	pos = vectorCreate (0.0, subhexGetHeight (subhex) + 90.0, 0.0);
 	position_setDirect (player, pos, subhex);
-	FUNCCLOSE ();
-}
-
-/***
- * UPDATING
- */
-
-void systemUpdate (void)
-{
-	static TIMER
-		t = NULL;
-	void (*func)(TIMER);
-	int
-		i;
-	FUNCOPEN ();
-
-	if (System == NULL)
-		return;
-	clock_update (System->clock);
-	xtimerUpdateAll ();
-	accumulator_update (System->acc);
-
-	if (t == NULL)
-		t = timerCreate ();
-
-	timerSetClock (t, System->clock);
-	while (accumulator_withdrawlTime (System->acc))
-	{
-		i = 0;
-		while ((func = *(void (**)(TIMER))dynarr_at (System->updateFuncs, i)) != NULL)
-		{
-			//printf ("got func %p\n", func);
-			// FIXME: this is the amount of time in seconds to give each function. it ought to 1) be related to the accumulator delta and 2) be divided between update funcs by their priority (which is the second arg of the register function, but it's ignored completely right now)
-			timerSetGoal (t, 0.05);
-			timerUpdate (t);
-			func (t);
-			i++;
-		}
-		entitySystem_update ("walking");
-		entitySystem_update ("ui");
-
-		entitySystem_updateAll ();
-	}
-
-	videoPrerender ();
-	entitySystem_update ("TEMPsystemRender");
-	entitySystem_update ("uiRender");
-	videoPostrender ();
-
 	FUNCCLOSE ();
 }
 
