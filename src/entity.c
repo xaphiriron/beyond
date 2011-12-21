@@ -1028,8 +1028,6 @@ void entity_destroyEverything ()
 static void entity_freeSpeech (struct entity_speech * speech)
 {
 	DEBUG ("Freeing speech from #%d (\"%s\") (%p)", speech->fromGUID, speech->message, speech);
-	if (speech->arg != NULL)
-		xph_free (speech->arg);
 	xph_free (speech->message);
 	xph_free (speech);
 }
