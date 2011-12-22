@@ -37,6 +37,8 @@ void position_define (EntComponent position, EntSpeech speech);
 void position_set (Entity e, hexPos pos);
 hexPos position_get (Entity e);
 
+VECTOR3 position_renderCoords (Entity e);
+
 
 
 void position_unset (Entity e);

@@ -460,12 +460,13 @@ void systemRender (Dynarr entities)
 
 		mapDraw (matrix);
 
-
+/* FIXME: this is turned off because this messes with the viewmatrix, which messes up the rendering of anything that's drawn in 3d after this. either "set correct camera matrix" should be something anything rendering can do, or (preferably) the cursor rendering should happen with the rest of the ui rendering - xph 2011 12 21
 		if (systemState (System) == STATE_FREEVIEW && camera_getMode (camera) == CAMERA_FIRST_PERSON)
 		{
 			glLoadIdentity ();
 			uiDrawCursor ();
 		}
+*/
 	}
 
 }

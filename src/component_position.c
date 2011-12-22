@@ -98,6 +98,17 @@ hexPos position_get (Entity e)
 	return positionData->position;
 }
 
+VECTOR3 position_renderCoords (Entity e)
+{
+	VECTOR3
+		platter,
+		total;
+	POSITION
+		position = component_getData (entity_getAs (e, "position"));
+	platter = renderOriginDistance (position->ground);
+	total = vectorAdd (&platter, &position->pos);
+	return total;
+}
 
 
 static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround, SUBHEX newGround)

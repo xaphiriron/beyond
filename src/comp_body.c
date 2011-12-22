@@ -22,23 +22,14 @@ void bodyRender_system (Dynarr entities)
 
 static void drawBody (Entity e)
 {
-	POSITION
-		position = component_getData (entity_getAs (e, "position"));
 	VECTOR3
-		local,
-		platter,
 		render;
 	float
 		c, s,
 		radius = 52 / 2;
 	int
 		i = 0;
-	if (!position)
-		return;
-	local = position_getLocalOffsetR (position);
-	platter = renderOriginDistance (position_getGroundR (position));
-	render = vectorAdd (&local, &platter);
-	printf ("local displacement: %.2f, %.2f, %.2f\n platter: %.2f, %.2f, %2.f\n", local.x, local.y, local.z, platter.x, platter.y, platter.z);
+	render = position_renderCoords (e);
 
 	glBindTexture (GL_TEXTURE_2D, 0);
 	glBegin (GL_TRIANGLE_STRIP);

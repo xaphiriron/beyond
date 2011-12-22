@@ -2215,14 +2215,14 @@ VECTOR3 mapDistanceBetween (const SUBHEX a, const SUBHEX b)
 
 	while (focus <= MapSpan)
 	{
-		printf ("using %p (%d, %d) and %p (%d, %d)\n", aPos->platter[focus], aPos->x[focus], aPos->y[focus], bPos->platter[focus], bPos->x[focus], bPos->y[focus]);
-		if (aPos->platter[focus] == bPos->platter[focus])
-			break;
-		printf ("using %d: %d, %d\n", focus, aPos->x[focus] - bPos->x[focus], aPos->y[focus] - bPos->y[focus]);
-		level = mapDistanceFromSubhexCentre (focus, aPos->x[focus] - bPos->x[focus], aPos->y[focus] - bPos->y[focus]);
+		level = mapDistanceFromSubhexCentre (focus - 1, aPos->x[focus] - bPos->x[focus], aPos->y[focus] - bPos->y[focus]);
 		r = vectorAdd (&r, &level);
 
+		if (aPos->platter[focus] == bPos->platter[focus])
+			break;
+
 		focus++;
+
 	}
 
 	map_freePos (aPos);
@@ -2355,7 +2355,7 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 
 VECTOR3 renderOriginDistance (const SUBHEX hex)
 {
-	return mapDistanceBetween (RenderOrigin, hex);
+	return mapDistanceBetween (hex, RenderOrigin);
 }
 
 static void mapCheckLoadStatusAndImprint (void * rel_v)
