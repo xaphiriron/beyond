@@ -378,6 +378,7 @@ float position_getRoll (const Entity e)
 
 /* NOTE: I HAVE NO IDEA IF THESE FUNCTIONS WORK RIGHT. AT ALL. SERIOUSLY. SORRY.
  *
+ * okay further note: the heading one works right in the non-exceptional case - xph 2011 12 22
  */
 float position_getHeadingR (const POSITION p)
 {
@@ -385,9 +386,9 @@ float position_getHeadingR (const POSITION p)
 		return 0.0;
 	if (p->dirty == true)
 		WARNING ("Whoops getting outdated axes (heading)");
-	if (fcmp (p->view.up.x, 1.0) || fcmp (p->view.up.x, -1.0))
-		return atan2 (p->view.side.z, p->view.front.z);
-	return atan2 (-p->view.front.x, p->view.side.x);
+	if (fcmp (p->view.up.y, 1.0) || fcmp (p->view.up.y, -1.0))
+		return atan2 (p->view.side.x, -p->view.side.z);
+	return atan2 (-p->view.front.x, p->view.front.z);
 }
 
 float position_getPitchR (const POSITION p)
