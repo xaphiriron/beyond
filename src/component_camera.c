@@ -33,11 +33,10 @@ struct camera_data
 		target;
 	enum camera_modes
 		mode;
+	TEXTURE
+		cursor;
 };
 
-
-static Entity
-	ActiveCamera = NULL;
 
 void camera_setAsActive (Entity e);
 void camera_switchMode (Entity camera, enum camera_modes mode);
@@ -65,6 +64,9 @@ static struct camera_data * camera_create ()
 	cd->targetMatrix[0] = cd->targetMatrix[5] = cd->targetMatrix[10] = cd->targetMatrix[15] = 1.0;
 	cd->offset[0] = cd->offset[5] = cd->offset[10] = cd->offset[15] = 1.0;
 	cd->m[0] = cd->m[5] = cd->m[10] = cd->m[15] = 1.0;
+
+	cd->cursor = textureGenFromImage ("../img/cursor.png");
+	textureBind (cd->cursor);
 
 	return cd;
 }
@@ -120,10 +122,6 @@ float camera_getRoll (Entity e)
 	return atan2 (-cdata->m[9], cdata->m[5]);
 }
 
-const Entity camera_getActiveCamera ()
-{
-	return ActiveCamera;
-}
 
 void camera_attachToTarget (Entity camera, Entity target)
 {
@@ -149,7 +147,6 @@ void camera_setAsActive (Entity e)
 	if (pdata == NULL || cdata == NULL)
 		return;
 	camera_update (e);
-	ActiveCamera = e;
 }
 
 
@@ -353,17 +350,28 @@ void camera_updatePosition (Entity camera)
 	//position_move (camera, cameraDistance);
 }
 
+/***
+ * COMPONENT DEFINITION
+ */
 
-static Dynarr
-	comp_entdata = NULL;
-void camera_classInit (EntComponent camera, EntSpeech speech)
+void component_cameraInitialize (EntComponent camera, EntSpeech speech);
+void component_cameraDestroy (EntComponent camera, EntSpeech speech);
+
+void component_cameraActivate (EntComponent camera, EntSpeech speech);
+void component_cameraSetTarget (EntComponent camera, EntSpeech speech);
+
+void component_cameraControlResponse (EntComponent camera, EntSpeech speech);
+void component_cameraOrientResponse (EntComponent camera, EntSpeech speech);
+void component_cameraPositionResponse (EntComponent camera, EntSpeech speech);
+
+void component_cameraGetMatrix (EntComponent camera, EntSpeech speech);
+void component_cameraGetTargetMatrix (EntComponent camera, EntSpeech speech);
+
+
+void camera_define (EntComponent camera, EntSpeech speech)
 {
-	comp_entdata = dynarr_create (8, sizeof (Entity));
-
 	component_registerResponse ("camera", "__create", component_cameraInitialize);
 	component_registerResponse ("camera", "__destroy", component_cameraDestroy);
-
-	component_registerResponse ("camera", "__classDestroy", camera_classDestroy);
 
 	component_registerResponse ("camera", "activate", component_cameraActivate);
 
@@ -381,12 +389,6 @@ void camera_classInit (EntComponent camera, EntSpeech speech)
 	component_registerResponse ("camera", "positionUpdate", component_cameraPositionResponse);
 }
 
-void camera_classDestroy (EntComponent camrea, EntSpeech speech)
-{
-	dynarr_destroy (comp_entdata);
-	comp_entdata = NULL;
-}
-
 void component_cameraInitialize (EntComponent camera, EntSpeech speech)
 {
 	Entity
@@ -398,20 +400,16 @@ void component_cameraInitialize (EntComponent camera, EntSpeech speech)
 
 	camera_switchMode (camEntity, CAMERA_FIRST_PERSON);
 	camera_setAsActive (camEntity);
-	dynarr_push (comp_entdata, camEntity);
 }
 
 void component_cameraDestroy (EntComponent camera, EntSpeech speech)
 {
-	Entity
-		camEntity = component_entityAttached (camera);
 	cameraComponent
 		camData = component_getData (camera);
-
+	textureDestroy (camData->cursor);
 	xph_free (camData);
-	component_clearData (camera);
 
-	dynarr_remove_condense (comp_entdata, camEntity);
+	component_clearData (camera);
 }
 
 void component_cameraActivate (EntComponent camera, EntSpeech speech)
@@ -525,3 +523,61 @@ void component_cameraGetTargetMatrix (EntComponent camera, EntSpeech speech)
 	}
 	*matrix = camData->targetMatrix;
 }
+
+/***
+ * ENTITY SYSTEMS
+ */
+
+#include "system.h"
+
+void cameraRender_system (Dynarr entities)
+{
+	// there's only going to ever be one active camera at a time so we might as well not even pretend this is going to be a general-purpose system
+	Entity
+		this = entity_getByName ("CAMERA");
+	cameraComponent
+		camera = component_getData (entity_getAs (this, "camera"));
+
+	unsigned int
+		centerHeight,
+		centerWidth,
+		halfTexHeight,
+		halfTexWidth,
+		height, width;
+	float
+		zNear = video_getZnear () - 0.001,
+		top, bottom,
+		left, right;
+
+	if (!camera)
+		return;
+	video_getDimensions (&width, &height);
+	
+	if (systemState (System) == STATE_FREEVIEW && camera_getMode (this) == CAMERA_FIRST_PERSON)
+	{
+		glLoadIdentity ();
+
+		centerHeight = height / 2;
+		centerWidth = width / 2;
+		halfTexHeight = 8;//texture_pxHeight (t) / 2;
+		halfTexWidth = 8;//texture_pxWidth (t) / 2;
+		top = video_pixelYMap (centerHeight + halfTexHeight);
+		bottom = video_pixelYMap (centerHeight - halfTexHeight);
+		left = video_pixelXMap (centerWidth - halfTexWidth);
+		right = video_pixelXMap (centerWidth + halfTexWidth);
+		//printf ("top: %7.2f; bottom: %7.2f; left: %7.2f; right: %7.2f\n", top, bottom, left, right);
+		glColor4ub (0xff, 0xff, 0xff, 0xff);
+		glBindTexture (GL_TEXTURE_2D, textureName (camera->cursor));
+		glBegin (GL_TRIANGLE_FAN);
+		glTexCoord2f (0.0, 1.0);
+		glVertex3f (left, top, zNear);
+		glTexCoord2f (1.0, 1.0);
+		glVertex3f (right, top, zNear);
+		glTexCoord2f (1.0, 0.0);
+		glVertex3f (right, bottom, zNear);
+		glTexCoord2f (0.0, 0.0);
+		glVertex3f (left, bottom, zNear);
+		glEnd ();
+	}
+}
+

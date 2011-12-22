@@ -149,6 +149,9 @@ void systemUpdate (void)
 	entitySystem_update ("TEMPsystemRender");
 	entitySystem_update ("bodyRender");
 
+	// NOTE: this system can in some cases reset the viewmatrix; if you want to draw something in 3d space then have it run before this system. also given the complexity of rendering systems and highlighting and overlays and all that it might be a good idea to generalize the "set the viewmatrix to the in-the-world value" code so it doesn't have to depend on execution order any more than absolutely necessary (e.g., when doing blending) - xph 2011 12 22
+	entitySystem_update ("cameraRender");
+
 	entitySystem_update ("uiRender");
 	videoPostrender ();
 
@@ -444,7 +447,7 @@ void systemRender (Dynarr entities)
 
 	if (worldExists ())
 	{
-		camera = camera_getActiveCamera ();
+		camera = entity_getByName ("CAMERA");
 		entity_message (camera, NULL, "getMatrix", &matrix);
 		if (matrix != NULL)
 		{
@@ -460,13 +463,6 @@ void systemRender (Dynarr entities)
 
 		mapDraw (matrix);
 
-/* FIXME: this is turned off because this messes with the viewmatrix, which messes up the rendering of anything that's drawn in 3d after this. either "set correct camera matrix" should be something anything rendering can do, or (preferably) the cursor rendering should happen with the rest of the ui rendering - xph 2011 12 21
-		if (systemState (System) == STATE_FREEVIEW && camera_getMode (camera) == CAMERA_FIRST_PERSON)
-		{
-			glLoadIdentity ();
-			uiDrawCursor ();
-		}
-*/
 	}
 
 }
@@ -556,14 +552,15 @@ char * systemGenDebugStr ()
 	unsigned int
 		height = 0;
 	Entity
-		player = input_getPlayerEntity ();
+		player = entity_getByName ("PLAYER"),
+		camera = entity_getByName ("CAMERA");
 	SUBHEX
 		trav;
 	char
 		buffer[64];
 	
 	memset (debugDisplay, 0, DEBUGLEN);
-	len = snprintf (buffer, 63, "Player Entity: #%d\nCamera Entity: #%d\n\nPosition\n", entity_GUID (player), entity_GUID (camera_getActiveCamera ()));
+	len = snprintf (buffer, 63, "Player Entity: #%d\nCamera Entity: #%d\n\nPosition\n", entity_GUID (player), entity_GUID (camera));
 	strncpy (debugDisplay, buffer, len);
 
 	entity_message (player, NULL, "getHex", &trav);

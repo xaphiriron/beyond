@@ -38,7 +38,6 @@ enum uiFrameBackground {
 	FRAMEBG_SOLID,
 };
 
-void uiDrawCursor ();
 void uiLoadPanelTexture (const char * path);
 
 

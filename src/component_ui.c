@@ -184,39 +184,6 @@ static void uiDrawPane (signed int x, signed int y, signed int width, signed int
 static void ui_drawIndex (struct uiMenu * menu);
 //static void uiDrawSkewPane (signed int x, signed int y, signed int width, signed int height, enum uiSkewTypes skew, const void * const * style);
 
-void uiDrawCursor ()
-{
-	unsigned int
-		centerHeight,
-		centerWidth,
-		halfTexHeight,
-		halfTexWidth;
-	float
-		zNear = video_getZnear () - 0.001,
-		top, bottom,
-		left, right;
-/*
-	if (t == NULL)
-		return;
-*/
-	centerHeight = height / 2;
-	centerWidth = width / 2;
-	halfTexHeight = 2;//texture_pxHeight (t) / 2;
-	halfTexWidth = 2;//texture_pxWidth (t) / 2;
-	top = video_pixelYMap (centerHeight + halfTexHeight);
-	bottom = video_pixelYMap (centerHeight - halfTexHeight);
-	left = video_pixelXMap (centerWidth - halfTexWidth);
-	right = video_pixelXMap (centerWidth + halfTexWidth);
-	//printf ("top: %7.2f; bottom: %7.2f; left: %7.2f; right: %7.2f\n", top, bottom, left, right);
-	glColor3f (1.0, 1.0, 1.0);
-	//glBindTexture (GL_TEXTURE_2D, texture_glID (t));
-	glBegin (GL_TRIANGLE_FAN);
-	glVertex3f (left, top, zNear);
-	glVertex3f (right, top, zNear);
-	glVertex3f (right, bottom, zNear);
-	glVertex3f (left, bottom, zNear);
-	glEnd ();
-}
 
 static struct panelTexture
 	* SystemPanel = NULL;

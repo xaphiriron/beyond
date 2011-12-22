@@ -46,7 +46,7 @@ void bootstrap (void)
 	 */
 
 	component_register ("position", position_define);
-	component_register ("camera", camera_classInit);
+	component_register ("camera", camera_define);
 	component_register ("walking", walking_define);
 	component_register ("input", input_define);
 	component_register ("ui", ui_define);
@@ -61,6 +61,8 @@ void bootstrap (void)
 	entitySystem_disableMessages ("uiRender");
 	entitySystem_register ("bodyRender", bodyRender_system, 2, "body", "position");
 	entitySystem_disableMessages ("bodyRender");
+	entitySystem_register ("cameraRender", cameraRender_system, 1, "camera");
+	entitySystem_disableMessages ("cameraRender");
 
 	entitySystem_register ("TEMPsystemRender", systemRender, 0);
 	entitySystem_disableMessages ("TEMPsystemRender");
