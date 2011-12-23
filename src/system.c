@@ -303,6 +303,10 @@ void systemCreatePlayer (Entity base)
 		player,
 		camera,
 		npc;
+	SUBHEX
+		place;
+	VECTOR3
+		pos;
 
 	FUNCOPEN ();
 
@@ -315,7 +319,10 @@ void systemCreatePlayer (Entity base)
 		/* NOTE: this is a placeholder; player positioning in the generated world is a worldgen thing, not a system thing. maybe this entire function is misguided, idk.
 		 *  - xph 2011 06 09
 		 */
-		systemPlacePlayerAt (map_posFocusedPlatter (position_get (base)));
+		place = map_posFocusedPlatter (position_get (base));
+		worldSetRenderCacheCentre (place);
+		pos = vectorCreate (0.0, subhexGetHeight (place) + 90.0, 0.0);
+		position_setDirect (player, pos, place);
 	}
 	component_instantiate ("walking", player);
 	component_instantiate ("body", player);
@@ -342,19 +349,6 @@ void systemCreatePlayer (Entity base)
 	position_copy (npc, player);
 	entity_refresh (npc);
 
-	FUNCCLOSE ();
-}
-
-void systemPlacePlayerAt (const SUBHEX subhex)
-{
-	FUNCOPEN ();
-	Entity
-		player = input_getPlayerEntity ();
-	VECTOR3
-		pos;
-	worldSetRenderCacheCentre (subhex);
-	pos = vectorCreate (0.0, subhexGetHeight (subhex) + 90.0, 0.0);
-	position_setDirect (player, pos, subhex);
 	FUNCCLOSE ();
 }
 

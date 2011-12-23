@@ -98,7 +98,6 @@ void system_registerTimedFunction (void (*func)(TIMER), unsigned char weight);
 void system_removeTimedFunction (void (*func)(TIMER));
 
 void systemCreatePlayer ();
-void systemPlacePlayerAt (const SUBHEX subhex);
 
 bool systemToggleAttr (enum system_toggle_states toggle);
 bool systemAttr (enum system_toggle_states state);
