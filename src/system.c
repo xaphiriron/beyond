@@ -139,8 +139,6 @@ void systemUpdate (void)
 		entitySystem_update ("input");
 		entitySystem_update ("walking");
 		entitySystem_update ("ui");
-
-		entitySystem_updateAll ();
 	}
 
 	videoPrerender ();

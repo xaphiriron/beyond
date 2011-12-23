@@ -855,7 +855,6 @@ void entity_purgeDestroyed (TIMER timer)
 		speech;
 	FUNCOPEN ();
 
-
 	if (UnusedSpeech != NULL)
 	{
 		while ((speech = *(struct entity_speech **)dynarr_pop (UnusedSpeech)) != NULL)
@@ -866,17 +865,15 @@ void entity_purgeDestroyed (TIMER timer)
 		}
 	}
 
-	if (ToBeDestroyed == NULL)
+	if (!ToBeDestroyed)
 		return;
 
 	while ((e = entity_get (*(unsigned int *)dynarr_pop (ToBeDestroyed))) != NULL)
 	{
-		DEBUG ("Destroying entity #%d", entity_GUID (e));
 		entity_purge (e);
 		if (timer != NULL && outOfTime (timer))
 			return;
 	}
-	//printf ("...%s ()\n", __FUNCTION__);
 	FUNCCLOSE ();
 }
 
@@ -1225,25 +1222,6 @@ void entitySystem_update (const char * name)
 	if (!sys)
 		return;
 	sys->update (sys->relevantEntities);
-}
-
-void entitySystem_updateAll ()
-{
-	componentSpec
-		sys;
-	int
-		i = 0;
-	if (!CompSpecRegistry)
-		return;
-	while ((sys = *(componentSpec *)dynarr_at (CompSpecRegistry, i++)) != NULL)
-	{
-		component_messageSystem (sys->comp_name, "__update", NULL);
-	}
-	i = 0;
-	while ((sys = *(componentSpec *)dynarr_at (CompSpecRegistry, i++)) != NULL)
-	{
-		component_messageSystem (sys->comp_name, "__postupdate", NULL);
-	}
 }
 
 static void entitySystem_removeEntity (entitySystem system, Entity entity)
