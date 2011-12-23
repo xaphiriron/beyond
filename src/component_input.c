@@ -230,8 +230,7 @@ void input_sendGameEventMessage (const struct input_event * ie)
 	int
 		i = 0;
 	Entity
-		e = NULL,
-		newUI = NULL;
+		e = NULL;
 	// CATCH AND HANDLE EVENTS THAT HAVE SYSTEM-WIDE REPERCUSSIONS
 	//DEBUG ("GOT INPUTEVENT TYPE %d", ie->ir);
 	/* this has become the home of the UI switching; this isn't a good thing. i don't know how to break it apart (presumably to be handled by the ui component??) but it's something that should be done. in the mean time, try to avoid tying the ui code with the input code any further.
@@ -251,44 +250,10 @@ void input_sendGameEventMessage (const struct input_event * ie)
 			video_wireframeSwitch ();
 			break;
 		case IR_WORLDMAP_SWITCH:
-			if (systemState() == STATE_UI &&
-				systemTopUIPanelType () == UI_WORLDMAP)
-			{
-				entity_destroy (systemPopUI ());
-				systemPopState ();
-			}
-			else if (systemState() == STATE_FREEVIEW)
-			{
-				newUI = entity_create ();
-				component_instantiate ("ui", newUI);
-				entity_message (newUI, NULL, "setType", (void *)UI_WORLDMAP);
-				component_instantiate ("input", newUI);
-				input_addEntity (newUI, INPUT_FOCUSED);
-				entity_refresh (newUI);
-
-				systemPushUI (newUI);
-				systemPushState (STATE_UI);
-				newUI = NULL;
-			}
+			entitySystem_message ("ui", NULL, "WORLDMAP_SWITCH", NULL);
 			break;
 		case IR_DEBUG_SWITCH:
-			if (systemAttr (SYS_DEBUG) &&
-				systemTopUIPanelType () == UI_DEBUG_OVERLAY)
-			{
-				entity_destroy (systemPopUI ());
-				systemToggleAttr (SYS_DEBUG);
-			}
-			else if (systemState() == STATE_FREEVIEW)
-			{
-				newUI = entity_create ();
-				component_instantiate ("ui", newUI);
-				entity_message (newUI, NULL, "setType", (void *)UI_DEBUG_OVERLAY);
-				entity_refresh (newUI);
-
-				systemPushUI (newUI);
-				systemToggleAttr (SYS_DEBUG);
-				newUI = NULL;
-			}
+			entitySystem_message ("ui", NULL, "DEBUGOVERLAY_SWITCH", NULL);
 			break;
 		default:
 			break;

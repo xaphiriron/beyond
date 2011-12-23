@@ -12,6 +12,8 @@ struct entity {
 		components,
 		listeners,
 		systems;
+	struct entity_name_map
+		* name;
 };
 
 struct messageTrigger
@@ -109,6 +111,8 @@ static struct messageTrigger * mt_create (const char * message);
 static void mt_destroy (struct messageTrigger * mt);
 static int mt_sort (const void * a, const void * b);
 static int mt_search (const void * k, const void * d);
+
+void entity_freeName (struct entity_name_map * name);
 
 void entity_purge (Entity e);
 
@@ -227,6 +231,12 @@ static int entgroup_search (const void * k, const void * d)
 	);
 }
 
+void entity_freeName (struct entity_name_map * name)
+{
+	dynarr_remove_condense (EntityNames, name);
+	xph_free (name);
+}
+
 /***
  * ENTITIES
  */
@@ -292,6 +302,12 @@ bool entity_name (Entity e, const char * name)
 		* map;
 	if (EntityNames == NULL)
 		EntityNames = dynarr_create (4, sizeof (struct entity_name_map *));
+	if (e->name)
+	{
+		WARNING ("Renaming entity #%d, \"%s\", to \"%s\"", entity_GUID (e), e->name->name, name);
+		entity_freeName (e->name);
+		e->name = NULL;
+	}
 	map = *(struct entity_name_map **)dynarr_search (EntityNames, entname_search, name);
 	if (map)
 	{
@@ -302,6 +318,7 @@ bool entity_name (Entity e, const char * name)
 	map = xph_alloc (sizeof (struct entity_name_map));
 	map->entity = e;
 	strncpy (map->name, name, ENT_NAMELENGTH);
+	e->name = map;
 	dynarr_push (EntityNames, map);
 	dynarr_sort (EntityNames, entname_sort);
 	return true;
@@ -902,6 +919,8 @@ void entity_purge (Entity e)
 		}
 		entitySystem_removeEntity (sys, e);
 	}
+	if (e->name)
+		entity_freeName (e->name);
 	//printf ("adding #%d to the destroyed list, to be reused\n", e->guid);
 	if (DestroyedEntities == NULL)
 	{
@@ -1153,6 +1172,27 @@ void entitySystem_disableMessages (const char * system)
 	}
 	dynarr_destroy (sys->messages);
 	sys->messages = NULL;
+}
+
+void entitySystem_message (const char * sys_name, Entity from, const char * message, void * arg)
+{
+	entitySystem
+		sys = entitySystem_get (sys_name);
+	EntSpeech
+		speech;
+	if (!sys)
+		WARNING ("Tried to message system \"%s\" which does not exist.", sys_name);
+	if (!sys || !sys->messages)
+		return;
+	speech = xph_alloc (sizeof (struct entity_speech));
+	speech->from = from;
+	speech->fromGUID = entity_GUID (from);
+	speech->arg = arg;
+	speech->message = xph_alloc (strlen (message) + 1);
+	strcpy (speech->message, message);
+	speech->references = 1;
+	DEBUG ("Queuing speech from #%d (\"%s\") on system %s (%p)", speech->fromGUID, speech->message, sys->name, speech);
+	dynarr_push (sys->messages, speech);
 }
 
 EntSpeech entitySystem_dequeueMessage (const char * system)

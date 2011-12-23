@@ -828,7 +828,11 @@ void ui_draw (EntComponent ui, EntSpeech speech)
 void ui_system (Dynarr entities)
 {
 	Entity
-		uiEntity;
+		uiEntity,
+		worldmapUI,
+		debugUI;
+	EntSpeech
+		speech;
 	UIPANEL
 		uiData;
 	struct uiMenuOpt
@@ -836,6 +840,43 @@ void ui_system (Dynarr entities)
 	int
 		i = 0,
 		j = 0;
+
+	while ((speech = entitySystem_dequeueMessage ("ui")))
+	{
+		if (!strcmp (speech->message, "WORLDMAP_SWITCH"))
+		{
+			worldmapUI = entity_getByName ("worldmapUI");
+			if (worldmapUI)
+			{
+				entity_destroy (worldmapUI);
+				continue;
+			}
+			worldmapUI = entity_create ();
+			component_instantiate ("ui", worldmapUI);
+			entity_message (worldmapUI, NULL, "setType", (void *)UI_WORLDMAP);
+			component_instantiate ("input", worldmapUI);
+			input_addEntity (worldmapUI, INPUT_FOCUSED);
+
+			entity_refresh (worldmapUI);
+			entity_name (worldmapUI, "worldmapUI");
+		}
+		else if (!strcmp (speech->message, "DEBUGOVERLAY_SWITCH"))
+		{
+			debugUI = entity_getByName ("debugUI");
+			if (debugUI)
+			{
+				entity_destroy (debugUI);
+				continue;
+			}
+			debugUI = entity_create ();
+			component_instantiate ("ui", debugUI);
+			entity_message (debugUI, NULL, "setType", (void *)UI_DEBUG_OVERLAY);
+
+			entity_refresh (debugUI);
+			entity_name (debugUI, "debugUI");
+			systemToggleAttr (SYS_DEBUG);
+		}
+	}
 
 	while ((uiEntity = *(Entity *)dynarr_at (entities, i++)) != NULL)
 	{

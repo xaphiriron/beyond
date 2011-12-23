@@ -27,7 +27,6 @@ typedef struct xph_system
 {
 	Dynarr
 		updateFuncs,
-		uiPanels,
 		state;			// stores enum system_states
 	float
 		timer_mult,
@@ -92,10 +91,6 @@ void loadSetText (char * displayText);
 /* the system should render the loading data however applicable (e.g., progress bar; informational text) and continue calling the loader function (via the system timed functions feature) until it signals that it's done (presumably by setting the loading data to 100%) at which point the system should remove the loader from the timed functions and call the finish callback function, which is responsible for getting the system into a reasonable state before the next tick (i.e., immediately)
  *  - xph 2011 06 16
  */
-
-Entity systemPopUI ();
-void systemPushUI (Entity p);
-enum uiPanelTypes systemTopUIPanelType ();
 
 char * systemGenDebugStr ();
 

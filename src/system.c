@@ -68,7 +68,6 @@ void systemInit ()
 	// register system loading %/note callback here
 
 	System->updateFuncs = dynarr_create (2, sizeof (void (*)(TIMER)));
-	System->uiPanels = dynarr_create (2, sizeof (Entity));
 
 	// not really sure where these should go; they're going here for now.
 	system_registerTimedFunction (entity_purgeDestroyed, 0x7f);
@@ -86,8 +85,6 @@ void systemDestroy ()
 {
 	videoDestroy ();
 
-	dynarr_map (System->uiPanels, (void (*)(void *))entity_destroy);
-	dynarr_destroy (System->uiPanels);
 	dynarr_destroy (System->updateFuncs);
 	dynarr_destroy (System->state);
 	accumulator_destroy (System->acc);
@@ -278,36 +275,6 @@ void loadSetText (char * displayText)
 	strncpy (SysLoader.displayText, displayText, LOADERTEXTBUFFERSIZE);
 }
 
-/***
- * UI CONTROL FUNCTIONS
- */
-
-Entity systemPopUI ()
-{
-	if (System == NULL)
-		return NULL;
-	return *(Entity *)dynarr_pop (System->uiPanels);
-}
-
-void systemPushUI (Entity p)
-{
-	if (System == NULL)
-	{
-		ERROR ("Trying to push UI (#%d) without a system", entity_GUID (p));
-		return;
-	}
-	dynarr_push (System->uiPanels, p);
-}
-
-enum uiPanelTypes systemTopUIPanelType ()
-{
-	enum uiPanelTypes
-		type = UI_NONE;
-	if (System == NULL)
-		return type;
-	entity_message (*(Entity *)dynarr_back (System->uiPanels), NULL, "getType", &type);
-	return type;
-}
 
 /***
  * TIMED FUNCTIONS
@@ -599,8 +566,6 @@ int system_message (objMsg msg, void * a, void * b)
 			return EXIT_SUCCESS;
 
 		case OM_FORCEWORLDGEN:
-			dynarr_map (System->uiPanels, (void (*)(void *))entity_destroy);
-			dynarr_clear (System->uiPanels);
 			dynarr_map (entity_getWith (1, "ui"), (void (*)(void *))entity_destroy);
 
 			printf ("TRIGGERING WORLDGEN:\n");

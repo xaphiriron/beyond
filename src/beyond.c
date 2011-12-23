@@ -74,23 +74,13 @@ void bootstrap (void)
 
 void finalize (void)
 {
-	systemClearStates();
-	systemPushState (STATE_UI);
-}
-
-void load (TIMER t)
-{
 	Entity
 		titleScreenMenu;
 	unsigned int
 		height,
 		width;
-	/* this is where any loading that's needed for the system ui or for title
-	 * screen effects should go
-	 *  - xph 2011 09 26
-	 */
 
-	/* this, though, is just a filler that ought to be set elsewhere and remembered */
+	/* this is just a filler that ought to be set elsewhere and remembered */
 	srand (time (NULL));
 
 	video_getDimensions (&height, &width);
@@ -117,7 +107,16 @@ void load (TIMER t)
 	entity_message (titleScreenMenu, NULL, "setBorder", (void *)6);
 	entity_message (titleScreenMenu, NULL, "setLineSpacing", (void *)4);
 
-	systemPushUI (titleScreenMenu);
+	systemClearStates();
+	systemPushState (STATE_UI);
+}
+
+void load (TIMER t)
+{
+	/* this is where any loading that's needed for the system ui or for title
+	 * screen effects should go
+	 *  - xph 2011 09 26
+	 */
 
 	loadSetGoal (1);
 	loadSetLoaded (1);
