@@ -139,6 +139,12 @@ void subhexRemoveArch (SUBHEX at, Entity arch);
 const Dynarr subhexGetArches (const SUBHEX at);
 
 /***
+ * COLLISION
+ */
+
+Dynarr map_lineCollide (const Entity const position, const VECTOR3 * const ray);
+
+/***
  * INFORMATIONAL / GETTER FUNCTIONS
  */
 
@@ -172,6 +178,14 @@ VECTOR3 renderOriginDistance (const SUBHEX hex);
 void mapDraw (const float const * matrix);
 void subhexDraw (const SUBDIV sub, const VECTOR3 offset);
 void hexDraw (const HEX hex, const VECTOR3 centreOffset);
+
+enum map_draw_types
+{
+	DRAW_NORMAL,
+	DRAW_HIGHLIGHT,
+};
+
+void drawMap (const HEX const hex, enum map_draw_types drawType);
 
 TEXTURE mapGenerateMapTexture (SUBHEX centre, float facing, unsigned char span);
 

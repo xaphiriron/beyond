@@ -534,6 +534,7 @@ void cameraRender_system (Dynarr entities)
 {
 	// there's only going to ever be one active camera at a time so we might as well not even pretend this is going to be a general-purpose system
 	Entity
+		player = entity_getByName ("PLAYER"),
 		this = entity_getByName ("CAMERA");
 	cameraComponent
 		camera = component_getData (entity_getAs (this, "camera"));
@@ -548,11 +549,29 @@ void cameraRender_system (Dynarr entities)
 		zNear = video_getZnear () - 0.001,
 		top, bottom,
 		left, right;
+	SUBHEX
+		highlight;
+	const AXES
+		* view;
+
+	int
+		i = 0;
+	Dynarr
+		hit;
 
 	if (!camera)
 		return;
-	video_getDimensions (&width, &height);
-	
+
+	view = position_getViewAxes (player);
+	hit = map_lineCollide (player, &view->front);
+	while ((highlight = *(SUBHEX *)dynarr_at (hit, i++)))
+	{
+		drawMap ((HEX)highlight, DRAW_HIGHLIGHT);
+	}
+	dynarr_destroy (hit);
+	hit = NULL;
+
+	video_getDimensions (&width, &height);	
 	if (systemState (System) == STATE_FREEVIEW && camera_getMode (this) == CAMERA_FIRST_PERSON)
 	{
 		glLoadIdentity ();

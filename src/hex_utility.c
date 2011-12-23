@@ -270,43 +270,20 @@ bool hexPole_centerDistanceCoord (unsigned int dir, signed int * xp, signed int 
 	return hex_centerDistanceCoord (poleRadius, dir, xp, yp);
 }
 
-/* draw a line between the centre of hex :x,:y and the centre of hex 0,0.
- * return the x,y coordinate (in *xp / *yp) of the :steps-th hex the line passes
- * through, or 0,0 if there aren't that many hexes.
- * actual return value is the number of steps left before 0,0 is reached, which
- * may be negative if 0,0 has been reached
- * (this doesn't work right: coordinates are returned in such a way as to
- * generate a continuous line from the original x,y to the origin, but the
- * path as calculated isn't the same as the hexes touched by a line from :x,:y
- * to 0,0)
- */
-signed int hex_stepLineToOrigin (signed int x, signed int y, unsigned int steps, signed int * xp, signed int * yp)
+
+
+
+
+int turns (float ox, float oy, float lx1, float ly1, float lx2, float ly2)
 {
-	unsigned int
-		r, k, i;
-	if (xp == NULL || yp == NULL)
-		return -1;
-	hex_xy2rki (x, y, &r, &k, &i);
-	while (steps > 0)
-	{
-		if (r == 0)
-		{
-			*xp = 0;
-			*yp = 0;
-			return -steps;
-		}
-		r--;
-		if (i >= r / 2 && i > 0)
-			i--;
-		steps--;
-	}
-	hex_rki2xy (r, k, i, xp, yp);
-	return r;
+	float
+		cross = (lx1 - ox) * (ly2 - oy) - (lx2 - ox) * (ly1 - oy);
+	return cross < 0.0
+		? RIGHT
+		: cross == 0.0
+		? THROUGH
+		: LEFT;
 }
-
-
-
-
 
 /***
  * generic hex functions involving vectors:

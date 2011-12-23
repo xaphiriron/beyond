@@ -2007,6 +2007,84 @@ const Dynarr subhexGetArches (const SUBHEX at)
 }
 
 /***
+ * COLLISION
+ */
+
+// FIXME: this returns a subhex, when we're looking for hits against the surface or the side of a hex step (and for the side, around what height value)
+// FIXME: also this assumes we're operating on a span 0 platter (i.e., an individual hex) but there aren't any code checks to ensure that
+Dynarr map_lineCollide (const Entity const position, const VECTOR3 * const ray)
+{
+	VECTOR3
+		local = position_getLocalOffset (position),
+		hexCentre;
+	SUBHEX
+		base = position_getGround (position),
+		active;
+	int
+		x, y,
+		side1,
+		side2,
+		i = 0;
+	hexPos
+		pos;
+	Dynarr
+		hit = dynarr_create (2, sizeof (SUBHEX));
+
+	hex_space2coord (&local, &x, &y);
+	active = subhexData (base, x, y);
+	// okay the first step here is to get a list of all hexes the ray crosses (which means we also need to get a ray length, probably by normalizing the ray and using some constant for the interaction limit)
+	// the line crosses the initial hex, by definition, so start with that
+	// calculate the line intersection with the six sides of the hex; the one it intersects with is the one that leads to the next hex
+	// repeat until the ray length at the intersection point is above the length limit
+	// (really we could add another step to the above that is "check for hex step intersection w/ ray" and just return that subhex if it hits instead of generating the list and then checking it)
+
+	while (1)
+	{
+		if (active == *(SUBHEX *)dynarr_back (hit))
+		{
+			//printf ("early exit; stuck in a loop\n");
+			return hit;
+		}
+		dynarr_push (hit, active);
+		hexCentre = renderOriginDistance (active);
+		side1 = turns (hexCentre.x + H[0][X], hexCentre.z + H[0][Y], local.x, local.z, local.x + ray->x, local.z + ray->z);
+		if (side1 == THROUGH)
+		{
+			printf ("THROUGH hit (this never happens so idk if it's correct) (probably not)\n");
+			pos = map_from (active, 0, XY[0][X], XY[0][Y]);
+			active = map_posFocusedPlatter (pos);
+			map_freePos (pos);
+			assert (active != NULL);
+			continue;
+		}
+		i = 1;
+		while (i < 6)
+		{
+			side2 = turns (hexCentre.x + H[i][X], hexCentre.z + H[i][Y], local.x, local.z, local.x + ray->x, local.z + ray->z);
+			if (side2 != side1)
+			{
+				pos = map_from (active, 0, XY[i][X], XY[i][Y]);
+				if (map_posFocusedPlatter (pos) == *(SUBHEX *)dynarr_at (hit, dynarr_size (hit) - 2))
+				{
+					side1 = side2;
+					map_freePos (pos);
+					continue;
+				}
+				active = map_posFocusedPlatter (pos);
+				map_freePos (pos);
+				assert (active != NULL);
+				break;
+			}
+			i++;
+		}
+		if (dynarr_size (hit) > 12)
+			break;
+	}
+
+	return hit;
+}
+
+/***
  * INFORMATIONAL / GETTER FUNCTIONS
  */
 
@@ -2730,6 +2808,45 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 		step = lower;
 	}
 	//FUNCCLOSE ();
+}
+
+void drawMap (const HEX const hex, enum map_draw_types drawType)
+{
+	VECTOR3
+		render = mapDistanceBetween ((SUBHEX)hex, RenderOrigin);
+	HEXSTEP
+		step;
+	int
+		i = 0,
+		corners[6] = {0, 0, 0, 0, 0, 0};
+
+	if (!hex || subhexSpanLevel ((SUBHEX)hex) != 0)
+		return;
+
+	// FIXME: stop depth testing. this isn't actually the best idea -- there are reasons we could want parts of the highlight to fail the depth test -- it's not safe to just render all of the highlit hex. however, all the decent ways of doing it i'm aware of involve messing with the depth or stencil buffer when the hex was rendered in the first place, which we can't really do the way the code is structured currently. - xph 2011 12 22
+	glDisable (GL_DEPTH_TEST);
+	while ((step = *(HEXSTEP *)dynarr_at (hex->steps, i++)))
+	{
+		corners[0] = FULLHEIGHT (step, 0);
+		corners[1] = FULLHEIGHT (step, 1);
+		corners[2] = FULLHEIGHT (step, 2);
+		corners[3] = FULLHEIGHT (step, 3);
+		corners[4] = FULLHEIGHT (step, 4);
+		corners[5] = FULLHEIGHT (step, 5);
+
+		glColor4ub (0x00, 0x99, 0xff, 0x7f);
+		glBegin (GL_TRIANGLE_FAN);
+		glVertex3f (render.x, step->height * HEX_SIZE_4, render.z);
+		glVertex3f (render.x + H[0][X], corners[0] * HEX_SIZE_4, render.z + H[0][Y]);
+		glVertex3f (render.x + H[5][X], corners[5] * HEX_SIZE_4, render.z + H[5][Y]);
+		glVertex3f (render.x + H[4][X], corners[4] * HEX_SIZE_4, render.z + H[4][Y]);
+		glVertex3f (render.x + H[3][X], corners[3] * HEX_SIZE_4, render.z + H[3][Y]);
+		glVertex3f (render.x + H[2][X], corners[2] * HEX_SIZE_4, render.z + H[2][Y]);
+		glVertex3f (render.x + H[1][X], corners[1] * HEX_SIZE_4, render.z + H[1][Y]);
+		glVertex3f (render.x + H[0][X], corners[0] * HEX_SIZE_4, render.z + H[0][Y]);
+		glEnd ();
+	}
+	glEnable (GL_DEPTH_TEST);
 }
 
 TEXTURE mapGenerateMapTexture (SUBHEX centre, float facing, unsigned char span)
