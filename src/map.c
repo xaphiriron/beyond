@@ -2022,9 +2022,9 @@ Dynarr map_lineCollide (const Entity const position, const VECTOR3 * const ray)
 		active;
 	int
 		x, y,
-		side1,
-		side2,
-		i = 0;
+		side,
+		i = 0,
+		begin;
 	hexPos
 		pos;
 	Dynarr
@@ -2042,34 +2042,29 @@ Dynarr map_lineCollide (const Entity const position, const VECTOR3 * const ray)
 	{
 		if (active == *(SUBHEX *)dynarr_back (hit))
 		{
-			//printf ("early exit; stuck in a loop\n");
+			printf ("early exit; stuck in a loop\n");
 			return hit;
 		}
 		dynarr_push (hit, active);
 		hexCentre = renderOriginDistance (active);
-		side1 = turns (hexCentre.x + H[0][X], hexCentre.z + H[0][Y], local.x, local.z, local.x + ray->x, local.z + ray->z);
-		if (side1 == THROUGH)
+		i = 0;
+		while (turns (hexCentre.x + H[i][X], hexCentre.z + H[i][Y], local.x, local.z, local.x + ray->x, local.z + ray->z) != LEFT)
 		{
-			printf ("THROUGH hit (this never happens so idk if it's correct) (probably not)\n");
-			pos = map_from (active, 0, XY[0][X], XY[0][Y]);
-			active = map_posFocusedPlatter (pos);
-			map_freePos (pos);
-			assert (active != NULL);
-			continue;
+			i++;
+			if (i > 6)
+			{
+				printf ("got hex that didn't intersect with line at all :/ (the %d-th)\n", dynarr_size (hit));
+				return hit;
+			}
 		}
+		begin = i;
 		i = 1;
 		while (i < 6)
 		{
-			side2 = turns (hexCentre.x + H[i][X], hexCentre.z + H[i][Y], local.x, local.z, local.x + ray->x, local.z + ray->z);
-			if (side2 != side1)
+			side = turns (hexCentre.x + H[(begin + i) % 6][X], hexCentre.z + H[(begin + i) % 6][Y], local.x, local.z, local.x + ray->x, local.z + ray->z);
+			if (side == RIGHT)
 			{
-				pos = map_from (active, 0, XY[i][X], XY[i][Y]);
-				if (map_posFocusedPlatter (pos) == *(SUBHEX *)dynarr_at (hit, dynarr_size (hit) - 2))
-				{
-					side1 = side2;
-					map_freePos (pos);
-					continue;
-				}
+				pos = map_from (active, 0, XY[(begin + i) % 6][X], XY[(begin + i) % 6][Y]);
 				active = map_posFocusedPlatter (pos);
 				map_freePos (pos);
 				assert (active != NULL);
