@@ -271,27 +271,15 @@ void input_sendGameEventMessage (const struct input_event * ie)
 	}
 }
 
-// FIXME: if there is only ever going to be one controlled entity at one time, there's no need for the array. if there may be more than one controlled entity at one time, this code won't always work.
-Entity input_getPlayerEntity ()
-{
-	if (Input == NULL || dynarr_isEmpty (Input->controlledEntities))
-		return NULL;
-	return *(Entity *)dynarr_front (Input->controlledEntities);
-}
-
-
 
 static void input_classDestroy (EntComponent comp, EntSpeech speech);
 static void input_componentDestroy (EntComponent inputComponent, EntSpeech speech);
-static void input_update (EntComponent inputComponent, EntSpeech speech);
 
 void input_define (EntComponent inputComponent, EntSpeech speech)
 {
 	component_registerResponse ("input", "__classDestroy", input_classDestroy);
 
 	component_registerResponse ("input", "__destroy", input_componentDestroy);
-
-	component_registerResponse ("input", "__update", input_update);
 
 	Input = input_create ();
 }
@@ -312,7 +300,7 @@ static void input_componentDestroy (EntComponent inputComponent, EntSpeech speec
 }
 
 
-static void input_update (EntComponent inputComponent, EntSpeech speech)
+void input_system (Dynarr entities)
 {
 	int
 		i,

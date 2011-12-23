@@ -136,6 +136,7 @@ void systemUpdate (void)
 			func (t);
 			i++;
 		}
+		entitySystem_update ("input");
 		entitySystem_update ("walking");
 		entitySystem_update ("ui");
 

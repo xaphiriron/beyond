@@ -1140,7 +1140,7 @@ static void uiWorldmapGenLevel (struct uiMapData * map, unsigned char span)
 	SUBHEX
 		playerLocation;
 	Entity
-		player = input_getPlayerEntity ();
+		player = entity_getByName ("PLAYER");
 	float
 		facing;
 	entity_message (player, NULL, "getHex", &playerLocation);

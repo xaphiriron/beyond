@@ -94,8 +94,7 @@ bool input_rmEntity (Entity e, enum input_control_types t);
 void input_sendAction (enum input_responses);
 void input_sendGameEventMessage (const struct input_event * ie);
 
-Entity input_getPlayerEntity ();
-
 void input_define (EntComponent inputComponent, EntSpeech speech);
+void input_system (Dynarr entities);
 
 #endif /* XPH_COMPONENT_INPUT_H */

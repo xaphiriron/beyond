@@ -54,6 +54,7 @@ void bootstrap (void)
 	component_register ("pattern", pattern_define);
 	component_register ("body", pattern_define);
 
+	entitySystem_register ("input", input_system, 1, "input");
 	entitySystem_register ("walking", walking_system, 1, "walking");
 	entitySystem_register ("ui", ui_system, 1, "ui");
 
