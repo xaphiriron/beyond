@@ -12,7 +12,7 @@
 #include "component_camera.h"
 #include "component_walking.h"
 
-#include "comp_worldarch.h"
+#include "comp_arch.h"
 #include "comp_body.h"
 
 static void bootstrap (void);

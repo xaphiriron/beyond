@@ -41,7 +41,7 @@ beyond_SOURCES = \
 	\
 	entity.c entity.h	\
 	comp_body.c comp_body.h \
-	comp_worldarch.c comp_worldarch.h \
+	comp_arch.c comp_arch.h \
 	component_position.c component_position.h	\
 	component_camera.c component_camera.h		\
 	component_input.c component_input.h		\

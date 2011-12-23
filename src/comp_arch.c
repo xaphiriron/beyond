@@ -1,4 +1,4 @@
-#include "comp_worldarch.h"
+#include "comp_arch.h"
 
 #include "map.h"
 #include "component_position.h"
