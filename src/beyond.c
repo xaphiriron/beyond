@@ -50,7 +50,7 @@ void bootstrap (void)
 	component_register ("walking", walking_define);
 	component_register ("input", input_define);
 	component_register ("ui", ui_define);
-	component_register ("worldArch", worldarch_define);
+	component_register ("arch", arch_define);
 	component_register ("pattern", pattern_define);
 	component_register ("body", pattern_define);
 

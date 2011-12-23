@@ -24,7 +24,7 @@ static Dynarr
 static Entity
 	base;
 
-static Dynarr worldArchOrderFor (SUBHEX platter);
+static Dynarr archOrderFor (SUBHEX platter);
 
 void worldInit ()
 {
@@ -50,7 +50,7 @@ void worldInit ()
 	pos = map_randomPos ();
 	map_posSwitchFocus (pos, 1);
 	position_set (base, pos);
-	component_instantiate ("worldArch", base);
+	component_instantiate ("arch", base);
 
 	FUNCCLOSE ();
 }
@@ -111,7 +111,7 @@ void worldImprint (SUBHEX at)
 		i++;
 	}
 
-	arches = worldArchOrderFor (at);
+	arches = archOrderFor (at);
 	i = 0;
 	while ((arch = *(Entity *)dynarr_at (arches, i++)))
 	{
@@ -130,7 +130,7 @@ void worldImprint (SUBHEX at)
 }
 
 
-static Dynarr worldArchOrderFor (SUBHEX platter)
+static Dynarr archOrderFor (SUBHEX platter)
 {
 	Dynarr
 		r = dynarr_create (2, sizeof (Entity)),

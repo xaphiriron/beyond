@@ -3,7 +3,7 @@
 #include "map.h"
 #include "component_position.h"
 
-struct xph_worldarch
+struct xph_arch
 {
 	Entity
 		parent,
@@ -15,7 +15,7 @@ struct xph_worldarch
 		subarches;
 };
 
-typedef struct xph_worldarch * worldArch;
+typedef struct xph_arch * Arch;
 
 struct xph_pattern
 {
@@ -26,40 +26,38 @@ struct xph_pattern
 
 typedef struct xph_pattern * Pattern;
 
-void worldarch_create (EntComponent comp, EntSpeech speech);
-void worldarch_destroy (EntComponent comp, EntSpeech speech);
+void arch_create (EntComponent comp, EntSpeech speech);
+void arch_destroy (EntComponent comp, EntSpeech speech);
 
-void worldarch_setParent (EntComponent comp, EntSpeech speech);
-void worldarch_setPattern (EntComponent comp, EntSpeech speech);
+void arch_setParent (EntComponent comp, EntSpeech speech);
+void arch_setPattern (EntComponent comp, EntSpeech speech);
 
-void worldarch_updatePosition (EntComponent comp, EntSpeech speech);
+void arch_updatePosition (EntComponent comp, EntSpeech speech);
 
-void worldarch_expand (EntComponent comp, EntSpeech speech);
+void arch_expand (EntComponent comp, EntSpeech speech);
 
-void worldarch_define (EntComponent comp, EntSpeech speech)
+void arch_define (EntComponent comp, EntSpeech speech)
 {
+	component_registerResponse ("arch", "__create", arch_create);
+	component_registerResponse ("arch", "__destroy", arch_destroy);
 
-	component_registerResponse ("worldArch", "__create", worldarch_create);
-	component_registerResponse ("worldArch", "__destroy", worldarch_destroy);
+	component_registerResponse ("arch", "setArchParent", arch_setParent);
+	component_registerResponse ("arch", "setArchPattern", arch_setPattern);
 
-	component_registerResponse ("worldArch", "setArchParent", worldarch_setParent);
-	component_registerResponse ("worldArch", "setArchPattern", worldarch_setPattern);
+	component_registerResponse ("arch", "positionSet", arch_updatePosition);
 
-	component_registerResponse ("worldArch", "positionSet", worldarch_updatePosition);
-
-	component_registerResponse ("worldArch", "archExpand", worldarch_expand);
-
+	component_registerResponse ("arch", "archExpand", arch_expand);
 }
 
-void worldarch_create (EntComponent comp, EntSpeech speech)
+void arch_create (EntComponent comp, EntSpeech speech)
 {
 	Entity
 		this = component_entityAttached (comp);
-	worldArch
-		arch = xph_alloc (sizeof (struct xph_worldarch));
+	Arch
+		arch = xph_alloc (sizeof (struct xph_arch));
 	hexPos
 		pos;
-	memset (arch, 0, sizeof (struct xph_worldarch));
+	memset (arch, 0, sizeof (struct xph_arch));
 
 	arch->connectedArches = dynarr_create (2, sizeof (Entity));
 	arch->subarches = dynarr_create (2, sizeof (Entity));
@@ -70,9 +68,9 @@ void worldarch_create (EntComponent comp, EntSpeech speech)
 		subhexAddArch (map_posBestMatchPlatter (pos), this);
 }
 
-void worldarch_destroy (EntComponent comp, EntSpeech speech)
+void arch_destroy (EntComponent comp, EntSpeech speech)
 {
-	worldArch
+	Arch
 		arch = component_getData (comp);
 	dynarr_destroy (arch->connectedArches);
 	dynarr_destroy (arch->subarches);
@@ -81,21 +79,21 @@ void worldarch_destroy (EntComponent comp, EntSpeech speech)
 	component_clearData (comp);
 }
 
-void worldarch_setParent (EntComponent comp, EntSpeech speech)
+void arch_setParent (EntComponent comp, EntSpeech speech)
 {
-	worldArch
+	Arch
 		arch = component_getData (comp);
 	arch->parent = speech->arg;
 }
 
-void worldarch_setPattern (EntComponent comp, EntSpeech speech)
+void arch_setPattern (EntComponent comp, EntSpeech speech)
 {
-	worldArch
+	Arch
 		arch = component_getData (comp);
 	arch->pattern = speech->arg;
 }
 
-void worldarch_updatePosition (EntComponent comp, EntSpeech speech)
+void arch_updatePosition (EntComponent comp, EntSpeech speech)
 {
 	Entity
 		this = component_entityAttached (comp);
@@ -111,11 +109,11 @@ void worldarch_updatePosition (EntComponent comp, EntSpeech speech)
 	subhexAddArch (map_posBestMatchPlatter (pos), this);
 }
 
-void worldarch_expand (EntComponent comp, EntSpeech speech)
+void arch_expand (EntComponent comp, EntSpeech speech)
 {
 	Entity
 		this = component_entityAttached (comp);
-	worldArch
+	Arch
 		arch = component_getData (comp);
 	hexPos
 		pos;
@@ -137,8 +135,8 @@ void worldarch_expand (EntComponent comp, EntSpeech speech)
 	{
 		child = entity_create ();
 		component_instantiate ("position", child);
-		component_instantiate ("worldArch", child);
-		childPos = map_randomPositionNear (pos, 0);
+		component_instantiate ("arch", child);
+		childPos = map_randomPositionNear (pos, 2);
 		map_posSwitchFocus (childPos, 1);
 		position_set (child, childPos);
 
