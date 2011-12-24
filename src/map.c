@@ -629,9 +629,14 @@ hexPos map_randomPositionNear (const hexPos base, int range)
 	int
 		spanLevels,
 		focus,
+		oldFocus,
 		displacement,
 		x = 0,
-		y = 0;
+		y = 0,
+		higherX,
+		higherY,
+		xRemainder,
+		yRemainder;
 
 	if (base->focus == MapSpan && range != 0)
 	{
@@ -653,6 +658,31 @@ hexPos map_randomPositionNear (const hexPos base, int range)
 
 		pos->x[focus + 1] += x;
 		pos->y[focus + 1] += y;
+		// check for overflow -- this code is copied from map_from, and maybe it should be turned into its own function if this kind of thing is going to happen a lot - xph 2011 12 24
+		oldFocus = focus;
+		focus++;
+		while (hexMagnitude (pos->x[focus], pos->y[focus]) > MapRadius)
+		{
+			assert (focus <= MapSpan);
+			mapScaleCoordinates
+			(
+				1,
+				pos->x[focus], pos->y[focus],
+				&higherX, &higherY,
+				&xRemainder, &yRemainder
+			);
+			pos->x[focus] = xRemainder;
+			pos->y[focus] = yRemainder;
+			focus++;
+			if (focus > MapSpan)
+			{
+				pos->platter[MapSpan] = mapPole (mapPoleTraversal (subhexPoleName (pos->platter[MapSpan]), higherX, higherY));
+				break;
+			}
+			pos->x[focus] += higherX;
+			pos->y[focus] += higherY;
+		}
+		focus = oldFocus;
 	}
 
 	while (focus > 0)
