@@ -137,7 +137,10 @@ void systemUpdate (void)
 			i++;
 		}
 		entitySystem_update ("input");
+
 		entitySystem_update ("walking");
+		entitySystem_update ("builder");
+
 		entitySystem_update ("ui");
 	}
 
@@ -324,6 +327,7 @@ void systemCreatePlayer (Entity base)
 	}
 	component_instantiate ("walking", player);
 	component_instantiate ("body", player);
+	component_instantiate ("builder", player);
 	entity_refresh (player);
 	entity_name (player, "PLAYER");
 

@@ -49,6 +49,7 @@ enum input_responses {
 	IR_UI_MOUSEMOVE,
 	IR_UI_MOUSECLICK,
 
+	IR_WORLD_PLACEARCH,
 
 	IR_WORLDGEN,
 	IR_QUIT,

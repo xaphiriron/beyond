@@ -62,6 +62,7 @@ unsigned char stepParam (HEXSTEP step, const char * param);
 
 hexPos map_randomPos ();
 hexPos map_randomPositionNear (const hexPos base, int range);
+hexPos map_copy (const hexPos original);
 hexPos map_at (const SUBHEX at);
 hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y);
 
@@ -137,6 +138,9 @@ signed int mapDataGet (SUBHEX at, char * type);
 void subhexAddArch (SUBHEX at, Entity arch);
 void subhexRemoveArch (SUBHEX at, Entity arch);
 const Dynarr subhexGetArches (const SUBHEX at);
+
+// REMOVE: this function is only going to be used for the fake re-imprinting; it's going to be replaced by something less terrible once map loading is more full-fledged
+void subhexResetLoadStateForNewArch (SUBHEX at);
 
 /***
  * COLLISION

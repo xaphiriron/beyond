@@ -677,6 +677,22 @@ hexPos map_randomPositionNear (const hexPos base, int range)
 	return pos;
 }
 
+hexPos map_copy (const hexPos original)
+{
+	hexPos
+		pos;
+	int
+		spanLevels = MapSpan + 1;
+	if (!original)
+		return NULL;
+	pos = map_blankPos ();
+	memcpy (pos->x, original->x, sizeof (int) * spanLevels);
+	memcpy (pos->y, original->y, sizeof (int) * spanLevels);
+	memcpy (pos->platter, original->platter, sizeof (SUBHEX) * spanLevels);
+	pos->focus = original->focus;
+	return pos;
+}
+
 hexPos map_at (const SUBHEX at)
 {
 	hexPos
@@ -2004,6 +2020,32 @@ const Dynarr subhexGetArches (const SUBHEX at)
 	if (!at || subhexSpanLevel (at) < 1)
 		return NULL;
 	return at->sub.arches;
+}
+
+
+void subhexResetLoadStateForNewArch (SUBHEX at)
+{
+	Dynarr
+		around;
+	hexPos
+		pos;
+	int
+		i = 0;
+	SUBHEX
+		active;
+	if (!at)
+		return;
+	around = map_posAround (at, 1);
+	while ((pos = *(hexPos *)dynarr_at (around, i++)))
+	{
+		active = map_posFocusedPlatter (pos);
+		if (!active || subhexSpanLevel (active) == 0)
+			continue;
+		printf ("re-imprinting subhex %p\n", active);
+		worldImprint (active);
+	}
+	dynarr_map (around, (void (*)(void *))map_freePos);
+	dynarr_destroy (around);
 }
 
 /***

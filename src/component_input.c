@@ -118,6 +118,9 @@ struct input * input_create ()
 	dynarr_assign (i->controlMap, IR_UI_CONFIRM, keys_create (1, SDLK_RETURN));
 
 	dynarr_assign (i->controlMap, IR_DEBUG_SWITCH, keys_create (1, SDLK_F3));
+
+	dynarr_assign (i->controlMap, IR_WORLD_PLACEARCH, keys_create (1, SDLK_z));
+
 	return i;
 }
 
@@ -247,6 +250,7 @@ void input_sendGameEventMessage (const struct input_event * ie)
 			system_message (OM_FORCEWORLDGEN, NULL, NULL);
 			break;
 		case IR_VIEW_WIREFRAME_SWITCH:
+			//entitySystem_message ("video", NULL, "WIREFRAME_SWITCH", NULL);
 			video_wireframeSwitch ();
 			break;
 		case IR_WORLDMAP_SWITCH:

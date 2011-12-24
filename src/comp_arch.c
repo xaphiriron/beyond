@@ -99,14 +99,20 @@ void arch_updatePosition (EntComponent comp, EntSpeech speech)
 		this = component_entityAttached (comp);
 	hexPos
 		pos;
+	SUBHEX
+		platter;
 	// TODO: if the arch is moving (?!) remove arch from old platter
 	pos = position_get (this);
 	if (!pos)
 	{
-		ERROR ("can't update arch (%p) position: no position\n", this);
+		ERROR ("can't update arch (%p, #%d) position: no position", this, entity_GUID (this));
 		return;
 	}
-	subhexAddArch (map_posBestMatchPlatter (pos), this);
+	printf ("set position for arch #%d\n", entity_GUID (this));
+	platter = map_posBestMatchPlatter (pos);
+	subhexAddArch (platter, this);
+	/* if the position or any of its adjacent platters are imprinted they're going to need to be re-imprinted due to this new arch. this isn't the best way to do it (since depending on how arches and platters are loaded this could result in a /lot/ of wasted calculation, given how intensive the imprinting process can be) but it's /a/ way, and that's what matters right now. FIXME later once patterns do more things and the loading process has been actually coded. - xph 2011 12 23 */
+	subhexResetLoadStateForNewArch (platter);
 }
 
 void arch_expand (EntComponent comp, EntSpeech speech)
@@ -180,4 +186,76 @@ void pattern_destroy (EntComponent comp, EntSpeech speech)
 	xph_free (pattern);
 
 	component_clearData (comp);
+}
+
+/***
+ * BUILDERS
+ */
+
+void builder_create (EntComponent comp, EntSpeech speech);
+void builder_destroy (EntComponent comp, EntSpeech speech);
+void builder_inputResponse (EntComponent comp, EntSpeech speech);
+
+void builder_define (EntComponent comp, EntSpeech speech)
+{
+	component_registerResponse ("builder", "__create", builder_create);
+	component_registerResponse ("builder", "__destroy", builder_destroy);
+
+	component_registerResponse ("builder", "CONTROL_INPUT", builder_inputResponse);
+}
+
+void builder_create (EntComponent comp, EntSpeech speech)
+{
+	
+}
+
+void builder_destroy (EntComponent comp, EntSpeech speech)
+{
+	
+}
+
+void builder_inputResponse (EntComponent comp, EntSpeech speech)
+{
+	Entity
+		this = component_entityAttached (comp);
+	const struct input_event
+		* input = speech->arg;
+
+	switch (input->ir)
+	{
+		case IR_WORLD_PLACEARCH:
+			// FIXME: extra information this message needs to transmit somehow: the centre of the blueprint, the blueprint data itself (which is probably gonna be more complex than just "this pattern")
+			entity_speak (this, "builder:placeBlueprint", NULL);
+			break;
+		default:
+			break;
+	}
+
+}
+
+/***
+ * BUILDER SYSTEM
+ */
+
+void builder_system (Dynarr entities)
+{
+	EntSpeech
+		speech;
+
+	Entity
+		newArch;
+
+	while ((speech = entitySystem_dequeueMessage ("builder")))
+	{
+		if (!strcmp (speech->message, "builder:placeBlueprint"))
+		{
+			newArch = entity_create ();
+			component_instantiate ("position", newArch);
+			component_instantiate ("arch", newArch);
+			entity_refresh (newArch);
+			position_copy (newArch, speech->from);
+			printf ("created new arch; entity #%d\n", entity_GUID (newArch));
+		}
+	}
+
 }
