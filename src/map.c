@@ -2319,29 +2319,53 @@ VECTOR3 mapDistanceBetween (const SUBHEX a, const SUBHEX b)
 {
 	hexPos
 		aPos = map_at (a),
-		bPos = map_at (b);
+		bPos = map_at (b),
+		difference = map_blankPos ();
 	int
 		focus = aPos->focus < bPos->focus
 			? aPos->focus
-			: bPos->focus;
+			: bPos->focus,
+		span;
 	VECTOR3
-		level,
 		r = vectorCreate (0.0, 0.0, 0.0);
 
-	while (focus <= MapSpan)
+	// FIXME: i don't actually know if this will work right in all cases. notably: on crossing poles (definitely won't); on maps where there are so many span levels or there's such a large distance that a top-level difference isn't representable as an int when it's scaled to be in span 0 coordinates - xph 2011 12 24
+	// using the raw coordinates, get the net distance
+	span = MapSpan;
+	while (span > focus)
 	{
-		level = mapDistanceFromSubhexCentre (focus - 1, aPos->x[focus] - bPos->x[focus], aPos->y[focus] - bPos->y[focus]);
-		r = vectorAdd (&r, &level);
-
-		if (aPos->platter[focus] == bPos->platter[focus])
-			break;
-
-		focus++;
-
+		// this may or may not deal properly with pole crossings. if it does work, it definitely doesn't generate the shortest possible distance, which is what we want.
+		if (span == MapSpan && aPos->platter[span] != bPos->platter[span])
+		{
+			int
+				* connections;
+			connections = mapPoleConnections (subhexPoleName (aPos->platter[span]), subhexPoleName (bPos->platter[span]));
+			difference->x[span] = XY[connections[0]][X];
+			difference->y[span] = XY[connections[0]][Y];
+			xph_free (connections);
+		}
+		// add real coordinate distance to the difference on span level $span
+		difference->x[span] += (aPos->x[span] - bPos->x[span]);
+		difference->y[span] += (aPos->y[span] - bPos->y[span]);
+		// scale difference up for $span - 1 to carry it over
+		mapScaleCoordinates
+		(
+			-1,
+			difference->x[span],
+			difference->y[span],
+			&difference->x[span - 1],
+			&difference->y[span - 1],
+			NULL, NULL
+		);
+		span--;
 	}
+
+	// i don't remember why focus + 1 is the correct value but it probably has something to do with how hexPos coordinates are stored on the level above them
+	r = mapDistanceFromSubhexCentre (focus, difference->x[focus + 1], difference->y[focus + 1]);
 
 	map_freePos (aPos);
 	map_freePos (bPos);
+	map_freePos (difference);
 
 	return r;
 }
