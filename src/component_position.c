@@ -65,6 +65,8 @@ static void position_destroy (EntComponent comp, EntSpeech speech)
 	POSITION
 		position = component_getData (comp);
 	position_unset (this);
+	if (position->position)
+		map_freePos (position->position);
 	xph_free (position);
 
 	component_clearData (comp);
