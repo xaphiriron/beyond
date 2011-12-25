@@ -2071,8 +2071,11 @@ void subhexResetLoadStateForNewArch (SUBHEX at)
 		active = map_posFocusedPlatter (pos);
 		if (!active || subhexSpanLevel (active) == 0)
 			continue;
-		printf ("re-imprinting subhex %p\n", active);
-		worldImprint (active);
+		if (active->sub.loaded == true)
+		{
+			printf ("re-imprinting subhex %p\n", active);
+			worldImprint (active);
+		}
 	}
 	dynarr_map (around, (void (*)(void *))map_freePos);
 	dynarr_destroy (around);
