@@ -2352,12 +2352,22 @@ VECTOR3 mapDistanceBetween (const SUBHEX a, const SUBHEX b)
 {
 	hexPos
 		aPos = map_at (a),
-		bPos = map_at (b),
+		bPos = map_at (b);
+	VECTOR3
+		r = mapDistance (aPos, bPos);
+	map_freePos (aPos);
+	map_freePos (bPos);
+	return r;
+}
+
+VECTOR3 mapDistance (const hexPos a, const hexPos b)
+{
+	hexPos
 		difference = map_blankPos ();
 	int
-		focus = aPos->focus < bPos->focus
-			? aPos->focus
-			: bPos->focus,
+		focus = a->focus < b->focus
+			? a->focus
+			: b->focus,
 		span;
 	VECTOR3
 		r = vectorCreate (0.0, 0.0, 0.0);
@@ -2368,18 +2378,18 @@ VECTOR3 mapDistanceBetween (const SUBHEX a, const SUBHEX b)
 	while (span > focus)
 	{
 		// this may or may not deal properly with pole crossings. if it does work, it definitely doesn't generate the shortest possible distance, which is what we want.
-		if (span == MapSpan && aPos->platter[span] != bPos->platter[span])
+		if (span == MapSpan && a->platter[span] != b->platter[span])
 		{
 			int
 				* connections;
-			connections = mapPoleConnections (subhexPoleName (aPos->platter[span]), subhexPoleName (bPos->platter[span]));
+			connections = mapPoleConnections (subhexPoleName (a->platter[span]), subhexPoleName (b->platter[span]));
 			difference->x[span] = XY[connections[0]][X];
 			difference->y[span] = XY[connections[0]][Y];
 			xph_free (connections);
 		}
 		// add real coordinate distance to the difference on span level $span
-		difference->x[span] += (aPos->x[span] - bPos->x[span]);
-		difference->y[span] += (aPos->y[span] - bPos->y[span]);
+		difference->x[span] += (a->x[span] - b->x[span]);
+		difference->y[span] += (a->y[span] - b->y[span]);
 		// scale difference up for $span - 1 to carry it over
 		mapScaleCoordinates
 		(
@@ -2396,8 +2406,6 @@ VECTOR3 mapDistanceBetween (const SUBHEX a, const SUBHEX b)
 	// i don't remember why focus + 1 is the correct value but it probably has something to do with how hexPos coordinates are stored on the level above them
 	r = mapDistanceFromSubhexCentre (focus, difference->x[focus + 1], difference->y[focus + 1]);
 
-	map_freePos (aPos);
-	map_freePos (bPos);
 	map_freePos (difference);
 
 	return r;
@@ -2480,9 +2488,12 @@ static signed int mapUnloadDistant ()
  * RENDERING FUNCTIONS
  */
 
-
+static VECTOR3
+	* Distance = NULL;
 void worldSetRenderCacheCentre (SUBHEX origin)
 {
+	int
+		i = 0;
 	if (origin == RenderOrigin)
 	{
 		INFO ("%s called with repeat origin (%p). already set; ignoring", __FUNCTION__, origin);
@@ -2497,9 +2508,10 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 	}
 	else if (subhexSpanLevel (origin) != 1)
 		ERROR ("The rendering origin isn't at maximum resolution; this may be a problem");
+
 	if (RenderCache != NULL)
 	{
-		dynarr_wipe (RenderCache, (void (*)(void *))mapRelativeDestroy);
+		dynarr_wipe (RenderCache, (void (*)(void *))map_freePos);
 		dynarr_destroy (RenderCache);
 	}
 
@@ -2511,7 +2523,23 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 
 	mapQueueLoadAround (origin);
 
-	RenderCache = mapAdjacentSubhexes (origin, AbsoluteViewLimit);
+	RenderCache = map_posAround (origin, AbsoluteViewLimit);
+
+	/* this is painfully clever and yet somehow still weirdly constructed. so, as it turns out, no matter what the origin is or what other platters are being drawn, the actual offsets from the origin will be constant, because the map is laid out on a regular hexagonal grid. therefore, it's possible to calculate these platter offsets once and then use them forever afterward. this doesn't need real subhexes or even real hexposes to calculate the offsets, it's just i had already written the mapDistance function and there are all these hexPos values on hand already, so might as well put it here. it'd be more reasonable for this to be placed in some worldgen pre-render system, once i get to making the world map rendering code all systemic. - xph 2011 12 24*/
+	if (Distance == NULL)
+	{
+		hexPos
+			originPos,
+			cacheEntry;
+		originPos = map_at (RenderOrigin);
+		Distance = xph_alloc (sizeof (VECTOR3) * fx (AbsoluteViewLimit));
+		while ((cacheEntry = *(hexPos *)dynarr_at (RenderCache, i)))
+		{
+			Distance[i] = mapDistance (cacheEntry, originPos);
+			i++;
+		}
+		map_freePos (originPos);
+	}
 
 	mapUnloadDistant ();
 
@@ -2538,10 +2566,13 @@ static void mapCheckLoadStatusAndImprint (void * rel_v)
 	int
 		i = 0,
 		loadCount = 0;
+	hexPos
+		pos;
 	assert (rel_v != NULL);
-	target = mapRelativeTarget (rel_v);
+	pos = rel_v;
+	target = map_posFocusedPlatter (pos);
 	/* higher span platters can still be imprinted and 'loaded' in the sense that their data values can be used to, like, the raycasting bg or something. ultimately they shouldn't be ignored, but for the time being they are */
-	if (subhexSpanLevel (target) != 1)
+	if (!target || subhexSpanLevel (target) != 1)
 		return;
 	if (target->sub.loaded)
 		return;
@@ -2660,8 +2691,8 @@ void mapDraw (const float const * matrix)
 	VECTOR3
 		centreOffset,
 		norm;
-	RELATIVEHEX
-		rel;
+	hexPos
+		pos;
 	SUBHEX
 		sub;
 	unsigned int
@@ -2681,14 +2712,14 @@ void mapDraw (const float const * matrix)
 	glBindTexture (GL_TEXTURE_2D, 0);
 	while (i < tier1Detail)
 	{
-		rel = *(RELATIVEHEX *)dynarr_at (RenderCache, i);
-		if (!isPerfectFidelity (rel))
+		pos = *(hexPos *)dynarr_at (RenderCache, i);
+		sub = map_posFocusedPlatter (pos);
+		if (!sub)
 		{
 			i++;
 			continue;
 		}
-		centreOffset = mapRelativeDistance (rel);
-		sub = mapRelativeTarget (rel);
+		centreOffset = Distance[i];
 		if (i > 6)
 		{
 			norm = vectorNormalize (&centreOffset);
@@ -2706,7 +2737,7 @@ void mapDraw (const float const * matrix)
 			}
 		}
 
-		DEBUG ("trying to render the subhex %d-th in the cache (relativehex val: %p)", i, rel);
+		DEBUG ("trying to render the subhex %d-th in the cache (hexPos val: %p)", i, pos);
 		DEBUG (" - centre offset: %f %f %f", centreOffset.x, centreOffset.y, centreOffset.z);
 		//DEBUG (" - target: %p", sub);
 		i++;

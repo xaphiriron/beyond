@@ -169,6 +169,7 @@ bool hexColor (const HEX hex, unsigned char * rgb);
 
 int mapDistanceFrom (const hexPos pos, const SUBHEX hex);
 VECTOR3 mapDistanceBetween (const SUBHEX a, const SUBHEX b);
+VECTOR3 mapDistance (const hexPos a, const hexPos b);
 
 /***
  * RENDERING FUNCTIONS
