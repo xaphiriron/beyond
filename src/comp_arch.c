@@ -110,6 +110,8 @@ void arch_updatePosition (EntComponent comp, EntSpeech speech)
 	}
 	printf ("set position for arch #%d\n", entity_GUID (this));
 	platter = map_posBestMatchPlatter (pos);
+	if (subhexSpanLevel (platter) == 0)
+		platter = subhexParent (platter);
 	subhexAddArch (platter, this);
 	/* if the position or any of its adjacent platters are imprinted they're going to need to be re-imprinted due to this new arch. this isn't the best way to do it (since depending on how arches and platters are loaded this could result in a /lot/ of wasted calculation, given how intensive the imprinting process can be) but it's /a/ way, and that's what matters right now. FIXME later once patterns do more things and the loading process has been actually coded. - xph 2011 12 23 */
 	subhexResetLoadStateForNewArch (platter);

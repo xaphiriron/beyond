@@ -245,7 +245,10 @@ void position_copy (Entity target, const Entity source)
 	else
 	{
 		// in a perfect world all positions would have their hexPos position set, but they don't since i'm in the middle of a long, protracted, and sloppy transition from storing raw SUBHEXes to storing hexPos. so if there isn't a hexPos we create one. - xph 2011 12 23
-		position_set (target, map_at (sourcePosition->ground));
+		int
+			x, y;
+		hex_space2coord (&sourcePosition->pos, &x, &y);
+		position_set (target, map_at (subhexData (sourcePosition->ground, x, y)));
 	}
 }
 
