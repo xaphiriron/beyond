@@ -13,6 +13,7 @@ ALIGN_JUSTIFY = 4
 
 
 void loadFont (const char * path);
+void freeFont ();
 
 int systemLineHeight ();
 

@@ -22,6 +22,14 @@ void loadFont (const char * path)
 	SystemFont = sheetCreate (path, SHEET_MULTISIZE);
 }
 
+void freeFont ()
+{
+	if (!SystemFont)
+		return;
+	sheetDestroy (SystemFont);
+	SystemFont = NULL;
+}
+
 int systemLineHeight ()
 {
 	if (SystemFont == NULL)

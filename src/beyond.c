@@ -33,6 +33,8 @@ int main (int argc, char * argv[])
 	r = systemLoop ();
 
 	systemDestroy ();
+	freeFont ();
+
 	return r;
 }
 
