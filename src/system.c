@@ -555,6 +555,8 @@ char * systemGenDebugStr ()
 
 int system_message (objMsg msg, void * a, void * b)
 {
+	Dynarr
+		arr;
 	switch (msg)
 	{
 		case OM_SHUTDOWN:
@@ -563,7 +565,9 @@ int system_message (objMsg msg, void * a, void * b)
 			return EXIT_SUCCESS;
 
 		case OM_FORCEWORLDGEN:
-			dynarr_map (entity_getWith (1, "ui"), (void (*)(void *))entity_destroy);
+			arr = entity_getWith (1, "ui");
+			dynarr_map (arr, (void (*)(void *))entity_destroy);
+			dynarr_destroy (arr);
 
 			printf ("TRIGGERING WORLDGEN:\n");
 			systemLoad (worldInit, worldGenerate, worldFinalize);
