@@ -1,13 +1,16 @@
 #include "xph_memory.h"
 
 #ifdef MEM_DEBUG
-static struct mlist * mlist = NULL;
+static struct mlist
+	* mlist = NULL;
+static bool
+	mdirty = false;
 
 void * _xph_alloc (size_t size, char * exp) {
   struct mdata * n = NULL;
   void * a = NULL;
   int len = 0;
-  //printf ("%s (%d, \"%s\")...\n", __FUNCTION__, size, exp);
+  printf ("\033[31;1m%s (%d, \"%s\")\033[0m\n", __FUNCTION__, size, exp);
   if (mlist == NULL) {
     mlist = calloc (1, sizeof (struct mlist));
     mlist->o = 0;
@@ -44,7 +47,7 @@ void * _xph_alloc (size_t size, char * exp) {
 */
   }
   mlist->a[mlist->o++] = n;
-  qsort (mlist->a, mlist->o, sizeof (struct mdata *), memory_sort);
+	mdirty = true;
   return n->address;
 }
 
@@ -55,6 +58,11 @@ void * xph_realloc (void * d, size_t size) {
     * j = NULL;
   void * a = NULL;
   assert (mlist != NULL);
+	if (mdirty)
+	{
+		qsort (mlist->a, mlist->o, sizeof (struct mdata *), memory_sort);
+		mdirty = false;
+	}
   k = bsearch (d, mlist->a, mlist->o, sizeof (struct mdata *), memory_search);
   if (k == NULL) {
     return d;
@@ -76,49 +84,72 @@ void * xph_realloc (void * d, size_t size) {
 }
 
 void xph_free (void * d) {
-  //printf ("%s (%p)...\n", __FUNCTION__, d);
   struct mdata
     ** last = NULL,
     ** k = NULL;
   assert (mlist != NULL);
+	if (mdirty)
+	{
+		qsort (mlist->a, mlist->o, sizeof (struct mdata *), memory_sort);
+		mdirty = false;
+	}
   k = bsearch (d, mlist->a, mlist->o, sizeof (struct mdata *), memory_search);
   if (k == NULL) {
     fprintf (stderr, "Attempted to free %p, which is not allocated.\n", d);
     return;
   }
+  printf ("\033[32;1m%s (%p), \"%s\"\033[0m\n", __FUNCTION__, d, (*k)->exp);
   free ((*k)->address);
   free ((*k)->exp);
   free (*k);
   last = &mlist->a[--mlist->o];
   *k = *last;
   memset (last, '\0', sizeof (struct mdata *));
-  qsort (mlist->a, mlist->o, sizeof (struct mdata *), memory_sort);
+	mdirty = true;
   //printf ("...%s ()\n", __FUNCTION__);
 }
 
-void xph_audit () {
-  int i = 0;
-  struct mdata * k = NULL;
-  if (mlist->o == 0) {
-    printf ("No memory allocated.\n");
-    return;
-  }
-  printf ("%d address%s allocated.\n", mlist->o, mlist->o == 1 ? "" : "es");
-  while (i < mlist->o) {
-    k = mlist->a[i++];
-    printf ("%4d bytes @ %p, \"%s\"\n", k->size, k->address, k->exp);
-  }
+void xph_audit ()
+{
+	struct mdata
+		* k = NULL;
+	int
+		i = 0;
+	long
+		total = 0;
+	if (mlist->o == 0)
+	{
+		printf ("No memory allocated.\n");
+		return;
+	}
+	printf ("%d address%s allocated.\n", mlist->o, mlist->o == 1 ? "" : "es");
+	while (i < mlist->o)
+	{
+		k = mlist->a[i++];
+		printf ("%4d bytes @ %p, \"%s\"\n", k->size, k->address, k->exp);
+		total += k->size;
+	}
+	printf ("%ld bytes allocated total.\n", total);
 }
 
-struct mdata * xph_isallocated (void * d) {
-  //printf ("%s (%p)...\n", __FUNCTION__, d);
-  struct mdata ** k = bsearch (d, mlist->a, mlist->o, sizeof (struct mdata *), memory_search);
-  if (k == NULL) {
-    //printf ("...%s () [early]\n", __FUNCTION__);
-    return NULL;
-  }
-  //printf ("...%s ()\n", __FUNCTION__);
-  return *k;
+struct mdata * xph_isallocated (void * d)
+{
+	struct mdata
+		** k;
+	//printf ("%s (%p)...\n", __FUNCTION__, d);
+	if (mdirty)
+	{
+		qsort (mlist->a, mlist->o, sizeof (struct mdata *), memory_sort);
+		mdirty = false;
+	}
+	k = bsearch (d, mlist->a, mlist->o, sizeof (struct mdata *), memory_search);
+	if (!k)
+	{
+		//printf ("...%s () [early]\n", __FUNCTION__);
+		return NULL;
+	}
+	//printf ("...%s ()\n", __FUNCTION__);
+	return *k;
 }
 
 int memory_sort (const void * a, const void * b) {
