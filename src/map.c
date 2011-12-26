@@ -2489,7 +2489,13 @@ static signed int mapUnloadDistant ()
  */
 
 static VECTOR3
-	* Distance = NULL;
+	* Distance = NULL,
+	* VertexJitter = NULL;
+
+static int green (int n);
+static int red (int n);
+static unsigned int vertex (int x, int y, int v);
+
 void worldSetRenderCacheCentre (SUBHEX origin)
 {
 	int
@@ -2539,6 +2545,15 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 			i++;
 		}
 		map_freePos (originPos);
+		VertexJitter = xph_alloc (sizeof (VECTOR3) * green (MapRadius + 1));
+		i = 0;
+		while (i < green (MapRadius + 1))
+		{
+			VertexJitter[i].x = ((float)rand () / RAND_MAX) * 13.0;
+			VertexJitter[i].z = ((float)rand () / RAND_MAX) * 13.0;
+			//printf ("%d: %f, %f\n", i, VertexJitter[i].x, VertexJitter[i].z);
+			i++;
+		}
 	}
 
 	mapUnloadDistant ();
@@ -2784,7 +2799,8 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 
 	VECTOR3
 		hexOffset = hex_xyCoord2Space (hex->x, hex->y),
-		totalOffset = vectorAdd (&centreOffset, &hexOffset);
+		totalOffset = vectorAdd (&centreOffset, &hexOffset),
+		jit[6];
 	HEXSTEP
 		step = NULL,
 		higher = NULL,
@@ -2803,6 +2819,15 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 	higher = NULL;
 	columnIndex = dynarr_size (hex->steps) - 1;
 	step = *(HEXSTEP *)dynarr_at (hex->steps, columnIndex);
+
+	// i don't know why the index has to be off by one for the vertices to line up and i don't want to know because the hex code is mysterious and horrible - xph 2011 12 26
+	jit[0] = VertexJitter [vertex (hex->x, hex->y, 1)];
+	jit[1] = VertexJitter [vertex (hex->x, hex->y, 2)];
+	jit[2] = VertexJitter [vertex (hex->x, hex->y, 3)];
+	jit[3] = VertexJitter [vertex (hex->x, hex->y, 4)];
+	jit[4] = VertexJitter [vertex (hex->x, hex->y, 5)];
+	jit[5] = VertexJitter [vertex (hex->x, hex->y, 0)];
+
 	corners[0] = FULLHEIGHT (step, 0);
 	corners[1] = FULLHEIGHT (step, 1);
 	corners[2] = FULLHEIGHT (step, 2);
@@ -2823,13 +2848,13 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 			{
 				glBegin (GL_TRIANGLE_FAN);
 				glVertex3f (totalOffset.x, step->height * HEX_SIZE_4, totalOffset.z);
-				glVertex3f (totalOffset.x + H[0][0], corners[0] * HEX_SIZE_4, totalOffset.z + H[0][1]);
-				glVertex3f (totalOffset.x + H[5][0], corners[5] * HEX_SIZE_4, totalOffset.z + H[5][1]);
-				glVertex3f (totalOffset.x + H[4][0], corners[4] * HEX_SIZE_4, totalOffset.z + H[4][1]);
-				glVertex3f (totalOffset.x + H[3][0], corners[3] * HEX_SIZE_4, totalOffset.z + H[3][1]);
-				glVertex3f (totalOffset.x + H[2][0], corners[2] * HEX_SIZE_4, totalOffset.z + H[2][1]);
-				glVertex3f (totalOffset.x + H[1][0], corners[1] * HEX_SIZE_4, totalOffset.z + H[1][1]);
-				glVertex3f (totalOffset.x + H[0][0], corners[0] * HEX_SIZE_4, totalOffset.z + H[0][1]);
+				glVertex3f (totalOffset.x + H[0][0] + jit[0].x, corners[0] * HEX_SIZE_4, totalOffset.z + H[0][1] + jit[0].z);
+				glVertex3f (totalOffset.x + H[5][0] + jit[5].x, corners[5] * HEX_SIZE_4, totalOffset.z + H[5][1] + jit[5].z);
+				glVertex3f (totalOffset.x + H[4][0] + jit[4].x, corners[4] * HEX_SIZE_4, totalOffset.z + H[4][1] + jit[4].z);
+				glVertex3f (totalOffset.x + H[3][0] + jit[3].x, corners[3] * HEX_SIZE_4, totalOffset.z + H[3][1] + jit[3].z);
+				glVertex3f (totalOffset.x + H[2][0] + jit[2].x, corners[2] * HEX_SIZE_4, totalOffset.z + H[2][1] + jit[2].z);
+				glVertex3f (totalOffset.x + H[1][0] + jit[1].x, corners[1] * HEX_SIZE_4, totalOffset.z + H[1][1] + jit[1].z);
+				glVertex3f (totalOffset.x + H[0][0] + jit[0].x, corners[0] * HEX_SIZE_4, totalOffset.z + H[0][1] + jit[0].z);
 				glEnd ();
 			}
 		}
@@ -2872,8 +2897,8 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 						continue;
 					}
 					glBegin (GL_TRIANGLE_STRIP);
-					glVertex3f (totalOffset.x + H[i][X], high[0] * HEX_SIZE_4, totalOffset.z + H[i][Y]);
-					glVertex3f (totalOffset.x + H[j][X], high[1] * HEX_SIZE_4, totalOffset.z + H[j][Y]);
+					glVertex3f (totalOffset.x + H[i][X] + jit[i].x, high[0] * HEX_SIZE_4, totalOffset.z + H[i][Y] + jit[i].z);
+					glVertex3f (totalOffset.x + H[j][X] + jit[j].x, high[1] * HEX_SIZE_4, totalOffset.z + H[j][Y] + jit[j].z);
 					if (lower != NULL && adjacentStep->height < lower->height)
 					{
 						high[0] = FULLHEIGHT (lower, i % 6);
@@ -2884,8 +2909,8 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 						high[0] = FULLHEIGHT (adjacentStep, (i + 4) % 6);
 						high[1] = FULLHEIGHT (adjacentStep, (i + 3) % 6);
 					}
-					glVertex3f (totalOffset.x + H[i][X], high[0] * HEX_SIZE_4, totalOffset.z + H[i][Y]);
-					glVertex3f (totalOffset.x + H[j][X], high[1] * HEX_SIZE_4, totalOffset.z + H[j][Y]);
+					glVertex3f (totalOffset.x + H[i][X] + jit[i].x, high[0] * HEX_SIZE_4, totalOffset.z + H[i][Y] + jit[i].z);
+					glVertex3f (totalOffset.x + H[j][X] + jit[j].x, high[1] * HEX_SIZE_4, totalOffset.z + H[j][Y] + jit[j].z);
 					glEnd ();
 					adjacentColumnIndex--;
 				}
@@ -2919,13 +2944,13 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 				);
 			glBegin (GL_TRIANGLE_FAN);
 			glVertex3f (totalOffset.x, lower->height * HEX_SIZE_4, totalOffset.z);
-			glVertex3f (totalOffset.x + H[0][X], corners[0] * HEX_SIZE_4, totalOffset.z + H[0][Y]);
-			glVertex3f (totalOffset.x + H[1][X], corners[1] * HEX_SIZE_4, totalOffset.z + H[1][Y]);
-			glVertex3f (totalOffset.x + H[2][X], corners[2] * HEX_SIZE_4, totalOffset.z + H[2][Y]);
-			glVertex3f (totalOffset.x + H[3][X], corners[3] * HEX_SIZE_4, totalOffset.z + H[3][Y]);
-			glVertex3f (totalOffset.x + H[4][X], corners[4] * HEX_SIZE_4, totalOffset.z + H[4][Y]);
-			glVertex3f (totalOffset.x + H[5][X], corners[5] * HEX_SIZE_4, totalOffset.z + H[5][Y]);
-			glVertex3f (totalOffset.x + H[0][X], corners[0] * HEX_SIZE_4, totalOffset.z + H[0][Y]);
+			glVertex3f (totalOffset.x + H[0][X] + jit[0].x, corners[0] * HEX_SIZE_4, totalOffset.z + H[0][Y] + jit[0].z);
+			glVertex3f (totalOffset.x + H[1][X] + jit[1].x, corners[1] * HEX_SIZE_4, totalOffset.z + H[1][Y] + jit[1].z);
+			glVertex3f (totalOffset.x + H[2][X] + jit[2].x, corners[2] * HEX_SIZE_4, totalOffset.z + H[2][Y] + jit[2].z);
+			glVertex3f (totalOffset.x + H[3][X] + jit[3].x, corners[3] * HEX_SIZE_4, totalOffset.z + H[3][Y] + jit[3].z);
+			glVertex3f (totalOffset.x + H[4][X] + jit[4].x, corners[4] * HEX_SIZE_4, totalOffset.z + H[4][Y] + jit[4].z);
+			glVertex3f (totalOffset.x + H[5][X] + jit[5].x, corners[5] * HEX_SIZE_4, totalOffset.z + H[5][Y] + jit[5].z);
+			glVertex3f (totalOffset.x + H[0][X] + jit[0].x, corners[0] * HEX_SIZE_4, totalOffset.z + H[0][Y] + jit[0].z);
 			glEnd ();
 		}
 
@@ -2973,6 +2998,48 @@ void drawMap (const HEX const hex, enum map_draw_types drawType)
 	}
 	glEnable (GL_DEPTH_TEST);
 }
+
+
+static int green (int n)
+{
+	return 6 * (n * n);
+}
+
+static int red (int n)
+{
+	return green (n - 1) + 3 * (2 * n - 1);
+}
+
+static unsigned int vertex (int x, int y, int v)
+{
+	unsigned int
+		r, k, i,
+		vertex;
+	int
+		diff;
+	if (x == 0 && y == 0)
+		return v;
+	hex_xy2rki (x, y, &r, &k, &i);
+	diff = (v - (signed int)k > -2)
+		? v - (signed int)k
+		: 6 + (v - (signed int)k);
+	if (i == 0 && k == 0 && v == 5)
+		vertex = green (r + 1) - 1;
+	else if (i == r - 1 && k == 5 && v == 2)
+		vertex = green (r - 1);
+	else if (diff == 3 || diff == 4 || (i != 0 && (diff == 5 || diff == -1)))
+	{
+		diff = (diff == -1) ? 5 : diff;
+		vertex = green (r - 1) + k * (2 * r - 1) + (i - 1) * 2 + 3 + (3 - diff);
+	}
+	else
+		vertex = green (r) + k * (2 * (r + 1) - 1) + i * 2 + diff;
+	// FIXME: i don't really know how to check/update for wrap-around
+	if (vertex >= red (MapRadius + 1))
+		vertex = vertex - red (MapRadius + 1) + green (MapRadius);
+	return vertex;
+}
+
 
 TEXTURE mapGenerateMapTexture (SUBHEX centre, float facing, unsigned char span)
 {
