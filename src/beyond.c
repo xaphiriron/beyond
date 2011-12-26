@@ -62,6 +62,8 @@ void bootstrap (void)
 	entitySystem_register ("ui", ui_system, 1, "ui");
 	entitySystem_register ("builder", builder_system, 1, "builder");
 
+	entitySystem_register ("mapLoad", mapLoad_system, 0);
+
 	entitySystem_register ("uiRender", uiRender_system, 1, "ui");
 	entitySystem_disableMessages ("uiRender");
 	entitySystem_register ("bodyRender", bodyRender_system, 2, "body", "position");

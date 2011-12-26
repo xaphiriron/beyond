@@ -3125,3 +3125,15 @@ TEXTURE mapGenerateMapTexture (SUBHEX centre, float facing, unsigned char span)
 
 	return texture;
 }
+
+
+/***
+ * ENTITY/SYSTEM/COMPONENT CODE HERE
+ */
+
+void mapLoad_system (Dynarr entities)
+{
+	if (!worldExists ())
+		return;
+	
+}

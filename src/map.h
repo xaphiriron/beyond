@@ -10,6 +10,14 @@
 
 #include "entity.h"
 
+void mapLoad_system (Dynarr entities);
+
+
+/***
+ * MAP STUFF: not really sure how much of this stuff needs to be externally
+ * visible.
+ */
+
 typedef union hexOrSubdiv * SUBHEX;
 
 typedef struct hexSubdivided * SUBDIV;
