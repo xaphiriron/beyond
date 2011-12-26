@@ -749,26 +749,30 @@ void sheetLoadSpriteData (SPRITESHEET s, const char * path) {
 	FUNCCLOSE ();
 }
 
-void sheetDestroy (struct spriteSheet * sheet) {
-  struct sprite * sprite = NULL;
-  if (sheet->raw != NULL) {
-    if (sheet->raw->Palette != NULL) {
-      free (sheet->raw->Palette);
-    }
-    if (sheet->raw->Data != NULL) {
-      free (sheet->raw->Data);
-    }
-    xph_free (sheet->raw);
-  }
-  if (sheet->format == SHEET_MULTISIZE) {
-    while ((sprite = *(SPRITE *)dynarr_pop (sheet->sprites)) != NULL) {
-      spriteDestroy (sprite);
-    }
-    dynarr_destroy (sheet->sprites);
-    xph_free (sheet->spritesPerRow);
-  }
+void sheetDestroy (struct spriteSheet * sheet)
+{
+	struct sprite
+		* sprite = NULL;
+	if (sheet->raw != NULL)
+	{
+		if (sheet->raw->Palette)
+			free (sheet->raw->Palette);
+		if (sheet->raw->Data != NULL)
+			free (sheet->raw->Data);
+		xph_free (sheet->raw);
+	}
+	if (sheet->format == SHEET_MULTISIZE)
+	{
+		while ((sprite = *(SPRITE *)dynarr_pop (sheet->sprites)) != NULL)
+		{
+			spriteDestroy (sprite);
+		}
+		dynarr_destroy (sheet->sprites);
+		if (sheet->spritesPerRow)
+			xph_free (sheet->spritesPerRow);
+	}
 	textureDestroy (sheet->texture);
-  xph_free (sheet);
+	xph_free (sheet);
 }
 
 void sheetGetTextureSize (const SPRITESHEET s, int * width, int * height)
