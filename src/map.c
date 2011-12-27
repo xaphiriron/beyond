@@ -1670,20 +1670,6 @@ VECTOR3 mapDistanceFromSubhexCentre (const unsigned char spanLevel, const signed
 	);
 }
 
-/* BUG: this only works right when span == 1; the coordinates need to be converted recursively if span is otherwise, and that's not done yet
- *  - xph 2011 06 12
- */
-bool mapVectorOverrunsPlatter (const unsigned char span, const VECTOR3 * vector)
-{
-	signed int
-		x = 0,
-		y = 0;
-	hex_space2coord (vector, &x, &y);
-	if (hexMagnitude (x, y) > MapRadius)
-		return true;
-	return false;
-}
-
 /***
  * given a set of coordinates (the values x and y), translate the values to a
  * different span level (denoted by relativeSpan) and change the values *xp
