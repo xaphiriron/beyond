@@ -1513,17 +1513,12 @@ RELATIVEHEX mapRelativeSubhexWithSubhex (const SUBHEX start, const SUBHEX goal)
 
 SUBHEX mapHexAtCoordinateAuto (const SUBHEX subhex, const signed short relativeSpan, const signed int x, const signed int y)
 {
-	RELATIVEHEX
-		rel = mapRelativeSubhexWithCoordinateOffset (subhex, relativeSpan, x, y);
+	hexPos
+		at = map_from (subhex, relativeSpan, x, y);
 	SUBHEX
-		target = mapRelativeTarget (rel);
-	if (isPerfectFidelity (rel))
-	{
-		mapRelativeDestroy (rel);
-		return target;
-	}
-	mapRelativeDestroy (rel);
-	return NULL;
+		target = map_posFocusedPlatter (at);
+	map_freePos (at);
+	return target;
 }
 
 
