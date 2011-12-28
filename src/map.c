@@ -2846,34 +2846,19 @@ void subhexDraw (const SUBDIV sub, const VECTOR3 offset)
 	//FUNCCLOSE ();
 }
 
-void hexDraw (const HEX hex, const VECTOR3 centreOffset)
+void drawHexSurface (const struct hexColumn * const hex, const HEXSTEP step, const VECTOR3 * const render, enum map_draw_types style);
+
+void drawHexEdge (const struct hexColumn * const hex, const HEXSTEP step, unsigned int low1, unsigned int low2, int direction, const VECTOR3 * const render, enum map_draw_types style);
+
+void drawHexSurface (const struct hexColumn * const hex, const HEXSTEP step, const VECTOR3 * const render, enum map_draw_types style)
 {
-	//FUNCOPEN ();
-
 	VECTOR3
-		hexOffset = hex_xyCoord2Space (hex->x, hex->y),
-		totalOffset = vectorAdd (&centreOffset, &hexOffset),
 		jit[6];
-	HEXSTEP
-		step = NULL,
-		higher = NULL,
-		lower = NULL,
-		adjacentStep = NULL;
-	unsigned char
-		rgb[3];
 	unsigned int
-		corners[6] = {0, 0, 0, 0, 0, 0},
-		columnIndex = 0,
-		adjacentColumnIndex = 0,
-		high[2] = {0, 0};
-	signed int
-		i, j;
-
-	higher = NULL;
-	columnIndex = dynarr_size (hex->steps) - 1;
-	step = *(HEXSTEP *)dynarr_at (hex->steps, columnIndex);
-
-	// i don't know why the index has to be off by one for the vertices to line up and i don't want to know because the hex code is mysterious and horrible - xph 2011 12 26
+		corner[6];
+	unsigned char
+		rgba[4];
+	
 	jit[0] = VertexJitter [vertex (hex->x, hex->y, 1)];
 	jit[1] = VertexJitter [vertex (hex->x, hex->y, 2)];
 	jit[2] = VertexJitter [vertex (hex->x, hex->y, 3)];
@@ -2881,136 +2866,176 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 	jit[4] = VertexJitter [vertex (hex->x, hex->y, 5)];
 	jit[5] = VertexJitter [vertex (hex->x, hex->y, 0)];
 
-	corners[0] = FULLHEIGHT (step, 0);
-	corners[1] = FULLHEIGHT (step, 1);
-	corners[2] = FULLHEIGHT (step, 2);
-	corners[3] = FULLHEIGHT (step, 3);
-	corners[4] = FULLHEIGHT (step, 4);
-	corners[5] = FULLHEIGHT (step, 5);
-	while (step != NULL)
+	corner[0] = FULLHEIGHT (step, 0);
+	corner[1] = FULLHEIGHT (step, 1);
+	corner[2] = FULLHEIGHT (step, 2);
+	corner[3] = FULLHEIGHT (step, 3);
+	corner[4] = FULLHEIGHT (step, 4);
+	corner[5] = FULLHEIGHT (step, 5);
+
+	switch (style)
 	{
-		//printf ("on column %p, #%d; %p\n", hex, columnIndex, step);
-		matspecColor (step->material, &rgb[0], &rgb[1], &rgb[2], NULL);
-		if (stepParam (step, "visible") != false)
-		{
-			if (hex->light)
-				glColor3ub (rgb[0], rgb[1], rgb[2]);
-			else
-				glColor3ub (rgb[0] - (rgb[0] >> 4), rgb[1] - (rgb[1] >> 4), rgb[2] - (rgb[2] >> 4));
-			if (stepParam (higher, "opaque") == false)
-			{
-				glBegin (GL_TRIANGLE_FAN);
-				glVertex3f (totalOffset.x, step->height * HEX_SIZE_4, totalOffset.z);
-				glVertex3f (totalOffset.x + H[0][0] + jit[0].x, corners[0] * HEX_SIZE_4, totalOffset.z + H[0][1] + jit[0].z);
-				glVertex3f (totalOffset.x + H[5][0] + jit[5].x, corners[5] * HEX_SIZE_4, totalOffset.z + H[5][1] + jit[5].z);
-				glVertex3f (totalOffset.x + H[4][0] + jit[4].x, corners[4] * HEX_SIZE_4, totalOffset.z + H[4][1] + jit[4].z);
-				glVertex3f (totalOffset.x + H[3][0] + jit[3].x, corners[3] * HEX_SIZE_4, totalOffset.z + H[3][1] + jit[3].z);
-				glVertex3f (totalOffset.x + H[2][0] + jit[2].x, corners[2] * HEX_SIZE_4, totalOffset.z + H[2][1] + jit[2].z);
-				glVertex3f (totalOffset.x + H[1][0] + jit[1].x, corners[1] * HEX_SIZE_4, totalOffset.z + H[1][1] + jit[1].z);
-				glVertex3f (totalOffset.x + H[0][0] + jit[0].x, corners[0] * HEX_SIZE_4, totalOffset.z + H[0][1] + jit[0].z);
-				glEnd ();
-			}
-		}
-
-		i = 0;
-		j = 1;
-		lower = *(HEXSTEP *)dynarr_at (hex->steps, --columnIndex);
-
-		if (stepParam (step, "visible") != false)
-		{
-			if (hex->light)
-				glColor3ub (
-					rgb[0] - (rgb[0] >> 2),
-					rgb[1] - (rgb[1] >> 2),
-					rgb[2] - (rgb[2] >> 2)
-				);
-			else
-				glColor3ub (
-					rgb[0] - ((rgb[0] >> 2) + (rgb[0] >> 4)),
-					rgb[1] - ((rgb[1] >> 2) + (rgb[1] >> 4)),
-					rgb[2] - ((rgb[2] >> 2) + (rgb[2] >> 4))
-				);
-
-			while (i < 6)
-			{
-				if (hex->adjacent[i] == NULL || subhexPartlyLoaded ((SUBHEX)hex->adjacent[i]))
-				{
-					i++;
-					j = (i + 1) % 6;
-					continue;
-				}
-				adjacentColumnIndex = dynarr_size (hex->adjacent[i]->steps) - 1;
-				high[0] = corners[i];
-				high[1] = corners[j];
-				while ((adjacentStep = *(HEXSTEP *)dynarr_at (hex->adjacent[i]->steps, adjacentColumnIndex)) != NULL)
-				{
-					if (adjacentStep->height >= step->height)
-					{
-						adjacentColumnIndex--;
-						continue;
-					}
-					glBegin (GL_TRIANGLE_STRIP);
-					glVertex3f (totalOffset.x + H[i][X] + jit[i].x, high[0] * HEX_SIZE_4, totalOffset.z + H[i][Y] + jit[i].z);
-					glVertex3f (totalOffset.x + H[j][X] + jit[j].x, high[1] * HEX_SIZE_4, totalOffset.z + H[j][Y] + jit[j].z);
-					if (lower != NULL && adjacentStep->height < lower->height)
-					{
-						high[0] = FULLHEIGHT (lower, i % 6);
-						high[1] = FULLHEIGHT (lower, (i + 1) % 6);
-					}
-					else
-					{
-						high[0] = FULLHEIGHT (adjacentStep, (i + 4) % 6);
-						high[1] = FULLHEIGHT (adjacentStep, (i + 3) % 6);
-					}
-					glVertex3f (totalOffset.x + H[i][X] + jit[i].x, high[0] * HEX_SIZE_4, totalOffset.z + H[i][Y] + jit[i].z);
-					glVertex3f (totalOffset.x + H[j][X] + jit[j].x, high[1] * HEX_SIZE_4, totalOffset.z + H[j][Y] + jit[j].z);
-					glEnd ();
-					adjacentColumnIndex--;
-				}
-				i++;
-				j = (i + 1) % 6;
-			}
-
-		}
-
-		if (lower == NULL)
+		case DRAW_HIGHLIGHT:
+			glColor4ub (0x00, 0x99, 0xff, 0x7f);
 			break;
-		corners[0] = FULLHEIGHT (lower, 0);
-		corners[1] = FULLHEIGHT (lower, 1);
-		corners[2] = FULLHEIGHT (lower, 2);
-		corners[3] = FULLHEIGHT (lower, 3);
-		corners[4] = FULLHEIGHT (lower, 4);
-		corners[5] = FULLHEIGHT (lower, 5);
-		if (stepParam (lower, "visible") == false)
-		{
+		case DRAW_NORMAL:
+		default:
+			matspecColor (step->material, &rgba[0], &rgba[1], &rgba[2], &rgba[3]);
 			if (hex->light)
-				glColor3ub (
-					rgb[0] - (rgb[0] >> 1),
-					rgb[1] - (rgb[1] >> 1),
-					rgb[2] - (rgb[2] >> 1)
+				glColor4ub (rgba[0], rgba[1], rgba[2], rgba[3]);
+			else
+				glColor4ub (rgba[0] - (rgba[0] >> 4), rgba[1] - (rgba[1] >> 4), rgba[2] - (rgba[2] >> 4), rgba[3]);
+			break;
+	}
+
+	glBegin (GL_TRIANGLE_FAN);
+	glVertex3f (render->x, step->height * HEX_SIZE_4, render->z);
+	glVertex3f (render->x + H[0][0] + jit[0].x, corner[0] * HEX_SIZE_4, render->z + H[0][1] + jit[0].z);
+	glVertex3f (render->x + H[5][0] + jit[5].x, corner[5] * HEX_SIZE_4, render->z + H[5][1] + jit[5].z);
+	glVertex3f (render->x + H[4][0] + jit[4].x, corner[4] * HEX_SIZE_4, render->z + H[4][1] + jit[4].z);
+	glVertex3f (render->x + H[3][0] + jit[3].x, corner[3] * HEX_SIZE_4, render->z + H[3][1] + jit[3].z);
+	glVertex3f (render->x + H[2][0] + jit[2].x, corner[2] * HEX_SIZE_4, render->z + H[2][1] + jit[2].z);
+	glVertex3f (render->x + H[1][0] + jit[1].x, corner[1] * HEX_SIZE_4, render->z + H[1][1] + jit[1].z);
+	glVertex3f (render->x + H[0][0] + jit[0].x, corner[0] * HEX_SIZE_4, render->z + H[0][1] + jit[0].z);
+	glEnd ();
+}
+
+void drawHexEdge (const struct hexColumn * const hex, const HEXSTEP step, unsigned int low1, unsigned int low2, int direction, const VECTOR3 * const render, enum map_draw_types style)
+{
+	int
+		nextdir = direction == 5 ? 0 : direction + 1;
+	unsigned int
+		high[2];
+	unsigned char
+		rgba[4];
+	VECTOR3
+		jit[2];
+
+	jit[0] = VertexJitter [vertex (hex->x, hex->y, nextdir)];
+	jit[1] = VertexJitter [vertex (hex->x, hex->y, (direction + 2) % 6)];
+	high[0] = FULLHEIGHT (step, direction);
+	high[1] = FULLHEIGHT (step, nextdir);
+
+	switch (style)
+	{
+		case DRAW_HIGHLIGHT:
+			glColor4ub (0x00, 0x99, 0xff, 0x7f);
+			break;
+		case DRAW_NORMAL:
+		default:
+			matspecColor (step->material, &rgba[0], &rgba[1], &rgba[2], &rgba[3]);
+			if (hex->light)
+				glColor4ub (
+					rgba[0] - (rgba[0] >> 2),
+					rgba[1] - (rgba[1] >> 2),
+					rgba[2] - (rgba[2] >> 2),
+					rgba[3]
 				);
 			else
-				glColor3ub (
-					rgb[0] - ((rgb[0] >> 1) + (rgb[0] >> 4)),
-					rgb[1] - ((rgb[1] >> 1) + (rgb[1] >> 4)),
-					rgb[2] - ((rgb[2] >> 1) + (rgb[2] >> 4))
+				glColor4ub (
+					rgba[0] - ((rgba[0] >> 2) + (rgba[0] >> 4)),
+					rgba[1] - ((rgba[1] >> 2) + (rgba[1] >> 4)),
+					rgba[2] - ((rgba[2] >> 2) + (rgba[2] >> 4)),
+					rgba[3]
 				);
-			glBegin (GL_TRIANGLE_FAN);
-			glVertex3f (totalOffset.x, lower->height * HEX_SIZE_4, totalOffset.z);
-			glVertex3f (totalOffset.x + H[0][X] + jit[0].x, corners[0] * HEX_SIZE_4, totalOffset.z + H[0][Y] + jit[0].z);
-			glVertex3f (totalOffset.x + H[1][X] + jit[1].x, corners[1] * HEX_SIZE_4, totalOffset.z + H[1][Y] + jit[1].z);
-			glVertex3f (totalOffset.x + H[2][X] + jit[2].x, corners[2] * HEX_SIZE_4, totalOffset.z + H[2][Y] + jit[2].z);
-			glVertex3f (totalOffset.x + H[3][X] + jit[3].x, corners[3] * HEX_SIZE_4, totalOffset.z + H[3][Y] + jit[3].z);
-			glVertex3f (totalOffset.x + H[4][X] + jit[4].x, corners[4] * HEX_SIZE_4, totalOffset.z + H[4][Y] + jit[4].z);
-			glVertex3f (totalOffset.x + H[5][X] + jit[5].x, corners[5] * HEX_SIZE_4, totalOffset.z + H[5][Y] + jit[5].z);
-			glVertex3f (totalOffset.x + H[0][X] + jit[0].x, corners[0] * HEX_SIZE_4, totalOffset.z + H[0][Y] + jit[0].z);
-			glEnd ();
+			break;
+	}
+	glBegin (GL_TRIANGLE_STRIP);
+	glVertex3f
+	(
+		render->x + H[direction][X] + jit[0].x,
+		high[0] * HEX_SIZE_4,
+		render->z + H[direction][Y] + jit[0].z
+	);
+	glVertex3f
+	(
+		render->x + H[nextdir][X] + jit[1].x,
+		high[1] * HEX_SIZE_4,
+		render->z + H[nextdir][Y] + jit[1].z
+	);
+	glVertex3f
+	(
+		render->x + H[direction][X] + jit[0].x,
+		low1 * HEX_SIZE_4,
+		render->z + H[direction][Y] + jit[0].z
+	);
+	glVertex3f
+	(
+		render->x + H[nextdir][X] + jit[1].x,
+		low2 * HEX_SIZE_4,
+		render->z + H[nextdir][Y] + jit[1].z
+	);
+	glEnd ();
+}
+
+
+
+
+void hexDraw (const HEX hex, const VECTOR3 centreOffset)
+{
+	VECTOR3
+		hexOffset = hex_xyCoord2Space (hex->x, hex->y),
+		totalOffset = vectorAdd (&centreOffset, &hexOffset);
+	HEXSTEP
+		step;
+	int
+		column = dynarr_size (hex->steps),
+		joins;
+	unsigned int
+		low[2];
+	bool
+		lastStepTransparent = true;
+	while ((step = *(HEXSTEP *)dynarr_at (hex->steps, --column)))
+	{
+		if (lastStepTransparent && !matParam (step->material, "transparent"))
+		{
+			drawHexSurface (hex, step, &totalOffset, DRAW_NORMAL);
+		}
+		joins = 0;
+		while (joins < 6)
+		{
+			if (hex->adjacent[joins] == NULL || subhexPartlyLoaded ((SUBHEX)hex->adjacent[joins]))
+			{
+				joins++;
+				continue;
+			}
+			HEX
+				adjHex = hex->adjacent[joins];
+			HEXSTEP
+				nextStep,
+				adjStep;
+			int
+				adjColumn = dynarr_size (adjHex->steps);
+			nextStep = *(HEXSTEP *)dynarr_at (hex->steps, column - 1);
+			while ((adjStep = *(HEXSTEP *)dynarr_at (adjHex->steps, --adjColumn)))
+			{
+					break;
+				if ((FULLHEIGHT (adjStep, (joins + 4) % 6) < FULLHEIGHT (step, joins) || FULLHEIGHT (adjStep, (joins + 3) % 6) < FULLHEIGHT (step, (joins + 1) % 6)))
+					break;
+			}
+			if (!adjStep)
+			{
+				// no lower adjacent step exists at all; draw nothing
+			}
+			else if (nextStep != NULL && (FULLHEIGHT (adjStep, (joins + 4) % 6) < FULLHEIGHT (nextStep, joins) || FULLHEIGHT (adjStep, (joins + 3) % 6) < FULLHEIGHT (nextStep, (joins + 1) % 6)))
+			{
+				// the next step in this column is above the highest-but-lower step; draw edge to the top of the next step
+				low[0] = FULLHEIGHT (nextStep, joins);
+				low[1] = FULLHEIGHT (nextStep, (joins + 1) % 6);
+				drawHexEdge (hex, step, low[0], low[1], joins, &totalOffset, DRAW_NORMAL);
+			}
+			else if ((*(HEXSTEP *)dynarr_at (adjHex->steps, adjColumn + 1) == NULL || matParam ((*(HEXSTEP *)dynarr_at (adjHex->steps, adjColumn + 1))->material, "transparent")) && (FULLHEIGHT (adjStep, (joins + 4) % 6) < FULLHEIGHT (step, joins) || FULLHEIGHT (adjStep, (joins + 3) % 6) < FULLHEIGHT (step, (joins + 1) % 6)))
+			{
+				// the adj. step is visible; draw edge to its top
+				low[0] = FULLHEIGHT (adjStep, (joins + 4) % 6);
+				low[1] = FULLHEIGHT (adjStep, (joins + 3) % 6);
+				drawHexEdge (hex, step, low[0], low[1], joins, &totalOffset, DRAW_NORMAL);
+			}
+			joins++;
 		}
 
-		higher = step;
-		step = lower;
+		lastStepTransparent = matParam (step->material, "transparent");
 	}
-	//FUNCCLOSE ();
 }
 
 void drawMap (const HEX const hex, enum map_draw_types drawType)
