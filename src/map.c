@@ -2066,13 +2066,54 @@ void subhexResetLoadStateForNewArch (SUBHEX at)
  * COLLISION
  */
 
+// this assumes a regular hexagon and a vector with the hex centre as the origin
+static bool pointInHex (const VECTOR3 * const point);
+static VECTOR3 line_planeIntersection (const VECTOR3 * const lineOrigin, const VECTOR3 * const line, const VECTOR3 * const plane, float dist);
+
+static bool pointInHex (const VECTOR3 * const point)
+{
+	int
+		i = 0,
+		j,
+		t;
+	//printf ("intersection point: %.2f, %.2f, %.2f\n", point->x, point->y, point->z);
+	while (i < 6)
+	{
+		j = i == 5 ? 0 : i + 1;
+		t = turns (point->x, point->z, H[i][X], H[i][Y], H[i][X] + H[j][X], H[i][Y] + H[j][Y]);
+		//printf ("%d: %s\n", i, t == LEFT ? "LEFT" : t == RIGHT ? "RIGHT" : "THROUGH");
+		if (t == RIGHT)
+			return false;
+		i++;
+	}
+	return true;
+}
+
+static VECTOR3 line_planeIntersection (const VECTOR3 * const lineOrigin, const VECTOR3 * const line, const VECTOR3 * const plane, float dist)
+{
+	float
+		denom = plane->x * line->x + plane->y * line->y + plane->z * line->z,
+		t;
+	VECTOR3
+		r = vectorCreate (0, 0, 0);
+	if (fabs (denom) < FLT_EPSILON)
+		return r;	// line is parallel to plane
+	t = -(plane->x * lineOrigin->x + plane->y * lineOrigin->y + plane->z * lineOrigin->z + dist)/denom;
+	r.x = lineOrigin->x + line->x * t;
+	r.y = lineOrigin->y + line->y * t;
+	r.z = lineOrigin->z + line->z * t;
+	return r;
+}
+
 // FIXME: this returns a subhex, when we're looking for hits against the surface or the side of a hex step (and for the side, around what height value)
 // FIXME: also this assumes we're operating on a span 0 platter (i.e., an individual hex) but there aren't any code checks to ensure that
 Dynarr map_lineCollide (const Entity const position, const VECTOR3 * const ray)
 {
 	VECTOR3
 		local = position_getLocalOffset (position),
-		hexCentre;
+		hexCentre,
+		hexNormal,
+		intersection;
 	SUBHEX
 		base = position_getGround (position),
 		active;
@@ -2081,6 +2122,10 @@ Dynarr map_lineCollide (const Entity const position, const VECTOR3 * const ray)
 		side,
 		i = 0,
 		begin;
+	struct hexStep
+		* step;
+	float
+		stepHeight;
 	hexPos
 		pos;
 	Dynarr
@@ -2094,6 +2139,7 @@ Dynarr map_lineCollide (const Entity const position, const VECTOR3 * const ray)
 	// repeat until the ray length at the intersection point is above the length limit
 	// (really we could add another step to the above that is "check for hex step intersection w/ ray" and just return that subhex if it hits instead of generating the list and then checking it)
 
+	//printf ("\nCASTING START\n");
 	while (1)
 	{
 		if (active == *(SUBHEX *)dynarr_back (hit))
@@ -2103,6 +2149,21 @@ Dynarr map_lineCollide (const Entity const position, const VECTOR3 * const ray)
 		}
 		dynarr_push (hit, active);
 		hexCentre = renderOriginDistance (active);
+		i = 0;
+		while ((step = *(struct hexStep **)dynarr_at (active->hex.steps, i++)))
+		{
+			if (!matParam (step->material, "visible"))
+				continue;
+			// FIXME: this is a collision against the hex assuming its surface is flat. if the surface isn't flat there will be some inaccuracies
+			stepHeight = step->height * HEX_SIZE_4;
+			hexNormal = vectorCreate (0, 1, 0);
+			intersection = line_planeIntersection (&local, ray, &hexNormal, -stepHeight);
+			//printf ("intersection: %.2f, %.2f, %.2f; centre: %.2f, %.2f, %.2f\n", intersection.x, intersection.y, intersection.z, hexCentre.x, hexCentre.y, hexCentre.z);
+			intersection = vectorSubtract (&intersection, &hexCentre);
+			if (pointInHex (&intersection))
+				return hit;
+		}
+
 		i = 0;
 		while (turns (hexCentre.x + H[i][X], hexCentre.z + H[i][Y], local.x, local.z, local.x + ray->x, local.z + ray->z) != LEFT)
 		{

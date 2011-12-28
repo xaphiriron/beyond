@@ -553,23 +553,35 @@ void cameraRender_system (Dynarr entities)
 		highlight;
 	const AXES
 		* view;
+	VECTOR3
+		pos;
 
 	int
 		i = 0;
-	Dynarr
-		hit;
+
+	static VECTOR3
+		lastFront = {.x = 0, .y = 0, .z = 0},
+		lastPos = {.x = FLT_MAX, .y = 0, .z = 0};
+	static Dynarr
+		hit = NULL;
 
 	if (!camera)
 		return;
 
 	view = position_getViewAxes (player);
-	hit = map_lineCollide (player, &view->front);
+	pos = position_getLocalOffset (player);
+	if (!vector_cmp (&lastPos, &pos) || !vector_cmp (&lastFront, &view->front))
+	{
+		if (hit)
+			dynarr_destroy (hit);
+		lastFront = view->front;
+		hit = map_lineCollide (player, &lastFront);
+	}
+
 	while ((highlight = *(SUBHEX *)dynarr_at (hit, i++)))
 	{
 		drawMap ((HEX)highlight, DRAW_HIGHLIGHT);
 	}
-	dynarr_destroy (hit);
-	hit = NULL;
 
 	video_getDimensions (&width, &height);	
 	if (systemState (System) == STATE_FREEVIEW && camera_getMode (this) == CAMERA_FIRST_PERSON)
