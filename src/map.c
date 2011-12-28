@@ -520,7 +520,18 @@ HEXSTEP hexSetBase (HEX hex, unsigned int height, MATSPEC material)
 		next = *(HEXSTEP *)dynarr_at (hex->steps, 1);
 		if (base->height > next->height)
 		{
-			ERROR ("INVALID BASE HIGHT FOR HEX COLUMN %p; base is %ud while next-highest is %ud; there is no possible way this will end well.", hex, base->height, next->height);
+			ERROR ("INVALID BASE HIGHT FOR HEX COLUMN %p; base is %u while next-highest is %u; destroying old data until the column is valid.", hex, base->height, next->height);
+			while (1)
+			{
+				next = *(HEXSTEP *)dynarr_at (hex->steps, 1);
+				if (next != NULL && base->height > next->height)
+				{
+					dynarr_remove_condense (hex->steps, next);
+					xph_free (next);
+				}
+				else
+					break;
+			}
 		}
 	}
 	return base;
