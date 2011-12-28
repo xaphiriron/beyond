@@ -1,6 +1,13 @@
 #include "matspec.h"
 
 #include "xph_memory.h"
+#include "dynarr.h"
+
+enum matOpacity
+{
+	MAT_OPAQUE,
+	MAT_TRANSPARENT,
+};
 
 struct material_specification
 {
@@ -12,32 +19,54 @@ struct material_specification
 		opacity;
 };
 
-static unsigned int
-	matID = 0;
-MATSPEC makeMaterial (enum matOpacity opacity)
+Dynarr
+	materialList = NULL;
+
+void materialsGenerate ()
 {
 	MATSPEC
-		spec = xph_alloc (sizeof (struct material_specification));
-	spec->id = ++matID;
-	spec->opacity = opacity;
-	switch (opacity)
-	{
-		case MAT_OPAQUE:
-			spec->color[0] = 0xcf;
-			spec->color[1] = 0xcf;
-			spec->color[2] = 0xcf;
-			spec->color[3] = 0xff;
-			break;
-		case MAT_TRANSPARENT:
-		default:
-			spec->color[0] = 0xff;
-			spec->color[1] = 0xff;
-			spec->color[2] = 0xff;
-			spec->color[3] = 0x00;
-			break;
-	}
-	return spec;
+		mat;
+	if (materialList != NULL)
+		return;
+	materialList = dynarr_create (8, sizeof (MATSPEC));
+
+	mat = xph_alloc (sizeof (struct material_specification));
+	mat->id = MAT_AIR;
+	mat->opacity = MAT_TRANSPARENT;
+	mat->color[0] = 0xff;
+	mat->color[1] = 0xff;
+	mat->color[2] = 0xff;
+	mat->color[3] = 0x00;
+	dynarr_assign (materialList, MAT_AIR, mat);
+
+	mat = xph_alloc (sizeof (struct material_specification));
+	mat->id = MAT_STONE;
+	mat->opacity = MAT_OPAQUE;
+	mat->color[0] = 0xbf;
+	mat->color[1] = 0x9f;
+	mat->color[2] = 0xcf;
+	mat->color[3] = 0xff;
+	dynarr_assign (materialList, MAT_STONE, mat);
+
+	mat = xph_alloc (sizeof (struct material_specification));
+	mat->id = MAT_DIRT;
+	mat->opacity = MAT_OPAQUE;
+	mat->color[0] = 0xdf;
+	mat->color[1] = 0xcf;
+	mat->color[2] = 0xbf;
+	mat->color[3] = 0xff;
+	dynarr_assign (materialList, MAT_DIRT, mat);
+
 }
+
+MATSPEC material (enum materials mat)
+{
+	if (!materialList)
+		return NULL;
+	return *(MATSPEC *)dynarr_at (materialList, mat);
+}
+
+
 
 void matspecColor (const MATSPEC mat, unsigned char * r, unsigned char * g, unsigned char * b, unsigned char * a)
 {

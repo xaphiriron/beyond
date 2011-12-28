@@ -11,15 +11,6 @@
 
 #include "component_position.h"
 
-enum worldMaterialList
-{
-	MATERIAL_AIR,
-	MATERIAL_GROUND,
-};
-
-static Dynarr
-	worldMaterials = NULL;
-
 // this is very much a makeshift way of addressing arches; it's to be replaced with a general arch list or something??
 static Entity
 	base;
@@ -37,9 +28,7 @@ void worldInit ()
 	mapSetSpanAndRadius (4, 8);
 	mapGeneratePoles ();
 
-	worldMaterials = dynarr_create (3, sizeof (MATSPEC));
-	dynarr_assign (worldMaterials, MATERIAL_AIR, makeMaterial (MAT_TRANSPARENT));
-	dynarr_assign (worldMaterials, MATERIAL_GROUND, makeMaterial (MAT_OPAQUE));
+	materialsGenerate ();
 
 	seed = time (NULL);
 	INFO ("%s: using seed of \'%ld\'", __FUNCTION__, seed);
@@ -107,7 +96,7 @@ void worldImprint (SUBHEX at)
 
 	while (i < max)
 	{
-		hexSetBase (&at->sub.data[i]->hex, 0, *(MATSPEC *)dynarr_at (worldMaterials, MATERIAL_GROUND));
+		hexSetBase (&at->sub.data[i]->hex, 0, material (MAT_DIRT));
 		i++;
 	}
 
@@ -121,7 +110,7 @@ void worldImprint (SUBHEX at)
 		{
 			if (mapDistanceFrom (archFocus, at->sub.data[j]) < 5)
 			{
-				hexSetBase (&at->sub.data[j]->hex, 18 - mapDistanceFrom (archFocus, at->sub.data[j]) * 3, *(MATSPEC *)dynarr_at (worldMaterials, MATERIAL_GROUND));
+				hexSetBase (&at->sub.data[j]->hex, 18 - mapDistanceFrom (archFocus, at->sub.data[j]) * 3, material (MAT_STONE));
 			}
 			j++;
 		}
