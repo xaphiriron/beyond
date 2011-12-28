@@ -57,6 +57,15 @@ void materialsGenerate ()
 	mat->color[3] = 0xff;
 	dynarr_assign (materialList, MAT_DIRT, mat);
 
+	mat = xph_alloc (sizeof (struct material_specification));
+	mat->id = MAT_GRASS;
+	mat->opacity = MAT_OPAQUE;
+	mat->color[0] = 0xbf;
+	mat->color[1] = 0xdf;
+	mat->color[2] = 0xbf;
+	mat->color[3] = 0xff;
+	dynarr_assign (materialList, MAT_GRASS, mat);
+
 }
 
 MATSPEC material (enum materials mat)

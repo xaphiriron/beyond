@@ -7,6 +7,7 @@ enum materials
 	MAT_AIR,
 	MAT_STONE,
 	MAT_DIRT,
+	MAT_GRASS,
 };
 
 typedef struct material_specification * MATSPEC;
