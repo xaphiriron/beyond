@@ -2474,7 +2474,7 @@ static VECTOR3
 	* VertexJitter = NULL;
 
 static int green (int n);
-static int red (int n);
+//static int red (int n);
 static unsigned int vertex (int x, int y, int v);
 
 void worldSetRenderCacheCentre (SUBHEX origin)
@@ -2994,10 +2994,10 @@ static int green (int n)
 	return 6 * (n * n);
 }
 
-static int red (int n)
-{
-	return green (n - 1) + 3 * (2 * n - 1);
-}
+// static int red (int n)
+// {
+// 	return green (n - 1) + 3 * (2 * n - 1);
+// }
 
 static unsigned int vertex (int x, int y, int v)
 {
@@ -3008,6 +3008,8 @@ static unsigned int vertex (int x, int y, int v)
 		diff;
 	if (x == 0 && y == 0)
 		return v;
+	if (hexMagnitude (x, y) > MapRadius)
+		return 0;
 	hex_xy2rki (x, y, &r, &k, &i);
 	diff = (v - (signed int)k > -2)
 		? v - (signed int)k
@@ -3023,9 +3025,24 @@ static unsigned int vertex (int x, int y, int v)
 	}
 	else
 		vertex = green (r) + k * (2 * (r + 1) - 1) + i * 2 + diff;
-	// FIXME: i don't really know how to check/update for wrap-around
-	if (vertex >= red (MapRadius + 1))
-		vertex = vertex - red (MapRadius + 1) + green (MapRadius);
+	if (vertex >= green (MapRadius))
+	{
+		/* there has got to be a better way to do the border math than this. :( - xph 2012 12 27
+		 * okay the idea here is it's possible to have three rows of border jitter values, except that the k == [0, 2, 4], i == 0, diff == 0 vertices all have to match since that's the vertex shared between three different platters. in practice this doesn't matter at all, since even reusing the same exact jitter value for the entire border isn't really that noticable. - xph 2012 12 27 (slightly later)
+		printf ("original: %d ..", vertex);
+		if (diff == 0 && k == 5 && i == 0)
+			vertex = green (MapRadius) + (2 * r - 1);
+		else if (k == 2 || (k == 5 && !(i == 0 && diff == -1)) || (k == 4 && i == 0 && diff == 0))
+			vertex = green (MapRadius);
+		else
+		{
+			vertex = green (MapRadius) + (k - 2) * (2 * r - 1) - (i * 2 + diff);
+		}
+		printf (" %d (g: %d)\n", vertex, green (MapRadius));
+		*/
+		vertex = green (MapRadius);
+	}
+	assert (vertex < green (MapRadius + 2));
 	return vertex;
 }
 
