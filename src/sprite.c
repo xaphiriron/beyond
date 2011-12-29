@@ -10,9 +10,8 @@
 #include "video.h"
 #include "xph_log.h"
 #include "xph_memory.h"
+#include "xph_path.h"
 #include "dynarr.h"
-
-#include "path.h"
 
 #include "texture_internal.h"
 

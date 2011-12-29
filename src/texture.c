@@ -6,7 +6,7 @@
 
 #include "xph_memory.h"
 #include "xph_log.h"
-#include "path.h"
+#include "xph_path.h"
 #include "dynarr.h"
 
 static unsigned char

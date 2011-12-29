@@ -1,4 +1,4 @@
-#include "path.h"
+#include "xph_path.h"
 
 #include <assert.h>
 #include <stdlib.h>

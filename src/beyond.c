@@ -5,7 +5,7 @@
 #include "system.h"
 
 #include "font.h"
-#include "path.h"
+#include "xph_path.h"
 
 #include "component_input.h"
 #include "component_ui.h"
