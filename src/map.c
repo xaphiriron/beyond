@@ -2077,9 +2077,46 @@ void subhexResetLoadStateForNewArch (SUBHEX at)
  * COLLISION
  */
 
+static void v2c (const VECTOR3 * const vector, int * x, int * y);
 // this assumes a regular hexagon and a vector with the hex centre as the origin
 static bool pointInHex (const VECTOR3 * const point);
 static VECTOR3 line_planeIntersection (const VECTOR3 * const lineOrigin, const VECTOR3 * const line, const VECTOR3 * const plane, float dist);
+
+static void v2c (const VECTOR3 * const vector, int * x, int * y)
+{
+	int
+		xGrid,
+		yGrid,
+		i = 0;
+	VECTOR3
+		offset,
+		centre;
+	assert (x != NULL && y != NULL);
+	
+	xGrid = (int)(vector->x / 45.0);
+	yGrid = (int)((vector->z - xGrid * 26.0) / 52.0);
+	centre = hex_xyCoord2Space (xGrid, yGrid);
+	offset = vectorSubtract (vector, &centre);
+	if (pointInHex (&offset))
+	{
+		*x = xGrid;
+		*y = yGrid;
+		return;
+	}
+	while (i < 6)
+	{
+		centre = hex_xyCoord2Space (xGrid + XY[i][X], yGrid + XY[i][Y]);
+		offset = vectorSubtract (vector, &centre);
+		if (pointInHex (&offset))
+		{
+			*x = xGrid + XY[i][X];
+			*y = yGrid + XY[i][Y];
+			return;
+		}
+		i++;
+	}
+	assert (false);
+}
 
 static bool pointInHex (const VECTOR3 * const point)
 {
@@ -2142,22 +2179,12 @@ Dynarr map_lineCollide (const Entity const position, const VECTOR3 * const ray)
 	Dynarr
 		hit = dynarr_create (2, sizeof (SUBHEX));
 
-	hex_space2coord (&local, &x, &y);
-	active = subhexData (base, x, y);
-	// okay the first step here is to get a list of all hexes the ray crosses (which means we also need to get a ray length, probably by normalizing the ray and using some constant for the interaction limit)
-	// the line crosses the initial hex, by definition, so start with that
-	// calculate the line intersection with the six sides of the hex; the one it intersects with is the one that leads to the next hex
-	// repeat until the ray length at the intersection point is above the length limit
-	// (really we could add another step to the above that is "check for hex step intersection w/ ray" and just return that subhex if it hits instead of generating the list and then checking it)
+	v2c (&local, &x, &y);
+	active = mapHexAtCoordinateAuto (base, -1, x, y);
 
 	//printf ("\nCASTING START\n");
 	while (1)
 	{
-		if (active == *(SUBHEX *)dynarr_back (hit))
-		{
-			printf ("early exit; stuck in a loop\n");
-			return hit;
-		}
 		dynarr_push (hit, active);
 		hexCentre = renderOriginDistance (active);
 		i = 0;
@@ -2181,7 +2208,7 @@ Dynarr map_lineCollide (const Entity const position, const VECTOR3 * const ray)
 			i++;
 			if (i > 6)
 			{
-				printf ("got hex that didn't intersect with line at all :/ (the %d-th)\n", dynarr_size (hit));
+				ERROR ("collision failed: got hex that didn't intersect with line at all");
 				return hit;
 			}
 		}
