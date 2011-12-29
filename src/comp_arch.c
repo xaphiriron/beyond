@@ -1,5 +1,8 @@
 #include "comp_arch.h"
 
+#include "ogdl/ogdl.h"
+#include "xph_path.h"
+
 #include "map.h"
 #include "component_position.h"
 
@@ -17,12 +20,84 @@ struct xph_arch
 
 typedef struct xph_arch * Arch;
 
+enum pattern_shape
+{
+	SHAPE_CIRCLE,
+};
+
+struct xph_pattern_shape_circle
+{
+	enum pattern_shape
+		type;
+	int
+		radius[2];	// instantiate with a value between the two
+};
+
+// this should also have a shape: something simple and statistical, which constrains the graph expansion of an arch using this pattern. something simple would be "a sphere", something more complex would be a density spread or a generic graph model.
+union xph_pattern_shape
+{
+	enum pattern_shape
+		type;
+	struct xph_pattern_shape_circle
+		circle;
+};
+
+typedef union xph_pattern_shape patternShape;
+
+struct xph_pattern_arg
+{
+	char
+		name[32];
+	union xph_pattern_arg_value
+	{
+		enum xph_pattern_arg_type
+		{
+			PATTERN_ARG_INT,
+			PATTERN_ARG_INT_RANGE,
+		} type;
+		struct xph_pattern_arg_int
+		{
+			enum xph_pattern_arg_type
+				type;
+			int
+				val;
+		} intval;
+		struct xph_pattern_arg_int_range
+		{
+			enum xph_pattern_arg_type
+				type;
+			int
+				range[2];
+		} intrange;
+	} val;
+};
+
+struct xph_pattern_subpattern
+{
+	enum xph_pattern_location
+	{
+		PL_BORDER,
+		PL_INSIDE,
+		PL_CENTRE,
+	} location;
+	struct xph_pattern
+		* sub;
+};
+
 struct xph_pattern
 {
+	int
+		id;
+	char
+		name[32];
+	patternShape
+		shape;
+	
 	Dynarr
 		potentialSubpatterns;
-	// this should also have a shape: something simple and statistical, which constrains the graph expansion of an arch using this pattern. something simple would be "a sphere", something more complex would be a density spread or a generic graph model.
 };
+
+static void loadPatterns ();
 
 typedef struct xph_pattern * Pattern;
 
@@ -47,6 +122,8 @@ void arch_define (EntComponent comp, EntSpeech speech)
 	component_registerResponse ("arch", "positionSet", arch_updatePosition);
 
 	component_registerResponse ("arch", "archExpand", arch_expand);
+
+	loadPatterns ();
 }
 
 void arch_create (EntComponent comp, EntSpeech speech)
@@ -157,6 +234,43 @@ void arch_expand (EntComponent comp, EntSpeech speech)
 	arch->expanded = true;
 }
 
+/***
+ * PATTERNS!
+ */
+
+static Dynarr
+	PatternList = NULL;
+static void loadPatterns ()
+{
+	Graph
+		patternRoot,
+		patternNode;
+	Pattern
+		pattern = NULL;
+
+	char
+		pathbuffer[32];
+	int
+		i = 0;
+
+	PatternList = dynarr_create (8, sizeof (struct xph_pattern));
+	patternRoot = Ogdl_load (absolutePath ("../data/patterns"));
+	if (!patternRoot)
+	{
+		ERROR ("Could not load patterns file; expected it in {$base}/data/patterns");
+		return;
+	}
+
+	while (1)
+	{
+		sprintf (pathbuffer, "pattern[%d]", i++);
+		patternNode = Graph_get (patternRoot, pathbuffer);
+		if (!patternNode)
+			break;
+		pattern = xph_alloc (sizeof (struct xph_pattern));
+		dynarr_push (PatternList, pattern);
+	}
+}
 
 void pattern_create (EntComponent comp, EntSpeech speech);
 void pattern_destroy (EntComponent comp, EntSpeech speech);

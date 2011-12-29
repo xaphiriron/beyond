@@ -6,7 +6,7 @@ AM_CPPFLAGS = -Wall -Werror -O3
 #AM_CPPFLAGS = -Wall -Werror -fprofile-generate -ftest-coverage
 #AM_LDFLAGS = -fprofile-generate -lgcov
 
-lib_LTLIBRARIES = libfcmp.la libvector.la libquat.la libline.la libsph.la libmatrix.la
+lib_LTLIBRARIES = libfcmp.la libvector.la libquat.la libline.la libsph.la libmatrix.la libogdl.la
 libfcmp_la_SOURCES = fcmp.c fcmp.h
 libvector_la_SOURCES = vector.c vector.h
 libquat_la_SOURCES = quaternion.c quaternion.h
@@ -14,6 +14,7 @@ libline_la_SOURCES = line.c line.h
 libsph_la_SOURCES = sph.c sph.h
 libmatrix_la_SOURCES = matrix.c matrix.h
 #libline_la_LIBADD = libvector.la
+libogdl_la_SOURCES = ogdl/graph.c ogdl/path.c ogdl/ogdlparser.c ogdl/ogdllog.c ogdl/ogdl.h
 
 
 bin_PROGRAMS = beyond
@@ -52,6 +53,7 @@ beyond_SOURCES = \
 	beyond.c
 beyond_LDADD = \
 	-lm -lGL -lSDL -lglpng \
+	libogdl.la \
 	libmatrix.la \
 	libline.la \
 	libsph.la \
