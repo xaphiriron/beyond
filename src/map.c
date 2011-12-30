@@ -1716,19 +1716,8 @@ signed int * const mapSpanCentres (const unsigned char targetSpan)
 	fill = xph_alloc (sizeof (signed int) * 12);
 	while (val < 6)
 	{
-		fill[val * 2] = XY[val / 2][X];
-		fill[val * 2 + 1] = XY[val / 2][Y];
-		val++;
-	}
-	dynarr_assign (centreCache, span, fill);
-	span++;
-
-	prev = fill;
-	fill = xph_alloc (sizeof (signed int) * 12);
-	val = 0;
-	while (val < 6)
-	{
-		hex_centerDistanceCoord (MapRadius, val, &fill[val * 2], &fill[val * 2 + 1]);
+		fill[val * 2] = XY[val][X];
+		fill[val * 2 + 1] = XY[val][Y];
 		val++;
 	}
 	dynarr_assign (centreCache, span, fill);
