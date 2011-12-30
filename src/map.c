@@ -2284,7 +2284,7 @@ int mapDistanceFrom (const hexPos pos, const SUBHEX hex)
 		);
 		xTotalDiff += xStepDiff;
 		yTotalDiff += yStepDiff;
-		//printf ("difference on span %d: %d, %d vs. %d, %d: %d, %d -- scaled: %d, %d\n", span, x, y, pos->x[span + 1], pos->y[span + 1], x - pos->x[span + 1], y - pos->y[span + 1], xStepDiff, yStepDiff);
+		//printf ("span %d: %2d, %2d vs. %2d, %2d = %3d, %3d; scaled: %3d, %3d\n", span, x, y, pos->x[span + 1], pos->y[span + 1], x - pos->x[span + 1], y - pos->y[span + 1], xStepDiff, yStepDiff);
 
 		span++;
 		active = subhexParent (active);
