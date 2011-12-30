@@ -1782,112 +1782,67 @@ bool mapScaleCoordinates (signed char relativeSpan, signed int x, signed int y, 
 }
 
 
-/* FIXME: this crashes when an attempt is made to get mapSpanCentres (0)
- * this is mostly useless; the values returned would be the same values as are
- * stored in XY in hex_utility.c. but it should still work right, since it is
- * called that way in practice quite frequently
- *
- * I'M PRETTY SURE I FIXED THIS WHY DIDN'T I UPDATE THIS NOTE???
- *   - XPH 2011 07 29
- */
 static Dynarr
 	centreCache =  NULL;
-signed int * const mapSpanCentres (const unsigned char span)
+signed int * const mapSpanCentres (const unsigned char targetSpan)
 {
 	signed int
-		* first,
 		* r,
-		* s = NULL,
-		* t,
-		x, y;
-	unsigned short
-		match = span,
-		i;
-	LOG (E_FUNCLABEL, "%s (%d)...", __FUNCTION__, span);
-	if (centreCache == NULL)
-		centreCache = dynarr_create (span + 1, sizeof (signed int **));
-	if ((r = *(signed int **)dynarr_at (centreCache, span)) != NULL)
+		* fill,
+		* prev;
+	int
+		span = 0,
+		val = 0,
+		nval;
+
+	if (centreCache != NULL)
+	{
+		r = *(signed int **)dynarr_at (centreCache, targetSpan);
 		return r;
-	while (match > 0 && (s = *(signed int **)dynarr_at (centreCache, match)) == NULL)
-		match--;
-	if (match <= 1)
-	{
-		// we care about the 1:1 span-0 mapping because it makes this function consistant; calling it with 0 will lead to expected behavior instead of crashing or errors
-		s = xph_alloc (sizeof (signed int) * 12);
-		i = 0;
-		while (i < 12)
-		{
-			s[i] = XY[i/2][i%2];
-			i++;
-		}
-		dynarr_assign (centreCache, 0, s);
-
-		DEBUG ("generating first centres");
-		first = xph_alloc (sizeof (signed int) * 12);
-		i = 0;
-		while (i < 6)
-		{
-			hex_centerDistanceCoord (MapRadius, i, &first[i * 2], &first[i * 2 + 1]);
-			i++;
-		}
-		dynarr_assign (centreCache, 1, first);
-		match = 2;
-
-		/* vvv LOL DEBUG PRINTING vvv *
-		i = 0;
-		DEBUG ("Generated %d-th span level centre values:", match - 1);
-		while (i < 6)
-		{
-			DEBUG ("%d: %d,%d", i, first[i * 2], first[i * 2 + 1]);
-			i++;
-		}
-		 * ^^^ LOL DEBUG PRINTING ^^^ */
-
 	}
-	else
-		first = *(signed int **)dynarr_at (centreCache, 1);
-	t = first;
-	s = NULL;
-	while (match < span)
+	centreCache = dynarr_create (MapSpan + 1, sizeof (signed int **));
+	prev = NULL;
+	fill = xph_alloc (sizeof (signed int) * 12);
+	while (val < 6)
 	{
-		s = xph_alloc (sizeof (signed int) * 12);
-		i = 0;
-		while (i < 6)
-		{
-			x = t[i * 2] * 2 + t[((i + 1) % 6) * 2];
-			y = t[i * 2 + 1] * 2 + t[((i + 1) % 6) * 2 + 1];
-			/* i'm not totally sure about the following lines; i'm pretty sure
-			 * the above lines correctly calculate one step of distance,
-			 * but... i /think/ the correct thing to do here is realize that
-			 * since *first is the one-level-difference values, one step's
-			 * worth of x,y (as calculated above) values need to be multiplied
-			 * by the expanded span level difference values in first that are
-			 * below, since 1,0 on span level n is first[0],first[1] on span
-			 * level n-1 and 0,1 on span level n is first[2],first[3] on span
-			 * level n-1.
-			 * i think.
-			 */
-			s[i * 2]     = x * first[0] + y * first[2];
-			s[i * 2 + 1] = x * first[1] + y * first[3];
-			i++;
-		}
-		dynarr_assign (centreCache, match, s);
-		match++;
-		t = s;
-
-		/* vvv LOL DEBUG PRINTING vvv *
-		i = 0;
-		DEBUG ("Generated %d-th span level centre values:", match - 1);
-		while (i < 6)
-		{
-			DEBUG ("%d: %d,%d", i, s[i * 2], s[i * 2 + 1]);
-			i++;
-		}
-		 * ^^^ LOL DEBUG PRINTING ^^^ */
-
+		fill[val * 2] = XY[val / 2][X];
+		fill[val * 2 + 1] = XY[val / 2][Y];
+		val++;
 	}
-	r = t;
-	FUNCCLOSE ();
+	dynarr_assign (centreCache, span, fill);
+	span++;
+
+	prev = fill;
+	fill = xph_alloc (sizeof (signed int) * 12);
+	val = 0;
+	while (val < 6)
+	{
+		hex_centerDistanceCoord (MapRadius, val, &fill[val * 2], &fill[val * 2 + 1]);
+		val++;
+	}
+	dynarr_assign (centreCache, span, fill);
+	span++;
+
+	while (span <= MapSpan)
+	{
+		prev = fill;
+		fill = xph_alloc (sizeof (signed int) * 12);
+		val = 0;
+		while (val < 6)
+		{
+			nval = val == 5 ? 0 : val + 1;
+			fill[val * 2] =
+				prev[val * 2] * (MapRadius + 1) +
+				prev[nval * 2] * MapRadius;
+			fill[val * 2 + 1] =
+				prev[val * 2 + 1] * (MapRadius + 1) +
+				prev[nval * 2 + 1] * MapRadius;
+			val++;
+		}
+		dynarr_assign (centreCache, span, fill);
+		span++;
+	}
+	r = *(signed int **)dynarr_at (centreCache, targetSpan);
 	return r;
 }
 
