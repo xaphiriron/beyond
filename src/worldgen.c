@@ -83,8 +83,7 @@ void worldImprint (SUBHEX at)
 	int
 		i = 0,
 		j = 0,
-		max = fx (mapGetRadius ()),
-		randomness;
+		max = fx (mapGetRadius ());
 	Entity
 		arch;
 	Dynarr
@@ -94,14 +93,6 @@ void worldImprint (SUBHEX at)
 
 	if (subhexSpanLevel (at) != 1)
 		return;
-
-	while (i < max)
-	{
-		randomness = rand () % 4 - 2;
-		hexSetBase (&at->sub.data[i]->hex, 127 + randomness, material (MAT_DIRT));
-		hexCreateStep (&at->sub.data[i]->hex, 128 + randomness, material (MAT_GRASS));
-		i++;
-	}
 
 	arches = archOrderFor (at);
 	i = 0;

@@ -285,6 +285,8 @@ SUBHEX mapHexCreate (const SUBHEX parent, signed int x, signed int y)
 		sh;
 	unsigned int
 		r, k, i;
+	int
+		randomness;
 	if (hexMagnitude (x, y) > MapRadius)
 	{
 		ERROR ("Can't create subhex child: coordinates given were %d, %d, which are %d step%s out of bounds.", x, y, hexMagnitude (x, y) - MapRadius, hexMagnitude (x, y) - MapRadius == 1 ? "" : "s");
@@ -309,7 +311,10 @@ SUBHEX mapHexCreate (const SUBHEX parent, signed int x, signed int y)
 	sh->hex.light = (r > MapRadius / 2) ^ (i % 2 | !r);
 
 	sh->hex.steps = dynarr_create (8, sizeof (HEXSTEP));
-	hexSetBase (&sh->hex, 0, NULL);
+
+	randomness = rand () % 4 - 2;
+	hexSetBase (&sh->hex, 127 + randomness, material (MAT_DIRT));
+	hexCreateStep (&sh->hex, 128 + randomness, material (MAT_GRASS));
 
 	return sh;
 }
