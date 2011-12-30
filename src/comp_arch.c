@@ -94,7 +94,8 @@ struct xph_pattern
 		shape;
 	
 	Dynarr
-		potentialSubpatterns;
+		args,
+		subpatterns;
 };
 
 static void loadPatterns ();
@@ -240,18 +241,41 @@ void arch_expand (EntComponent comp, EntSpeech speech)
 
 static Dynarr
 	PatternList = NULL;
+
+static void shapeParseArg (patternShape * shape, Graph arg);
+static void parseVar (Pattern context, Graph var);
+
+
+static void shapeParseArg (patternShape * shape, Graph arg)
+{
+}
+
+static void parseVar (Pattern context, Graph var)
+{
+}
+
 static void loadPatterns ()
 {
 	Graph
 		patternRoot,
-		patternNode;
+		patternNode,
+
+		idNode,
+		nameNode,
+		shapeNode,
+		shapeArg,
+		subvarNode,
+		subvarArg,
+		subpatternsNode,
+		superpatternsNode;
 	Pattern
 		pattern = NULL;
 
 	char
 		pathbuffer[32];
 	int
-		i = 0;
+		i = 0,
+		j;
 
 	PatternList = dynarr_create (8, sizeof (struct xph_pattern));
 	patternRoot = Ogdl_load (absolutePath ("../data/patterns"));
@@ -268,7 +292,63 @@ static void loadPatterns ()
 		if (!patternNode)
 			break;
 		pattern = xph_alloc (sizeof (struct xph_pattern));
+		idNode = Graph_get (patternNode, "id.[0]");
+		nameNode = Graph_get (patternNode, "name.[0]");
+		if (!idNode || !nameNode)
+		{
+			WARNING ("Invalid pattern specification");
+			xph_free (pattern);
+			continue;
+		}
+		pattern->id = atoi (idNode->name);
+		strncpy (pattern->name, nameNode->name, 32);
+		printf ("got #%d: \"%s\"\n", pattern->id, pattern->name);
+
+		shapeNode = Graph_get (patternNode, "shape.[0]");
+		if (shapeNode)
+		{
+			if (!strcmp (shapeNode->name, "circle"))
+				pattern->shape.type = SHAPE_CIRCLE;
+			else
+			{
+				// warning (etc etc improper shape def)
+			}
+			j = 0;
+			while (1)
+			{
+				sprintf (pathbuffer, "[%d]", j++);
+				shapeArg = Graph_get (shapeNode, pathbuffer);
+				if (!shapeArg)
+					break;
+				shapeParseArg (&pattern->shape, shapeArg);
+			}
+		}
+
+		subvarNode = Graph_get (patternNode, "subvars");
+		if (subvarNode)
+		{
+			j = 0;
+			while (1)
+			{
+				sprintf (pathbuffer, "[%d]", j++);
+				subvarArg = Graph_get (subvarNode, pathbuffer);
+				if (!subvarArg)
+					break;
+				parseVar (pattern, subvarArg);
+			}
+		}
+
+		subpatternsNode = Graph_get (patternNode, "subpatterns");
+		superpatternsNode = Graph_get (patternNode, "superpatterns");
+
 		dynarr_push (PatternList, pattern);
+	}
+	Graph_free (patternRoot);
+
+	i = 0;
+	while ((pattern = *(Pattern *)dynarr_at (PatternList, i++)))
+	{
+		// check patterns with unlinked sub/super-patterns and link them or error w/ invalid pattern specified
 	}
 }
 
@@ -289,7 +369,8 @@ void pattern_create (EntComponent comp, EntSpeech speech)
 	Pattern
 		pattern = xph_alloc (sizeof (struct xph_pattern));
 	memset (pattern, 0, sizeof (struct xph_pattern));
-	pattern->potentialSubpatterns = dynarr_create (2, sizeof (Entity));
+	pattern->subpatterns = dynarr_create (2, sizeof (Entity));
+	pattern->args = dynarr_create (2, sizeof (struct xph_pattern_arg *));
 
 	component_setData (comp, pattern);
 }
@@ -298,7 +379,8 @@ void pattern_destroy (EntComponent comp, EntSpeech speech)
 {
 	Pattern
 		pattern = component_getData (comp);
-	dynarr_destroy (pattern->potentialSubpatterns);
+	dynarr_destroy (pattern->args);
+	dynarr_destroy (pattern->subpatterns);
 	xph_free (pattern);
 
 	component_clearData (comp);
