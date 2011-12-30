@@ -2728,10 +2728,6 @@ void subhexDraw (const SUBDIV sub, const VECTOR3 offset)
 	//FUNCCLOSE ();
 }
 
-void drawHexSurface (const struct hexColumn * const hex, const HEXSTEP step, const VECTOR3 * const render, enum map_draw_types style);
-
-void drawHexEdge (const struct hexColumn * const hex, const HEXSTEP step, unsigned int low1, unsigned int low2, int direction, const VECTOR3 * const render, enum map_draw_types style);
-
 void drawHexSurface (const struct hexColumn * const hex, const HEXSTEP step, const VECTOR3 * const render, enum map_draw_types style)
 {
 	VECTOR3
@@ -2758,6 +2754,7 @@ void drawHexSurface (const struct hexColumn * const hex, const HEXSTEP step, con
 	switch (style)
 	{
 		case DRAW_HIGHLIGHT:
+			glDisable (GL_DEPTH_TEST);
 			glColor4ub (0x00, 0x99, 0xff, 0x7f);
 			break;
 		case DRAW_NORMAL:
@@ -2780,6 +2777,11 @@ void drawHexSurface (const struct hexColumn * const hex, const HEXSTEP step, con
 	glVertex3f (render->x + H[1][0] + jit[1].x, corner[1] * HEX_SIZE_4, render->z + H[1][1] + jit[1].z);
 	glVertex3f (render->x + H[0][0] + jit[0].x, corner[0] * HEX_SIZE_4, render->z + H[0][1] + jit[0].z);
 	glEnd ();
+
+	if (style == DRAW_HIGHLIGHT)
+	{
+		glEnable (GL_DEPTH_TEST);
+	}
 }
 
 void drawHexEdge (const struct hexColumn * const hex, const HEXSTEP step, unsigned int low1, unsigned int low2, int direction, const VECTOR3 * const render, enum map_draw_types style)
@@ -2918,53 +2920,6 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 
 		lastStepTransparent = matParam (step->material, "transparent");
 	}
-}
-
-void drawMap (const HEX const hex, enum map_draw_types drawType)
-{
-	VECTOR3
-		render = mapDistanceBetween ((SUBHEX)hex, RenderOrigin),
-		jit[6];
-	HEXSTEP
-		step;
-	int
-		i = 0,
-		corners[6] = {0, 0, 0, 0, 0, 0};
-
-	if (!hex || subhexSpanLevel ((SUBHEX)hex) != 0)
-		return;
-
-	jit[0] = VertexJitter [vertex (hex->x, hex->y, 1)];
-	jit[1] = VertexJitter [vertex (hex->x, hex->y, 2)];
-	jit[2] = VertexJitter [vertex (hex->x, hex->y, 3)];
-	jit[3] = VertexJitter [vertex (hex->x, hex->y, 4)];
-	jit[4] = VertexJitter [vertex (hex->x, hex->y, 5)];
-	jit[5] = VertexJitter [vertex (hex->x, hex->y, 0)];
-
-	// FIXME: stop depth testing. this isn't actually the best idea -- there are reasons we could want parts of the highlight to fail the depth test -- it's not safe to just render all of the highlit hex. however, all the decent ways of doing it i'm aware of involve messing with the depth or stencil buffer when the hex was rendered in the first place, which we can't really do the way the code is structured currently. - xph 2011 12 22
-	glDisable (GL_DEPTH_TEST);
-	while ((step = *(HEXSTEP *)dynarr_at (hex->steps, i++)))
-	{
-		corners[0] = FULLHEIGHT (step, 0);
-		corners[1] = FULLHEIGHT (step, 1);
-		corners[2] = FULLHEIGHT (step, 2);
-		corners[3] = FULLHEIGHT (step, 3);
-		corners[4] = FULLHEIGHT (step, 4);
-		corners[5] = FULLHEIGHT (step, 5);
-
-		glColor4ub (0x00, 0x99, 0xff, 0x7f);
-		glBegin (GL_TRIANGLE_FAN);
-		glVertex3f (render.x, step->height * HEX_SIZE_4, render.z);
-		glVertex3f (render.x + H[0][X] + jit[0].x, corners[0] * HEX_SIZE_4, render.z + H[0][Y] + jit[0].z);
-		glVertex3f (render.x + H[5][X] + jit[5].x, corners[5] * HEX_SIZE_4, render.z + H[5][Y] + jit[5].z);
-		glVertex3f (render.x + H[4][X] + jit[4].x, corners[4] * HEX_SIZE_4, render.z + H[4][Y] + jit[4].z);
-		glVertex3f (render.x + H[3][X] + jit[3].x, corners[3] * HEX_SIZE_4, render.z + H[3][Y] + jit[3].z);
-		glVertex3f (render.x + H[2][X] + jit[2].x, corners[2] * HEX_SIZE_4, render.z + H[2][Y] + jit[2].z);
-		glVertex3f (render.x + H[1][X] + jit[1].x, corners[1] * HEX_SIZE_4, render.z + H[1][Y] + jit[1].z);
-		glVertex3f (render.x + H[0][X] + jit[0].x, corners[0] * HEX_SIZE_4, render.z + H[0][Y] + jit[0].z);
-		glEnd ();
-	}
-	glEnable (GL_DEPTH_TEST);
 }
 
 

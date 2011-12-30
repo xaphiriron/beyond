@@ -529,6 +529,7 @@ void component_cameraGetTargetMatrix (EntComponent camera, EntSpeech speech)
  */
 
 #include "system.h"
+#include "map_internal.h"
 
 void cameraRender_system (Dynarr entities)
 {
@@ -554,7 +555,8 @@ void cameraRender_system (Dynarr entities)
 	const AXES
 		* view;
 	VECTOR3
-		pos;
+		pos,
+		render;
 
 	int
 		i = 0;
@@ -580,7 +582,8 @@ void cameraRender_system (Dynarr entities)
 
 	while ((highlight = *(SUBHEX *)dynarr_at (hit, i++)))
 	{
-		drawMap ((HEX)highlight, DRAW_HIGHLIGHT);
+		render = renderOriginDistance (highlight);
+		drawHexSurface ((HEX)highlight, *(HEXSTEP *)dynarr_back (highlight->hex.steps), &render, DRAW_HIGHLIGHT);
 	}
 
 	video_getDimensions (&width, &height);	
