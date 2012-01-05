@@ -3,12 +3,16 @@
 #include "../src/dynarr.h"
 #include "../src/lsystem.h"
 
-START_TEST (test_lsystem_create) {
-  LSYSTEM * l = lsystem_create ();
-  fail_unless (
-    l != NULL,
-    "L-system not created.");
-  lsystem_destroy (l);
+START_TEST (test_lsystem_create)
+{
+	LSYSTEM
+		* l = lsystem_create ();
+	fail_unless
+	(
+		l != NULL,
+		"L-system not created."
+	);
+	lsystem_destroy (l);
 }
 END_TEST
 
@@ -21,14 +25,14 @@ START_TEST (test_lsystem_productions) {
     lsystem_addProduction (l, 'F', "F[-X]F") == 2,
     "The return value of _addProduction must be the number of production rules defined for that variable, including the most recently added.");
   fail_unless (
-    lsystem_isDefined (l, 'F') == TRUE,
-    "Defined symbols must cause lsystem_isDefined to return TRUE");
+    lsystem_isDefined (l, 'F') == true,
+    "Defined symbols must cause lsystem_isDefined to return true");
   fail_unless (
-    lsystem_isDefined (l, 'X') == FALSE,
-    "Undefined symbols must cause lsystem_isDefined to return FALSE");
+    lsystem_isDefined (l, 'X') == false,
+    "Undefined symbols must cause lsystem_isDefined to return false");
   lsystem_clearProductions (l, 'F');
   fail_unless (
-    lsystem_isDefined (l, 'F') == FALSE,
+    lsystem_isDefined (l, 'F') == false,
     "Production rules must be clearable.");
   lsystem_destroy (l);
 }

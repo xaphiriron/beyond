@@ -154,14 +154,14 @@ START_TEST (test_line_throughpoint) {
   line_coordsAtT (q, 0, &x, &y);
   m = vectorCreate (x, y, 0.0);
   fail_unless (
-    vector_cmp (&a, &m) == TRUE,
+    vector_cmp (&a, &m) == true,
     "When creating a line through two points, the first point must correspond to a T value of 0. (expecting %.3f,%.3f, got %.3f,%.3f)",
     a.x, a.y, x, y
   );
   line_coordsAtT (q, 1, &x, &y);
   m = vectorCreate (x, y, 0.0);
   fail_unless (
-    vector_cmp (&b, &m) == TRUE,
+    vector_cmp (&b, &m) == true,
     "When creating a line through two points, the second point must correspond to a T value of 1. (expecting %.3f,%.3f, got %.3f,%.3f)",
     a.x, a.y, x, y
   );
@@ -190,17 +190,17 @@ START_TEST (test_line_lengthen) {
   line_coordsAtT (j, -1, &f.x, &f.y);
   line_coordsAtT (j, 2, &g.x, &g.y);
   fail_unless (
-    line_resize (j, -1, 2) == TRUE,
-    "A successful resize should return TRUE"
+    line_resize (j, -1, 2) == true,
+    "A successful resize should return true"
   );
   line_coordsAtT (j, 0, &h.x, &h.y);
   line_coordsAtT (j, 1, &i.x, &i.y);
   fail_unless (
-    vector_cmp (&f, &h) == TRUE,
+    vector_cmp (&f, &h) == true,
     "A line lengthening must make the t-val given by the first argument into the new t-0 point."
   );
   fail_unless (
-    vector_cmp (&g, &i) == TRUE,
+    vector_cmp (&g, &i) == true,
     "A line lengthening must make the t-val given by the second argument into the new t-1 point.");
 }
 END_TEST
@@ -212,8 +212,8 @@ START_TEST (test_line_flip) {
   line_coordsAtT (j, 0, &h.x, &h.y);
   line_coordsAtT (j, 1, &i.x, &i.y);
   fail_unless (
-    vector_cmp (&f, &i) == TRUE &&
-    vector_cmp (&g, &h) == TRUE,
+    vector_cmp (&f, &i) == true &&
+    vector_cmp (&g, &h) == true,
     "A new t-0 that is smaller than the t-1 is allowed, and should flip the line's direction as well as changing its length."
   );
 }
@@ -223,14 +223,14 @@ START_TEST (test_line_shrink) {
   line_coordsAtT (j, 0, &f.x, &f.y);
   line_coordsAtT (j, 1, &g.x, &g.y);
   fail_unless (
-    line_resize (j, 5, 5) == FALSE,
+    line_resize (j, 5, 5) == false,
     "The same t-value is not allowed as both the t-0 point and the t-1 point."
   );
   line_coordsAtT (j, 0, &h.x, &h.y);
   line_coordsAtT (j, 1, &i.x, &i.y);
   fail_unless (
-    vector_cmp (&f, &h) == TRUE &&
-    vector_cmp (&g, &i) == TRUE,
+    vector_cmp (&f, &h) == true &&
+    vector_cmp (&g, &i) == true,
     "An invalid resize attempt cannot alter the line's dimensions"
   );
 }

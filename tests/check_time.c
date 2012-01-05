@@ -60,7 +60,7 @@ START_TEST (test_timer_scale) {
 	timerSetScale (u, 2.0);
   xtimerUpdateAll ();
   fail_unless (
-    fcmp (timerGetTotalTimeElapsed (t) * 2.0, timerGetTotalTimeElapsed (u)) == TRUE,
+    fcmp (timerGetTotalTimeElapsed (t) * 2.0, timerGetTotalTimeElapsed (u)) == true,
     "The scale of a timer should work as a multiplier for the time elapsed"
   );
   timerDestroy (t);

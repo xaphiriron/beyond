@@ -3,10 +3,7 @@
 
 #include <check.h>
 
-#include "../src/bool.h"
 #include "../src/entity.h"
-
-#include "component_debug.h"
 
 Suite * make_entity_suite ();
 

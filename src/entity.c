@@ -937,7 +937,7 @@ static componentSpec comp_getSpec (const char * comp_name)
 		spec = NULL;
 	if (CompSpecRegistry == NULL)
 	{
-		fprintf (stderr, "%s: no components registered\n", __FUNCTION__);
+		ERROR ("%s: no components registered", __FUNCTION__);
 		return NULL;
 	}
 	spec = *(componentSpec *)dynarr_search (CompSpecRegistry, spec_search, comp_name);

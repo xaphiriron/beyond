@@ -26,7 +26,7 @@ START_TEST (test_dynarr_create)
 	fail_unless (da != NULL);
 	fail_unless (dynarr_size (da) == 0);
 	fail_unless (dynarr_capacity (da) >= 4);
-	fail_unless (dynarr_isEmpty (da) == TRUE);
+	fail_unless (dynarr_isEmpty (da) == true);
 }
 END_TEST
 

@@ -24,7 +24,7 @@ START_TEST (mapCreateThreePoleTest)
 		poles[3];
 	LOG (E_FUNCLABEL, "%s:", __FUNCTION__);
 	mapSetSpanAndRadius (4, 8);
-	r = mapGeneratePoles (POLE_TRI);
+	r = mapGeneratePoles ();
 	poles[0] = mapPole ('r');
 	poles[1] = mapPole ('g');
 	poles[2] = mapPole ('b');
@@ -68,7 +68,7 @@ START_TEST (mapForceSubdivideTest)
 		x, y;
 	LOG (E_FUNCLABEL, "%s:", __FUNCTION__);
 	mapSetSpanAndRadius (2, 4);
-	mapGeneratePoles (POLE_TRI);
+	mapGeneratePoles ();
 	poles[0] = mapPole ('r');
 	poles[1] = mapPole ('g');
 	poles[2] = mapPole ('b');
@@ -110,7 +110,7 @@ START_TEST (mapGrowAroundSubhexTest)
 		rel;
 	LOG (E_FUNCLABEL, "%s:", __FUNCTION__);
 	mapSetSpanAndRadius (4, 8);
-	mapGeneratePoles (POLE_TRI);
+	mapGeneratePoles ();
 	pole = mapPole ('r');
 	mapForceGrowAtLevelForDistance (pole, 1, 4);
 
@@ -145,7 +145,7 @@ START_TEST (mapCrossPoleTraversalTest)
 	LOG (E_FUNCLABEL, "%s:", __FUNCTION__);
 
 	mapSetSpanAndRadius (4, 8);
-	mapGeneratePoles (POLE_TRI);
+	mapGeneratePoles ();
 	mapForceSubdivide (mapPole ('r'));
 	mapForceSubdivide (mapPole ('g'));
 	mapForceSubdivide (mapPole ('b'));
@@ -209,7 +209,7 @@ START_TEST (mapPoleTraversalTopology)
 	LOG (E_FUNCLABEL, "%s [%d (%d:%d)]:", __FUNCTION__, _i, poleID, i);
 	
 	mapSetSpanAndRadius (4, 8);
-	mapGeneratePoles (POLE_TRI);
+	mapGeneratePoles ();
 
 	rel = mapRelativeSubhexWithCoordinateOffset
 	(
@@ -263,7 +263,7 @@ START_TEST (mapRelativeHexExactCrossPole)
 	LOG (E_FUNCLABEL, "%s [%d]:", __FUNCTION__, _i);
 	
 	mapSetSpanAndRadius (4, 8);
-	mapGeneratePoles (POLE_TRI);
+	mapGeneratePoles ();
 	mapForceSubdivide (mapPole ('r'));
 	mapForceSubdivide (mapPole ('g'));
 	mapForceSubdivide (mapPole ('b'));
@@ -350,7 +350,7 @@ START_TEST (mapPoleEdgeDirectionsPlusOne)
 	int
 		i = 0;
 	LOG (E_FUNCLABEL, "%s:", __FUNCTION__);
-	mapGeneratePoles (POLE_TRI);
+	mapGeneratePoles ();
 	edgesRG = mapPoleConnections ('r', 'g'),
 	edgesGB = mapPoleConnections ('g', 'b'),
 	edgesBR = mapPoleConnections ('b', 'r');
@@ -415,7 +415,7 @@ START_TEST (mapPoleEdgeDirectionsMinusOne)
 	int
 		i = 0;
 	LOG (E_FUNCLABEL, "%s:", __FUNCTION__);
-	mapGeneratePoles (POLE_TRI);
+	mapGeneratePoles ();
 	edgesRB = mapPoleConnections ('r', 'b'),
 	edgesGR = mapPoleConnections ('g', 'r'),
 	edgesBG = mapPoleConnections ('b', 'g');
@@ -494,7 +494,7 @@ START_TEST (mapRelativeDistanceSpan0Edge)
 	LOG (E_ERR, "%s [%d]:", __FUNCTION__, _i);
 
 	mapSetSpanAndRadius (2, 8);
-	mapGeneratePoles (POLE_TRI);
+	mapGeneratePoles ();
 	mapForceGrowAtLevelForDistance (mapPole ('r'), 1, 1);
 
 	ERROR ("GETTING INITIAL HEX (at %d, %d)", StartX[slookup[_i]], StartY[slookup[_i]]);

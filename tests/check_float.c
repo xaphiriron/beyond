@@ -8,16 +8,16 @@ START_TEST (test_float_cmp)
     x = 1000.25,
     y = -2383574.0,
     z = 756218.145263;
-  fail_unless (fcmp (x, x) == TRUE, "fcmp (x, x) must be true unless x != x");
-  fail_unless (fcmp (y, y) == TRUE, NULL);
-  fail_unless (fcmp (z, z) == TRUE, NULL);
-  fail_unless (fcmp (x, y) == FALSE);
-  fail_unless (fcmp (x, z) == FALSE);
-  fail_unless (fcmp (y, z) == FALSE);
-  fail_unless (fcmp (x, -x) == FALSE);
-  fail_unless (fcmp (y, -y) == FALSE);
-  fail_unless (fcmp (z, -z) == FALSE);
-  fail_unless (fcmp (x, 1000.49) == FALSE);
+  fail_unless (fcmp (x, x) == true, "fcmp (x, x) must be true unless x != x");
+  fail_unless (fcmp (y, y) == true, NULL);
+  fail_unless (fcmp (z, z) == true, NULL);
+  fail_unless (fcmp (x, y) == false);
+  fail_unless (fcmp (x, z) == false);
+  fail_unless (fcmp (y, z) == false);
+  fail_unless (fcmp (x, -x) == false);
+  fail_unless (fcmp (y, -y) == false);
+  fail_unless (fcmp (z, -z) == false);
+  fail_unless (fcmp (x, 1000.49) == false);
 }
 END_TEST
 

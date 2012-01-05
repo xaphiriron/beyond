@@ -1,51 +1,68 @@
 #include "check_entity.h"
 
-START_TEST (test_entity_create) {
-  Entity e = NULL;
-  e = entity_create ();
-  fail_unless (
-    entity_GUID (e) > 0,
-    "An entity must be assigned a non-zero GUID upon creation."
-  );
-  fail_unless (
-    entity_exists (entity_GUID (e)),
-    "An entity which has been created and not destroyed must be identified as existing."
-  );
-  entity_destroy (e);
+START_TEST (test_entity_create)
+{
+	Entity
+		e = NULL;
+	e = entity_create ();
+	fail_unless
+	(
+		entity_GUID (e) > 0,
+		"An entity must be assigned a non-zero GUID upon creation."
+	);
+	fail_unless
+	(
+		entity_exists (entity_GUID (e)),
+		"An entity which has been created and not destroyed must be identified as existing."
+	);
+	entity_destroy (e);
+	fail_unless
+	(
+		!entity_exists (entity_GUID (e)),
+		"An entity which has been destroyed must be identified as not existing."
+	);
 }
 END_TEST
 
-START_TEST (test_component_attach) {
-  Entity e = entity_create ();
-  EntComponent cd = NULL;
-  cd = entity_getAs (e, "COMPONENT_NAME");
-  fail_unless (
-    cd == NULL,
-    "An attempt to get a non-existant component from an entity should return NULL."
-  );
-  entity_registerComponentAndSystem ("COMPONENT_NAME", component_name_obj_func, NULL);
-  component_instantiate ("COMPONENT_NAME", e);
-  cd = entity_getAs (e, "COMPONENT_NAME");
-  fail_unless (
-    cd != NULL,
-    "If a component is instanced on an entity, it must be returned by a entity_getAs call with the component name."
-  );
-  entity_destroy (e);
+START_TEST (test_component_attach)
+{
+	Entity
+		e = entity_create ();
+	EntComponent
+		cd = NULL;
+	cd = entity_getAs (e, "COMPONENT_NAME");
+	fail_unless
+	(
+		cd == NULL,
+		"An attempt to get a non-existant component from an entity should return NULL."
+	);
+	component_register ("COMPONENT_NAME", NULL);
+	component_instantiate ("COMPONENT_NAME", e);
+	cd = entity_getAs (e, "COMPONENT_NAME");
+	fail_unless
+	(
+		cd != NULL,
+		"If a component is instantiated on an entity, it must be returned by a entity_getAs call with the component name."
+	);
+	entity_destroy (e);
 }
 END_TEST
 
-START_TEST (test_component_detach) {
-  Entity e = entity_create ();
-  EntComponent cd = NULL;
+START_TEST (test_component_detach)
+{
+	Entity
+		e = entity_create ();
+	EntComponent
+		cd = NULL;
 
-  entity_registerComponentAndSystem ("COMPONENT_NAME", component_name_obj_func, NULL);
-  component_instantiate ("COMPONENT_NAME", e);
-  cd = entity_getAs (e, "COMPONENT_NAME");
-  fail_unless (cd != NULL);
-  component_remove ("COMPONENT_NAME", e);
-  cd = entity_getAs (e, "COMPONENT_NAME");
-  fail_unless (cd == NULL);
-  entity_destroy (e);
+	component_register ("COMPONENT_NAME", NULL);
+	component_instantiate ("COMPONENT_NAME", e);
+	cd = entity_getAs (e, "COMPONENT_NAME");
+	fail_unless (cd != NULL);
+	component_remove ("COMPONENT_NAME", e);
+	cd = entity_getAs (e, "COMPONENT_NAME");
+	fail_unless (cd == NULL);
+	entity_destroy (e);
 }
 END_TEST
 
@@ -192,14 +209,14 @@ START_TEST (test_manager_fetch_one) {
     q = NULL;
   Dynarr v = NULL;
 
-  entity_registerComponentAndSystem ("COMPONENT_NAME", component_name_obj_func, NULL);
+  component_register ("COMPONENT_NAME", NULL);
 
-  entity_registerComponentAndSystem ("COMPONENT_NAME_2", component_name_2_obj_func, NULL);
+  component_register ("COMPONENT_NAME_2", NULL);
   component_instantiate ("COMPONENT_NAME", e);
   component_instantiate ("COMPONENT_NAME", f);
   component_instantiate ("COMPONENT_NAME_2", f);
   component_instantiate ("COMPONENT_NAME_2", g);
-  v = entity_getEntitiesWithComponent (1, "COMPONENT_NAME");
+  v = entity_getWith (1, "COMPONENT_NAME");
   fail_unless (
     dynarr_size (v) == 2,
     "When getting a list of entities with a given component, every entity with the specified component should be returned, no matter its state or other components. (Received a vector with %d entr%s, when there should have been 2).",
@@ -232,13 +249,13 @@ START_TEST (test_manager_fetch_two) {
     h = entity_create ();
   Dynarr v = NULL;
 
-  entity_registerComponentAndSystem ("COMPONENT_NAME", component_name_obj_func, NULL);
-  entity_registerComponentAndSystem ("COMPONENT_NAME_2", component_name_2_obj_func, NULL);
+  component_register ("COMPONENT_NAME", NULL);
+  component_register ("COMPONENT_NAME_2", NULL);
   component_instantiate ("COMPONENT_NAME", e);
   component_instantiate ("COMPONENT_NAME", f);
   component_instantiate ("COMPONENT_NAME_2", f);
   component_instantiate ("COMPONENT_NAME_2", g);
-  v = entity_getEntitiesWithComponent (2, "COMPONENT_NAME", "COMPONENT_NAME_2");
+  v = entity_getWith (2, "COMPONENT_NAME", "COMPONENT_NAME_2");
   fail_unless (
     *(Entity *)dynarr_at (v, 0) == f && dynarr_size (v) == 1
   );
