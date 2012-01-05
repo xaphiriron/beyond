@@ -1,6 +1,16 @@
 #ifndef XPH_FONT_H
 #define XPH_FONT_H
 
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
+#include <GL/glpng.h>
+#include "video.h"
+#include "xph_log.h"
+#include "xph_path.h"
+#include "xph_memory.h"
+
+
 enum textAlignType {
 ALIGN_LEFT = 1,
 ALIGN_RIGHT = 2,
@@ -11,13 +21,13 @@ ALIGN_JUSTIFY = 4
 */
 };
 
+void fontLoad (const char * path, int fontSize);
+void fontUnload ();
 
-void loadFont (const char * path);
-void freeFont ();
+int fontLineHeight ();
 
-int systemLineHeight ();
+enum textAlignType fontPrintAlign (enum textAlignType);
+void fontPrint (const char * text, int x, int y);
 
-enum textAlignType textAlign (enum textAlignType);
-void drawLine (const char * line, signed int x, signed int y);
 
 #endif /* XPH_FONT_H */

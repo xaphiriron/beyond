@@ -28,12 +28,14 @@ int main (int argc, char * argv[])
 
 	setSystemPath (argv[0]);
 	systemInit ();
+	// this is after the system init because it depends on opengl being started to make the textures it needs
+	fontLoad ("../data/FreeSans.ttf", 16);
 	systemLoad (bootstrap, load, finalize);
 
 	r = systemLoop ();
 
 	systemDestroy ();
-	freeFont ();
+	fontUnload ();
 
 	return r;
 }
@@ -74,7 +76,6 @@ void bootstrap (void)
 	entitySystem_register ("TEMPsystemRender", systemRender, 0);
 	entitySystem_disableMessages ("TEMPsystemRender");
 
-	loadFont ("../img/default.png");
 	uiLoadPanelTexture ("../img/frame.png");
 	loadSetText ("Loading...");
 }

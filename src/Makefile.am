@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-AM_CPPFLAGS = -Wall -Werror -O3
+AM_CPPFLAGS = -I/usr/include/freetype2 -Wall -Werror -O3
 #AM_CPPFLAGS = -Wall -Werror -O3 -DMEM_DEBUG
 
 #AM_CPPFLAGS = -Wall -Werror -fprofile-generate -ftest-coverage
@@ -53,6 +53,7 @@ beyond_SOURCES = \
 	beyond.c
 beyond_LDADD = \
 	-lm -lGL -lSDL -lglpng \
+	-lfreetype \
 	libogdl.la \
 	libmatrix.la \
 	libline.la \

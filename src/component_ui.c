@@ -463,7 +463,7 @@ void ui_addValue (EntComponent ui, EntSpeech speech)
 
 	uiFrame_getXY (frame, &x, &y);
 
-	yOffset = dynarr_size (fragments) * systemLineHeight ();
+	yOffset = dynarr_size (fragments) * fontLineHeight ();
 	dynarr_push (fragments, uiFragmentCreate (speech->arg, ALIGN_LEFT, x, y + yOffset));
 	if (uiData->type == UI_MENU)
 	{
@@ -591,7 +591,7 @@ void ui_setLineSpacing (EntComponent ui, EntSpeech speech)
 	else
 		frame = uiData->menu.frame;
 
-	frame->lineSpacing = systemLineHeight () + lineSpacing;
+	frame->lineSpacing = fontLineHeight () + lineSpacing;
 
 	/* if we change the spacing we need to recalculate the text fragments - xph 2011 09 27 */
 	entity_message (component_entityAttached (ui), NULL, "setPosType", (void *)frame->positionType);
@@ -771,11 +771,11 @@ void ui_draw (EntComponent ui, EntSpeech speech)
 			systemGenDebugStr ();
 			/* fall through */
 		case UI_STATICTEXT:
-			glColor3f (0.0, 0.0, 0.0);
+			glColor3f (1.0, 1.0, 1.0);
 			while ((fragment = *(struct uiTextFragment **)dynarr_at (uiData->staticText.fragments, i++)) != NULL)
 			{
-				textAlign (fragment->align);
-				drawLine (fragment->text, fragment->xAlign, fragment->yAlign);
+				fontPrintAlign (fragment->align);
+				fontPrint (fragment->text, fragment->xAlign, fragment->yAlign);
 			}
 			break;
 
@@ -808,8 +808,8 @@ void ui_draw (EntComponent ui, EntSpeech speech)
 						0.8 + opt->highlight * 0.2
 					);
 				}
-				textAlign (fragment->align);
-				drawLine (fragment->text, fragment->xAlign, fragment->yAlign);
+				fontPrintAlign (fragment->align);
+				fontPrint (fragment->text, fragment->xAlign, fragment->yAlign);
 				i++;
 
 			}
@@ -970,7 +970,7 @@ static struct uiFrame * uiFrame_createEmpty ()
 	memset (frame, 0, sizeof (struct uiFrame));
 	frame->positionType = PANEL_X_CENTER | PANEL_Y_CENTER;
 	frame->background = FRAMEBG_TRANSPARENT;
-	frame->lineSpacing = systemLineHeight ();
+	frame->lineSpacing = fontLineHeight ();
 	return frame;
 }
 

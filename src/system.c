@@ -1,5 +1,7 @@
 #include "system.h"
 
+#include <ctype.h>
+
 #include "video.h"
 #include "timer.h"
 
@@ -398,13 +400,13 @@ void systemRender (Dynarr entities)
 
 		glEnd ();
 		glColor3f (1.0, 1.0, 1.0);
-		drawLine ("loading...", width/2, height/2);
+		fontPrint ("loading...", width/2, height/2);
 
 		
 		snprintf (loadStr, 64, "(%d / %d, %.2f%%)", SysLoader.loaded, SysLoader.goal, SysLoader.percentage);
 
-		drawLine (loadStr, width/2, height/2 + 32);
-		drawLine (SysLoader.displayText, width/2, height/1.5);
+		fontPrint (loadStr, width/2, height/2 + 32);
+		fontPrint (SysLoader.displayText, width/2, height/1.5);
 
 		glEnable (GL_DEPTH_TEST);
 		return;
