@@ -2841,12 +2841,10 @@ void drawHexUnderside (const struct hexColumn * const hex, const HEXSTEP step, M
 	}
 }
 
-void drawHexEdge (const struct hexColumn * const hex, const HEXSTEP step, unsigned int low1, unsigned int low2, int direction, const VECTOR3 * const render, enum map_draw_types style)
+void drawHexEdge (const struct hexColumn * const hex, const HEXSTEP step, unsigned int high1, unsigned int high2, unsigned int low1, unsigned int low2, int direction, const VECTOR3 * const render, enum map_draw_types style)
 {
 	int
 		nextdir = direction == 5 ? 0 : direction + 1;
-	unsigned int
-		high[2];
 	unsigned char
 		rgba[4];
 	VECTOR3
@@ -2854,8 +2852,6 @@ void drawHexEdge (const struct hexColumn * const hex, const HEXSTEP step, unsign
 
 	jit[0] = VertexJitter [vertex (hex->x, hex->y, nextdir)];
 	jit[1] = VertexJitter [vertex (hex->x, hex->y, (direction + 2) % 6)];
-	high[0] = FULLHEIGHT (step, direction);
-	high[1] = FULLHEIGHT (step, nextdir);
 
 	switch (style)
 	{
@@ -2885,13 +2881,13 @@ void drawHexEdge (const struct hexColumn * const hex, const HEXSTEP step, unsign
 	glVertex3f
 	(
 		render->x + H[direction][X] + jit[0].x,
-		high[0] * HEX_SIZE_4,
+		high1 * HEX_SIZE_4,
 		render->z + H[direction][Y] + jit[0].z
 	);
 	glVertex3f
 	(
 		render->x + H[nextdir][X] + jit[1].x,
-		high[1] * HEX_SIZE_4,
+		high2 * HEX_SIZE_4,
 		render->z + H[nextdir][Y] + jit[1].z
 	);
 	glVertex3f
@@ -2917,15 +2913,23 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 	VECTOR3
 		hexOffset = hex_xyCoord2Space (hex->x, hex->y),
 		totalOffset = vectorAdd (&centreOffset, &hexOffset);
+	HEX
+		adjHex;
 	HEXSTEP
-		step;
+		step,
+		nextStep,
+		adjStep,
+		adjNextStep;
 	int
 		column = dynarr_size (hex->steps),
+		adjColumn,
 		joins;
 	unsigned int
-		low[2];
+		high[2] = {0, 0},
+		low[2] = {0, 0};
 	bool
 		lastStepTransparent = true;
+
 	while ((step = *(HEXSTEP *)dynarr_at (hex->steps, --column)))
 	{
 		if (!lastStepTransparent && matParam (step->material, "transparent"))
@@ -2936,52 +2940,57 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 		{
 			drawHexSurface (hex, step, &totalOffset, DRAW_NORMAL);
 		}
-		joins = 0;
-		while (joins < 6)
+		if (!matParam (step->material, "transparent"))
 		{
-			if (hex->adjacent[joins] == NULL || subhexPartlyLoaded ((SUBHEX)hex->adjacent[joins]))
+			joins = 0;
+			while (joins < 6)
 			{
-				joins++;
-				continue;
-			}
-			HEX
-				adjHex = hex->adjacent[joins];
-			HEXSTEP
-				nextStep,
-				adjStep;
-			int
-				adjColumn = dynarr_size (adjHex->steps);
-			nextStep = *(HEXSTEP *)dynarr_at (hex->steps, column - 1);
-			while ((adjStep = *(HEXSTEP *)dynarr_at (adjHex->steps, --adjColumn)))
-			{
-					break;
-				if ((FULLHEIGHT (adjStep, (joins + 4) % 6) < FULLHEIGHT (step, joins) || FULLHEIGHT (adjStep, (joins + 3) % 6) < FULLHEIGHT (step, (joins + 1) % 6)))
-					break;
-			}
-			if (!adjStep)
-			{
-				// no lower adjacent step exists at all; draw nothing
-			}
-			else if (nextStep != NULL && (FULLHEIGHT (adjStep, (joins + 4) % 6) < FULLHEIGHT (nextStep, joins) || FULLHEIGHT (adjStep, (joins + 3) % 6) < FULLHEIGHT (nextStep, (joins + 1) % 6)))
-			{
-				// the next step in this column is above the highest-but-lower step; draw edge to the top of the next step
-				if (!matParam (step->material, "transparent"))
+				if (hex->adjacent[joins] == NULL || subhexPartlyLoaded ((SUBHEX)hex->adjacent[joins]))
 				{
-					low[0] = FULLHEIGHT (nextStep, joins);
-					low[1] = FULLHEIGHT (nextStep, (joins + 1) % 6);
-					drawHexEdge (hex, step, low[0], low[1], joins, &totalOffset, DRAW_NORMAL);
+					joins++;
+					continue;
 				}
-			}
-			else if ((*(HEXSTEP *)dynarr_at (adjHex->steps, adjColumn + 1) == NULL || matParam ((*(HEXSTEP *)dynarr_at (adjHex->steps, adjColumn + 1))->material, "transparent")) && (FULLHEIGHT (adjStep, (joins + 4) % 6) < FULLHEIGHT (step, joins) || FULLHEIGHT (adjStep, (joins + 3) % 6) < FULLHEIGHT (step, (joins + 1) % 6)))
-			{
-				// the adj. step is visible; draw edge to its top
-				low[0] = FULLHEIGHT (adjStep, (joins + 4) % 6);
-				low[1] = FULLHEIGHT (adjStep, (joins + 3) % 6);
-				drawHexEdge (hex, step, low[0], low[1], joins, &totalOffset, DRAW_NORMAL);
-			}
-			joins++;
-		}
+				adjHex = hex->adjacent[joins];
+				adjColumn = dynarr_size (adjHex->steps);
 
+				nextStep = *(HEXSTEP *)dynarr_at (hex->steps, column - 1);
+				while ((adjStep = *(HEXSTEP *)dynarr_at (adjHex->steps, --adjColumn)))
+				{
+					if ((FULLHEIGHT (adjStep, (joins + 4) % 6) > FULLHEIGHT (step, joins) && FULLHEIGHT (adjStep, (joins + 3) % 6) > FULLHEIGHT (step, (joins + 1) % 6)))
+						continue;
+
+					adjNextStep = *(HEXSTEP *)dynarr_at (adjHex->steps, adjColumn + 1);
+					if (adjNextStep)
+					{
+						high[0] = FULLHEIGHT (adjNextStep, (joins + 4) % 6);
+						high[1] = FULLHEIGHT (adjNextStep, (joins + 3) % 6);
+					}
+					else
+					{
+						high[0] = FULLHEIGHT (step, joins);
+						high[1] = FULLHEIGHT (step, (joins + 1) % 6);
+					}
+					if (nextStep != NULL && (FULLHEIGHT (adjStep, (joins + 4) % 6) < FULLHEIGHT (nextStep, joins) || FULLHEIGHT (adjStep, (joins + 3) % 6) < FULLHEIGHT (nextStep, (joins + 1) % 6)))
+					{
+						// the next step in this column is above the highest-but-lower step; draw edge to the top of the next step
+						low[0] = FULLHEIGHT (nextStep, joins);
+						low[1] = FULLHEIGHT (nextStep, (joins + 1) % 6);
+						if (high[0] != low[0] && high[1] != low[1])
+							drawHexEdge (hex, step, high[0], high[1], low[0], low[1], joins, &totalOffset, DRAW_NORMAL);
+					}
+					else if ((adjNextStep == NULL || matParam (adjNextStep->material, "transparent")) && (FULLHEIGHT (adjStep, (joins + 4) % 6) < FULLHEIGHT (step, joins) || FULLHEIGHT (adjStep, (joins + 3) % 6) < FULLHEIGHT (step, (joins + 1) % 6)))
+					{
+						// the adj. step is visible; draw edge to top
+						low[0] = FULLHEIGHT (adjStep, (joins + 4) % 6);
+						low[1] = FULLHEIGHT (adjStep, (joins + 3) % 6);
+						if (high[0] != low[0] && high[1] != low[1])
+							drawHexEdge (hex, step, high[0], high[1], low[0], low[1], joins, &totalOffset, DRAW_NORMAL);
+					}
+
+				}
+				joins++;
+			}
+		}
 		lastStepTransparent = matParam (step->material, "transparent");
 	}
 }
