@@ -98,7 +98,10 @@ void fontLoad (const char * path, int fontSize)
 		{
 			x = i % bitmap->width;
 			y = i / bitmap->width;
-			memset (&textureData [(((height - (height - bitmap->rows)- 1) - y) * width + x) * 2], bitmap->buffer [i], 2);
+			// set texel to pure white
+			memset (&textureData [(((height - (height - bitmap->rows)- 1) - y) * width + x) * 2], 0xff, 1);
+			// set texel transparency to the correct alpha
+			memset (&textureData [(((height - (height - bitmap->rows)- 1) - y) * width + x) * 2 + 1], bitmap->buffer [i], 1);
 			i++;
 		}
 
