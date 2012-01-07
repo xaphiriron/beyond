@@ -522,13 +522,13 @@ char * systemGenDebugStr ()
 		buffer[64];
 	
 	memset (debugDisplay, 0, DEBUGLEN);
-	len = snprintf (buffer, 63, "Player Entity: #%d\nCamera Entity: #%d\n\nPosition\n", entity_GUID (player), entity_GUID (camera));
+	len = snprintf (buffer, 63, "Player Entity: #%d\nCamera Entity: #%d\n\n", entity_GUID (player), entity_GUID (camera));
 	strncpy (debugDisplay, buffer, len);
 
 	entity_message (player, NULL, "getHex", &trav);
 	height = subhexGetRawHeight (trav);
 
-	len += snprintf (buffer, 63, "World\n\tSpan: %d\n\tRadius: %d\n\tPole: '%c'\n", mapGetSpan (), mapGetRadius (), subhexPoleName (trav));
+	len += snprintf (buffer, 63, "scale: %d,%d\n\ton %c:\n", mapGetSpan (), mapGetRadius (), toupper (subhexPoleName (trav)));
 	strncat (debugDisplay, buffer, DEBUGLEN - len);
 
 	/* the poles have local coordinates technically, but they're always 0,0
