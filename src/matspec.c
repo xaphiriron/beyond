@@ -111,6 +111,8 @@ unsigned char materialParam (const MATSPEC mat, const char * param)
 	}
 	if (strcmp (param, "opaque") == 0)
 		return mat->opacity == MAT_OPAQUE;
+	if (strcmp (param, "transparent") == 0)
+		return mat->opacity == MAT_TRANSPARENT;
 	else if (strcmp (param, "visible") == 0)
 		return mat->opacity != MAT_TRANSPARENT;
 	return 0;

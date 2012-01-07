@@ -198,6 +198,7 @@ enum map_draw_types
 };
 
 void drawHexSurface (const struct hexColumn * const hex, const HEXSTEP step, const VECTOR3 * const render, enum map_draw_types style);
+void drawHexUnderside (const struct hexColumn * const hex, const HEXSTEP step, MATSPEC material, const VECTOR3 * const render, enum map_draw_types style);
 void drawHexEdge (const struct hexColumn * const hex, const HEXSTEP step, unsigned int low1, unsigned int low2, int direction, const VECTOR3 * const render, enum map_draw_types style);
 
 TEXTURE mapGenerateMapTexture (SUBHEX centre, float facing, unsigned char span);

@@ -2789,6 +2789,62 @@ void drawHexSurface (const struct hexColumn * const hex, const HEXSTEP step, con
 	}
 }
 
+void drawHexUnderside (const struct hexColumn * const hex, const HEXSTEP step, MATSPEC material, const VECTOR3 * const render, enum map_draw_types style)
+{
+	VECTOR3
+		jit[6];
+	unsigned int
+		corner[6];
+	unsigned char
+		rgba[4];
+	
+	jit[0] = VertexJitter [vertex (hex->x, hex->y, 1)];
+	jit[1] = VertexJitter [vertex (hex->x, hex->y, 2)];
+	jit[2] = VertexJitter [vertex (hex->x, hex->y, 3)];
+	jit[3] = VertexJitter [vertex (hex->x, hex->y, 4)];
+	jit[4] = VertexJitter [vertex (hex->x, hex->y, 5)];
+	jit[5] = VertexJitter [vertex (hex->x, hex->y, 0)];
+
+	corner[0] = FULLHEIGHT (step, 0);
+	corner[1] = FULLHEIGHT (step, 1);
+	corner[2] = FULLHEIGHT (step, 2);
+	corner[3] = FULLHEIGHT (step, 3);
+	corner[4] = FULLHEIGHT (step, 4);
+	corner[5] = FULLHEIGHT (step, 5);
+
+	switch (style)
+	{
+		case DRAW_HIGHLIGHT:
+			glDisable (GL_DEPTH_TEST);
+			glColor4ub (0x00, 0x99, 0xff, 0x7f);
+			break;
+		case DRAW_NORMAL:
+		default:
+			matspecColor (material, &rgba[0], &rgba[1], &rgba[2], &rgba[3]);
+			if (hex->light)
+				glColor4ub (rgba[0], rgba[1], rgba[2], rgba[3]);
+			else
+				glColor4ub (rgba[0] - (rgba[0] >> 4), rgba[1] - (rgba[1] >> 4), rgba[2] - (rgba[2] >> 4), rgba[3]);
+			break;
+	}
+
+	glBegin (GL_TRIANGLE_FAN);
+	glVertex3f (render->x, step->height * HEX_SIZE_4, render->z);
+	glVertex3f (render->x + H[0][0] + jit[0].x, corner[0] * HEX_SIZE_4, render->z + H[0][1] + jit[0].z);
+	glVertex3f (render->x + H[1][0] + jit[1].x, corner[1] * HEX_SIZE_4, render->z + H[1][1] + jit[1].z);
+	glVertex3f (render->x + H[2][0] + jit[2].x, corner[2] * HEX_SIZE_4, render->z + H[2][1] + jit[2].z);
+	glVertex3f (render->x + H[3][0] + jit[3].x, corner[3] * HEX_SIZE_4, render->z + H[3][1] + jit[3].z);
+	glVertex3f (render->x + H[4][0] + jit[4].x, corner[4] * HEX_SIZE_4, render->z + H[4][1] + jit[4].z);
+	glVertex3f (render->x + H[5][0] + jit[5].x, corner[5] * HEX_SIZE_4, render->z + H[5][1] + jit[5].z);
+	glVertex3f (render->x + H[0][0] + jit[0].x, corner[0] * HEX_SIZE_4, render->z + H[0][1] + jit[0].z);
+	glEnd ();
+
+	if (style == DRAW_HIGHLIGHT)
+	{
+		glEnable (GL_DEPTH_TEST);
+	}
+}
+
 void drawHexEdge (const struct hexColumn * const hex, const HEXSTEP step, unsigned int low1, unsigned int low2, int direction, const VECTOR3 * const render, enum map_draw_types style)
 {
 	int
@@ -2876,6 +2932,10 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 		lastStepTransparent = true;
 	while ((step = *(HEXSTEP *)dynarr_at (hex->steps, --column)))
 	{
+		if (!lastStepTransparent && matParam (step->material, "transparent"))
+		{
+			drawHexUnderside (hex, step, (*(HEXSTEP *)dynarr_at (hex->steps, column + 1))->material, &totalOffset, DRAW_NORMAL);
+		}
 		if (lastStepTransparent && !matParam (step->material, "transparent"))
 		{
 			drawHexSurface (hex, step, &totalOffset, DRAW_NORMAL);
@@ -2909,9 +2969,12 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 			else if (nextStep != NULL && (FULLHEIGHT (adjStep, (joins + 4) % 6) < FULLHEIGHT (nextStep, joins) || FULLHEIGHT (adjStep, (joins + 3) % 6) < FULLHEIGHT (nextStep, (joins + 1) % 6)))
 			{
 				// the next step in this column is above the highest-but-lower step; draw edge to the top of the next step
-				low[0] = FULLHEIGHT (nextStep, joins);
-				low[1] = FULLHEIGHT (nextStep, (joins + 1) % 6);
-				drawHexEdge (hex, step, low[0], low[1], joins, &totalOffset, DRAW_NORMAL);
+				if (!matParam (step->material, "transparent"))
+				{
+					low[0] = FULLHEIGHT (nextStep, joins);
+					low[1] = FULLHEIGHT (nextStep, (joins + 1) % 6);
+					drawHexEdge (hex, step, low[0], low[1], joins, &totalOffset, DRAW_NORMAL);
+				}
 			}
 			else if ((*(HEXSTEP *)dynarr_at (adjHex->steps, adjColumn + 1) == NULL || matParam ((*(HEXSTEP *)dynarr_at (adjHex->steps, adjColumn + 1))->material, "transparent")) && (FULLHEIGHT (adjStep, (joins + 4) % 6) < FULLHEIGHT (step, joins) || FULLHEIGHT (adjStep, (joins + 3) % 6) < FULLHEIGHT (step, (joins + 1) % 6)))
 			{
