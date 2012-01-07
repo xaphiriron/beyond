@@ -86,9 +86,13 @@ void finalize (void)
 	unsigned int
 		height,
 		width;
+	unsigned int
+		t;
 
 	/* this is just a filler that ought to be set elsewhere and remembered */
-	srand (time (NULL));
+	t = time (NULL);
+	srand (t);
+	printf ("seed: %d\n", t);
 
 	video_getDimensions (&height, &width);
 	titleScreenMenu = entity_create ();
