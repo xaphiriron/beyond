@@ -443,37 +443,32 @@ static void renderSkyCube ()
 	glDisable (GL_DEPTH_TEST);
 	glBegin (GL_QUADS);
 
-	glColor3ub (0xff, 0x00, 0x00);
+	glColor3ub (0x1f, 0x0f, 0x2f);
 	glVertex3f ( 1.0 * zNear,  1.0 * zNear,  1.0 * zNear);
 	glVertex3f ( 1.0 * zNear, -1.0 * zNear,  1.0 * zNear);
 	glVertex3f ( 1.0 * zNear, -1.0 * zNear, -1.0 * zNear);
 	glVertex3f ( 1.0 * zNear,  1.0 * zNear, -1.0 * zNear);
 
-	glColor3ub (0x00, 0xff, 0x00);
 	glVertex3f (-1.0 * zNear,  1.0 * zNear, -1.0 * zNear);
 	glVertex3f (-1.0 * zNear,  1.0 * zNear,  1.0 * zNear);
 	glVertex3f ( 1.0 * zNear,  1.0 * zNear,  1.0 * zNear);
 	glVertex3f ( 1.0 * zNear,  1.0 * zNear, -1.0 * zNear);
 
-	glColor3ub (0x00, 0x00, 0xff);
 	glVertex3f (-1.0 * zNear,  1.0 * zNear,  1.0 * zNear);
 	glVertex3f (-1.0 * zNear, -1.0 * zNear,  1.0 * zNear);
 	glVertex3f ( 1.0 * zNear, -1.0 * zNear,  1.0 * zNear);
 	glVertex3f ( 1.0 * zNear,  1.0 * zNear,  1.0 * zNear);
 
-	glColor3ub (0x00, 0xff, 0xff);
 	glVertex3f (-1.0 * zNear,  1.0 * zNear, -1.0 * zNear);
 	glVertex3f (-1.0 * zNear, -1.0 * zNear, -1.0 * zNear);
 	glVertex3f (-1.0 * zNear, -1.0 * zNear,  1.0 * zNear);
 	glVertex3f (-1.0 * zNear,  1.0 * zNear,  1.0 * zNear);
 
-	glColor3ub (0xff, 0x00, 0xff);
 	glVertex3f ( 1.0 * zNear, -1.0 * zNear, -1.0 * zNear);
 	glVertex3f ( 1.0 * zNear, -1.0 * zNear,  1.0 * zNear);
 	glVertex3f (-1.0 * zNear, -1.0 * zNear,  1.0 * zNear);
 	glVertex3f (-1.0 * zNear, -1.0 * zNear, -1.0 * zNear);
 
-	glColor3ub (0xff, 0xff, 0x00);
 	glVertex3f ( 1.0 * zNear,  1.0 * zNear, -1.0 * zNear);
 	glVertex3f ( 1.0 * zNear, -1.0 * zNear, -1.0 * zNear);
 	glVertex3f (-1.0 * zNear, -1.0 * zNear, -1.0 * zNear);
