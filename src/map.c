@@ -2960,7 +2960,7 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 						continue;
 
 					adjNextStep = *(HEXSTEP *)dynarr_at (adjHex->steps, adjColumn + 1);
-					if (adjNextStep)
+					if (adjNextStep && (FULLHEIGHT (adjNextStep, (joins + 4) % 6) < FULLHEIGHT (step, joins) && FULLHEIGHT (adjNextStep, (joins + 3) % 6) < FULLHEIGHT (step, (joins + 1) % 6)))
 					{
 						high[0] = FULLHEIGHT (adjNextStep, (joins + 4) % 6);
 						high[1] = FULLHEIGHT (adjNextStep, (joins + 3) % 6);
