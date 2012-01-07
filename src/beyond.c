@@ -55,7 +55,6 @@ void bootstrap (void)
 	component_register ("input", input_define);
 	component_register ("ui", ui_define);
 	component_register ("arch", arch_define);
-	component_register ("pattern", pattern_define);
 	component_register ("body", body_define);
 	component_register ("builder", builder_define);
 

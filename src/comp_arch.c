@@ -1,15 +1,20 @@
 #include "comp_arch.h"
 
-#include "ogdl/ogdl.h"
 #include "xph_path.h"
+#include "ogdl/ogdl.h"
+#include "graph_common.h"
 
-#include "map.h"
 #include "component_position.h"
+// for arch imprinting
+#include "map_internal.h"
+
+typedef struct xph_arch * Arch;
 
 struct xph_arch
 {
 	Entity
-		parent,
+		parent;
+	Pattern
 		pattern;
 	bool
 		expanded;
@@ -18,11 +23,10 @@ struct xph_arch
 		subarches;
 };
 
-typedef struct xph_arch * Arch;
-
 enum pattern_shape
 {
 	SHAPE_CIRCLE,
+	SHAPE_HEX,
 };
 
 struct xph_pattern_shape_circle
@@ -33,6 +37,14 @@ struct xph_pattern_shape_circle
 		radius[2];	// instantiate with a value between the two
 };
 
+struct xph_pattern_shape_hex
+{
+	enum pattern_shape
+		type;
+	int
+		radius[2];
+};
+
 // this should also have a shape: something simple and statistical, which constrains the graph expansion of an arch using this pattern. something simple would be "a sphere", something more complex would be a density spread or a generic graph model.
 union xph_pattern_shape
 {
@@ -40,6 +52,8 @@ union xph_pattern_shape
 		type;
 	struct xph_pattern_shape_circle
 		circle;
+	struct xph_pattern_shape_hex
+		hex;
 };
 
 typedef union xph_pattern_shape patternShape;
@@ -72,14 +86,48 @@ struct xph_pattern_arg
 	} val;
 };
 
+enum xph_pattern_imprint_type
+{
+	IMP_HEIGHT,
+	IMP_SMOOTH,
+	IMP_TRANSMUTE,
+};
+
+enum xph_pattern_location
+{
+	PL_INVALID,
+	PL_CENTRE,
+	PL_INSIDE,
+	PL_BORDER
+};
+
+enum xph_pattern_scale
+{
+	PS_CONSTANT,
+	PS_LINEAR,
+	PS_SINE,
+	PS_EXPONENT,
+};
+
+struct pattern_imprint
+{
+	enum xph_pattern_imprint_type
+		type;
+	enum xph_pattern_location
+		target;
+	enum xph_pattern_scale
+		scale;
+	long
+		value;
+};
+typedef struct pattern_imprint * ImprintRule;
+
+
+
 struct xph_pattern_subpattern
 {
 	enum xph_pattern_location
-	{
-		PL_BORDER,
-		PL_INSIDE,
-		PL_CENTRE,
-	} location;
+		location;
 	struct xph_pattern
 		* sub;
 };
@@ -95,12 +143,11 @@ struct xph_pattern
 	
 	Dynarr
 		args,
+		imprints,
 		subpatterns;
 };
 
 static void loadPatterns ();
-
-typedef struct xph_pattern * Pattern;
 
 void arch_create (EntComponent comp, EntSpeech speech);
 void arch_destroy (EntComponent comp, EntSpeech speech);
@@ -235,6 +282,96 @@ void arch_expand (EntComponent comp, EntSpeech speech)
 	arch->expanded = true;
 }
 
+void arch_imprint (Entity archEntity, SUBHEX at)
+{
+	Arch
+		arch = component_getData (entity_getAs (archEntity, "arch"));
+	Pattern
+		pattern = arch->pattern;
+	ImprintRule
+		imprint;
+	int
+		i = 0;
+
+	hexPos
+		archFocus,
+		hexPosition;
+	Dynarr
+		hexHull = NULL;
+	SUBHEX
+		hex;
+	VECTOR3
+		distance;
+
+	if (!pattern)
+	{
+		WARNING ("Arch #%d has no pattern set; cannot use", entity_GUID (archEntity));
+		return;
+	}
+
+	archFocus = position_get (archEntity);
+	if (map_posFocusedPlatter (archFocus) != NULL && subhexSpanLevel (map_posFocusedPlatter (archFocus)) != 0)
+	{
+		/* okay so after this we get the hex hull (the set of all individual hexes that are loaded and could possibly be within the boundary of the arch effect) and that requires using the position of the arch focus. HOWEVER:
+		 * - if the platter it's focused on isn't loaded then the lookup will fail (since it uses a SUBHEX instead of a hexPos; a null SUBHEX could be anywhere)
+		 * - if the platter it's focused on isn't an individual hex the resultant hull won't be formed out of hexes, it'll be formed out of subdivs (since map_posAround returns subhexes of the same span as the subhex that was passed in) and that won't work for all the tile data setting we're going to do here
+		 * both of these problems can be fixed: we can write an "around" function that takes hexPos structs and thus can return valid data even when the target subhex isn't loaded, and we can change the way the hull is calculated (remember we only imprint arches one subhex at a time; if we're dealing with a large pattern then the easy, common case is "the entire subhex is inside the hull") to fix the second one. but right now these are not problems that are going to come up with the rather trivial style of imprinting we're doing right now, so right now instead of fixing all that code i'm just going to pretend none of it exists.
+		 *  - xph 2012 01 06
+		 */
+		if (subhexSpanLevel (map_posFocusedPlatter (archFocus)) == 1)
+		{
+			hexHull = map_posAround (subhexData (at, 0, 0), mapGetRadius ());
+		}
+		else
+		{
+			ERROR ("got a arch type we cannot handle yet. arch focus is null (%p) or arch focus isn't 0 (%d)", map_posFocusedPlatter (archFocus), subhexSpanLevel (map_posFocusedPlatter (archFocus)));
+			return;
+		}
+	}
+	else
+	{
+		// that 8 is "the range of the hull, in hexes"; when we start storing pattern size & shape data we can change that to be more reasonable
+		hexHull = map_posAround (map_posFocusedPlatter (archFocus), 8);
+	}
+
+	// what we could also do here is cull the hexes in the hull that aren't in the shape at all, so that we can operate on all the remaining ones (which we might be iterating through many times) without having to sanity-check them. (it might be useful to pre-generate the hull and use subsets of that for each imprinting but given that the pre-generation would probably happen when a bunch of platters inside the hull are unloaded it wouldn't be worth it i think)
+
+	while ((imprint = *(ImprintRule *)dynarr_at (pattern->imprints, i++)))
+	{
+		i = 0;
+		while ((hexPosition = *(hexPos *)dynarr_at (hexHull, i++)))
+		{
+			hex = map_posFocusedPlatter (hexPosition);
+			//printf ("i: %d; hexPos: %p; got hex %p w/ parent %p (looking for %p)\n",i-1, hexPosition, hex, hex == NULL ? NULL : subhexParent (hex), at);
+			if (!hex || subhexParent (hex) != at)
+				continue;
+			distance = mapDistance (archFocus, hexPosition);
+			if ((vectorMagnitude (&distance) / 52.) > 8)
+				continue;
+			switch (imprint->type)
+			{
+				case IMP_HEIGHT:
+					hexSetBase (&hex->hex, 256, material (MAT_STONE));
+					hexCreateStep (&hex->hex, 272, material (MAT_AIR));
+					hexCreateStep (&hex->hex, 288, material (MAT_DIRT));
+					break;
+				case IMP_SMOOTH:
+					// take the 2/3 corners in the direction of the distance normal and slope them in the direction of whatever matching corners exist
+					break;
+				case IMP_TRANSMUTE:
+					break;
+				default:
+					break;
+			}
+		}
+	}
+
+
+	dynarr_wipe (hexHull, (void (*)(void *))map_freePos);
+	dynarr_destroy (hexHull);
+
+}
+
 /***
  * PATTERNS!
  */
@@ -242,16 +379,17 @@ void arch_expand (EntComponent comp, EntSpeech speech)
 static Dynarr
 	PatternList = NULL;
 
-static void shapeParseArg (patternShape * shape, Graph arg);
-static void parseVar (Pattern context, Graph var);
+static void parseShapeArg (Pattern context, Graph arg);
+static void parseSubvarArg (Pattern context, Graph var);
+static void parseImprintArg (Pattern context, Graph var);
 
+Pattern pattern_create ();
+void pattern_destroy (Pattern pattern);
 
-static void shapeParseArg (patternShape * shape, Graph arg)
+Pattern patternGet (unsigned int id)
 {
-}
-
-static void parseVar (Pattern context, Graph var)
-{
+	assert (PatternList != NULL);
+	return *(Pattern *)dynarr_at (PatternList, id);
 }
 
 static void loadPatterns ()
@@ -263,9 +401,8 @@ static void loadPatterns ()
 		idNode,
 		nameNode,
 		shapeNode,
-		shapeArg,
+		imprintNode,
 		subvarNode,
-		subvarArg,
 		subpatternsNode,
 		superpatternsNode;
 	Pattern
@@ -274,8 +411,7 @@ static void loadPatterns ()
 	char
 		pathbuffer[32];
 	int
-		i = 0,
-		j;
+		i = 0;
 
 	PatternList = dynarr_create (8, sizeof (struct xph_pattern));
 	patternRoot = Ogdl_load (absolutePath ("../data/patterns"));
@@ -291,7 +427,9 @@ static void loadPatterns ()
 		patternNode = Graph_get (patternRoot, pathbuffer);
 		if (!patternNode)
 			break;
-		pattern = xph_alloc (sizeof (struct xph_pattern));
+
+		pattern = pattern_create ();
+
 		idNode = Graph_get (patternNode, "id.[0]");
 		nameNode = Graph_get (patternNode, "name.[0]");
 		if (!idNode || !nameNode)
@@ -300,48 +438,33 @@ static void loadPatterns ()
 			xph_free (pattern);
 			continue;
 		}
+		// TODO: check for id validity as a number and as compared to existing patterns; ditto with names
 		pattern->id = atoi (idNode->name);
 		strncpy (pattern->name, nameNode->name, 32);
 		printf ("got #%d: \"%s\"\n", pattern->id, pattern->name);
 
 		shapeNode = Graph_get (patternNode, "shape.[0]");
 		if (shapeNode)
-		{
-			if (!strcmp (shapeNode->name, "circle"))
-				pattern->shape.type = SHAPE_CIRCLE;
-			else
-			{
-				// warning (etc etc improper shape def)
-			}
-			j = 0;
-			while (1)
-			{
-				sprintf (pathbuffer, "[%d]", j++);
-				shapeArg = Graph_get (shapeNode, pathbuffer);
-				if (!shapeArg)
-					break;
-				shapeParseArg (&pattern->shape, shapeArg);
-			}
-		}
+			graph_parseNodeArgs (shapeNode, (void (*)(void *, Graph))parseShapeArg, pattern);
 
 		subvarNode = Graph_get (patternNode, "subvars");
 		if (subvarNode)
-		{
-			j = 0;
-			while (1)
-			{
-				sprintf (pathbuffer, "[%d]", j++);
-				subvarArg = Graph_get (subvarNode, pathbuffer);
-				if (!subvarArg)
-					break;
-				parseVar (pattern, subvarArg);
-			}
-		}
+			graph_parseNodeArgs (subvarNode, (void (*)(void *, Graph))parseSubvarArg, pattern);
+
+		imprintNode = Graph_get (patternNode, "imprint");
+		if (imprintNode)
+			graph_parseNodeArgs (imprintNode, (void (*)(void *, Graph))parseImprintArg, pattern);
+		
 
 		subpatternsNode = Graph_get (patternNode, "subpatterns");
 		superpatternsNode = Graph_get (patternNode, "superpatterns");
 
-		dynarr_push (PatternList, pattern);
+		if (*(Pattern *)dynarr_at (PatternList, pattern->id))
+		{
+			ERROR ("Duplicate pattern id: more than one pattern has an id of %d; ignoring whichever one came later in the parse order", pattern->id);
+		}
+		else
+			dynarr_assign (PatternList, pattern->id, pattern);
 	}
 	Graph_free (patternRoot);
 
@@ -350,40 +473,154 @@ static void loadPatterns ()
 	{
 		// check patterns with unlinked sub/super-patterns and link them or error w/ invalid pattern specified
 	}
+
 }
 
-void pattern_create (EntComponent comp, EntSpeech speech);
-void pattern_destroy (EntComponent comp, EntSpeech speech);
-
-
-void pattern_define (EntComponent comp, EntSpeech speech)
+static void parseShapeArg (Pattern context, Graph arg)
 {
-
-	component_registerResponse ("pattern", "__create", pattern_create);
-	component_registerResponse ("pattern", "__destroy", pattern_destroy);
-
 }
 
-void pattern_create (EntComponent comp, EntSpeech speech)
+static void parseSubvarArg (Pattern context, Graph var)
+{
+}
+
+static void parseImprintArg (Pattern context, Graph var)
+{
+	struct pattern_imprint
+		* imprint = xph_alloc (sizeof (struct pattern_imprint));
+	Graph
+		arg;
+	int
+		i = 0,
+		argIndex;
+	char
+		buffer[32];
+	char
+		* conversionError = NULL;
+	const char
+		* imprintTypes [] = {"height", "smooth", "transmute", ""},
+		* imprintArgs [] = {"target", "scale", "from", "value", ""},
+		* targets [] = {"centre", "inside", "border", ""},
+		* scales [] = {"constant", "linear", "sine", "exponent", ""};
+	
+	argIndex = arg_match (imprintTypes, var->name);
+	switch (argIndex)
+	{
+		case 0:
+			imprint->type = IMP_HEIGHT;
+			break;
+		case 1:
+			imprint->type = IMP_SMOOTH;
+			break;
+		case 2:
+			imprint->type = IMP_TRANSMUTE;
+			break;
+
+		case -1:
+		default:
+			WARNING ("Unknown imprinting rule \"%s\"; ignoring", var->name);
+			xph_free (imprint);
+			return;
+	}
+
+	while (1)
+	{
+		snprintf (buffer, 32, "[%d]", i++);
+		arg = Graph_get (var, buffer);
+		if (!arg)
+			break;
+		argIndex = arg_match (imprintArgs, arg->name);
+		switch (argIndex)
+		{
+			case 0: // "target"
+				arg = Graph_get (arg, "[0]");
+				argIndex = arg_match (targets, arg->name);
+				switch (argIndex)
+				{
+					case 0:	// "centre"
+						imprint->target = PL_CENTRE;
+						break;
+					case 1:	// "inside"
+						imprint->target = PL_INSIDE;
+						break;
+					case 2:	// "border"
+						imprint->target = PL_BORDER;
+						break;
+					case -1:
+					default:
+						WARNING ("Unknown pattern area target of \"%s\"; ignoring", arg->name);
+						break;
+				}
+				break;
+
+			case 1: // "scale"
+				arg = Graph_get (arg, "[0]");
+				argIndex = arg_match (scales, arg->name);
+				switch (argIndex)
+				{
+					case 0: // "constant"
+						imprint->scale = PS_CONSTANT;
+						break;
+					case 1:	// "linear"
+						imprint->scale = PS_LINEAR;
+						break;
+					case 2:	// "sine"
+						imprint->target = PS_SINE;
+						break;
+					case 3:	// "exponent"
+						imprint->target = PS_EXPONENT;
+						break;
+					case -1:
+					default:
+						WARNING ("Unknown pattern area target of \"%s\"; ignoring", arg->name);
+						break;
+				}
+				break;
+
+			case 2: // "from"
+				break;
+
+			case 3: // "value"
+				arg = Graph_get (arg, "[0]");
+				imprint->value = strtol (arg->name, &conversionError, 0);
+				if (*conversionError != 0)
+				{
+					ERROR ("Could not parse value \"%s\"; using 0", arg->name);
+					imprint->value = 0;
+				}
+				break;
+
+			case -1:
+			default:
+				WARNING ("Unknown imprinting arg of \"%s\"; ignoring", arg->name);
+				break;
+		}
+
+	}
+
+	dynarr_push (context->imprints, imprint);
+}
+
+Pattern pattern_create ()
 {
 	Pattern
 		pattern = xph_alloc (sizeof (struct xph_pattern));
-	memset (pattern, 0, sizeof (struct xph_pattern));
 	pattern->subpatterns = dynarr_create (2, sizeof (Entity));
 	pattern->args = dynarr_create (2, sizeof (struct xph_pattern_arg *));
+	pattern->imprints = dynarr_create (2, sizeof (struct pattern_imprint *));
 
-	component_setData (comp, pattern);
+	return pattern;
 }
 
-void pattern_destroy (EntComponent comp, EntSpeech speech)
+void pattern_destroy (Pattern pattern)
 {
-	Pattern
-		pattern = component_getData (comp);
+
+	// TODO: free the imprints/args/etc
+	dynarr_destroy (pattern->imprints);
 	dynarr_destroy (pattern->args);
+
 	dynarr_destroy (pattern->subpatterns);
 	xph_free (pattern);
-
-	component_clearData (comp);
 }
 
 /***

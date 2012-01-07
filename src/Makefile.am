@@ -23,6 +23,7 @@ beyond_SOURCES = \
 	xph_memory.c xph_memory.h \
 	xph_log.c xph_log.h \
 	xph_path.c xph_path.h \
+	graph_common.c graph_common.h \
 	shapes.c shapes.h \
 	turtle3d.c turtle3d.h \
 	texture.c texture.h \

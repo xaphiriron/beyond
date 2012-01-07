@@ -10,6 +10,7 @@
 #include <time.h>
 
 #include "component_position.h"
+#include "comp_arch.h"
 
 // this is very much a makeshift way of addressing arches; it's to be replaced with a general arch list or something??
 static Entity
@@ -41,6 +42,8 @@ void worldInit ()
 	position_set (base, pos);
 	component_instantiate ("arch", base);
 
+	entity_message (base, NULL, "setArchPattern", patternGet (1));
+
 	FUNCCLOSE ();
 }
 
@@ -68,7 +71,7 @@ void worldGenerate (TIMER timer)
 {
 
 	// pick unexpanded arch at the highest level; expand it; repeat until there are no more arches on that level; repeat from top
-	entity_message (base, NULL, "archExpand", NULL);
+	//entity_message (base, NULL, "archExpand", NULL);
 
 	loadSetGoal (1);
 	loadSetLoaded (1);
@@ -81,15 +84,11 @@ void worldGenerate (TIMER timer)
 void worldImprint (SUBHEX at)
 {
 	int
-		i = 0,
-		j = 0,
-		max = fx (mapGetRadius ());
+		i = 0;
 	Entity
 		arch;
 	Dynarr
 		arches;
-	hexPos
-		archFocus;
 
 	if (subhexSpanLevel (at) != 1)
 		return;
@@ -98,16 +97,7 @@ void worldImprint (SUBHEX at)
 	i = 0;
 	while ((arch = *(Entity *)dynarr_at (arches, i++)))
 	{
-		archFocus = position_get (arch);
-		j = 0;
-		while (j < max)
-		{
-			if (mapDistanceFrom (archFocus, at->sub.data[j]) < 5)
-			{
-				hexSetBase (&at->sub.data[j]->hex, 127 + 18 - mapDistanceFrom (archFocus, at->sub.data[j]) * 3, material (MAT_STONE));
-			}
-			j++;
-		}
+		arch_imprint (arch, at);
 	}
 	dynarr_destroy (arches);
 }

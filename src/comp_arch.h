@@ -1,8 +1,10 @@
-#ifndef XPH_COMP_WORLDARCH_H
-#define XPH_COMP_WORLDARCH_H
+#ifndef XPH_COMP_ARCH_H
+#define XPH_COMP_ARCH_H
 
 #include "entity.h"
 #include "dynarr.h"
+
+#include "map.h"
 
 void arch_define (EntComponent comp, EntSpeech speech);
 void pattern_define (EntComponent comp, EntSpeech speech);
@@ -19,5 +21,10 @@ void worldLoading_system (Dynarr entities);
 // ??????
 void worldSimulate_system (Dynarr entities);
 */
+void arch_imprint (Entity arch, SUBHEX at);
 
-#endif /* XPH_COMP_WORLDARCH_H */
+typedef struct xph_pattern * Pattern;
+
+Pattern patternGet (unsigned int id);
+
+#endif /* XPH_COMP_ARCH_H */
