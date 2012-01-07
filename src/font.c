@@ -163,7 +163,9 @@ void fontPrint (const char * text, int x, int y)
 	unsigned int
 		width, height;
 	int
-		i = 0;
+		i = 0,
+		lineAdvance = 0,
+		tabAdvance = 0;
 	unsigned char
 		c;
 	float
@@ -183,12 +185,24 @@ void fontPrint (const char * text, int x, int y)
 
 	while ((c = text[i++]))
 	{
-		if (c == '\n')
+		switch (c)
 		{
-			glX = video_xMap (x);
-			glY += video_yOffset (FontSizeInPx);
-			if (c == ' ' || c == '\n')
+			case '\n':
+				glX = video_xMap (x);
+				glY += video_yOffset (FontSizeInPx);
+				lineAdvance = 0;
 				continue;
+			case '\t':
+				tabAdvance = (Glyphs[' '].xadvance * 8) - lineAdvance % (Glyphs[' '].xadvance * 8);
+				lineAdvance += tabAdvance;
+				glX += video_xOffset (tabAdvance);
+				continue;
+			case ' ':
+				glX += video_xOffset (Glyphs[c].xadvance);
+				lineAdvance += Glyphs[c].xadvance;
+				continue;
+			default:
+				break;
 		}
 		glW = video_xOffset (Glyphs[c].width);
 		glH = video_yOffset (Glyphs[c].height);
@@ -207,5 +221,6 @@ void fontPrint (const char * text, int x, int y)
 		glEnd ();
 
 		glX += video_xOffset (Glyphs[c].xadvance);
+		lineAdvance += Glyphs[c].xadvance;
 	}
 }
