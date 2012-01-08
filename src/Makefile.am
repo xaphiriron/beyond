@@ -62,25 +62,3 @@ beyond_LDADD = \
 	libvector.la \
 	libquat.la \
 	libfcmp.la
-
-# logo_SOURCES = \
-#   xph_memory.c xph_memory.h \
-#   cpv.c cpv.h		\
-#   object.c object.h	\
-#   timer.c timer.h	\
-#   video.c video.h	\
-#   input.c input.h	\
-#   accumulator.c accumulator.h \
-#   physics.c physics.h	\
-#   point.c point.h	\
-#   world.c world.h	\
-#   hex.c hex.h		\
-#   turtle.c turtle.h	\
-#   turtledraw.c turtledraw.h \
-#   system.c system.h	\
-#   logo.c
-# logo_LDADD =	\
-#   libline.la	\
-#   libvector.la	\
-#   libfcmp.la	\
-#   -lm -lGL -lSDL
