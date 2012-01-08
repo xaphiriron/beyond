@@ -21,6 +21,8 @@ struct xph_arch
 	Dynarr
 		connectedArches,
 		subarches;
+	unsigned int
+		heightMarker;	// roughly what height index to use when looking for "the ground" as applicable for this pattern
 };
 
 enum pattern_shape
@@ -184,6 +186,7 @@ void arch_create (EntComponent comp, EntSpeech speech)
 		pos;
 	memset (arch, 0, sizeof (struct xph_arch));
 
+	arch->heightMarker = 1024;
 	arch->connectedArches = dynarr_create (2, sizeof (Entity));
 	arch->subarches = dynarr_create (2, sizeof (Entity));
 
@@ -207,8 +210,12 @@ void arch_destroy (EntComponent comp, EntSpeech speech)
 void arch_setParent (EntComponent comp, EntSpeech speech)
 {
 	Arch
-		arch = component_getData (comp);
+		arch = component_getData (comp),
+		parent = component_getData (entity_getAs (speech->arg, "arch"));
 	arch->parent = speech->arg;
+	
+	// TODO: do something to calculate the arch's ground height marker based on the parent arch's height marker and any height imprinting rules instead of just blindly copying it over
+	arch->heightMarker = parent->heightMarker;
 }
 
 void arch_setPattern (EntComponent comp, EntSpeech speech)
@@ -291,17 +298,25 @@ void arch_imprint (Entity archEntity, SUBHEX at)
 	ImprintRule
 		imprint;
 	int
-		i = 0;
+		i = 0,
+		j = 0;
 
 	hexPos
 		archFocus,
 		hexPosition;
+	HEXSTEP
+		groundStep;
 	Dynarr
 		hexHull = NULL;
 	SUBHEX
 		hex;
 	VECTOR3
 		distance;
+	unsigned int
+		shiftAmount = 0;
+
+	float
+		scaledDistance = 0.0;
 
 	if (!pattern)
 	{
@@ -336,29 +351,52 @@ void arch_imprint (Entity archEntity, SUBHEX at)
 
 	// what we could also do here is cull the hexes in the hull that aren't in the shape at all, so that we can operate on all the remaining ones (which we might be iterating through many times) without having to sanity-check them. (it might be useful to pre-generate the hull and use subsets of that for each imprinting but given that the pre-generation would probably happen when a bunch of platters inside the hull are unloaded it wouldn't be worth it i think)
 
+	// every use of 52.0 here is using it as the distance between the centre of two adjacent hexes, right now usually to test the distance against the hardcoded pattern hull limit of eight hexes distant (in a circle)
+
 	while ((imprint = *(ImprintRule *)dynarr_at (pattern->imprints, i++)))
 	{
-		i = 0;
-		while ((hexPosition = *(hexPos *)dynarr_at (hexHull, i++)))
+		j = 0;
+		while ((hexPosition = *(hexPos *)dynarr_at (hexHull, j++)))
 		{
 			hex = map_posFocusedPlatter (hexPosition);
 			//printf ("i: %d; hexPos: %p; got hex %p w/ parent %p (looking for %p)\n",i-1, hexPosition, hex, hex == NULL ? NULL : subhexParent (hex), at);
 			if (!hex || subhexParent (hex) != at)
 				continue;
+			groundStep = hexGroundStepNear (&hex->hex, arch->heightMarker);
 			distance = mapDistance (archFocus, hexPosition);
 			if ((vectorMagnitude (&distance) / 52.) > 8)
 				continue;
+			printf ("got imprint of type %d\n", imprint->type);
 			switch (imprint->type)
 			{
 				case IMP_HEIGHT:
-					hexSetBase (&hex->hex, 256, material (MAT_STONE));
-					hexCreateStep (&hex->hex, 272, material (MAT_AIR));
-					hexCreateStep (&hex->hex, 288, material (MAT_DIRT));
+					scaledDistance = vectorMagnitude (&distance) / (52. * 8);
+					switch (imprint->scale)
+					{
+						case PS_LINEAR:
+							shiftAmount = imprint->value - (scaledDistance * imprint->value);
+							break;
+						case PS_SINE:
+							shiftAmount = imprint->value - (((sin (scaledDistance * M_PI - M_PI_2) + 1) / 2.0) * imprint->value);
+							break;
+						case PS_EXPONENT:
+							// FIXME: wow i don't know what i'm doing here, also maybe having a log as well as an exp value would be good
+							shiftAmount = imprint->value - (exp (scaledDistance) * imprint->value) + imprint->value;
+							break;
+						case PS_CONSTANT:
+						default:
+							shiftAmount = imprint->value;
+							break;
+					}
+					stepShiftHeight (&hex->hex, groundStep, shiftAmount);
 					break;
 				case IMP_SMOOTH:
+					// convert the distance into a vector, check the "vectors" of the vertices, slope to match adjacent hexes
 					// take the 2/3 corners in the direction of the distance normal and slope them in the direction of whatever matching corners exist
 					break;
 				case IMP_TRANSMUTE:
+					printf ("transmuting to %ld (%p)\n", imprint->value, material (imprint->value));
+					stepTransmute (&hex->hex, groundStep, material (imprint->value), 2);
 					break;
 				default:
 					break;
@@ -501,9 +539,11 @@ static void parseImprintArg (Pattern context, Graph var)
 		* imprintTypes [] = {"height", "smooth", "transmute", ""},
 		* imprintArgs [] = {"target", "scale", "from", "value", ""},
 		* targets [] = {"centre", "inside", "border", ""},
-		* scales [] = {"constant", "linear", "sine", "exponent", ""};
+		* scales [] = {"constant", "linear", "sine", "exponent", ""},
+		* materials [] = {"mat_air", "mat_stone", "mat_dirt", "mat_grass", ""};
 	
 	argIndex = arg_match (imprintTypes, var->name);
+	printf ("got %s w/ index of %d\n", var->name, argIndex);
 	switch (argIndex)
 	{
 		case 0:
@@ -565,10 +605,10 @@ static void parseImprintArg (Pattern context, Graph var)
 						imprint->scale = PS_LINEAR;
 						break;
 					case 2:	// "sine"
-						imprint->target = PS_SINE;
+						imprint->scale = PS_SINE;
 						break;
 					case 3:	// "exponent"
-						imprint->target = PS_EXPONENT;
+						imprint->scale = PS_EXPONENT;
 						break;
 					case -1:
 					default:
@@ -585,6 +625,15 @@ static void parseImprintArg (Pattern context, Graph var)
 				imprint->value = strtol (arg->name, &conversionError, 0);
 				if (*conversionError != 0)
 				{
+					if (imprint->type == IMP_TRANSMUTE)
+					{
+						argIndex = arg_match (materials, arg->name);
+						if (argIndex != -1)
+						{
+							imprint->value = argIndex;
+							break;
+						}
+					}
 					ERROR ("Could not parse value \"%s\"; using 0", arg->name);
 					imprint->value = 0;
 				}
@@ -595,9 +644,7 @@ static void parseImprintArg (Pattern context, Graph var)
 				WARNING ("Unknown imprinting arg of \"%s\"; ignoring", arg->name);
 				break;
 		}
-
 	}
-
 	dynarr_push (context->imprints, imprint);
 }
 

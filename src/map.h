@@ -62,7 +62,10 @@ void subhexDestroy (SUBHEX subhex);
 
 HEXSTEP hexSetBase (HEX hex, unsigned int height, MATSPEC material);
 HEXSTEP hexCreateStep (HEX hex, unsigned int height, MATSPEC material);
-unsigned char stepParam (HEXSTEP step, const char * param);
+
+HEXSTEP hexGroundStepNear (const HEX hex, unsigned int height);
+void stepShiftHeight (HEX hex, HEXSTEP step, signed int shift);
+void stepTransmute (HEX hex, HEXSTEP step, MATSPEC material, int penetration);
 
 /***
  * LOCATIONS

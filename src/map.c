@@ -310,7 +310,7 @@ SUBHEX mapHexCreate (const SUBHEX parent, signed int x, signed int y)
 
 	sh->hex.steps = dynarr_create (8, sizeof (HEXSTEP));
 
-	hexSetBase (&sh->hex, 255, material (MAT_DIRT));
+	hexSetBase (&sh->hex, 1023, material (MAT_DIRT));
 
 	return sh;
 }
@@ -554,15 +554,109 @@ HEXSTEP hexCreateStep (HEX hex, unsigned int height, MATSPEC material)
 	return step;
 }
 
-unsigned char stepParam (HEXSTEP step, const char * param)
+HEXSTEP hexGroundStepNear (const HEX hex, unsigned int height)
 {
-	if (step == NULL || step->material == NULL)
+	HEXSTEP
+		step,
+		nextStep;
+	int
+		i = 0;
+	assert (hex != NULL);
+	nextStep = *(HEXSTEP *)dynarr_at (hex->steps, 0);
+	while (i < dynarr_size (hex->steps))
 	{
-		if (strcmp (param, "transparent") == 0)
-			return true;
-		return false;
+		step = nextStep;
+		nextStep = *(HEXSTEP *)dynarr_at (hex->steps, ++i);
+		if (step->height <= height && (!nextStep || (nextStep->height >= height && matParam (nextStep->material, "transparent"))))
+			return step;
+		else if (step->height >= height && (!nextStep || matParam (nextStep->material, "transparent")))
+			return step;
 	}
-	return materialParam (step->material, param);
+	char
+		heightstr[16],
+		errorbuffer[128];
+	errorbuffer[0] = 0;
+	i = 0;
+	while ((step = *(HEXSTEP *)dynarr_at (hex->steps, i++)))
+	{
+		snprintf (heightstr, 16, "%d", step->height);
+		if (i != 1)
+			strncat (errorbuffer, ", ", 128 - (strlen (errorbuffer) + 1));
+		strncat (errorbuffer, heightstr, 128 - (strlen (errorbuffer) + 1));
+	}
+	ERROR ("Couldn't get valid ground step for target %d w/ steps %s", height, errorbuffer);
+	return NULL;
+}
+
+void stepShiftHeight (HEX hex, HEXSTEP step, signed int shift)
+{
+	int
+		stepIndex = in_dynarr (hex->steps, step);
+	unsigned int
+		newHeight;
+	HEXSTEP
+		overlapped;
+	assert (hex);
+	assert (step);
+	assert (stepIndex != -1);
+
+	newHeight = step->height + shift;
+	if (shift < 0 && newHeight > step->height) // underflow
+		newHeight = 0;
+	else if (shift > 0 && newHeight < step->height) // overflow
+		newHeight = INT_MAX;
+	
+	if (newHeight == step->height)
+		return;
+
+	if (newHeight > step->height)
+	{
+		step->height = newHeight;
+		while ((overlapped = *(HEXSTEP *)dynarr_at (hex->steps, ++stepIndex)))
+		{
+			if (overlapped->height <= step->height)
+			{
+				dynarr_unset (hex->steps, stepIndex);
+				xph_free (overlapped);
+			}
+		}
+		dynarr_condense (hex->steps);
+	}
+	else
+	{
+		step->height = newHeight;
+		while ((overlapped = *(HEXSTEP *)dynarr_at (hex->steps, --stepIndex)))
+		{
+			if (overlapped->height >= step->height)
+			{
+				dynarr_unset (hex->steps, stepIndex);
+				xph_free (overlapped);
+			}
+		}
+		dynarr_condense (hex->steps);
+	}
+}
+
+void stepTransmute (HEX hex, HEXSTEP step, MATSPEC material, int penetration)
+{
+	int
+		stepIndex = in_dynarr (hex->steps, step);
+	HEXSTEP
+		newStep;
+	assert (hex);
+	assert (step);
+	assert (stepIndex != -1);
+	
+	newStep = xph_alloc (sizeof (struct hexStep));
+	newStep->height = step->height;
+	newStep->material = material;
+
+	step->height = step->height - penetration;
+
+	// TODO: error handling if there's a step between the old step and the new step (probably just shift the step down until it no longer overlaps but if there's /another/ step overlap when that happens things get complex and blah blah blah let's not think about it right now - xph 2012 01 07
+
+	dynarr_push (hex->steps, newStep);
+	dynarr_sort (hex->steps, hexStepSort);
 }
 
 /***
