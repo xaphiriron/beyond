@@ -88,6 +88,7 @@ void fontLoad (const char * path, int fontSize)
 		Glyphs[c].topBearing = Face->glyph->metrics.horiBearingY >> 6;
 		Glyphs[c].xadvance = Face->glyph->advance.x >> 6;
 
+		// we're using a 2-component GL_LUMINANCE_ALPHA texture (and setting the luminance to 0xff always) because even though you might assume you could just use a GL_ALPHA texture evidently you can't. or, more likely, setting that to work correctly is slightly more complex than just changing the way the data is set and parsed (i guess??) - xph 2012 01 08
 		Glyphs[c].data = xph_alloc (width * height * 2);
 		textureData = Glyphs[c].data;
 		memset (textureData, 0x7f, width * height * 2);
@@ -158,6 +159,8 @@ enum textAlignType fontPrintAlign (enum textAlignType align)
 	return TextAlign;
 }
 
+
+// TODO: a 'width' argument to allow for centred or justified text (+ automatic word-wrapping?)
 void fontPrint (const char * text, int x, int y)
 {
 	unsigned int
@@ -182,6 +185,79 @@ void fontPrint (const char * text, int x, int y)
 		glY = video_yMap (height + (y + FontSizeInPx));
 	else
 		glY = video_yMap (y + FontSizeInPx);
+
+	if (TextAlign == ALIGN_RIGHT)
+	{
+		// this is obnoxious but a right-aligned line has to be stepped through backwards and it's just easier to write it its own traversal code rather than try to make the standard loop go backwards or forwards depending - xph 2012 01 08
+		const char
+			* nextLine = text;
+		nextLine = strchr (nextLine + 1, '\n');
+		if (nextLine)
+			i = nextLine - text;
+		else
+			i = strlen (text);
+		c = text[i];
+		while ((c = text[--i]))
+		{
+			switch (c)
+			{
+				case '\n':
+					glX = video_xMap (x);
+					glY += video_yOffset (FontSizeInPx);
+					lineAdvance = 0;
+
+					// can't just break since we're in a switch, but since hitting this means we're at the end of the text youcan just return - xph 2012 01 08
+					if (!nextLine)
+						return;
+					nextLine = strchr (nextLine + 1, '\n');
+					if (nextLine)
+						i = nextLine - text;
+					else
+						i = strlen (text);
+					continue;
+				case ' ':
+					glX -= video_xOffset (Glyphs[c].xadvance);
+					lineAdvance -= Glyphs[c].xadvance;
+					continue;
+			}
+			glW = video_xOffset (Glyphs[c].width);
+			glH = video_yOffset (Glyphs[c].height);
+			glTB = video_yOffset (-Glyphs[c].topBearing);
+
+			glX -= video_xOffset (Glyphs[c].xadvance);
+			lineAdvance -= Glyphs[c].xadvance;
+
+			glBindTexture (GL_TEXTURE_2D, GlyphNames[c]);
+			glBegin (GL_QUADS);
+			glTexCoord2f (0, 0);
+			glVertex3f (glX, glY + glTB + glH, zNear);
+			glTexCoord2f (Glyphs[c].texWidth, 0);
+			glVertex3f (glX + glW, glY + glTB + glH, zNear);
+			glTexCoord2f (Glyphs[c].texWidth, Glyphs[c].texHeight);
+			glVertex3f (glX + glW, glY + glTB, zNear);
+			glTexCoord2f (0, Glyphs[c].texHeight);
+			glVertex3f (glX, glY + glTB, zNear);
+			glEnd ();
+
+			if (i == 0)
+			{
+				glX = video_xMap (x);
+				glY += video_yOffset (FontSizeInPx);
+				lineAdvance = 0;
+
+				if (!nextLine)
+					break;
+				nextLine = strchr (nextLine + 1, '\n');
+				if (nextLine)
+					i = nextLine - text;
+				else
+					i = strlen (text);
+				continue;
+			}
+		}
+		printf ("\n");
+		return;
+	}
 
 	while ((c = text[i++]))
 	{
