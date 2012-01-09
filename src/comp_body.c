@@ -4,8 +4,31 @@
 
 static void drawBody (Entity e);
 
+static void body_create (EntComponent comp, EntSpeech speech);
+static void body_destroy (EntComponent comp, EntSpeech speech);
+
 void body_define (EntComponent comp, EntSpeech speech)
 {
+	component_registerResponse ("body", "__create", body_create);
+	component_registerResponse ("body", "__destroy", body_destroy);
+}
+
+static void body_create (EntComponent comp, EntSpeech speech)
+{
+	Body
+		body = xph_alloc (sizeof (struct xph_body));
+	body->height = 90.0;
+
+	component_setData (comp, body);
+}
+
+static void body_destroy (EntComponent comp, EntSpeech speech)
+{
+	Body
+		body = component_getData (comp);
+	xph_free (body);
+
+	component_clearData (comp);
 }
 
 void bodyRender_system (Dynarr entities)
@@ -22,6 +45,8 @@ void bodyRender_system (Dynarr entities)
 
 static void drawBody (Entity e)
 {
+	Body
+		body = component_getData (entity_getAs (e, "body"));
 	VECTOR3
 		render;
 	const AXES
@@ -46,21 +71,21 @@ static void drawBody (Entity e)
 			glColor4ub (0xff, 0x99, 0x00, 0xff);
 		else
 			glColor4ub (0x99, 0x55, 0x00, 0xff);
-		glVertex3f (render.x + c, render.y - 90, render.z + s);
 		glVertex3f (render.x + c, render.y, render.z + s);
+		glVertex3f (render.x + c, render.y + body->height, render.z + s);
 		i++;
 	}
 	glColor4ub (0x99, 0x55, 0x00, 0xff);
 	glVertex3f
 	(
 		render.x + cos (facing) * radius,
-		render.y - 90,
+		render.y,
 		render.z + sin (facing) * radius
 	);
 	glVertex3f
 	(
 		render.x + cos (facing) * radius,
-		render.y,
+		render.y + body->height,
 		render.z + sin (facing) * radius
 	);
 	glEnd ();
@@ -71,24 +96,24 @@ static void drawBody (Entity e)
 	{
 		c = cos ((M_PI * 2 / 6) * i + facing) * radius;
 		s = sin ((M_PI * 2 / 6) * i + facing) * radius;
-		glVertex3f (render.x + c, render.y - 90, render.z + s);
+		glVertex3f (render.x + c, render.y, render.z + s);
 		i++;
 	}
 	glVertex3f
 	(
 		render.x + cos (facing) * radius,
-		render.y - 90,
+		render.y,
 		render.z + sin (facing) * radius
 	);
 	glEnd ();
 	i = 6;
 	glBegin (GL_TRIANGLE_FAN);
-	glVertex3f (render.x + cos (facing) * radius, render.y, render.z + sin (facing) * radius);
+	glVertex3f (render.x + cos (facing) * radius, render.y + body->height, render.z + sin (facing) * radius);
 	while (i > 0)
 	{
 		c = cos ((M_PI * 2 / 6) * i + facing) * radius;
 		s = sin ((M_PI * 2 / 6) * i + facing) * radius;
-		glVertex3f (render.x + c, render.y, render.z + s);
+		glVertex3f (render.x + c, render.y + body->height, render.z + s);
 		i--;
 	}
 	glEnd ();
@@ -98,40 +123,50 @@ static void drawBody (Entity e)
 	glVertex3f
 	(
 		render.x - view->side.x * 52,
-		render.y - view->side.y * 52,
+		body->height + (render.y - view->side.y * 52),
 		render.z - view->side.z * 52
 	);
 	glVertex3f
 	(
 		render.x + view->side.x * 52,
-		render.y + view->side.y * 52,
+		body->height + (render.y + view->side.y * 52),
 		render.z + view->side.z * 52
 	);
 	glColor4ub (0x99, 0x00, 0xff, 0xff);
 	glVertex3f
 	(
 		render.x - view->front.x * 52,
-		render.y - view->front.y * 52,
+		body->height + (render.y - view->front.y * 52),
 		render.z - view->front.z * 52
 	);
 	glVertex3f
 	(
 		render.x + view->front.x * 52,
-		render.y + view->front.y * 52,
+		body->height + (render.y + view->front.y * 52),
 		render.z + view->front.z * 52
 	);
 	glColor4ub (0x99, 0xff, 0x00, 0xff);
 	glVertex3f
 	(
 		render.x - view->up.x * 52,
-		render.y - view->up.y * 52,
+		body->height + (render.y - view->up.y * 52),
 		render.z - view->up.z * 52
 	);
 	glVertex3f
 	(
 		render.x + view->up.x * 52,
-		render.y + view->up.y * 52,
+		body->height + (render.y + view->up.y * 52),
 		render.z + view->up.z * 52
 	);
 	glEnd ();
 };
+
+float body_height (Entity e)
+{
+	Body
+		body = component_getData (entity_getAs (e, "body"));
+	if (!body)
+		return 0.0;
+	return body->height;
+	
+}

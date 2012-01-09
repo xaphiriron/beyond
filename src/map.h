@@ -158,7 +158,7 @@ void subhexResetLoadStateForNewArch (SUBHEX at);
  * COLLISION
  */
 
-Dynarr map_lineCollide (const Entity const position, const VECTOR3 * const ray);
+Dynarr map_lineCollide (const SUBHEX base, const VECTOR3 * position, const VECTOR3 * ray);
 
 /***
  * INFORMATIONAL / GETTER FUNCTIONS

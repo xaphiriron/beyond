@@ -2048,15 +2048,14 @@ static VECTOR3 line_planeIntersection (const VECTOR3 * const lineOrigin, const V
 
 // FIXME: this returns a subhex, when we're looking for hits against the surface or the side of a hex step (and for the side, around what height value)
 // FIXME: also this assumes we're operating on a span 0 platter (i.e., an individual hex) but there aren't any code checks to ensure that
-Dynarr map_lineCollide (const Entity const position, const VECTOR3 * const ray)
+
+Dynarr map_lineCollide (const SUBHEX base, const VECTOR3 * local, const VECTOR3 * ray)
 {
 	VECTOR3
-		local = position_getLocalOffset (position),
 		hexCentre,
 		hexNormal,
 		intersection;
 	SUBHEX
-		base = position_getGround (position),
 		active;
 	int
 		x, y,
@@ -2072,7 +2071,7 @@ Dynarr map_lineCollide (const Entity const position, const VECTOR3 * const ray)
 	Dynarr
 		hit = dynarr_create (2, sizeof (SUBHEX));
 
-	v2c (&local, &x, &y);
+	v2c (local, &x, &y);
 	active = mapHexAtCoordinateAuto (base, -1, x, y);
 
 	//printf ("\nCASTING START\n");
@@ -2088,7 +2087,7 @@ Dynarr map_lineCollide (const Entity const position, const VECTOR3 * const ray)
 			// FIXME: this is a collision against the hex assuming its surface is flat. if the surface isn't flat there will be some inaccuracies
 			stepHeight = step->height * HEX_SIZE_4;
 			hexNormal = vectorCreate (0, 1, 0);
-			intersection = line_planeIntersection (&local, ray, &hexNormal, -stepHeight);
+			intersection = line_planeIntersection (local, ray, &hexNormal, -stepHeight);
 			//printf ("intersection: %.2f, %.2f, %.2f; centre: %.2f, %.2f, %.2f\n", intersection.x, intersection.y, intersection.z, hexCentre.x, hexCentre.y, hexCentre.z);
 			intersection = vectorSubtract (&intersection, &hexCentre);
 			if (pointInHex (&intersection))
@@ -2096,7 +2095,7 @@ Dynarr map_lineCollide (const Entity const position, const VECTOR3 * const ray)
 		}
 
 		i = 0;
-		while (turns (hexCentre.x + H[i][X], hexCentre.z + H[i][Y], local.x, local.z, local.x + ray->x, local.z + ray->z) != LEFT)
+		while (turns (hexCentre.x + H[i][X], hexCentre.z + H[i][Y], local->x, local->z, local->x + ray->x, local->z + ray->z) != LEFT)
 		{
 			i++;
 			if (i > 6)
@@ -2109,7 +2108,7 @@ Dynarr map_lineCollide (const Entity const position, const VECTOR3 * const ray)
 		i = 1;
 		while (i < 6)
 		{
-			side = turns (hexCentre.x + H[(begin + i) % 6][X], hexCentre.z + H[(begin + i) % 6][Y], local.x, local.z, local.x + ray->x, local.z + ray->z);
+			side = turns (hexCentre.x + H[(begin + i) % 6][X], hexCentre.z + H[(begin + i) % 6][Y], local->x, local->z, local->x + ray->x, local->z + ray->z);
 			if (side == RIGHT)
 			{
 				pos = map_from (active, 0, XY[(begin + i) % 6][X], XY[(begin + i) % 6][Y]);

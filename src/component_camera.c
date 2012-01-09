@@ -10,6 +10,7 @@
 #include "matrix.h"
 
 #include "component_position.h"
+#include "comp_body.h"
 
 
 /***
@@ -199,11 +200,14 @@ void camera_updateTargetPositionData (Entity camera)
 		* targetView;
 	VECTOR3
 		localOffset;
+	float
+		targetHeight = 0.0;
 	if (cdata == NULL || cdata->target == NULL)
 		return;
 	targetPosition = component_getData (entity_getAs (cdata->target, "position"));
 	localOffset = position_getLocalOffsetR (targetPosition);
 	targetView = position_getViewAxesR (targetPosition);
+	targetHeight = body_height (cdata->target);
 
 /* originally this calculated the local offset (vector offset of the target
  * from the centre of the ground it's on) and ground offset (vector offset of
@@ -238,15 +242,15 @@ void camera_updateTargetPositionData (Entity camera)
 
 	cdata->targetMatrix[12] =
 		-localOffset.x * cdata->targetMatrix[0] +
-		-localOffset.y * cdata->targetMatrix[4] +
+		-(localOffset.y + targetHeight) * cdata->targetMatrix[4] +
 		-localOffset.z * cdata->targetMatrix[8];
 	cdata->targetMatrix[13] =
 		-localOffset.x * cdata->targetMatrix[1] +
-		-localOffset.y * cdata->targetMatrix[5] +
+		-(localOffset.y + targetHeight) * cdata->targetMatrix[5] +
 		-localOffset.z * cdata->targetMatrix[9];
 	cdata->targetMatrix[14] =
 		-localOffset.x * cdata->targetMatrix[2] +
-		-localOffset.y * cdata->targetMatrix[6] +
+		-(localOffset.y + targetHeight) * cdata->targetMatrix[6] +
 		-localOffset.z * cdata->targetMatrix[10];
 	cdata->targetMatrix[15] = 1.0;
 
@@ -577,7 +581,14 @@ void cameraRender_system (Dynarr entities)
 		if (hit)
 			dynarr_destroy (hit);
 		lastFront = view->front;
-		hit = map_lineCollide (player, &lastFront);
+		SUBHEX
+			ground;
+		VECTOR3
+			local;
+		ground = hexPos_platter (position_get (player), 1);
+		local = position_getLocalOffset (player);
+		local.y += body_height (camera->target);
+		hit = map_lineCollide (ground, &local, &lastFront);
 	}
 
 	while ((highlight = *(SUBHEX *)dynarr_at (hit, i++)))
