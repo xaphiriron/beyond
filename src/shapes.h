@@ -26,6 +26,6 @@ SHAPE shape_makeCross ();
 
 void shape_destroy (SHAPE s);
 
-void shape_draw (const SHAPE s);
+void shape_draw (const SHAPE s, const VECTOR3 * offset);
 
 #endif /* XPH_SHAPES_H */

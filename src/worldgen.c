@@ -51,6 +51,14 @@ void worldFinalize ()
 {
 	hexPos
 		centre;
+	Entity
+		plant;
+	SUBHEX
+		basePlatter,
+		baseHex;
+	HEXSTEP
+		baseStep;
+
 	FUNCOPEN ();
 
 	centre = position_get (base);
@@ -61,6 +69,17 @@ void worldFinalize ()
 	map_posSwitchFocus (centre, 1);
 	printf ("creating player\n");
 	systemCreatePlayer (base);
+
+	basePlatter = hexPos_platter (centre, 1);
+	baseHex = subhexData (basePlatter, 0, 0);
+	baseStep = hexGroundStepNear (&baseHex->hex, 0);
+	plant = entity_create ();
+	component_instantiate ("position", plant);
+	component_instantiate ("plant", plant);
+	entity_refresh (plant);
+	position_placeOnHexStep (plant, &baseHex->hex, baseStep);
+	//position_set (plant, map_copy (position_get (base)));
+
 
 	systemClearStates();
 	systemPushState (STATE_FREEVIEW);

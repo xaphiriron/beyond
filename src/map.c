@@ -973,7 +973,15 @@ static void map_posRecalcPlatters (hexPos pos)
 }
 
 
-unsigned char map_posFocusLevel (const hexPos pos)
+SUBHEX hexPos_platter (const hexPos pos, unsigned char focus)
+{
+	assert (pos != NULL);
+	if (focus < pos->focus)
+		WARNING ("Getting the %d-th platter of a postion only focused to %d; (result: %p)", focus, pos->focus, pos->platter[focus]);
+	return pos->platter[focus];
+}
+
+unsigned char hexPos_focus (const hexPos pos)
 {
 	return pos->focus;
 }

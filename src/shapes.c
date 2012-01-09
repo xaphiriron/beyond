@@ -73,10 +73,10 @@ struct obj_shape
 
 static void shape_gen_axes (const VECTOR3 * n, VECTOR3 * x, VECTOR3 * y);
 
-static void shape_int_draw_circle (unsigned short r, unsigned char pts, const VECTOR3 * x, const VECTOR3 * y);
-static void shape_int_draw_disc (unsigned short ir, unsigned short or, unsigned char pts, const VECTOR3 * x, const VECTOR3 * y);
-static void shape_int_draw_cube (unsigned short size, const VECTOR3 * up, const VECTOR3 * side, const VECTOR3 * front);
-static void shape_int_draw_cutout (const struct cutout * c, unsigned short size, const VECTOR3 * x, const VECTOR3 * y);
+static void shape_int_draw_circle (const VECTOR3 * render, unsigned short r, unsigned char pts, const VECTOR3 * x, const VECTOR3 * y);
+static void shape_int_draw_disc (const VECTOR3 * render, unsigned short ir, unsigned short or, unsigned char pts, const VECTOR3 * x, const VECTOR3 * y);
+static void shape_int_draw_cube (const VECTOR3 * render, unsigned short size, const VECTOR3 * up, const VECTOR3 * side, const VECTOR3 * front);
+static void shape_int_draw_cutout (const VECTOR3 * render, const struct cutout * c, unsigned short size, const VECTOR3 * x, const VECTOR3 * y);
 
 
 void shape_setColor (SHAPE s, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
@@ -109,7 +109,7 @@ SHAPE shape_makeBlank ()
 {
 	SHAPE
 		s = xph_alloc (sizeof (struct obj_shape));
-	memset (s->rgba, '\255', 4);
+	memset (s->rgba, 0xff, 4);
 	s->type = SHAPE_NONE;
 	s->scale = 128;
 	s->normal = vectorCreate (0, 1, 0);
@@ -194,26 +194,27 @@ void shape_destroy (SHAPE s)
 
 
 
-void shape_draw (const SHAPE s)
+void shape_draw (const SHAPE s, const VECTOR3 * offset)
 {
 	assert (s != NULL);
-	glColor3f (s->rgba[0] / 255., s->rgba[1] / 255., s->rgba[2] / 255.);
+	glColor4ub (s->rgba[0], s->rgba[1], s->rgba[2], s->rgba[3]);
+	glBindTexture (GL_TEXTURE_2D, 0);
 	switch (s->type)
 	{
 		case SHAPE_CUTOUT:
-			shape_int_draw_cutout (&s->data.cutout, s->scale, &s->x, &s->y);
+			shape_int_draw_cutout (offset, &s->data.cutout, s->scale, &s->x, &s->y);
 			break;
 		case SHAPE_REGPOLY:
 			if (s->data.regpoly.ir == 0)
-				shape_int_draw_circle (s->data.regpoly.or * s->scale, s->data.regpoly.pts, &s->x, &s->y);
+				shape_int_draw_circle (offset, s->data.regpoly.or * s->scale, s->data.regpoly.pts, &s->x, &s->y);
 			else
-				shape_int_draw_disc (s->data.regpoly.ir * s->scale, s->data.regpoly.or * s->scale, s->data.regpoly.pts, &s->x, &s->y);
+				shape_int_draw_disc (offset, s->data.regpoly.ir * s->scale, s->data.regpoly.or * s->scale, s->data.regpoly.pts, &s->x, &s->y);
 			break;
 		case SHAPE_SPHERE:
 			// the idea for spheres is to billboard a circle towards the camera, and maybe ideally do some depth buffer fiddling to make it clip correctly. if that's even possible.
 			break;
 		case SHAPE_CUBE:
-				shape_int_draw_cube (s->data.cube.edgelen * s->scale, &s->normal, &s->x, &s->y);
+				shape_int_draw_cube (offset, s->data.cube.edgelen * s->scale, &s->normal, &s->x, &s->y);
 			break;
 		case SHAPE_NONE:
 		default:
@@ -255,7 +256,7 @@ static void shape_gen_axes (const VECTOR3 * n, VECTOR3 * x, VECTOR3 * y)
 }
 
 
-static void shape_int_draw_circle (unsigned short r, unsigned char pts, const VECTOR3 * x, const VECTOR3 * y)
+static void shape_int_draw_circle (const VECTOR3 * render, unsigned short r, unsigned char pts, const VECTOR3 * x, const VECTOR3 * y)
 {
 	float
 		i = 0,
@@ -271,16 +272,16 @@ static void shape_int_draw_circle (unsigned short r, unsigned char pts, const VE
 		s = sin (i) * nr;
 		glVertex3f
 		(
-			c * x->x + s * y->x,
-			c * x->y + s * y->y,
-			c * x->z + s * y->z
+			render->x + c * x->x + s * y->x,
+			render->y + c * x->y + s * y->y,
+			render->z + c * x->z + s * y->z
 		);
 		i += step;
 	}
 	glEnd ();
 }
 
-static void shape_int_draw_disc (unsigned short ir, unsigned short or, unsigned char pts, const VECTOR3 * x, const VECTOR3 * y)
+static void shape_int_draw_disc (const VECTOR3 * render, unsigned short ir, unsigned short or, unsigned char pts, const VECTOR3 * x, const VECTOR3 * y)
 {
 	float
 		i = 0,
@@ -297,24 +298,24 @@ static void shape_int_draw_disc (unsigned short ir, unsigned short or, unsigned 
 		s = sin (i) * nir;
 		glVertex3f
 		(
-			c * x->x + s * y->x,
-			c * x->y + s * y->y,
-			c * x->z + s * y->z
+			render->x + c * x->x + s * y->x,
+			render->y + c * x->y + s * y->y,
+			render->z + c * x->z + s * y->z
 		);
 		c = cos (i) * nor;
 		s = sin (i) * nor;
 		glVertex3f
 		(
-			c * x->x + s * y->x,
-			c * x->y + s * y->y,
-			c * x->z + s * y->z
+			render->x + c * x->x + s * y->x,
+			render->y + c * x->y + s * y->y,
+			render->z + c * x->z + s * y->z
 		);
 		i += step;
 	}
 	glEnd ();
 }
 
-static void shape_int_draw_cube (unsigned short size, const VECTOR3 * up, const VECTOR3 * side, const VECTOR3 * front)
+static void shape_int_draw_cube (const VECTOR3 * render, unsigned short size, const VECTOR3 * up, const VECTOR3 * side, const VECTOR3 * front)
 {
 	float
 		ns = size / 511.;
@@ -323,164 +324,164 @@ static void shape_int_draw_cube (unsigned short size, const VECTOR3 * up, const 
 	// up face
 	glVertex3f
 	(
-		(front->x + -side->x + up->x) * ns,
-		(front->y + -side->y + up->y) * ns,
-		(front->z + -side->z + up->z) * ns
+		render->x + (front->x + -side->x + up->x) * ns,
+		render->y + (front->y + -side->y + up->y) * ns,
+		render->z + (front->z + -side->z + up->z) * ns
 	);
 	glVertex3f
 	(
-		(-front->x + -side->x + up->x) * ns,
-		(-front->y + -side->y + up->y) * ns,
-		(-front->z + -side->z + up->z) * ns
+		render->x + (-front->x + -side->x + up->x) * ns,
+		render->y + (-front->y + -side->y + up->y) * ns,
+		render->z + (-front->z + -side->z + up->z) * ns
 	);
 	glVertex3f
 	(
-		(-front->x + side->x + up->x) * ns,
-		(-front->y + side->y + up->y) * ns,
-		(-front->z + side->z + up->z) * ns
+		render->x + (-front->x + side->x + up->x) * ns,
+		render->y + (-front->y + side->y + up->y) * ns,
+		render->z + (-front->z + side->z + up->z) * ns
 	);
 	glVertex3f
 	(
-		(front->x + side->x + up->x) * ns,
-		(front->y + side->y + up->y) * ns,
-		(front->z + side->z + up->z) * ns
+		render->x + (front->x + side->x + up->x) * ns,
+		render->y + (front->y + side->y + up->y) * ns,
+		render->z + (front->z + side->z + up->z) * ns
 	);
 
 	// anti-up face
 	glVertex3f
 	(
-		(front->x + -side->x + -up->x) * ns,
-		(front->y + -side->y + -up->y) * ns,
-		(front->z + -side->z + -up->z) * ns
+		render->x + (front->x + -side->x + -up->x) * ns,
+		render->y + (front->y + -side->y + -up->y) * ns,
+		render->z + (front->z + -side->z + -up->z) * ns
 	);
 	glVertex3f
 	(
-		(front->x + side->x + -up->x) * ns,
-		(front->y + side->y + -up->y) * ns,
-		(front->z + side->z + -up->z) * ns
+		render->x + (front->x + side->x + -up->x) * ns,
+		render->y + (front->y + side->y + -up->y) * ns,
+		render->z + (front->z + side->z + -up->z) * ns
 	);
 	glVertex3f
 	(
-		(-front->x + side->x + -up->x) * ns,
-		(-front->y + side->y + -up->y) * ns,
-		(-front->z + side->z + -up->z) * ns
+		render->x + (-front->x + side->x + -up->x) * ns,
+		render->y + (-front->y + side->y + -up->y) * ns,
+		render->z + (-front->z + side->z + -up->z) * ns
 	);
 	glVertex3f
 	(
-		(-front->x + -side->x + -up->x) * ns,
-		(-front->y + -side->y + -up->y) * ns,
-		(-front->z + -side->z + -up->z) * ns
+		render->x + (-front->x + -side->x + -up->x) * ns,
+		render->y + (-front->y + -side->y + -up->y) * ns,
+		render->z + (-front->z + -side->z + -up->z) * ns
 	);
 
 	// side face
 	glVertex3f
 	(
-		(front->x + side->x + up->x) * ns,
-		(front->y + side->y + up->y) * ns,
-		(front->z + side->z + up->z) * ns
+		render->x + (front->x + side->x + up->x) * ns,
+		render->y + (front->y + side->y + up->y) * ns,
+		render->z + (front->z + side->z + up->z) * ns
 	);
 	glVertex3f
 	(
-		(-front->x + side->x + up->x) * ns,
-		(-front->y + side->y + up->y) * ns,
-		(-front->z + side->z + up->z) * ns
+		render->x + (-front->x + side->x + up->x) * ns,
+		render->y + (-front->y + side->y + up->y) * ns,
+		render->z + (-front->z + side->z + up->z) * ns
 	);
 	glVertex3f
 	(
-		(-front->x + side->x + -up->x) * ns,
-		(-front->y + side->y + -up->y) * ns,
-		(-front->z + side->z + -up->z) * ns
+		render->x + (-front->x + side->x + -up->x) * ns,
+		render->y + (-front->y + side->y + -up->y) * ns,
+		render->z + (-front->z + side->z + -up->z) * ns
 	);
 	glVertex3f
 	(
-		(front->x + side->x + -up->x) * ns,
-		(front->y + side->y + -up->y) * ns,
-		(front->z + side->z + -up->z) * ns
+		render->x + (front->x + side->x + -up->x) * ns,
+		render->y + (front->y + side->y + -up->y) * ns,
+		render->z + (front->z + side->z + -up->z) * ns
 	);
 
 	// anti-side face
 	glVertex3f
 	(
-		(front->x + -side->x + up->x) * ns,
-		(front->y + -side->y + up->y) * ns,
-		(front->z + -side->z + up->z) * ns
+		render->x + (front->x + -side->x + up->x) * ns,
+		render->y + (front->y + -side->y + up->y) * ns,
+		render->z + (front->z + -side->z + up->z) * ns
 	);
 	glVertex3f
 	(
-		(front->x + -side->x + -up->x) * ns,
-		(front->y + -side->y + -up->y) * ns,
-		(front->z + -side->z + -up->z) * ns
+		render->x + (front->x + -side->x + -up->x) * ns,
+		render->y + (front->y + -side->y + -up->y) * ns,
+		render->z + (front->z + -side->z + -up->z) * ns
 	);
 	glVertex3f
 	(
-		(-front->x + -side->x + -up->x) * ns,
-		(-front->y + -side->y + -up->y) * ns,
-		(-front->z + -side->z + -up->z) * ns
+		render->x + (-front->x + -side->x + -up->x) * ns,
+		render->y + (-front->y + -side->y + -up->y) * ns,
+		render->z + (-front->z + -side->z + -up->z) * ns
 	);
 	glVertex3f
 	(
-		(-front->x + -side->x + up->x) * ns,
-		(-front->y + -side->y + up->y) * ns,
-		(-front->z + -side->z + up->z) * ns
+		render->x + (-front->x + -side->x + up->x) * ns,
+		render->y + (-front->y + -side->y + up->y) * ns,
+		render->z + (-front->z + -side->z + up->z) * ns
 	);
 
 
 	// front face
 	glVertex3f
 	(
-		(front->x + side->x + up->x) * ns,
-		(front->y + side->y + up->y) * ns,
-		(front->z + side->z + up->z) * ns
+		render->x + (front->x + side->x + up->x) * ns,
+		render->y + (front->y + side->y + up->y) * ns,
+		render->z + (front->z + side->z + up->z) * ns
 	);
 	glVertex3f
 	(
-		(front->x + side->x + -up->x) * ns,
-		(front->y + side->y + -up->y) * ns,
-		(front->z + side->z + -up->z) * ns
+		render->x + (front->x + side->x + -up->x) * ns,
+		render->y + (front->y + side->y + -up->y) * ns,
+		render->z + (front->z + side->z + -up->z) * ns
 	);
 	glVertex3f
 	(
-		(front->x + -side->x + -up->x) * ns,
-		(front->y + -side->y + -up->y) * ns,
-		(front->z + -side->z + -up->z) * ns
+		render->x + (front->x + -side->x + -up->x) * ns,
+		render->y + (front->y + -side->y + -up->y) * ns,
+		render->z + (front->z + -side->z + -up->z) * ns
 	);
 	glVertex3f
 	(
-		(front->x + -side->x + up->x) * ns,
-		(front->y + -side->y + up->y) * ns,
-		(front->z + -side->z + up->z) * ns
+		render->x + (front->x + -side->x + up->x) * ns,
+		render->y + (front->y + -side->y + up->y) * ns,
+		render->z + (front->z + -side->z + up->z) * ns
 	);
 
 	// anti-front face
 	glVertex3f
 	(
-		(-front->x + side->x + up->x) * ns,
-		(-front->y + side->y + up->y) * ns,
-		(-front->z + side->z + up->z) * ns
+		render->x + (-front->x + side->x + up->x) * ns,
+		render->y + (-front->y + side->y + up->y) * ns,
+		render->z + (-front->z + side->z + up->z) * ns
 	);
 	glVertex3f
 	(
-		(-front->x + -side->x + up->x) * ns,
-		(-front->y + -side->y + up->y) * ns,
-		(-front->z + -side->z + up->z) * ns
+		render->x + (-front->x + -side->x + up->x) * ns,
+		render->y + (-front->y + -side->y + up->y) * ns,
+		render->z + (-front->z + -side->z + up->z) * ns
 	);
 	glVertex3f
 	(
-		(-front->x + -side->x + -up->x) * ns,
-		(-front->y + -side->y + -up->y) * ns,
-		(-front->z + -side->z + -up->z) * ns
+		render->x + (-front->x + -side->x + -up->x) * ns,
+		render->y + (-front->y + -side->y + -up->y) * ns,
+		render->z + (-front->z + -side->z + -up->z) * ns
 	);
 	glVertex3f
 	(
-		(-front->x + side->x + -up->x) * ns,
-		(-front->y + side->y + -up->y) * ns,
-		(-front->z + side->z + -up->z) * ns
+		render->x + (-front->x + side->x + -up->x) * ns,
+		render->y + (-front->y + side->y + -up->y) * ns,
+		render->z + (-front->z + side->z + -up->z) * ns
 	);
 
 	glEnd ();
 }
 
-static void shape_int_draw_cutout (const struct cutout * c, unsigned short size, const VECTOR3 * x, const VECTOR3 * y)
+static void shape_int_draw_cutout (const VECTOR3 * render, const struct cutout * c, unsigned short size, const VECTOR3 * x, const VECTOR3 * y)
 {
 	int
 		i,
@@ -498,9 +499,9 @@ static void shape_int_draw_cutout (const struct cutout * c, unsigned short size,
 			p = &c->pieces[i].corners[j];
 			glVertex3f
 			(
-				(p->x * x->x + p->y * y->x) * n,
-				(p->x * x->y + p->y * y->y) * n,
-				(p->x * x->z + p->y * y->z) * n
+				render->x + (p->x * x->x + p->y * y->x) * n,
+				render->y + (p->x * x->y + p->y * y->y) * n,
+				render->z + (p->x * x->z + p->y * y->z) * n
 			);
 			j++;
 		}

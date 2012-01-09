@@ -14,6 +14,7 @@
 
 #include "comp_arch.h"
 #include "comp_body.h"
+#include "comp_plant.h"
 
 static void bootstrap (void);
 static void load (TIMER t);
@@ -57,11 +58,13 @@ void bootstrap (void)
 	component_register ("arch", arch_define);
 	component_register ("body", body_define);
 	component_register ("builder", builder_define);
+	component_register ("plant", plant_define);
 
 	entitySystem_register ("input", input_system, 1, "input");
 	entitySystem_register ("walking", walking_system, 1, "walking");
 	entitySystem_register ("ui", ui_system, 1, "ui");
 	entitySystem_register ("builder", builder_system, 1, "builder");
+	entitySystem_register ("plantUpdate", plantUpdate_system, 1, "plant");
 
 	entitySystem_register ("mapLoad", mapLoad_system, 0);
 
@@ -71,6 +74,8 @@ void bootstrap (void)
 	entitySystem_disableMessages ("bodyRender");
 	entitySystem_register ("cameraRender", cameraRender_system, 1, "camera");
 	entitySystem_disableMessages ("cameraRender");
+	entitySystem_register ("plantRender", plantRender_system, 1, "plant");
+	entitySystem_disableMessages ("plantRender");
 
 	entitySystem_register ("TEMPsystemRender", systemRender, 0);
 	entitySystem_disableMessages ("TEMPsystemRender");

@@ -79,7 +79,9 @@ hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y);
 
 void map_freePos (hexPos pos);
 
-unsigned char map_posFocusLevel (const hexPos pos);
+SUBHEX hexPos_platter (const hexPos pos, unsigned char focus);
+unsigned char hexPos_focus (const hexPos pos);
+
 SUBHEX map_posFocusedPlatter (const hexPos pos);
 SUBHEX map_posBestMatchPlatter (const hexPos pos);
 void map_posSwitchFocus (hexPos pos, unsigned char focus);

@@ -1,5 +1,7 @@
 #include "component_position.h"
 
+#include "map_internal.h"
+
 struct position_data { // POSITION
 	AXES
 		view,
@@ -100,6 +102,38 @@ hexPos position_get (Entity e)
 	return positionData->position;
 }
 
+void position_placeOnHexStep (Entity e, HEX hex, HEXSTEP step)
+{
+	POSITION
+		pos = component_getData (entity_getAs (e, "position"));
+	hexPos
+		newPos;
+	VECTOR3
+		newVector;
+	SUBHEX
+		oldGround,
+		newGround;
+	
+	if (!pos)
+		return;
+	newPos = map_at (hex->parent);
+	newVector = hex_xyCoord2Space (hex->x, hex->y);
+	newVector.y = step->height * HEX_SIZE_4 + 90.0;
+
+	pos->position = newPos;
+	pos->pos = newVector;
+	entity_speak (e, "positionSet", NULL);
+
+	oldGround = pos->ground;
+	newGround = hexPos_platter (newPos, 1);
+	pos->ground = newGround;
+	entity_speak (e, "positionUpdate", NULL);
+	if (oldGround != newGround)
+		position_messageGroundChange (entity_getAs (e, "position"), oldGround, pos->ground);
+}
+
+
+
 VECTOR3 position_renderCoords (Entity e)
 {
 	VECTOR3
@@ -107,7 +141,10 @@ VECTOR3 position_renderCoords (Entity e)
 		total;
 	POSITION
 		position = component_getData (entity_getAs (e, "position"));
-	platter = renderOriginDistance (position->ground);
+	if (position->position)
+		platter = renderOriginDistance (hexPos_platter (position->position, 1));
+	else
+		platter = renderOriginDistance (position->ground);
 	total = vectorAdd (&platter, &position->pos);
 	return total;
 }
