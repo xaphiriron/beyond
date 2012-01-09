@@ -9,8 +9,6 @@ void plant_define (EntComponent comp, EntSpeech speech)
 {
 	component_registerResponse ("plant", "__create", plant_create);
 	component_registerResponse ("plant", "__destroy", plant_destroy);
-
-
 }
 
 void plant_create (EntComponent comp, EntSpeech speech)
@@ -19,7 +17,16 @@ void plant_create (EntComponent comp, EntSpeech speech)
 		plant = xph_alloc (sizeof (struct xph_plant));
 
 	plant->expansion = lsystem_create ();
-	lsystem_addProduction (plant->expansion, 'R', "R[-R][-'R][-''R]");
+	lsystem_addProduction (plant->expansion, 'R', "L[-R]['-R][''-R]");
+	lsystem_addProduction (plant->expansion, 'L', "LL");
+
+	plant->render = sym_makeSet ();
+	sym_add (plant->render, 'L', SYM_MOVE, 20.0);
+	sym_add (plant->render, 'R', SYM_MOVE, 20.0);
+	sym_add (plant->render, '[', SYM_PUSH);
+	sym_add (plant->render, ']', SYM_POP);
+	sym_add (plant->render, '-', SYM_ELEVATION, -60.0);
+	sym_add (plant->render, '\'', SYM_BANK, 120.0);
 
 	plant->body = xph_alloc (2);
 	plant->body[0] = 'R';
@@ -40,6 +47,7 @@ void plant_destroy (EntComponent comp, EntSpeech speech)
 
 	shape_destroy (plant->fauxShape);
 
+	sym_destroySet (plant->render);
 	lsystem_destroy (plant->expansion);
 
 	xph_free (plant->body);
@@ -90,5 +98,6 @@ void plantRender_system (Dynarr entities)
 		//printf ("rendering #%d as a plant (at %.2f, %.2f, %.2f)\n", entity_GUID (plantEntity), render.x, render.y, render.z);
 		glBindTexture (GL_TEXTURE_2D, 0);
 		shape_draw (plant->fauxShape, &render);
+		turtleDrawPath (plant->body, plant->render, &render);
 	}
 }

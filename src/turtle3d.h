@@ -42,8 +42,6 @@ VECTOR3 turtleGetRollVector (const Turtle t);
 TURTLEPENTYPE turtleGetPen (const Turtle t);
 Dynarr turtleGetPath (const Turtle t);
 
-
-
 void turtleMoveForward (Turtle t, float m);
 void turtleMoveUp (Turtle t, float m);
 void turtleMoveRight (Turtle t, float m);
@@ -63,5 +61,28 @@ void turtlePopStack (Turtle t);
 
 void turtlePenDown (Turtle t);
 void turtlePenUp (Turtle t);
+
+enum symbol_actions
+{
+	SYM_MOVE,
+	SYM_PEN,
+
+	SYM_HEADING,
+	SYM_ELEVATION,
+	SYM_BANK,
+
+	SYM_PUSH,
+	SYM_POP,
+};
+typedef struct xph_turtle_symbol * Symbol;
+typedef struct xph_turtle_symbolset * SymbolSet;
+
+SymbolSet sym_makeSet ();
+void sym_destroySet (SymbolSet set);
+
+Symbol sym_add (SymbolSet set, char sym, enum symbol_actions act, ...);
+Symbol set_get (SymbolSet set, char sym);
+
+void turtleDrawPath (const char * path, const SymbolSet set, const VECTOR3 * origin);
 
 #endif /* XPH_TURTLE3D_H */

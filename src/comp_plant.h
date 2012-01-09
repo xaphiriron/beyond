@@ -4,12 +4,15 @@
 #include "entity.h"
 
 #include "lsystem.h"
+#include "turtle3d.h"
 #include "shapes.h"
 
 struct xph_plant
 {
 	LSYSTEM
 		* expansion;
+	SymbolSet
+		render;
 	char
 		* body;
 	short
