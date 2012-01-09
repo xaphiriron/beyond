@@ -80,6 +80,14 @@ void worldFinalize ()
 	position_placeOnHexStep (plant, &baseHex->hex, baseStep);
 	//position_set (plant, map_copy (position_get (base)));
 
+//	Entity
+//		npc;
+// 	npc = entity_create ();
+// 	component_instantiate ("position", npc);
+// 	component_instantiate ("body", npc);
+// 	position_copy (npc, player);
+// 	entity_refresh (npc);
+
 
 	systemClearStates();
 	systemPushState (STATE_FREEVIEW);

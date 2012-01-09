@@ -307,8 +307,7 @@ void systemCreatePlayer (Entity base)
 {
 	Entity
 		player,
-		camera,
-		npc;
+		camera;
 	SUBHEX
 		place;
 	VECTOR3
@@ -349,12 +348,6 @@ void systemCreatePlayer (Entity base)
 	}
 	entity_refresh (camera);
 	entity_name (camera, "CAMERA");
-
-	npc = entity_create ();
-	component_instantiate ("position", npc);
-	component_instantiate ("body", npc);
-	position_copy (npc, player);
-	entity_refresh (npc);
 
 	FUNCCLOSE ();
 }
