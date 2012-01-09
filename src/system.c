@@ -310,8 +310,6 @@ void systemCreatePlayer (Entity base)
 		camera;
 	SUBHEX
 		place;
-	VECTOR3
-		pos;
 
 	FUNCOPEN ();
 
@@ -326,8 +324,9 @@ void systemCreatePlayer (Entity base)
 		 */
 		place = map_posFocusedPlatter (position_get (base));
 		worldSetRenderCacheCentre (place);
-		pos = vectorCreate (0.0, subhexGetHeight (place) + 90.0, 0.0);
-		position_setDirect (player, pos, place);
+
+		place = subhexData (place, 0, 0);
+		position_placeOnHexStep (player, (HEX)place, hexGroundStepNear ((HEX)place, 0));
 	}
 	component_instantiate ("walking", player);
 	component_instantiate ("body", player);
@@ -521,7 +520,7 @@ char * systemGenDebugStr ()
 	strncpy (debugDisplay, buffer, len);
 
 	entity_message (player, NULL, "getHex", &trav);
-	height = subhexGetRawHeight (trav);
+	height = 0;
 
 	len += snprintf (buffer, 63, "scale: %d,%d\n\ton %c:\n", mapGetSpan (), mapGetRadius (), toupper (subhexPoleName (trav)));
 	strncat (debugDisplay, buffer, DEBUGLEN - len);
@@ -536,7 +535,7 @@ char * systemGenDebugStr ()
 		trav = subhexParent (trav);
 	}
 
-	len += snprintf (buffer, 63, "\nheight: %u\n", height);
+	len += snprintf (buffer, 63, "\nheight: ???\n");
 	strncat (debugDisplay, buffer, DEBUGLEN - len);
 
 	return debugDisplay;

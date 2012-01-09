@@ -116,9 +116,14 @@ void position_placeOnHexStep (Entity e, HEX hex, HEXSTEP step)
 	
 	if (!pos)
 		return;
+	if (hex->type != HS_HEX)
+	{
+		ERROR ("Cannot place entity #%d on given hex (%p); it's a platter", entity_GUID (e), hex);
+		return;
+	}
 	newPos = map_at (hex->parent);
 	newVector = hex_xyCoord2Space (hex->x, hex->y);
-	newVector.y = step->height * HEX_SIZE_4 + 90.0;
+	newVector.y = step->height * HEX_SIZE_4;
 
 	pos->position = newPos;
 	pos->pos = newVector;
@@ -161,7 +166,7 @@ static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround
 	posUpdate.newGround = newGround;
 	if (oldGround == NULL || newGround == NULL)
 	{
-		WARNING ("No point in generating ground change between %p and %p (one or both is NULL)", oldGround, newGround);
+		INFO ("No point in generating ground change between %p and %p (one or both is NULL)", oldGround, newGround);
 		FUNCCLOSE ();
 		return;
 	}
@@ -225,6 +230,12 @@ void position_setDirect (Entity e, VECTOR3 pos, SUBHEX ground)
 	if (oldGround != ground)
 		position_messageGroundChange (pc, oldGround, pdata->ground);
 
+	int
+		x = 0, y = 0;
+	v2c (&pos, &x, &y);
+	assert (hexMagnitude (x, y) <= MapRadius);
+	position_set (e, map_at (subhexData (ground, x, y)));
+
 	FUNCCLOSE ();
 }
 
@@ -238,7 +249,10 @@ bool position_move (Entity e, VECTOR3 move)
 		newRawPosition,
 		newPosition;
 	SUBHEX
-		newGround = NULL;
+		newGround = NULL,
+		newHex;
+	HEXSTEP
+		newStep;
 	bool
 		validMove = true;
 	signed int
@@ -254,7 +268,12 @@ bool position_move (Entity e, VECTOR3 move)
 
 	validMove = mapMove (pdata->ground, &newRawPosition, &newGround, &newPosition);
 	v2c (&newPosition, &newX, &newY);
-	newPosition.y = subhexGetHeight (subhexData (newGround, newX, newY)) + 90.0;
+	newHex = subhexData (newGround, newX, newY);
+	newStep = hexGroundStepNear (&newHex->hex, pdata->pos.y / HEX_SIZE_4);
+	if (!newStep)
+		newStep = *(HEXSTEP *)dynarr_back (newHex->hex.steps);
+	newPosition.y = newStep->height * HEX_SIZE_4;
+
 	if (!validMove)
 	{
 		if (newGround != NULL && subhexSpanLevel (pdata->ground) < subhexSpanLevel (newGround))

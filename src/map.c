@@ -2201,6 +2201,7 @@ SUBHEX subhexData (const SUBHEX subhex, signed int x, signed int y)
 
 SUBHEX subhexParent (const SUBHEX subhex)
 {
+	assert (subhex != NULL);
 	return subhex->type == HS_SUB
 		? subhex->sub.parent
 		: subhex->hex.parent;
@@ -2234,39 +2235,6 @@ bool subhexPartlyLoaded (const SUBHEX subhex)
 	// TODO: blah blah recurse, but before adding that check make 'imprintable' and 'loaded' mean something for platters w/ span > 1 since right now they're never set except at 1 and pole level
 	return !(val->sub.imprintable && val->sub.loaded);
 	
-}
-
-/* these functions don't really make sense; they could check map data for higher-span subhexes but, just... the way they traverse down to the hex level to get the 'real' height doesn't make a whole lot of sense given the context of the world. or something. */
-unsigned int subhexGetRawHeight (const SUBHEX subhex)
-{
-	SUBHEX
-		hex = subhex;
-	HEXSTEP
-		step;
-	while (subhexSpanLevel (hex) != 0)
-	{
-		hex = subhexData (hex, 0, 0);
-		if (hex == NULL)
-			return 0.0;
-	}
-	step = *(HEXSTEP *)dynarr_front (hex->hex.steps);
-	return step->height;
-}
-
-float subhexGetHeight (const SUBHEX subhex)
-{
-	SUBHEX
-		hex = subhex;
-	HEXSTEP
-		step;
-	while (subhexSpanLevel (hex) != 0)
-	{
-		hex = subhexData (hex, 0, 0);
-		if (hex == NULL)
-			return 0.0;
-	}
-	step = *(HEXSTEP *)dynarr_front (hex->hex.steps);
-	return step->height * HEX_SIZE_4;
 }
 
 bool hexColor (const HEX hex, unsigned char * rgb)
