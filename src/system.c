@@ -500,18 +500,24 @@ bool systemAttr (enum system_toggle_states state)
 
 char * systemGenDebugStr ()
 {
-
 	signed int
 		x = 0,
 		y = 0,
-		len = 0;
-	unsigned int
-		height = 0;
+		len = 0,
+		span = mapGetSpan (),
+		radius = mapGetRadius ();
+// 	unsigned int
+// 		height = 0;
 	Entity
 		player = entity_getByName ("PLAYER"),
 		camera = entity_getByName ("CAMERA");
+	hexPos
+		position = position_get (player);
 	SUBHEX
-		trav;
+		platter;
+	unsigned char
+		focus = hexPos_focus (position),
+		i = 0;
 	char
 		buffer[64];
 	
@@ -519,22 +525,25 @@ char * systemGenDebugStr ()
 	len = snprintf (buffer, 63, "Player Entity: #%d\nCamera Entity: #%d\n\n", entity_GUID (player), entity_GUID (camera));
 	strncpy (debugDisplay, buffer, len);
 
-	entity_message (player, NULL, "getHex", &trav);
-	height = 0;
 
-	len += snprintf (buffer, 63, "scale: %d,%d\n\ton %c:\n", mapGetSpan (), mapGetRadius (), toupper (subhexPoleName (trav)));
+	len += snprintf (buffer, 63, "scale: %d,%d\n\ton %c:\n", span, radius, toupper (subhexPoleName (hexPos_platter (position, span))));
 	strncat (debugDisplay, buffer, DEBUGLEN - len);
 
-	/* the poles have local coordinates technically, but they're always 0,0
-	 * since there's no parent scope so we're skipping them */
-	while (subhexSpanLevel (trav) < mapGetSpan ())
+	i = span;
+	while (i > 0)
 	{
-		subhexLocalCoordinates (trav, &x, &y);
-		len += snprintf (buffer, 63, "\t%d: %d, %d\n", subhexSpanLevel (trav), x, y);
+		i--;
+		if (i < focus)
+		{
+			len += snprintf (buffer, 63, "\t%d: **, **\n", i);
+			strncat (debugDisplay, buffer, DEBUGLEN - len);
+			continue;
+		}
+		platter = hexPos_platter (position, i);
+		subhexLocalCoordinates (platter, &x, &y);
+		len += snprintf (buffer, 63, "\t%d: %d, %d\n", i, x, y);
 		strncat (debugDisplay, buffer, DEBUGLEN - len);
-		trav = subhexParent (trav);
 	}
-
 	len += snprintf (buffer, 63, "\nheight: ???\n");
 	strncat (debugDisplay, buffer, DEBUGLEN - len);
 
