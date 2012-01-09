@@ -109,11 +109,6 @@ void finalize (void)
 
 	entity_message (titleScreenMenu, NULL, "addValue", "New Game");
 	entity_message (titleScreenMenu, NULL, "setAction", (void *)IR_WORLDGEN);
-	entity_message (titleScreenMenu, NULL, "addValue", "this is a test of the menu code and also the ui code and also aaaaah :(");
-	entity_message (titleScreenMenu, NULL, "addValue", "second option");
-	entity_message (titleScreenMenu, NULL, "addValue", "third option");
-	entity_message (titleScreenMenu, NULL, "addValue", "blah blah blah etc");
-	entity_message (titleScreenMenu, NULL, "addValue", "lorem ipsum dolor sit amet");
 	entity_message (titleScreenMenu, NULL, "addValue", "Quit");
 	entity_message (titleScreenMenu, NULL, "setAction", (void *)IR_QUIT);
 
