@@ -1057,7 +1057,7 @@ bool mapMove (const SUBHEX start, const VECTOR3 * const position, SUBHEX * finis
 		return false;
 	}
 
-	hex_space2coord (position, &x, &y);
+	v2c (position, &x, &y);
 	if (hexMagnitude (x, y) <= MapRadius)
 	{
 		*finish = start;
@@ -1256,11 +1256,10 @@ RELATIVEHEX mapRelativeSubhexWithVectorOffset (const SUBHEX subhex, const VECTOR
 		x, y;
 	signed char
 		span;
-	bool
-		valid = hex_space2coord (offset, &x, &y);
 	RELATIVEHEX
 		rel;
-	if (valid && !x && !y)
+	v2c (offset, &x, &y);
+	if (x == 0 && y == 0)
 	{
 		// coordinate distance is 0,0; this is trivial
 		rel = xph_alloc (sizeof (struct hexRelativePosition));
@@ -1275,16 +1274,10 @@ RELATIVEHEX mapRelativeSubhexWithVectorOffset (const SUBHEX subhex, const VECTOR
 		rel->maxSpan = rel->minSpan;
 		return rel;
 	}
-	else if (valid)
-	{
-		// hex_space2coord translates into individual hex coordinates, i.e., span-0 platters.
-		span = subhexSpanLevel (subhex);
-		DEBUG ("%s: converted %.2f, %.2f, %.2f to coordinates %d, %d at span level 0 (%d relative to the span %d of the subhex %p)", __FUNCTION__, offset->x, offset->y, offset->z, x, y, -span, span, subhex);
-		return mapRelativeSubhexWithCoordinateOffset (subhex, -span, x, y);
-	}
-	/* TODO: (see also the TODO in hex_space2coord) it's possible that the offset vector could overflow the signed int type; in that case the x and y axis of the span 2 coordinates needs to be calculated (with any remainder using the span 1 cordinates), and that process repeats until the xy values have been specified with maximum specifity. if the values /don't/ overflow, though, this becomes much more simple: convert values and pass to the CoordinateOffset version. */
-	ERROR ("Could not convert vector %f,%f,%f into coordinates.", offset->x, offset->y, offset->z);
-	return NULL;
+	// hex_space2coord translates into individual hex coordinates, i.e., span-0 platters.
+	span = subhexSpanLevel (subhex);
+	DEBUG ("%s: converted %.2f, %.2f, %.2f to coordinates %d, %d at span level 0 (%d relative to the span %d of the subhex %p)", __FUNCTION__, offset->x, offset->y, offset->z, x, y, -span, span, subhex);
+	return mapRelativeSubhexWithCoordinateOffset (subhex, -span, x, y);
 }
 
 RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const signed char relativeSpan, const signed int x, const signed int y)
@@ -2035,65 +2028,7 @@ void subhexResetLoadStateForNewArch (SUBHEX at)
  * COLLISION
  */
 
-static void v2c (const VECTOR3 * const vector, int * x, int * y);
-// this assumes a regular hexagon and a vector with the hex centre as the origin
-static bool pointInHex (const VECTOR3 * const point);
 static VECTOR3 line_planeIntersection (const VECTOR3 * const lineOrigin, const VECTOR3 * const line, const VECTOR3 * const plane, float dist);
-
-static void v2c (const VECTOR3 * const vector, int * x, int * y)
-{
-	int
-		xGrid,
-		yGrid,
-		i = 0;
-	VECTOR3
-		offset,
-		centre;
-	assert (x != NULL && y != NULL);
-	
-	xGrid = (int)(vector->x / 45.0);
-	yGrid = (int)((vector->z - xGrid * 26.0) / 52.0);
-	centre = hex_xyCoord2Space (xGrid, yGrid);
-	offset = vectorSubtract (vector, &centre);
-	if (pointInHex (&offset))
-	{
-		*x = xGrid;
-		*y = yGrid;
-		return;
-	}
-	while (i < 6)
-	{
-		centre = hex_xyCoord2Space (xGrid + XY[i][X], yGrid + XY[i][Y]);
-		offset = vectorSubtract (vector, &centre);
-		if (pointInHex (&offset))
-		{
-			*x = xGrid + XY[i][X];
-			*y = yGrid + XY[i][Y];
-			return;
-		}
-		i++;
-	}
-	assert (false);
-}
-
-static bool pointInHex (const VECTOR3 * const point)
-{
-	int
-		i = 0,
-		j,
-		t;
-	//printf ("intersection point: %.2f, %.2f, %.2f\n", point->x, point->y, point->z);
-	while (i < 6)
-	{
-		j = i == 5 ? 0 : i + 1;
-		t = turns (point->x, point->z, H[i][X], H[i][Y], H[i][X] + H[j][X], H[i][Y] + H[j][Y]);
-		//printf ("%d: %s\n", i, t == LEFT ? "LEFT" : t == RIGHT ? "RIGHT" : "THROUGH");
-		if (t == RIGHT)
-			return false;
-		i++;
-	}
-	return true;
-}
 
 static VECTOR3 line_planeIntersection (const VECTOR3 * const lineOrigin, const VECTOR3 * const line, const VECTOR3 * const plane, float dist)
 {

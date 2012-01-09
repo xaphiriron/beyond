@@ -336,72 +336,6 @@ VECTOR3 hex_xyCoord2Space (signed int x, signed int y)
 	return q;
 }
 
-/***
- * the magic numbers here are based on the x and y spacing of tiles. see the H
- * value above, or just assume this is correct: the x value is 15 and seen most
- * often in the form 45 or 90 (since the x magnitude of each tile is 45 units).
- * the y value is 26 and seen most often in the form 26 or 52 (since the y
- * magnitude of each tile is 52 units)
- *
- * TODO: it's possible for space to be so large the conversion overflows the
- * signed int type. in that case, it should return the maximal value (and raise
- * a flag??? something idk)
- *  - xph 2011-05-28
- */
-bool hex_space2coord (const VECTOR3 * space, signed int * xp, signed int * yp)
-{
-	float
-		xPosOffsetFromGridPoint = fmod (space->x, 45.0),
-		xGrid1 = space->x - xPosOffsetFromGridPoint,
-		xGrid2 = space->x + (45 - xPosOffsetFromGridPoint),
-		yPosOffsetFromGridPoint = fmod (space->z, 26.0),
-		yGrid1 = space->z - yPosOffsetFromGridPoint,
-		yGrid2 = space->z + (26 - yPosOffsetFromGridPoint),
-		swap = 0,
-		xDist, yDist,
-		mag1, mag2;
-	signed int
-		xCoord,
-		yCoord;
-	if (xp == NULL || yp == NULL)
-	{
-		return false;
-	}
-	if (fcmp (fmod (xGrid1, 90.0), 0.0) == true)
-	{
-		swap = xGrid1;
-		xGrid1 = xGrid2;
-		xGrid2 = swap;
-	}
-	if (fcmp (fmod (yGrid1, 52.0), 0.0) == true)
-	{
-		swap = yGrid1;
-		yGrid1 = yGrid2;
-		yGrid2 = swap;
-	}
-	xDist = space->x - xGrid1;
-	yDist = space->z - yGrid1;
-	mag1 = sqrt (xDist * xDist + yDist * yDist);
-	xDist = space->x - xGrid2;
-	yDist = space->z - yGrid2;
-	mag2 = sqrt (xDist * xDist + yDist * yDist);
-	//printf ("#1: %5.2f, %5.2f (d: %f); #2: %5.2f, %5.2f (d: %f)\n", xGrid1, yGrid1, mag1, xGrid2, yGrid2, mag2);
-	if (mag1 < mag2)
-	{
-		xCoord = (int)(xGrid1 / 45.0);
-		yCoord = (int)((yGrid1 - xCoord * 26.0) / 52.0);
-	}
-	else
-	{
-		xCoord = (int)(xGrid2 / 45.0);
-		yCoord = (int)((yGrid2 - xCoord * 26.0) / 52.0);
-	}
-	//printf ("\tfinal coord @ %d, %d\n", xCoord, yCoord);
-	*xp = xCoord;
-	*yp = yCoord;
-	return true;
-}
-
 VECTOR3 hexGround_centerDistanceSpace (unsigned int UNUSED, unsigned int dir)
 {
 	signed int
@@ -426,6 +360,64 @@ VECTOR3 hexPole_centerDistanceSpace (unsigned int dir)
 	u = hex_tileDistance (y, 1);
 	t = vectorAdd (&t, &u);
 	return t;
+}
+
+
+void v2c (const VECTOR3 * const vector, int * x, int * y)
+{
+	int
+		xGrid,
+		yGrid,
+		i = 0;
+	VECTOR3
+		offset,
+		centre;
+	assert (x != NULL && y != NULL);
+	
+	xGrid = (int)(vector->x / 45.0);
+	yGrid = (int)((vector->z - xGrid * 26.0) / 52.0);
+	centre = hex_xyCoord2Space (xGrid, yGrid);
+	offset = vectorSubtract (vector, &centre);
+	if (pointInHex (&offset))
+	{
+		*x = xGrid;
+		*y = yGrid;
+		//printf ("%.2f, %.2f -> %d, %d\n", vector->x, vector->z, *x, *y);
+		return;
+	}
+	while (i < 6)
+	{
+		centre = hex_xyCoord2Space (xGrid + XY[i][X], yGrid + XY[i][Y]);
+		offset = vectorSubtract (vector, &centre);
+		if (pointInHex (&offset))
+		{
+			*x = xGrid + XY[i][X];
+			*y = yGrid + XY[i][Y];
+			//printf ("%.2f, %.2f -> %d, %d\n", vector->x, vector->z, *x, *y);
+			return;
+		}
+		i++;
+	}
+	assert (false);
+}
+
+bool pointInHex (const VECTOR3 * const point)
+{
+	int
+		i = 0,
+		j,
+		t;
+	//printf ("intersection point: %.2f, %.2f, %.2f\n", point->x, point->y, point->z);
+	while (i < 6)
+	{
+		j = i == 5 ? 0 : i + 1;
+		t = turns (point->x, point->z, H[i][X], H[i][Y], H[i][X] + H[j][X], H[i][Y] + H[j][Y]);
+		//printf ("%d: %s\n", i, t == LEFT ? "LEFT" : t == RIGHT ? "RIGHT" : "THROUGH");
+		if (t == RIGHT)
+			return false;
+		i++;
+	}
+	return true;
 }
 
 

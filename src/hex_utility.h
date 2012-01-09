@@ -64,9 +64,14 @@ int turns (float ox, float oy, float lx1, float ly1, float lx2, float ly2);
 VECTOR3 hex_tileDistance (int length, unsigned int dir);
 VECTOR3 hex_coord2space (unsigned int r, unsigned int k, unsigned int i);
 VECTOR3 hex_xyCoord2Space (signed int x, signed int y);
-bool hex_space2coord (const VECTOR3 * space, signed int * xp, signed int * yp);
+
 VECTOR3 hexGround_centerDistanceSpace (unsigned int radius, unsigned int dir);
 VECTOR3 hexPole_centerDistanceSpace (unsigned int dir);
+
+void v2c (const VECTOR3 * const vector, int * x, int * y);
+
+// this assumes a regular hexagon and a vector with the hex centre as the origin
+bool pointInHex (const VECTOR3 * const point);
 
 unsigned int baryInterpolate (const VECTOR3 const * p, const VECTOR3 const * c1, const VECTOR3 const * c2, const unsigned int v1, const unsigned int v2, const unsigned int v3);
 

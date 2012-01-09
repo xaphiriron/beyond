@@ -253,7 +253,7 @@ bool position_move (Entity e, VECTOR3 move)
 	newRawPosition = vectorAdd (&pdata->pos, &move);
 
 	validMove = mapMove (pdata->ground, &newRawPosition, &newGround, &newPosition);
-	hex_space2coord (&newPosition, &newX, &newY);
+	v2c (&newPosition, &newX, &newY);
 	newPosition.y = subhexGetHeight (subhexData (newGround, newX, newY)) + 90.0;
 	if (!validMove)
 	{
@@ -286,7 +286,7 @@ void position_copy (Entity target, const Entity source)
 		// in a perfect world all positions would have their hexPos position set, but they don't since i'm in the middle of a long, protracted, and sloppy transition from storing raw SUBHEXes to storing hexPos. so if there isn't a hexPos we create one. - xph 2011 12 23
 		int
 			x, y;
-		hex_space2coord (&sourcePosition->pos, &x, &y);
+		v2c (&sourcePosition->pos, &x, &y);
 		position_set (target, map_at (subhexData (sourcePosition->ground, x, y)));
 	}
 }
@@ -483,7 +483,7 @@ bool position_getCoordOffsetR (const POSITION p, signed int * xp, signed int * y
 			*yp = 0;
 		return false;
 	}
-	hex_space2coord (&p->pos, xp, yp);
+	v2c (&p->pos, xp, yp);
 	return true;
 }
 
@@ -569,7 +569,7 @@ void position_getHex (EntComponent position, EntSpeech speech)
 		* hex = speech->arg;
 	signed int
 		x, y;
-	hex_space2coord (&pData->pos, &x, &y);
+	v2c (&pData->pos, &x, &y);
 	*hex = subhexData (pData->ground, x, y);
 }
 
