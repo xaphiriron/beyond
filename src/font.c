@@ -16,40 +16,56 @@ struct font_char
 		height,
 		xadvance,
 		topBearing;
-	float
-		texWidth,
-		texHeight;
+};
+
+#define GLYPH_COUNT 256
+
+struct glyph_sheet
+{
+	GLuint
+		name;
 	unsigned char
 		* data;
+	struct font_char
+		glyphs[GLYPH_COUNT];
+	unsigned int
+		height,
+		width,
+		glyphHeight,
+		glyphWidth;
 };
 
 static FT_Library
 	Library = NULL;
 static FT_Face
 	Face = NULL;
-static GLuint
-	GlyphNames[128];
-static struct font_char
-	Glyphs[128];
+
+static struct glyph_sheet
+	* GlyphSheet = NULL;
+
 static int
 	FontSizeInPx = 0;
 
 static enum textAlignType
 	TextAlign = ALIGN_LEFT;
 
+static void fontTexelCoords (unsigned int point, float * x, float * y, float * w, float * h);
+
 void fontLoad (const char * path, int fontSize)
 {
 	int
 		error = 0,
-		width,
-		height,
 		i, max,
-		x, y;
+		x, y,
+		maxWidth = 0,
+		maxHeight = 0,
+		spriteX,
+		spriteY;
 	FT_Bitmap
 		* bitmap = NULL;
-	unsigned char
+	unsigned int
 		c = 0,
-		* textureData;
+		textureIndex = 0;
 	char
 		* absPath;
 	if (!Library)
@@ -73,64 +89,73 @@ void fontLoad (const char * path, int fontSize)
 	FT_Set_Char_Size (Face, 0, fontSize << 6, 96, 96);
 	FontSizeInPx = (fontSize / 72.) * 96;
 
-	glGenTextures (128, GlyphNames);
 	bitmap = &Face->glyph->bitmap;
-	while (c < 128)
+	while (c < GLYPH_COUNT)
 	{
 		FT_Load_Char (Face, c, FT_LOAD_RENDER);
-		width = next_power (bitmap->width);
-		height = next_power (bitmap->rows);
-		Glyphs[c].width = bitmap->width;
-		Glyphs[c].height = bitmap->rows;
-		Glyphs[c].texWidth = (float)bitmap->width / width;
-		Glyphs[c].texHeight = (float)bitmap->rows / height;
+		if (bitmap->width > maxWidth)
+			maxWidth = bitmap->width;
+		if (bitmap->rows > maxHeight)
+			maxHeight = bitmap->rows;
+		c++;
+	}
 
-		Glyphs[c].topBearing = Face->glyph->metrics.horiBearingY >> 6;
-		Glyphs[c].xadvance = Face->glyph->advance.x >> 6;
+	// okay despite the usage of GLYPH_COUNT this requires it to be 256 since we're generating a 16x16 grid. this is kind of dumb. - xph 2012 01 11
+	GlyphSheet = xph_alloc (sizeof (struct glyph_sheet));
+	GlyphSheet->glyphWidth = maxWidth;
+	GlyphSheet->glyphHeight = maxHeight;
+	GlyphSheet->width = next_power (GlyphSheet->glyphWidth * 16);
+	GlyphSheet->height = next_power (GlyphSheet->glyphHeight * 16);
+	GlyphSheet->data = xph_alloc (GlyphSheet->width * GlyphSheet->height * 2);
+	memset (GlyphSheet->data, 0x7f, GlyphSheet->width * GlyphSheet->height * 2);
+
+	c = 0;
+	while (c < GLYPH_COUNT)
+	{
+		FT_Load_Char (Face, c, FT_LOAD_RENDER);
+		GlyphSheet->glyphs[c].width = bitmap->width;
+		GlyphSheet->glyphs[c].height = bitmap->rows;
+		GlyphSheet->glyphs[c].topBearing = Face->glyph->metrics.horiBearingY >> 6;
+		GlyphSheet->glyphs[c].xadvance = Face->glyph->advance.x >> 6;
 
 		// we're using a 2-component GL_LUMINANCE_ALPHA texture (and setting the luminance to 0xff always) because even though you might assume you could just use a GL_ALPHA texture evidently you can't. or, more likely, setting that to work correctly is slightly more complex than just changing the way the data is set and parsed (i guess??) - xph 2012 01 08
-		Glyphs[c].data = xph_alloc (width * height * 2);
-		textureData = Glyphs[c].data;
-		memset (textureData, 0x7f, width * height * 2);
+
 		assert (bitmap->pixel_mode == FT_PIXEL_MODE_GRAY);
 		i = 0;
 		max = bitmap->rows * bitmap->width;
 		while (i < max)
 		{
-			x = i % bitmap->width;
-			y = i / bitmap->width;
-			// set texel to pure white
-			memset (&textureData [(((height - (height - bitmap->rows)- 1) - y) * width + x) * 2], 0xff, 1);
-			// set texel transparency to the correct alpha
-			memset (&textureData [(((height - (height - bitmap->rows)- 1) - y) * width + x) * 2 + 1], bitmap->buffer [i], 1);
+			// see previous note about how max(Width|Height) and total(Width|Height) are used - xph 2012 01 11
+			spriteX = GlyphSheet->glyphWidth * (c % 16);
+			spriteY = GlyphSheet->glyphHeight * (c / 16);
+			x = spriteX + (i % bitmap->width);
+			y = spriteY + (i / bitmap->width);
+			textureIndex = (((GlyphSheet->height - y - 1) * GlyphSheet->width) + x) * 2;
+			assert (textureIndex < GlyphSheet->height * GlyphSheet->width * 2);
+			memset (&GlyphSheet->data [textureIndex], 0xff, 1);
+			memset (&GlyphSheet->data [textureIndex + 1], bitmap->buffer[i], 1);
 			i++;
 		}
 
-		assert (GlyphNames[c] != 0);
-		glBindTexture (GL_TEXTURE_2D, GlyphNames[c]);
-		glTexImage2D (GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, width, height, 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, textureData);
-		glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
 		c++;
 	}
+
+	glGenTextures (1, &GlyphSheet->name);
+	assert (GlyphSheet->name != 0);
+	glBindTexture (GL_TEXTURE_2D, GlyphSheet->name);
+	glTexImage2D (GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, GlyphSheet->width, GlyphSheet->height, 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, GlyphSheet->data);
+	glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 }
 
 void fontUnload ()
 {
-	int
-		i = 0;
 	if (!Face)
 		return;
+	glDeleteTextures (1, &GlyphSheet->name);
+	xph_free (GlyphSheet->data);
+	xph_free (GlyphSheet);
 	FontSizeInPx = 0;
-	while (i < 128)
-	{
-		xph_free (Glyphs[i].data);
-		i++;
-	}
-	memset (Glyphs, 0, sizeof (struct font_char) * 128);
-	glDeleteTextures (128, GlyphNames);
-	memset (GlyphNames, 0, sizeof (GLuint) * 128);
 	FT_Done_Face (Face);
 	Face = NULL;
 }
@@ -160,6 +185,17 @@ enum textAlignType fontPrintAlign (enum textAlignType align)
 }
 
 
+static void fontTexelCoords (unsigned int point, float * x, float * y, float * w, float * h)
+{
+	assert (point < GLYPH_COUNT);
+	assert (x && y && w && h);
+
+	*x = (float)GlyphSheet->glyphWidth * (point % 16) / GlyphSheet->width;
+	*y = GlyphSheet->height - ((float)GlyphSheet->glyphHeight * (point / 16) / GlyphSheet->height);
+	*w = (float)GlyphSheet->glyphs[point].width / GlyphSheet->width;
+	*h = -(float)GlyphSheet->glyphs[point].height / GlyphSheet->height;
+}
+
 // TODO: a 'width' argument to allow for centred or justified text (+ automatic word-wrapping?)
 void fontPrint (const char * text, int x, int y)
 {
@@ -172,8 +208,8 @@ void fontPrint (const char * text, int x, int y)
 	unsigned char
 		c;
 	float
-		glX, glY,
-		glW, glH,
+		glX, glY, glW, glH,
+		gltX, gltY, gltW, gltH,
 		glTB,
 		zNear = video_getZnear () - 0.001;
 	video_getDimensions (&width, &height);
@@ -186,6 +222,8 @@ void fontPrint (const char * text, int x, int y)
 	else
 		glY = video_yMap (y + FontSizeInPx);
 
+	glBindTexture (GL_TEXTURE_2D, GlyphSheet->name);
+
 	if (TextAlign == ALIGN_RIGHT)
 	{
 		// this is obnoxious but a right-aligned line has to be stepped through backwards and it's just easier to write it its own traversal code rather than try to make the standard loop go backwards or forwards depending - xph 2012 01 08
@@ -197,6 +235,7 @@ void fontPrint (const char * text, int x, int y)
 		else
 			i = strlen (text);
 		c = text[i];
+		glBegin (GL_QUADS);
 		while ((c = text[--i]))
 		{
 			switch (c)
@@ -208,7 +247,10 @@ void fontPrint (const char * text, int x, int y)
 
 					// can't just break since we're in a switch, but since hitting this means we're at the end of the text youcan just return - xph 2012 01 08
 					if (!nextLine)
+					{
+						glEnd ();
 						return;
+					}
 					nextLine = strchr (nextLine + 1, '\n');
 					if (nextLine)
 						i = nextLine - text;
@@ -216,28 +258,26 @@ void fontPrint (const char * text, int x, int y)
 						i = strlen (text);
 					continue;
 				case ' ':
-					glX -= video_xOffset (Glyphs[c].xadvance);
-					lineAdvance -= Glyphs[c].xadvance;
+					glX -= video_xOffset (GlyphSheet->glyphs[c].xadvance);
+					lineAdvance -= GlyphSheet->glyphs[c].xadvance;
 					continue;
 			}
-			glW = video_xOffset (Glyphs[c].width);
-			glH = video_yOffset (Glyphs[c].height);
-			glTB = video_yOffset (-Glyphs[c].topBearing);
+			glW = video_xOffset (GlyphSheet->glyphs[c].width);
+			glH = video_yOffset (GlyphSheet->glyphs[c].height);
+			glTB = video_yOffset (-GlyphSheet->glyphs[c].topBearing);
 
-			glX -= video_xOffset (Glyphs[c].xadvance);
-			lineAdvance -= Glyphs[c].xadvance;
+			glX -= video_xOffset (GlyphSheet->glyphs[c].xadvance);
+			lineAdvance -= GlyphSheet->glyphs[c].xadvance;
+			fontTexelCoords (c, &gltX, &gltY, &gltW, &gltH);
 
-			glBindTexture (GL_TEXTURE_2D, GlyphNames[c]);
-			glBegin (GL_QUADS);
-			glTexCoord2f (0, 0);
+			glTexCoord2f (gltX, gltY + gltH);
 			glVertex3f (glX, glY + glTB + glH, zNear);
-			glTexCoord2f (Glyphs[c].texWidth, 0);
+			glTexCoord2f (gltX + gltW, gltY + gltH);
 			glVertex3f (glX + glW, glY + glTB + glH, zNear);
-			glTexCoord2f (Glyphs[c].texWidth, Glyphs[c].texHeight);
+			glTexCoord2f (gltX + gltW, gltY);
 			glVertex3f (glX + glW, glY + glTB, zNear);
-			glTexCoord2f (0, Glyphs[c].texHeight);
+			glTexCoord2f (gltX, gltY);
 			glVertex3f (glX, glY + glTB, zNear);
-			glEnd ();
 
 			if (i == 0)
 			{
@@ -255,10 +295,9 @@ void fontPrint (const char * text, int x, int y)
 				continue;
 			}
 		}
-		printf ("\n");
-		return;
 	}
 
+	glBegin (GL_QUADS);
 	while ((c = text[i++]))
 	{
 		switch (c)
@@ -269,34 +308,34 @@ void fontPrint (const char * text, int x, int y)
 				lineAdvance = 0;
 				continue;
 			case '\t':
-				tabAdvance = (Glyphs[' '].xadvance * 8) - lineAdvance % (Glyphs[' '].xadvance * 8);
+				tabAdvance = (GlyphSheet->glyphs[' '].xadvance * 8) - lineAdvance % (GlyphSheet->glyphs[' '].xadvance * 8);
 				lineAdvance += tabAdvance;
 				glX += video_xOffset (tabAdvance);
 				continue;
 			case ' ':
-				glX += video_xOffset (Glyphs[c].xadvance);
-				lineAdvance += Glyphs[c].xadvance;
+				glX += video_xOffset (GlyphSheet->glyphs[c].xadvance);
+				lineAdvance += GlyphSheet->glyphs[c].xadvance;
 				continue;
 			default:
 				break;
 		}
-		glW = video_xOffset (Glyphs[c].width);
-		glH = video_yOffset (Glyphs[c].height);
-		glTB = video_yOffset (-Glyphs[c].topBearing);
+		glW = video_xOffset (GlyphSheet->glyphs[c].width);
+		glH = video_yOffset (GlyphSheet->glyphs[c].height);
+		glTB = video_yOffset (-GlyphSheet->glyphs[c].topBearing);
 
-		glBindTexture (GL_TEXTURE_2D, GlyphNames[c]);
-		glBegin (GL_QUADS);
-		glTexCoord2f (0, 0);
+		fontTexelCoords (c, &gltX, &gltY, &gltW, &gltH);
+
+		glTexCoord2f (gltX, gltY + gltH);
 		glVertex3f (glX, glY + glTB + glH, zNear);
-		glTexCoord2f (Glyphs[c].texWidth, 0);
+		glTexCoord2f (gltX + gltW, gltY + gltH);
 		glVertex3f (glX + glW, glY + glTB + glH, zNear);
-		glTexCoord2f (Glyphs[c].texWidth, Glyphs[c].texHeight);
+		glTexCoord2f (gltX + gltW, gltY);
 		glVertex3f (glX + glW, glY + glTB, zNear);
-		glTexCoord2f (0, Glyphs[c].texHeight);
+		glTexCoord2f (gltX, gltY);
 		glVertex3f (glX, glY + glTB, zNear);
-		glEnd ();
 
-		glX += video_xOffset (Glyphs[c].xadvance);
-		lineAdvance += Glyphs[c].xadvance;
+		glX += video_xOffset (GlyphSheet->glyphs[c].xadvance);
+		lineAdvance += GlyphSheet->glyphs[c].xadvance;
 	}
+	glEnd ();
 }
