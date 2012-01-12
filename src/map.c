@@ -2477,6 +2477,8 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 		hexPos
 			originPos,
 			cacheEntry;
+		float
+			rad;
 		originPos = map_at (RenderOrigin);
 		Distance = xph_alloc (sizeof (VECTOR3) * fx (AbsoluteViewLimit));
 		while ((cacheEntry = *(hexPos *)dynarr_at (RenderCache, i)))
@@ -2489,8 +2491,9 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 		i = 0;
 		while (i < green (MapRadius + 1))
 		{
-			VertexJitter[i].x = ((float)rand () / RAND_MAX) * 13.0;
-			VertexJitter[i].z = ((float)rand () / RAND_MAX) * 13.0;
+			rad = ((float)rand () / RAND_MAX) * M_PI;
+			VertexJitter[i].x = sin (rad) * 8.0;
+			VertexJitter[i].z = cos (rad) * 8.0;
 			//printf ("%d: %f, %f\n", i, VertexJitter[i].x, VertexJitter[i].z);
 			i++;
 		}
