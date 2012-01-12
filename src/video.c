@@ -122,6 +122,13 @@ static void video_enableSDLmodules ()
 
 static void video_enableGLmodules ()
 {
+	const unsigned char
+		* glVersion,
+		* glExtensions;
+	glVersion = glGetString (GL_VERSION);
+	glExtensions = glGetString (GL_EXTENSIONS);
+	printf ("Using GL version %s with extensions:\n\t%s\n", glVersion, glExtensions);
+
 	//glClearColor (.22, .18, .22, 0.0);
 	//glClearColor (0.20, 0.03, 0.12, 0.0); // dark purple
 	//glClearColor (0.29, 0.10, 0.19, 0.0); // slightly lighter purple
