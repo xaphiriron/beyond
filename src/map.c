@@ -2605,7 +2605,7 @@ void mapBakeHexes (SUBHEX subhex)
 
 static int
 	__e = 0;
-#define EDGE_HIGHER(dir,edge,higher)		(__e = (dir), FULLHEIGHT (higher, (__e + 4) % 6) > FULLHEIGHT (edge, __e) && FULLHEIGHT (higher, (__e + 3) % 6) > FULLHEIGHT (edge, (__e + 1) % 6))
+#define EDGE_HIGHER(dir,edge,higher)		(__e = (dir), FULLHEIGHT (higher, (__e + 4) % 6) > FULLHEIGHT (edge, __e) || FULLHEIGHT (higher, (__e + 3) % 6) > FULLHEIGHT (edge, (__e + 1) % 6))
 
 static void mapBakeHex (HEX hex)
 {
@@ -2624,7 +2624,8 @@ static void mapBakeHex (HEX hex)
 		low[2] = {0, 0},
 		* join;
 	bool
-		lastStepTransparent = true;
+		lastStepTransparent = true,
+		lastAdjStepTransparent = true;
 	while (dir < 6)
 	{
 		if (hex->adjacent[dir] == NULL)
@@ -2649,19 +2650,31 @@ static void mapBakeHex (HEX hex)
 		if (lastStepTransparent && !matParam (step->material, "transparent"))
 			step->info.surfaceVisible = true;
 
+		if (matParam (step->material, "transparent"))
+		{
+			lastStepTransparent = true;
+			lastStep = step;
+			continue;
+		}
+
 		dir = 0;
 		while (dir < 6)
 		{
 			// do visible join calc, which has a theoretical upper limit somewhere around MAX_INT / 2 quads but in practice will usually be around one (each dynarr entry is four unsigned ints that make up a join quad)
-			step->info.visibleJoin[dir] = dynarr_create (2, sizeof (unsigned int *));
+			if (step->info.visibleJoin[dir])
+				dynarr_wipe (step->info.visibleJoin[dir], xph_free);
+			else
+				step->info.visibleJoin[dir] = dynarr_create (2, sizeof (unsigned int *));
 			adjHex = hex->adjacent[dir];
 			lastAdjStep = NULL;
+			lastAdjStepTransparent = true;
 			j = dynarr_size (adjHex->steps);
 			while ((adjStep = *(HEXSTEP *)dynarr_at (adjHex->steps, --j)))
 			{
 				// FIXME: i think all these uses of EDGE_HIGHER might be wrong since it's very much a directional test but i don't remember which vertices are being checked -- it should be step dir & dir + 1 vs adjacent dir + 4 & and + 3 but i haven't checked because i'm dumb - xph 2012 01 11
 				if (EDGE_HIGHER (dir, step, adjStep))
 				{
+					lastAdjStepTransparent = matParam (adjStep->material, "transparent");
 					lastAdjStep = adjStep;
 					continue;
 				}
@@ -2669,29 +2682,30 @@ static void mapBakeHex (HEX hex)
 				low[0] = 0;
 				low[1] = 0;
 
-				if (lastAdjStep && EDGE_HIGHER (dir, step, lastAdjStep))
-				{
+				if (lastAdjStep && !lastAdjStepTransparent && FULLHEIGHT (lastAdjStep, (dir + 4) % 6) > FULLHEIGHT (step, dir))
 					high[0] = FULLHEIGHT (lastAdjStep, (dir + 4) % 6);
-					high[1] = FULLHEIGHT (lastAdjStep, (dir + 3) % 6);
-				}
 				else
-				{
 					high[0] = FULLHEIGHT (step, dir);
-					high[1] = FULLHEIGHT (step, (dir + 1) % 6);
-				}
 
-				if (nextStep && !EDGE_HIGHER (dir, nextStep, adjStep))
+
+				if (lastAdjStep && !lastAdjStepTransparent && FULLHEIGHT (lastAdjStep, (dir + 3) % 6) > FULLHEIGHT (step, (dir + 1) % 6))
+					high[1] = FULLHEIGHT (lastAdjStep, (dir + 3) % 6);
+				else
+					high[1] = FULLHEIGHT (step, (dir + 1) % 6);
+
+
+				if (lastAdjStepTransparent && nextStep && !EDGE_HIGHER (dir, nextStep, adjStep))
 				{
 					low[0] = FULLHEIGHT (nextStep, dir);
 					low[1] = FULLHEIGHT (nextStep, (dir + 1) % 6);
 				}
-				else if ((!lastAdjStep || matParam (lastAdjStep->material, "transparent")) && !EDGE_HIGHER (dir, step, adjStep))
+				else if (lastAdjStepTransparent && !EDGE_HIGHER (dir, step, adjStep))
 				{
 					low[0] = FULLHEIGHT (adjStep, (dir + 4) % 6);
 					low[1] = FULLHEIGHT (adjStep, (dir + 3) % 6);
 				}
 
-				if ((high[0] != 0 || high[1] != 0) && (low[0] != 0 || low[1] != 0) && high[0] != low[0] && high[1] != low[1])
+				if ((high[0] != 0 || high[1] != 0) && (low[0] != 0 || low[1] != 0) && (high[0] != low[0] || high[1] != low[1]))
 				{
 					join = xph_alloc (sizeof (unsigned int) * 4);
 					join[0] = high[0];
@@ -2701,12 +2715,13 @@ static void mapBakeHex (HEX hex)
 					dynarr_push (step->info.visibleJoin[dir], join);
 				}
 
+				lastAdjStepTransparent = matParam (adjStep->material, "transparent");
 				lastAdjStep = adjStep;
 			}
 			dir++;
 		}
 
-		lastStepTransparent = matParam (step->material, "transparent");
+		lastStepTransparent = false;
 		lastStep = step;
 	}
 }
