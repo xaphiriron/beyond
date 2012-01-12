@@ -185,6 +185,35 @@ enum textAlignType fontPrintAlign (enum textAlignType align)
 }
 
 
+/*
+{
+	// * 4 since there are four points per quad; * 3/2 since there are 3/2 values per point (3 space, 2 texture)
+	float
+		* glyphQuads = xph_alloc (sizeof (float) * 4 * 3 * strlen (text)),
+		* glyphTexs = xph_alloc (sizeof (float) * 4 * 2 * strlen (text));
+	int
+		quadsUsed = 0;
+
+	// generate buffer
+	glGenBuffer (1, &TextBuffer);
+
+	// activate buffer
+	glBindBuffer (GL_ARRAY_BUFFER, TextBuffer);
+
+	// store data in buffer
+	glBufferData (GL_ARRAY_BUFFER, quadsUsed, glyphQuads, GL_STATIC_DRAW);
+
+	// draw buffer
+	glEnableVertexAttribArray (0);
+	glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	glVertexPointer (3, GL_FLOAT, 0, glyphQuads);
+	glTexCoordPointer (2, GL_FLOAT, 0, glyphTexs);
+	glDrawArrays (GL_QUADS, 0, quadsUsed);
+}
+*/
+
+
 static void fontTexelCoords (unsigned int point, float * x, float * y, float * w, float * h)
 {
 	assert (point < GLYPH_COUNT);
@@ -212,6 +241,7 @@ void fontPrint (const char * text, int x, int y)
 		gltX, gltY, gltW, gltH,
 		glTB,
 		zNear = video_getZnear () - 0.001;
+
 	video_getDimensions (&width, &height);
 	if (x < 0)
 		glX = video_xMap (width + x);
