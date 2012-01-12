@@ -31,7 +31,7 @@ enum pattern_shape
 	SHAPE_HEX,
 };
 
-struct xph_pattern_shape_circle
+struct xph_pattern_shape_radial
 {
 	enum pattern_shape
 		type;
@@ -39,23 +39,13 @@ struct xph_pattern_shape_circle
 		radius[2];	// instantiate with a value between the two
 };
 
-struct xph_pattern_shape_hex
-{
-	enum pattern_shape
-		type;
-	int
-		radius[2];
-};
-
 // this should also have a shape: something simple and statistical, which constrains the graph expansion of an arch using this pattern. something simple would be "a sphere", something more complex would be a density spread or a generic graph model.
 union xph_pattern_shape
 {
 	enum pattern_shape
 		type;
-	struct xph_pattern_shape_circle
-		circle;
-	struct xph_pattern_shape_hex
-		hex;
+	struct xph_pattern_shape_radial
+		radial;
 };
 
 typedef union xph_pattern_shape patternShape;
@@ -223,6 +213,7 @@ void arch_setPattern (EntComponent comp, EntSpeech speech)
 	Arch
 		arch = component_getData (comp);
 	arch->pattern = speech->arg;
+	// TODO: instantiate any applicable pattern variables (size, etc)
 }
 
 void arch_updatePosition (EntComponent comp, EntSpeech speech)
@@ -366,7 +357,6 @@ void arch_imprint (Entity archEntity, SUBHEX at)
 			distance = mapDistance (archFocus, hexPosition);
 			if ((vectorMagnitude (&distance) / 52.) > 8)
 				continue;
-			printf ("got imprint of type %d\n", imprint->type);
 			switch (imprint->type)
 			{
 				case IMP_HEIGHT:
@@ -395,7 +385,7 @@ void arch_imprint (Entity archEntity, SUBHEX at)
 					// take the 2/3 corners in the direction of the distance normal and slope them in the direction of whatever matching corners exist
 					break;
 				case IMP_TRANSMUTE:
-					printf ("transmuting to %ld (%p)\n", imprint->value, material (imprint->value));
+					//printf ("transmuting to %ld (%p)\n", imprint->value, material (imprint->value));
 					stepTransmute (&hex->hex, groundStep, material (imprint->value), 2);
 					break;
 				default:
@@ -416,6 +406,8 @@ void arch_imprint (Entity archEntity, SUBHEX at)
 
 static Dynarr
 	PatternList = NULL;
+static char
+	PathBuffer[32];
 
 static void parseShapeArg (Pattern context, Graph arg);
 static void parseSubvarArg (Pattern context, Graph var);
@@ -446,8 +438,6 @@ static void loadPatterns ()
 	Pattern
 		pattern = NULL;
 
-	char
-		pathbuffer[32];
 	int
 		i = 0;
 
@@ -461,8 +451,8 @@ static void loadPatterns ()
 
 	while (1)
 	{
-		sprintf (pathbuffer, "pattern[%d]", i++);
-		patternNode = Graph_get (patternRoot, pathbuffer);
+		sprintf (PathBuffer, "pattern[%d]", i++);
+		patternNode = Graph_get (patternRoot, PathBuffer);
 		if (!patternNode)
 			break;
 
@@ -481,7 +471,7 @@ static void loadPatterns ()
 		strncpy (pattern->name, nameNode->name, 32);
 		printf ("got #%d: \"%s\"\n", pattern->id, pattern->name);
 
-		shapeNode = Graph_get (patternNode, "shape.[0]");
+		shapeNode = Graph_get (patternNode, "shape");
 		if (shapeNode)
 			graph_parseNodeArgs (shapeNode, (void (*)(void *, Graph))parseShapeArg, pattern);
 
@@ -514,8 +504,65 @@ static void loadPatterns ()
 
 }
 
-static void parseShapeArg (Pattern context, Graph arg)
+static void parseShapeArg (Pattern pattern, Graph shape)
 {
+	const char
+		* shapes [] = {"circle", "hex", "point", ""},
+		* shapeArgs [] = {"radius", ""};
+	int
+		argIndex,
+		i = 0;
+	Graph
+		arg,
+		radius;
+
+	argIndex = arg_match (shapes, shape->name);
+	printf ("got \"%s\"\n", shape->name);
+	switch (argIndex)
+	{
+		case 0:
+			pattern->shape.type = SHAPE_CIRCLE;
+			break;
+		case 1:
+			pattern->shape.type = SHAPE_HEX;
+			break;
+		case 2:
+			// i don't actually know what a point shape would imply aside from an inside of a single hex
+			break;
+		case -1:
+		default:
+			WARNING ("Unknown pattern shape \"%s\"; ignoring", shape->name);
+			break;
+	}
+
+	while (1)
+	{
+		snprintf (PathBuffer, 32, "[%d]", i++);
+		arg = Graph_get (shape, PathBuffer);
+		if (!arg)
+			break;
+		argIndex = arg_match (shapeArgs, arg->name);
+		switch (argIndex)
+		{
+			case 0:
+				radius = Graph_get (arg, "[0]");
+				if (!radius)
+				{
+					ERROR ("Shape radius parameter requires at least one value.");
+					break;
+				}
+				pattern->shape.radial.radius[0] = strtol (radius->name, NULL, 0);
+				if ((radius = Graph_get (arg, "[1]")))
+					pattern->shape.radial.radius[1] = strtol (radius->name, NULL, 0);
+				else
+					pattern->shape.radial.radius[1] = pattern->shape.radial.radius[0];
+				break;
+			case -1:
+			default:
+				WARNING ("Unknown shape argument \"%s\"; ignoring", arg->name);
+				break;
+		}
+	}
 }
 
 static void parseSubvarArg (Pattern context, Graph var)
@@ -531,8 +578,6 @@ static void parseImprintArg (Pattern context, Graph var)
 	int
 		i = 0,
 		argIndex;
-	char
-		buffer[32];
 	char
 		* conversionError = NULL;
 	const char
@@ -565,8 +610,8 @@ static void parseImprintArg (Pattern context, Graph var)
 
 	while (1)
 	{
-		snprintf (buffer, 32, "[%d]", i++);
-		arg = Graph_get (var, buffer);
+		snprintf (PathBuffer, 32, "[%d]", i++);
+		arg = Graph_get (var, PathBuffer);
 		if (!arg)
 			break;
 		argIndex = arg_match (imprintArgs, arg->name);
