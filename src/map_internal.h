@@ -33,6 +33,12 @@ struct hexSubdivided
 						// imprinted (and the patterns haven't changed since)
 };
 
+struct hex_render_info
+{
+	int
+		dummy;
+};
+
 struct hexColumn
 {
 	enum hexOrSubdivType
@@ -48,18 +54,34 @@ struct hexColumn
 		steps;
 	struct hexColumn
 		* adjacent[6];
+
+	struct hex_render_info
+		info;
+};
+
+struct step_render_info
+{
+	const VECTOR3
+		* jit[6];
+	bool
+		undersideVisible,
+		surfaceVisible;
+	Dynarr
+		visibleJoin[6];
 };
 
 struct hexStep
 {
 	unsigned int
-		height,
-		adjacentHigherIndex[6];
+		height;
 	unsigned char
 		corners[3];
 
 	MATSPEC
 		material;
+
+	struct step_render_info
+		info;
 	/* actual hex data goes here */
 };
 

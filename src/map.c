@@ -2600,44 +2600,105 @@ void mapBakeHexes (SUBHEX subhex)
 	}
 }
 
+static int
+	__e = 0;
+#define EDGE_HIGHER(dir,edge,higher)		(__e = (dir), FULLHEIGHT (higher, (__e + 4) % 6) > FULLHEIGHT (edge, __e) && FULLHEIGHT (higher, (__e + 3) % 6) > FULLHEIGHT (edge, (__e + 1) % 6))
+
 static void mapBakeHex (HEX hex)
 {
+	HEX
+		adjHex = NULL;
 	HEXSTEP
+		lastStep = NULL,
 		step = NULL,
-		adjacent = NULL;
+		nextStep = NULL,
+		adjStep = NULL,
+		lastAdjStep = NULL;
 	unsigned int
 		dir = 0,
-		i = 0,
-		adjacentIndex = 0;
+		i, j,
+		high[2] = {0, 0},
+		* join;
+	bool
+		lastStepTransparent = true;
 	while (dir < 6)
 	{
 		if (hex->adjacent[dir] == NULL)
 			hex->adjacent[dir] = (HEX)mapHexAtCoordinateAuto ((SUBHEX)hex, 0, XY[(dir + 1) % 6][X], XY[(dir + 1) % 6][Y]);
 		dir++;
 	}
-	while ((step = *(HEXSTEP *)dynarr_at (hex->steps, i++)) != NULL)
+
+	i = dynarr_size (hex->steps);
+	while ((step = *(HEXSTEP *)dynarr_at (hex->steps, --i)) != NULL)
 	{
+		nextStep = *(HEXSTEP *)dynarr_at (hex->steps, i - 1);
+
+		step->info.jit[0] = &VertexJitter [vertex (hex->x, hex->y, 1)];
+		step->info.jit[1] = &VertexJitter [vertex (hex->x, hex->y, 2)];
+		step->info.jit[2] = &VertexJitter [vertex (hex->x, hex->y, 3)];
+		step->info.jit[3] = &VertexJitter [vertex (hex->x, hex->y, 4)];
+		step->info.jit[4] = &VertexJitter [vertex (hex->x, hex->y, 5)];
+		step->info.jit[5] = &VertexJitter [vertex (hex->x, hex->y, 0)];
+
+		if (!lastStepTransparent && matParam (step->material, "transparent"))
+			lastStep->info.undersideVisible = true;
+		if (lastStepTransparent && !matParam (step->material, "transparent"))
+			step->info.surfaceVisible = true;
+
 		dir = 0;
 		while (dir < 6)
 		{
-			if (hex->adjacent[dir] == NULL)
+			// do visible join calc, which has a theoretical upper limit somewhere around MAX_INT / 2 quads but in practice will usually be around one (each dynarr entry is four unsigned ints that make up a join quad)
+			step->info.visibleJoin[dir] = dynarr_create (2, sizeof (unsigned int *));
+			adjHex = hex->adjacent[dir];
+			lastAdjStep = NULL;
+			j = dynarr_size (adjHex->steps);
+			while ((adjStep = *(HEXSTEP *)dynarr_at (adjHex->steps, --j)))
 			{
-				dir++;
-				continue;
-			}
-			adjacentIndex = dynarr_size (hex->adjacent[dir]->steps);
-			while (1)
-			{
-				adjacentIndex--;
-				adjacent = *(HEXSTEP *)dynarr_at (hex->adjacent[dir]->steps, adjacentIndex);
-				if (adjacent == NULL || adjacent->height <= step->height)
+				// FIXME: i think all these uses of EDGE_HIGHER might be wrong since it's very much a directional test but i don't remember which vertices are being checked -- it should be step dir & dir + 1 vs adjacent dir + 4 & and + 3 but i haven't checked because i'm dumb - xph 2012 01 11
+				if (EDGE_HIGHER (dir, step, adjStep))
 				{
-					step->adjacentHigherIndex[dir] = adjacentIndex++;
-					break;
+					lastAdjStep = adjStep;
+					continue;
 				}
+
+				if (lastAdjStep && EDGE_HIGHER (dir, step, lastAdjStep))
+				{
+					high[0] = FULLHEIGHT (lastAdjStep, (dir + 4) % 6);
+					high[1] = FULLHEIGHT (lastAdjStep, (dir + 3) % 6);
+				}
+				else
+				{
+					high[0] = FULLHEIGHT (step, dir);
+					high[1] = FULLHEIGHT (step, (dir + 1) % 6);
+				}
+
+				if (nextStep && (FULLHEIGHT (nextStep, dir) > FULLHEIGHT (adjStep, (dir + 4) % 6) && FULLHEIGHT (nextStep, (dir + 1) % 6) > FULLHEIGHT (adjStep, (dir + 3) % 6)))
+				{
+					join = xph_alloc (sizeof (unsigned int) * 4);
+					join[0] = high[0];
+					join[1] = high[1];
+					join[2] = FULLHEIGHT (nextStep, dir);
+					join[3] = FULLHEIGHT (nextStep, (dir + 1) % 6);
+					dynarr_push (step->info.visibleJoin[dir], join);
+				}
+				else if ((!lastAdjStep || matParam (lastAdjStep->material, "transparent")) && EDGE_HIGHER (dir, adjStep, step))
+				{
+					join = xph_alloc (sizeof (unsigned int) * 4);
+					join[0] = high[0];
+					join[1] = high[1];
+					join[2] = FULLHEIGHT (adjStep, (dir + 4) % 6);
+					join[3] = FULLHEIGHT (adjStep, (dir + 3) % 6);
+					dynarr_push (step->info.visibleJoin[dir], join);
+				}
+
+				lastAdjStep = adjStep;
 			}
 			dir++;
 		}
+
+		lastStepTransparent = matParam (step->material, "transparent");
+		lastStep = step;
 	}
 }
 
@@ -2735,20 +2796,11 @@ void subhexDraw (const SUBDIV sub, const VECTOR3 offset)
 
 void drawHexSurface (const struct hexColumn * const hex, const HEXSTEP step, const VECTOR3 * const render, enum map_draw_types style)
 {
-	VECTOR3
-		jit[6];
 	unsigned int
 		corner[6];
 	unsigned char
 		rgba[4];
 	
-	jit[0] = VertexJitter [vertex (hex->x, hex->y, 1)];
-	jit[1] = VertexJitter [vertex (hex->x, hex->y, 2)];
-	jit[2] = VertexJitter [vertex (hex->x, hex->y, 3)];
-	jit[3] = VertexJitter [vertex (hex->x, hex->y, 4)];
-	jit[4] = VertexJitter [vertex (hex->x, hex->y, 5)];
-	jit[5] = VertexJitter [vertex (hex->x, hex->y, 0)];
-
 	corner[0] = FULLHEIGHT (step, 0);
 	corner[1] = FULLHEIGHT (step, 1);
 	corner[2] = FULLHEIGHT (step, 2);
@@ -2774,13 +2826,13 @@ void drawHexSurface (const struct hexColumn * const hex, const HEXSTEP step, con
 
 	glBegin (GL_TRIANGLE_FAN);
 	glVertex3f (render->x, step->height * HEX_SIZE_4, render->z);
-	glVertex3f (render->x + H[0][0] + jit[0].x, corner[0] * HEX_SIZE_4, render->z + H[0][1] + jit[0].z);
-	glVertex3f (render->x + H[5][0] + jit[5].x, corner[5] * HEX_SIZE_4, render->z + H[5][1] + jit[5].z);
-	glVertex3f (render->x + H[4][0] + jit[4].x, corner[4] * HEX_SIZE_4, render->z + H[4][1] + jit[4].z);
-	glVertex3f (render->x + H[3][0] + jit[3].x, corner[3] * HEX_SIZE_4, render->z + H[3][1] + jit[3].z);
-	glVertex3f (render->x + H[2][0] + jit[2].x, corner[2] * HEX_SIZE_4, render->z + H[2][1] + jit[2].z);
-	glVertex3f (render->x + H[1][0] + jit[1].x, corner[1] * HEX_SIZE_4, render->z + H[1][1] + jit[1].z);
-	glVertex3f (render->x + H[0][0] + jit[0].x, corner[0] * HEX_SIZE_4, render->z + H[0][1] + jit[0].z);
+	glVertex3f (render->x + H[0][0] + step->info.jit[0]->x, corner[0] * HEX_SIZE_4, render->z + H[0][1] + step->info.jit[0]->z);
+	glVertex3f (render->x + H[5][0] + step->info.jit[5]->x, corner[5] * HEX_SIZE_4, render->z + H[5][1] + step->info.jit[5]->z);
+	glVertex3f (render->x + H[4][0] + step->info.jit[4]->x, corner[4] * HEX_SIZE_4, render->z + H[4][1] + step->info.jit[4]->z);
+	glVertex3f (render->x + H[3][0] + step->info.jit[3]->x, corner[3] * HEX_SIZE_4, render->z + H[3][1] + step->info.jit[3]->z);
+	glVertex3f (render->x + H[2][0] + step->info.jit[2]->x, corner[2] * HEX_SIZE_4, render->z + H[2][1] + step->info.jit[2]->z);
+	glVertex3f (render->x + H[1][0] + step->info.jit[1]->x, corner[1] * HEX_SIZE_4, render->z + H[1][1] + step->info.jit[1]->z);
+	glVertex3f (render->x + H[0][0] + step->info.jit[0]->x, corner[0] * HEX_SIZE_4, render->z + H[0][1] + step->info.jit[0]->z);
 	glEnd ();
 
 	if (style == DRAW_HIGHLIGHT)
@@ -2791,19 +2843,10 @@ void drawHexSurface (const struct hexColumn * const hex, const HEXSTEP step, con
 
 void drawHexUnderside (const struct hexColumn * const hex, const HEXSTEP step, MATSPEC material, const VECTOR3 * const render, enum map_draw_types style)
 {
-	VECTOR3
-		jit[6];
 	unsigned int
 		corner[6];
 	unsigned char
 		rgba[4];
-	
-	jit[0] = VertexJitter [vertex (hex->x, hex->y, 1)];
-	jit[1] = VertexJitter [vertex (hex->x, hex->y, 2)];
-	jit[2] = VertexJitter [vertex (hex->x, hex->y, 3)];
-	jit[3] = VertexJitter [vertex (hex->x, hex->y, 4)];
-	jit[4] = VertexJitter [vertex (hex->x, hex->y, 5)];
-	jit[5] = VertexJitter [vertex (hex->x, hex->y, 0)];
 
 	corner[0] = FULLHEIGHT (step, 0);
 	corner[1] = FULLHEIGHT (step, 1);
@@ -2830,13 +2873,13 @@ void drawHexUnderside (const struct hexColumn * const hex, const HEXSTEP step, M
 
 	glBegin (GL_TRIANGLE_FAN);
 	glVertex3f (render->x, step->height * HEX_SIZE_4, render->z);
-	glVertex3f (render->x + H[0][0] + jit[0].x, corner[0] * HEX_SIZE_4, render->z + H[0][1] + jit[0].z);
-	glVertex3f (render->x + H[1][0] + jit[1].x, corner[1] * HEX_SIZE_4, render->z + H[1][1] + jit[1].z);
-	glVertex3f (render->x + H[2][0] + jit[2].x, corner[2] * HEX_SIZE_4, render->z + H[2][1] + jit[2].z);
-	glVertex3f (render->x + H[3][0] + jit[3].x, corner[3] * HEX_SIZE_4, render->z + H[3][1] + jit[3].z);
-	glVertex3f (render->x + H[4][0] + jit[4].x, corner[4] * HEX_SIZE_4, render->z + H[4][1] + jit[4].z);
-	glVertex3f (render->x + H[5][0] + jit[5].x, corner[5] * HEX_SIZE_4, render->z + H[5][1] + jit[5].z);
-	glVertex3f (render->x + H[0][0] + jit[0].x, corner[0] * HEX_SIZE_4, render->z + H[0][1] + jit[0].z);
+	glVertex3f (render->x + H[0][0] + step->info.jit[0]->x, corner[0] * HEX_SIZE_4, render->z + H[0][1] + step->info.jit[0]->z);
+	glVertex3f (render->x + H[1][0] + step->info.jit[1]->x, corner[1] * HEX_SIZE_4, render->z + H[1][1] + step->info.jit[1]->z);
+	glVertex3f (render->x + H[2][0] + step->info.jit[2]->x, corner[2] * HEX_SIZE_4, render->z + H[2][1] + step->info.jit[2]->z);
+	glVertex3f (render->x + H[3][0] + step->info.jit[3]->x, corner[3] * HEX_SIZE_4, render->z + H[3][1] + step->info.jit[3]->z);
+	glVertex3f (render->x + H[4][0] + step->info.jit[4]->x, corner[4] * HEX_SIZE_4, render->z + H[4][1] + step->info.jit[4]->z);
+	glVertex3f (render->x + H[5][0] + step->info.jit[5]->x, corner[5] * HEX_SIZE_4, render->z + H[5][1] + step->info.jit[5]->z);
+	glVertex3f (render->x + H[0][0] + step->info.jit[0]->x, corner[0] * HEX_SIZE_4, render->z + H[0][1] + step->info.jit[0]->z);
 	glEnd ();
 
 	if (style == DRAW_HIGHLIGHT)
@@ -2854,8 +2897,8 @@ void drawHexEdge (const struct hexColumn * const hex, const HEXSTEP step, unsign
 	VECTOR3
 		jit[2];
 
-	jit[0] = VertexJitter [vertex (hex->x, hex->y, nextdir)];
-	jit[1] = VertexJitter [vertex (hex->x, hex->y, (direction + 2) % 6)];
+	jit[0] = *step->info.jit[direction];
+	jit[1] = *step->info.jit[nextdir];
 
 	switch (style)
 	{
@@ -2917,85 +2960,36 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 	VECTOR3
 		hexOffset = hex_xyCoord2Space (hex->x, hex->y),
 		totalOffset = vectorAdd (&centreOffset, &hexOffset);
-	HEX
-		adjHex;
 	HEXSTEP
-		step,
-		nextStep,
-		adjStep,
-		adjNextStep;
+		step;
 	int
 		column = dynarr_size (hex->steps),
-		adjColumn,
+		dir,
 		joins;
 	unsigned int
-		high[2] = {0, 0},
-		low[2] = {0, 0};
-	bool
-		lastStepTransparent = true;
+		* joinHeight;
 
 	while ((step = *(HEXSTEP *)dynarr_at (hex->steps, --column)))
 	{
-		if (!lastStepTransparent && matParam (step->material, "transparent"))
-		{
-			drawHexUnderside (hex, step, (*(HEXSTEP *)dynarr_at (hex->steps, column + 1))->material, &totalOffset, DRAW_NORMAL);
-		}
-		if (lastStepTransparent && !matParam (step->material, "transparent"))
-		{
+		if (step->info.undersideVisible)
+			drawHexUnderside (hex, *(HEXSTEP *)dynarr_at (hex->steps, column - 1), step->material, &totalOffset, DRAW_NORMAL);
+		if (step->info.surfaceVisible)
 			drawHexSurface (hex, step, &totalOffset, DRAW_NORMAL);
-		}
+
 		if (!matParam (step->material, "transparent"))
 		{
-			joins = 0;
-			while (joins < 6)
+			dir = 0;
+			while (dir < 6)
 			{
-				if (hex->adjacent[joins] == NULL || subhexPartlyLoaded ((SUBHEX)hex->adjacent[joins]))
+				joins = 0;
+				while ((joinHeight = *(unsigned int **)dynarr_at (step->info.visibleJoin[dir], joins++)))
 				{
-					joins++;
-					continue;
+					drawHexEdge (hex, step, joinHeight[0], joinHeight[1], joinHeight[2], joinHeight[3], dir, &totalOffset, DRAW_NORMAL);
 				}
-				adjHex = hex->adjacent[joins];
-				adjColumn = dynarr_size (adjHex->steps);
-
-				nextStep = *(HEXSTEP *)dynarr_at (hex->steps, column - 1);
-				while ((adjStep = *(HEXSTEP *)dynarr_at (adjHex->steps, --adjColumn)))
-				{
-					if ((FULLHEIGHT (adjStep, (joins + 4) % 6) > FULLHEIGHT (step, joins) && FULLHEIGHT (adjStep, (joins + 3) % 6) > FULLHEIGHT (step, (joins + 1) % 6)))
-						continue;
-
-					adjNextStep = *(HEXSTEP *)dynarr_at (adjHex->steps, adjColumn + 1);
-					if (adjNextStep && (FULLHEIGHT (adjNextStep, (joins + 4) % 6) < FULLHEIGHT (step, joins) && FULLHEIGHT (adjNextStep, (joins + 3) % 6) < FULLHEIGHT (step, (joins + 1) % 6)))
-					{
-						high[0] = FULLHEIGHT (adjNextStep, (joins + 4) % 6);
-						high[1] = FULLHEIGHT (adjNextStep, (joins + 3) % 6);
-					}
-					else
-					{
-						high[0] = FULLHEIGHT (step, joins);
-						high[1] = FULLHEIGHT (step, (joins + 1) % 6);
-					}
-					if (nextStep != NULL && (FULLHEIGHT (adjStep, (joins + 4) % 6) < FULLHEIGHT (nextStep, joins) || FULLHEIGHT (adjStep, (joins + 3) % 6) < FULLHEIGHT (nextStep, (joins + 1) % 6)))
-					{
-						// the next step in this column is above the highest-but-lower step; draw edge to the top of the next step
-						low[0] = FULLHEIGHT (nextStep, joins);
-						low[1] = FULLHEIGHT (nextStep, (joins + 1) % 6);
-						if (high[0] != low[0] && high[1] != low[1])
-							drawHexEdge (hex, step, high[0], high[1], low[0], low[1], joins, &totalOffset, DRAW_NORMAL);
-					}
-					else if ((adjNextStep == NULL || matParam (adjNextStep->material, "transparent")) && (FULLHEIGHT (adjStep, (joins + 4) % 6) < FULLHEIGHT (step, joins) || FULLHEIGHT (adjStep, (joins + 3) % 6) < FULLHEIGHT (step, (joins + 1) % 6)))
-					{
-						// the adj. step is visible; draw edge to top
-						low[0] = FULLHEIGHT (adjStep, (joins + 4) % 6);
-						low[1] = FULLHEIGHT (adjStep, (joins + 3) % 6);
-						if (high[0] != low[0] && high[1] != low[1])
-							drawHexEdge (hex, step, high[0], high[1], low[0], low[1], joins, &totalOffset, DRAW_NORMAL);
-					}
-
-				}
-				joins++;
+				dir++;
 			}
 		}
-		lastStepTransparent = matParam (step->material, "transparent");
+		
 	}
 }
 
