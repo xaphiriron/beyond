@@ -554,22 +554,19 @@ void cameraRender_system (Dynarr entities)
 		zNear = video_getZnear () - 0.001,
 		top, bottom,
 		left, right;
-	SUBHEX
-		highlight;
 	const AXES
 		* view;
 	VECTOR3
 		pos,
 		render;
 
-	int
-		i = 0;
-
 	static VECTOR3
 		lastFront = {.x = 0, .y = 0, .z = 0},
 		lastPos = {.x = FLT_MAX, .y = 0, .z = 0};
-	static Dynarr
-		hit = NULL;
+	static union collide_marker
+		cursorHit;
+	const unsigned int
+		* heights;
 
 	if (!camera)
 		return;
@@ -578,8 +575,6 @@ void cameraRender_system (Dynarr entities)
 	pos = position_getLocalOffset (player);
 	if (!vector_cmp (&lastPos, &pos) || !vector_cmp (&lastFront, &view->front))
 	{
-		if (hit)
-			dynarr_destroy (hit);
 		lastFront = view->front;
 		SUBHEX
 			ground;
@@ -588,13 +583,27 @@ void cameraRender_system (Dynarr entities)
 		ground = hexPos_platter (position_get (player), 1);
 		local = position_getLocalOffset (player);
 		local.y += body_height (camera->target);
-		hit = map_lineCollide (ground, &local, &lastFront);
+		cursorHit = map_lineCollide (ground, &local, &view->front);
 	}
 
-	while ((highlight = *(SUBHEX *)dynarr_at (hit, i++)))
+	switch (cursorHit.type)
 	{
-		render = renderOriginDistance (highlight);
-		drawHexSurface ((HEX)highlight, *(HEXSTEP *)dynarr_back (highlight->hex.steps), &render, DRAW_HIGHLIGHT);
+		case HIT_SURFACE:
+			render = renderOriginDistance ((SUBHEX)cursorHit.hex.hex);
+			drawHexSurface (cursorHit.hex.hex, cursorHit.hex.step, &render, DRAW_HIGHLIGHT);
+			break;
+		case HIT_UNDERSIDE:
+			render = renderOriginDistance ((SUBHEX)cursorHit.hex.hex);
+			drawHexUnderside (cursorHit.hex.hex, cursorHit.hex.step, NULL, &render, DRAW_HIGHLIGHT);
+			break;
+		case HIT_JOIN:
+			render = renderOriginDistance ((SUBHEX)cursorHit.hex.hex);
+			heights = *(unsigned int **)dynarr_at (cursorHit.join.step->info.visibleJoin[cursorHit.join.dir], cursorHit.join.index);
+			drawHexEdge (cursorHit.join.hex, cursorHit.join.step, heights[0], heights[1], heights[2], heights[3], cursorHit.join.dir, &render, DRAW_HIGHLIGHT);
+			break;
+		case HIT_NOTHING:
+		default:
+			break;
 	}
 
 	video_getDimensions (&width, &height);	

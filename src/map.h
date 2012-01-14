@@ -158,7 +158,41 @@ void subhexResetLoadStateForNewArch (SUBHEX at);
  * COLLISION
  */
 
-Dynarr map_lineCollide (const SUBHEX base, const VECTOR3 * position, const VECTOR3 * ray);
+union collide_marker
+{
+	enum collide_hit
+	{
+		HIT_NOTHING,	// pointed out into space
+		HIT_SURFACE,	// hit surface of hex
+		HIT_UNDERSIDE,	// hit underside of hex
+		HIT_JOIN,
+		HIT_OTHER
+	} type;
+	struct
+	{
+		enum collide_hit
+			type;
+		HEX
+			hex;
+		HEXSTEP
+			step;
+	} hex;
+	struct
+	{
+		enum collide_hit
+			type;
+		HEX
+			hex;
+		HEXSTEP
+			step;
+		unsigned int
+			dir,
+			index,
+			heightHit;
+	} join;
+};
+
+union collide_marker map_lineCollide (const SUBHEX base, const VECTOR3 * local, const VECTOR3 * ray);
 
 /***
  * INFORMATIONAL / GETTER FUNCTIONS

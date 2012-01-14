@@ -2074,59 +2074,73 @@ static VECTOR3 line_planeIntersection (const VECTOR3 * const lineOrigin, const V
 		r = vectorCreate (0, 0, 0);
 	if (fabs (denom) < FLT_EPSILON)
 		return r;	// line is parallel to plane
-	t = -(plane->x * lineOrigin->x + plane->y * lineOrigin->y + plane->z * lineOrigin->z + dist)/denom;
+	t = -(plane->x * lineOrigin->x + plane->y * lineOrigin->y + plane->z * lineOrigin->z + dist) / denom;
 	r.x = lineOrigin->x + line->x * t;
 	r.y = lineOrigin->y + line->y * t;
 	r.z = lineOrigin->z + line->z * t;
 	return r;
 }
 
-// FIXME: this returns a subhex, when we're looking for hits against the surface or the side of a hex step (and for the side, around what height value)
-// FIXME: also this assumes we're operating on a span 0 platter (i.e., an individual hex) but there aren't any code checks to ensure that
 
-Dynarr map_lineCollide (const SUBHEX base, const VECTOR3 * local, const VECTOR3 * ray)
+// FIXME: this assumes we're operating on a span 0 platter (i.e., an individual hex) but there aren't any code checks to ensure that
+union collide_marker map_lineCollide (const SUBHEX base, const VECTOR3 * local, const VECTOR3 * ray)
 {
+	union collide_marker
+		mark;
+	int
+		x, y,
+		distance = 0,
+		i = 0,
+		begin,
+		side,
+		collidingEdge = -1;
+	float
+		stepHeight,
+		rayAngle;
+	SUBHEX
+		active;
 	VECTOR3
 		hexCentre,
 		hexNormal,
-		intersection;
-	SUBHEX
-		active;
-	int
-		x, y,
-		side,
-		i = 0,
-		begin;
-	struct hexStep
-		* step;
-	float
-		stepHeight;
-	hexPos
-		pos;
-	Dynarr
-		hit = dynarr_create (2, sizeof (SUBHEX));
+		intersection = vectorCreate (0, 0, 0);
+	HEXSTEP
+		step;
 
+	mark.type = HIT_NOTHING;
+
+	rayAngle = atan2 (ray->z, ray->x);
 	v2c (local, &x, &y);
 	active = mapHexAtCoordinateAuto (base, -1, x, y);
 
-	//printf ("\nCASTING START\n");
-	while (1)
+	while (distance < 24)
 	{
-		dynarr_push (hit, active);
 		hexCentre = renderOriginDistance (active);
+
 		i = 0;
 		while ((step = *(struct hexStep **)dynarr_at (active->hex.steps, i++)))
 		{
-			if (!matParam (step->material, "visible"))
+			if (matParam (step->material, "transparent"))
 				continue;
+
+			if (collidingEdge != -1)
+			{
+				//intersection = line_planeIntersection (local, ray, ???, ???);
+				
+			}
+
 			// FIXME: this is a collision against the hex assuming its surface is flat. if the surface isn't flat there will be some inaccuracies
 			stepHeight = step->height * HEX_SIZE_4;
 			hexNormal = vectorCreate (0, 1, 0);
 			intersection = line_planeIntersection (local, ray, &hexNormal, -stepHeight);
-			//printf ("intersection: %.2f, %.2f, %.2f; centre: %.2f, %.2f, %.2f\n", intersection.x, intersection.y, intersection.z, hexCentre.x, hexCentre.y, hexCentre.z);
 			intersection = vectorSubtract (&intersection, &hexCentre);
+
 			if (pointInHex (&intersection))
-				return hit;
+			{
+				mark.type = HIT_SURFACE;
+				mark.hex.hex = &active->hex;
+				mark.hex.step = step;
+				return mark;
+			}
 		}
 
 		i = 0;
@@ -2136,7 +2150,7 @@ Dynarr map_lineCollide (const SUBHEX base, const VECTOR3 * local, const VECTOR3 
 			if (i > 6)
 			{
 				ERROR ("collision failed: got hex that didn't intersect with line at all");
-				return hit;
+				return mark;
 			}
 		}
 		begin = i;
@@ -2146,19 +2160,18 @@ Dynarr map_lineCollide (const SUBHEX base, const VECTOR3 * local, const VECTOR3 
 			side = turns (hexCentre.x + H[(begin + i) % 6][X], hexCentre.z + H[(begin + i) % 6][Y], local->x, local->z, local->x + ray->x, local->z + ray->z);
 			if (side == RIGHT)
 			{
-				pos = map_from (active, 0, XY[(begin + i) % 6][X], XY[(begin + i) % 6][Y]);
-				active = map_posFocusedPlatter (pos);
-				map_freePos (pos);
+				// collidingEdge is used in the next go-round to see if there's a join collision
+				collidingEdge = (begin + i) % 6;
+				active = mapHexAtCoordinateAuto (active, 0, XY[collidingEdge][X], XY[collidingEdge][Y]);
 				assert (active != NULL);
 				break;
 			}
 			i++;
 		}
-		if (dynarr_size (hit) > 12)
-			break;
+		distance++;
 	}
 
-	return hit;
+	return mark;
 }
 
 /***
