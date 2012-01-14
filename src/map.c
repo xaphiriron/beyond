@@ -310,42 +310,7 @@ SUBHEX mapHexCreate (const SUBHEX parent, signed int x, signed int y)
 
 	sh->hex.steps = dynarr_create (8, sizeof (HEXSTEP));
 
-	signed int
-		heightRand = (rand () & 4),
-		c = 0,
-		corners[6] = {1, 1, 0, -1, -1, 0},
-		cornerRand = (rand () % 6) - 1;
-	HEXSTEP
-		step;
-
-	hexSetBase (&sh->hex, 1015 + heightRand, material (MAT_STONE));
-	hexCreateStep (&sh->hex, 1021 + heightRand, material (MAT_DIRT));
-	hexCreateStep (&sh->hex, 1023 + heightRand, material (MAT_GRASS));
-
-	c = rand () & 7;
-	if (c == 0)
-	{
-		hexCreateStep (&sh->hex, 1047 + heightRand, material (MAT_AIR));
-		hexCreateStep (&sh->hex, 1055 + heightRand, material (MAT_STONE));
-	}
-	if (c == 1)
-	{
-		hexCreateStep (&sh->hex, 1047 + heightRand, material (MAT_AIR));
-		hexCreateStep (&sh->hex, 1049 + heightRand, material (MAT_STONE));
-		hexCreateStep (&sh->hex, 1051 + heightRand, material (MAT_AIR));
-		hexCreateStep (&sh->hex, 1053 + heightRand, material (MAT_STONE));
-	}
-
-	c = 0;
-	while ((step = *(HEXSTEP *)dynarr_at (sh->hex.steps, c++)))
-	{
-		SETCORNER (step->corners, 0, corners[(0 + cornerRand) % 6]);
-		SETCORNER (step->corners, 1, corners[(1 + cornerRand) % 6]);
-		SETCORNER (step->corners, 2, corners[(2 + cornerRand) % 6]);
-		SETCORNER (step->corners, 3, corners[(3 + cornerRand) % 6]);
-		SETCORNER (step->corners, 4, corners[(4 + cornerRand) % 6]);
-		SETCORNER (step->corners, 5, corners[(5 + cornerRand) % 6]);
-	}
+	hexSetBase (&sh->hex, 0, material (MAT_AIR));
 
 	return sh;
 }
