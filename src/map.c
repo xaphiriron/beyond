@@ -2677,7 +2677,8 @@ static void mapBakeHex (HEX hex)
 		* join;
 	bool
 		lastStepTransparent = true,
-		lastAdjStepTransparent = true;
+		lastAdjStepTransparent = true,
+		validJoin = false;
 	while (dir < 6)
 	{
 		if (hex->adjacent[dir] == NULL)
@@ -2723,6 +2724,7 @@ static void mapBakeHex (HEX hex)
 			j = dynarr_size (adjHex->steps);
 			while ((adjStep = *(HEXSTEP *)dynarr_at (adjHex->steps, --j)))
 			{
+				validJoin = false;
 				// FIXME: i think all these uses of EDGE_HIGHER might be wrong since it's very much a directional test but i don't remember which vertices are being checked -- it should be step dir & dir + 1 vs adjacent dir + 4 & and + 3 but i haven't checked because i'm dumb - xph 2012 01 11
 				if (EDGE_HIGHER (dir, step, adjStep))
 				{
@@ -2730,9 +2732,6 @@ static void mapBakeHex (HEX hex)
 					lastAdjStep = adjStep;
 					continue;
 				}
-
-				low[0] = 0;
-				low[1] = 0;
 
 				if (lastAdjStep && !lastAdjStepTransparent && FULLHEIGHT (lastAdjStep, (dir + 4) % 6) > FULLHEIGHT (step, dir))
 					high[0] = FULLHEIGHT (lastAdjStep, (dir + 4) % 6);
@@ -2750,14 +2749,16 @@ static void mapBakeHex (HEX hex)
 				{
 					low[0] = FULLHEIGHT (nextStep, dir);
 					low[1] = FULLHEIGHT (nextStep, (dir + 1) % 6);
+					validJoin = true;
 				}
 				else if (lastAdjStepTransparent && !EDGE_HIGHER (dir, step, adjStep))
 				{
 					low[0] = FULLHEIGHT (adjStep, (dir + 4) % 6);
 					low[1] = FULLHEIGHT (adjStep, (dir + 3) % 6);
+					validJoin = true;
 				}
 
-				if ((high[0] != 0 || high[1] != 0) && (low[0] != 0 || low[1] != 0) && (high[0] != low[0] || high[1] != low[1]))
+				if (validJoin && (high[0] != low[0] || high[1] != low[1]))
 				{
 					join = xph_alloc (sizeof (unsigned int) * 4);
 					join[0] = high[0];
