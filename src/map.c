@@ -681,12 +681,16 @@ void stepTransmute (HEX hex, HEXSTEP step, MATSPEC material, int penetration)
 	assert (hex);
 	assert (step);
 	assert (stepIndex != -1);
+	assert (penetration > 0);
 	
 	newStep = xph_alloc (sizeof (struct hexStep));
 	newStep->height = step->height;
 	newStep->material = material;
 
-	step->height = step->height - penetration;
+	if (step->height - penetration > step->height)
+		step->height = 0;
+	else
+		step->height = step->height - penetration;
 
 	// TODO: error handling if there's a step between the old step and the new step (probably just shift the step down until it no longer overlaps but if there's /another/ step overlap when that happens things get complex and blah blah blah let's not think about it right now - xph 2012 01 07
 
