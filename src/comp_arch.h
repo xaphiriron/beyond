@@ -26,5 +26,6 @@ void arch_imprint (Entity arch, SUBHEX at);
 typedef struct xph_pattern * Pattern;
 
 Pattern patternGet (unsigned int id);
+Pattern patternGetByName (const char * name);
 
 #endif /* XPH_COMP_ARCH_H */

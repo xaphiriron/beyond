@@ -10,6 +10,13 @@
 
 typedef struct xph_arch * Arch;
 
+struct pattern_data
+{
+	// this is where any data that varies by pattern instantiation goes. right now it's just shape size, but this is also where stuff like pattern "completion" goes (expect to radically expand this as the simulation part of patterns gets up and running) - xph 2012 01 13
+	unsigned int
+		size;
+};
+
 struct xph_arch
 {
 	Entity
@@ -23,6 +30,9 @@ struct xph_arch
 		subarches;
 	unsigned int
 		heightMarker;	// roughly what height index to use when looking for "the ground" as applicable for this pattern
+
+	struct pattern_data
+		data;
 };
 
 enum pattern_shape
@@ -118,10 +128,10 @@ typedef struct pattern_imprint * ImprintRule;
 
 struct xph_pattern_subpattern
 {
-	enum xph_pattern_location
-		location;
+	char
+		name[32];
 	struct xph_pattern
-		* sub;
+		* pattern;
 };
 
 struct xph_pattern
@@ -208,12 +218,35 @@ void arch_setParent (EntComponent comp, EntSpeech speech)
 	arch->heightMarker = parent->heightMarker;
 }
 
+unsigned int randBetween (unsigned int lo, unsigned int hi)
+{
+	return lo + (rand () % (hi - lo));
+}
+
 void arch_setPattern (EntComponent comp, EntSpeech speech)
 {
 	Arch
 		arch = component_getData (comp);
 	arch->pattern = speech->arg;
+	if (!arch->pattern)
+		return; // maybe also spit out a warning
 	// TODO: instantiate any applicable pattern variables (size, etc)
+	switch (arch->pattern->shape.type)
+	{
+		case SHAPE_CIRCLE:
+		case SHAPE_HEX:
+			if (arch->pattern->shape.radial.radius[0] != arch->pattern->shape.radial.radius[1])
+			{
+				arch->data.size = randBetween (arch->pattern->shape.radial.radius[0], arch->pattern->shape.radial.radius[1]);
+			}
+			else
+				arch->data.size = arch->pattern->shape.radial.radius[0];
+			break;
+		default:
+			arch->data.size = 1;
+			break;
+	}
+	printf ("set size of arch #%d to %d\n", entity_GUID (component_entityAttached (comp)), arch->data.size);
 }
 
 void arch_updatePosition (EntComponent comp, EntSpeech speech)
@@ -248,10 +281,13 @@ void arch_expand (EntComponent comp, EntSpeech speech)
 		arch = component_getData (comp);
 	hexPos
 		pos;
+	struct xph_pattern_subpattern
+		* sub;
 
 	int
 		i = 0,
-		childNumber = 10;
+		childNumber = 10,
+		subpatterns = 0;
 	Entity
 		child;
 	hexPos
@@ -261,6 +297,12 @@ void arch_expand (EntComponent comp, EntSpeech speech)
 		return;
 
 	pos = position_get (this);
+	subpatterns = dynarr_size (arch->pattern->subpatterns);
+	if (!subpatterns)
+	{
+		arch->expanded = true;
+		return;
+	}
 
 	while (i < childNumber)
 	{
@@ -273,6 +315,9 @@ void arch_expand (EntComponent comp, EntSpeech speech)
 
 		entity_message (child, this, "setArchParent", this);
 		dynarr_push (arch->subarches, child);
+
+		sub = *(struct xph_pattern_subpattern **)dynarr_at (arch->pattern->subpatterns, rand () % subpatterns);
+		entity_message (child, this, "setArchPattern", sub->pattern);
 
 		i++;
 	}
@@ -336,8 +381,7 @@ void arch_imprint (Entity archEntity, SUBHEX at)
 	}
 	else
 	{
-		// that 8 is "the range of the hull, in hexes"; when we start storing pattern size & shape data we can change that to be more reasonable
-		hexHull = map_posAround (map_posFocusedPlatter (archFocus), 8);
+		hexHull = map_posAround (map_posFocusedPlatter (archFocus), arch->data.size * 1.4);
 	}
 
 	// what we could also do here is cull the hexes in the hull that aren't in the shape at all, so that we can operate on all the remaining ones (which we might be iterating through many times) without having to sanity-check them. (it might be useful to pre-generate the hull and use subsets of that for each imprinting but given that the pre-generation would probably happen when a bunch of platters inside the hull are unloaded it wouldn't be worth it i think)
@@ -351,16 +395,36 @@ void arch_imprint (Entity archEntity, SUBHEX at)
 		{
 			hex = map_posFocusedPlatter (hexPosition);
 			//printf ("i: %d; hexPos: %p; got hex %p w/ parent %p (looking for %p)\n",i-1, hexPosition, hex, hex == NULL ? NULL : subhexParent (hex), at);
+			// while any loaded hexes are fair game, imprinting happens at the platter level, so any loaded hexes in the hull have either already been imprinted or will be imprinted, so this is to avoid doubly-imprinting anything. - xph 2012 01 13
 			if (!hex || subhexParent (hex) != at)
 				continue;
 			groundStep = hexGroundStepNear (&hex->hex, arch->heightMarker);
 			distance = mapDistance (archFocus, hexPosition);
-			if ((vectorMagnitude (&distance) / 52.) > 8)
-				continue;
+			// TODO: don't use a huge if/else here; have each shape have its own distance metric function that requires, max, the shape data + vector distance, that returns true/false for "vector distance within shape"
+			if (arch->pattern->shape.type == SHAPE_CIRCLE)
+			{
+				scaledDistance = vectorMagnitude (&distance) / (52. * arch->data.size);
+				if ((vectorMagnitude (&distance) / 52.) > arch->data.size)
+					continue;
+			}
+			else if (arch->pattern->shape.type == SHAPE_HEX)
+			{
+				int
+					x = 0, y = 0;
+				v2c (&distance, &x, &y);
+
+				scaledDistance = (float)hexMagnitude (x, y) / arch->data.size;
+				if (hexMagnitude (x, y) > arch->data.size)
+					continue;
+			}
+			else
+			{
+				scaledDistance = 1;
+			}
+
 			switch (imprint->type)
 			{
 				case IMP_HEIGHT:
-					scaledDistance = vectorMagnitude (&distance) / (52. * 8);
 					switch (imprint->scale)
 					{
 						case PS_LINEAR:
@@ -412,6 +476,7 @@ static char
 static void parseShapeArg (Pattern context, Graph arg);
 static void parseSubvarArg (Pattern context, Graph var);
 static void parseImprintArg (Pattern context, Graph var);
+static void parseSubpatterns (Pattern context, Graph var);
 
 Pattern pattern_create ();
 void pattern_destroy (Pattern pattern);
@@ -420,6 +485,27 @@ Pattern patternGet (unsigned int id)
 {
 	assert (PatternList != NULL);
 	return *(Pattern *)dynarr_at (PatternList, id);
+}
+
+Pattern patternGetByName (const char * name)
+{
+	DynIterator
+		it;
+	Pattern
+		p;
+
+	assert (PatternList != NULL);
+	it = dynIterator_create (PatternList);
+	while ((p = *(Pattern *)dynIterator_next (it)))
+	{
+		if (strcmp (p->name, name) == 0)
+		{
+			dynIterator_destroy (it);
+			return p;
+		}
+	}
+	dynIterator_destroy (it);
+	return NULL;
 }
 
 static void loadPatterns ()
@@ -433,13 +519,16 @@ static void loadPatterns ()
 		shapeNode,
 		imprintNode,
 		subvarNode,
-		subpatternsNode,
+		subpatternNode,
 		superpatternsNode;
 	Pattern
 		pattern = NULL;
 
+	struct xph_pattern_subpattern
+		* subpattern;
 	int
-		i = 0;
+		i = 0,
+		j = 0;
 
 	PatternList = dynarr_create (8, sizeof (struct xph_pattern));
 	patternRoot = Ogdl_load (absolutePath ("../data/patterns"));
@@ -484,7 +573,10 @@ static void loadPatterns ()
 			graph_parseNodeArgs (imprintNode, (void (*)(void *, Graph))parseImprintArg, pattern);
 		
 
-		subpatternsNode = Graph_get (patternNode, "subpatterns");
+		subpatternNode = Graph_get (patternNode, "subpatterns");
+		if (subpatternNode)
+			graph_parseNodeArgs (subpatternNode, (void (*)(void *, Graph))parseSubpatterns, pattern);
+
 		superpatternsNode = Graph_get (patternNode, "superpatterns");
 
 		if (*(Pattern *)dynarr_at (PatternList, pattern->id))
@@ -496,10 +588,21 @@ static void loadPatterns ()
 	}
 	Graph_free (patternRoot);
 
-	i = 0;
+	i = 1;
 	while ((pattern = *(Pattern *)dynarr_at (PatternList, i++)))
 	{
 		// check patterns with unlinked sub/super-patterns and link them or error w/ invalid pattern specified
+		j = 0;
+		printf ("pattern has %d unlinked subpatterns\n", dynarr_size (pattern->subpatterns));
+		while ((subpattern = *(struct xph_pattern_subpattern **)dynarr_at (pattern->subpatterns, j++)))
+		{
+			subpattern->pattern = patternGetByName (subpattern->name);
+			printf ("got %p for pattern \"%s\"\n", subpattern->pattern, subpattern->name);
+			if (!subpattern->pattern)
+			{
+				ERROR ("Unlinkable pattern: pattern \"%s\" calls for pattern \"%s\" as a subpattern, but that pattern doesn't exist.", pattern->name, subpattern->name);
+			}
+		}
 	}
 
 }
@@ -691,6 +794,16 @@ static void parseImprintArg (Pattern context, Graph var)
 		}
 	}
 	dynarr_push (context->imprints, imprint);
+}
+
+static void parseSubpatterns (Pattern context, Graph var)
+{
+	struct xph_pattern_subpattern
+		* sub = xph_alloc (sizeof (struct xph_pattern_subpattern));
+	printf (" -> stored subpattern \"%s\"\n", var->name);
+	strncpy (sub->name, var->name, 32);
+
+	dynarr_push (context->subpatterns, sub);
 }
 
 Pattern pattern_create ()
