@@ -435,24 +435,32 @@ bool pointInHex (const VECTOR3 * const point)
 * any map data point, multiply the coordinate values with their respective map point value, so that:
 * value at :p = b1 * [map value of the subhex corresponding to 1] + b2 * [same w/ 2] + b3 * [same w/ 3];
  */
-unsigned int baryInterpolate (const VECTOR3 const * p, const VECTOR3 const * c1, const VECTOR3 const * c2, const unsigned int v1, const unsigned int v2, const unsigned int v3)
+unsigned int baryInterpolate (const VECTOR3 const * p, const VECTOR3 const * c2, const VECTOR3 const * c3, const unsigned int v1, const unsigned int v2, const unsigned int v3)
 {
 	float
-		b[4] = {0, 0, 0, 0};
-	b[0] = c1->x * c2->z - c2->x * c1->z;
-	b[1] =	((c1->x - p->x) * (c2->z - p->z) -
-			 (c2->x - p->x) * (c1->z - p->z)) / b[0];
-	b[2] =	((c2->x - p->x) * -p->z -
-			 -p->x * (c2->z - p->z)) / b[0];
-	b[3] =	(-p->x * (c1->z - p->z) -
-			(c1->x - p->x) * -p->z) / b[0];
+		weight[3] = {0, 0, 0};
+	baryWeights (p, c2, c3, (float *)&weight);
+	return ceil (weight[0] * v1 + weight[1] * v2 + weight[2] * v3);
+}
+
+// find the barycentric weights on p from the points 0,0 (implicitly c1), c2, and c3. the weights are stored in weights[0],[1], and [2]
+void baryWeights (const VECTOR3 const * p, const VECTOR3 const * c2, const VECTOR3 const * c3, float * weight)
+{
+	float
+		base = c2->x * c3->z - c3->x * c2->z;
+	assert (weight != NULL);
+	weight[0] = ((c2->x - p->x) * (c3->z - p->z) -
+				 (c3->x - p->x) * (c2->z - p->z)) / base;
+	weight[1] = ((c3->x - p->x) * -p->z -
+				 -p->x * (c3->z - p->z)) / base;
+	weight[2] = (-p->x * (c2->z - p->z) -
+				(c2->x - p->x) * -p->z) / base;
 /*
 	if (b[1] < 0.0 || b[1] > 1.0 ||
 		b[2] < 0.0 || b[2] > 1.0 ||
 		b[3] < 0.0 || b[3] > 1.0)
 	{
-		ERROR ("Coordinate outside barycentric triangle; final result was %.2f %.2f %.2f // %u %u %u", b[1], b[2], b[3], v1, v2, v3);
+		ERROR ("Coordinate outside barycentric triangle; final result was %.2f %.2f %.2f", b[1], b[2], b[3]);
 	}
 */
-	return ceil (b[1] * v1 + b[2] * v2 + b[3] * v3);
 }

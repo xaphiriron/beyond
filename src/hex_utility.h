@@ -74,5 +74,6 @@ void v2c (const VECTOR3 * const vector, int * x, int * y);
 bool pointInHex (const VECTOR3 * const point);
 
 unsigned int baryInterpolate (const VECTOR3 const * p, const VECTOR3 const * c1, const VECTOR3 const * c2, const unsigned int v1, const unsigned int v2, const unsigned int v3);
+void baryWeights (const VECTOR3 const * p, const VECTOR3 const * c2, const VECTOR3 const * c3, float * weights);
 
 #endif /* XPH_HEX_UTILITY_H */
