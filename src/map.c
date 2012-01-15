@@ -1089,10 +1089,13 @@ SUBHEX mapPole (const char poleName)
 }
 
 
-signed int * mapPoleConnections (const char a, const char b)
+static signed int
+ Connections [][4] =
+	{{ 0,  2,  4, -1},
+	{ 1,  3,  5, -1},
+	{-1, -1, -1, -1}};
+const signed int * mapPoleConnections (const char a, const char b)
 {
-	signed int
-		* connections = NULL;
 	unsigned char
 		problems = 0;
 	signed char
@@ -1117,7 +1120,6 @@ signed int * mapPoleConnections (const char a, const char b)
 			}
 			if (problems)
 				break;
-			connections = xph_alloc (sizeof (signed int) * 4);
 			av = (a == 'r')
 				? 1
 				: a == 'g'
@@ -1133,31 +1135,16 @@ signed int * mapPoleConnections (const char a, const char b)
 				diff = -1;
 			else if (diff == -2)
 				diff = 1;
+
 			if (diff == 1)
-			{
-				connections[0] = 0;
-				connections[1] = 2;
-				connections[2] = 4;
-			}
+				return Connections[0];
 			else
-			{
-				connections[0] = 1;
-				connections[1] = 3;
-				connections[2] = 5;
-			}
-			connections[3] = -1;
-			problems = 0;
+				return Connections[1];
 			break;
 		default:
-			
 			break;
 	}
-	if (problems)
-	{
-		connections = xph_alloc (sizeof (signed int));
-		connections[0] = -1;
-	}
-	return connections;
+	return Connections[2];
 }
 
 char mapPoleTraversal (char p, signed int x, signed int y)
@@ -1502,7 +1489,8 @@ RELATIVEHEX mapRelativeSubhexWithSubhex (const SUBHEX start, const SUBHEX goal)
 		* startY,
 		* goalX,
 		* goalY,
-		i = 0,
+		i = 0;
+	const signed int
 		* pole = NULL;
 	unsigned char
 		levelSpan;
@@ -2246,44 +2234,6 @@ bool hexColor (const HEX hex, unsigned char * rgb)
 	return true;
 }
 
-int mapDistanceFrom (const hexPos pos, const SUBHEX hex)
-{
-	int
-		span,
-		x = 0, y = 0,
-		xStepDiff = 0,
-		yStepDiff = 0,
-		xTotalDiff = 0,
-		yTotalDiff = 0;
-	SUBHEX
-		active = hex;
-	if (!pos || !hex)
-		return INT_MAX;
-	span = subhexSpanLevel (hex);
-
-	// if the hexPos is focused at a span level higher than the subhex exists (e.g., the hexPos is focused at span level 3 but the subhex is a level 0 hex) then the distance should be measured between the lvl 0 hex and the lvl 3 platter. since hexPos shouldn't store the platters below their focus threshhold (i think...?) it should be reasonable to do this, since the not-equals will pass for whatever subhex vs. a NULL pointer - xph 2011 12 14
-	while (active != pos->platter[span])
-	{
-		subhexLocalCoordinates (active, &x, &y);
-		mapScaleCoordinates
-		(
-			-span,
-			x - pos->x[span + 1], y - pos->y[span + 1],
-			&xStepDiff, &yStepDiff,
-			NULL, NULL
-		);
-		xTotalDiff += xStepDiff;
-		yTotalDiff += yStepDiff;
-		//printf ("span %d: %2d, %2d vs. %2d, %2d = %3d, %3d; scaled: %3d, %3d\n", span, x, y, pos->x[span + 1], pos->y[span + 1], x - pos->x[span + 1], y - pos->y[span + 1], xStepDiff, yStepDiff);
-
-		span++;
-		active = subhexParent (active);
-	}
-	//printf ("total difference: %d, %d: %d\n", xTotalDiff, yTotalDiff, hexMagnitude (xTotalDiff, yTotalDiff));
-
-	return hexMagnitude (xTotalDiff, yTotalDiff);
-}
-
 VECTOR3 mapDistanceBetween (const SUBHEX a, const SUBHEX b)
 {
 	hexPos
@@ -2316,16 +2266,54 @@ VECTOR3 mapDistance (const hexPos a, const hexPos b)
 		// this may or may not deal properly with pole crossings. if it does work, it definitely doesn't generate the shortest possible distance, which is what we want.
 		if (span == MapSpan && a->platter[span] != b->platter[span])
 		{
-			int
+			const int
 				* connections;
-			connections = mapPoleConnections (subhexPoleName (a->platter[span]), subhexPoleName (b->platter[span]));
-			difference->x[span] = XY[connections[0]][X];
-			difference->y[span] = XY[connections[0]][Y];
-			xph_free (connections);
+			int
+				diffs[3][2],
+				diffMag[3],
+				closest = -1;
+			connections = mapPoleConnections (subhexPoleName (b->platter[span]), subhexPoleName (a->platter[span]));
+			difference->x[span] = (a->x[span] - b->x[span]);
+			difference->y[span] = (a->y[span] - b->y[span]);
+
+			mapScaleCoordinates (-1, XY[connections[0]][X], XY[connections[0]][Y], &diffs[0][0], &diffs[0][1], NULL, NULL);
+			diffs[0][0] += difference->x[span];
+			diffs[0][1] += difference->y[span];
+			diffMag[0] = hexMagnitude (diffs[0][0], diffs[0][1]);
+
+			mapScaleCoordinates (-1, XY[connections[1]][X], XY[connections[1]][Y], &diffs[1][0], &diffs[1][1], NULL, NULL);
+			diffs[1][0] += difference->x[span];
+			diffs[1][1] += difference->y[span];
+			diffMag[1] = hexMagnitude (diffs[1][0], diffs[1][1]);
+
+			mapScaleCoordinates (-1, XY[connections[2]][X], XY[connections[2]][Y], &diffs[2][0], &diffs[2][1], NULL, NULL);
+			diffs[2][0] += difference->x[span];
+			diffs[2][1] += difference->y[span];
+			diffMag[2] = hexMagnitude (diffs[2][0], diffs[2][1]);
+
+			if (diffMag[0] < diffMag[1])
+			{
+				if (diffMag[0] < diffMag[2])
+					closest = 0;
+				else
+					closest = 2;
+			}
+			else
+			{
+				if (diffMag[1] < diffMag[2])
+					closest = 1;
+				else
+					closest = 2;
+			}
+			difference->x[span] = diffs[closest][0];
+			difference->y[span] = diffs[closest][1];
 		}
-		// add real coordinate distance to the difference on span level $span
-		difference->x[span] += (a->x[span] - b->x[span]);
-		difference->y[span] += (a->y[span] - b->y[span]);
+		else
+		{
+			// add real coordinate distance to the difference on span level [span]
+			difference->x[span] += (a->x[span] - b->x[span]);
+			difference->y[span] += (a->y[span] - b->y[span]);
+		}
 		// scale difference up for $span - 1 to carry it over
 		mapScaleCoordinates
 		(

@@ -109,7 +109,7 @@ SUBHEX mapPole (const char poleName);
  */
 /* given two poles, returns an array of the directions they touch in, terminated with -1
  */
-signed int * mapPoleConnections (const char a, const char b);
+const signed int * mapPoleConnections (const char a, const char b);
 /* given a starting pole and an x, y coordinate, returns the pole reached
  */
 char mapPoleTraversal (const char p, signed int x, signed int y);
@@ -212,7 +212,6 @@ bool hexColor (const HEX hex, unsigned char * rgb);
 // what was the idea of this...???
 //bool subhexCoordinateOffset (const SUBHEX subhex, const SUBHEX offset, unsigned char * spanLevel, signed int * xp, signed int * yp);
 
-int mapDistanceFrom (const hexPos pos, const SUBHEX hex);
 VECTOR3 mapDistanceBetween (const SUBHEX a, const SUBHEX b);
 VECTOR3 mapDistance (const hexPos a, const hexPos b);
 
