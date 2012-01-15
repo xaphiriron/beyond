@@ -146,19 +146,16 @@ void mapForceSubdivide (SUBHEX subhex)
 void mapForceGrowAtLevelForDistance (SUBHEX subhex, unsigned char spanLevel, unsigned int distance)
 {
 	SUBHEX
-		centre = subhex,
-		newSub;
-	RELATIVEHEX
-		rel;
+		centre = subhex;
 	unsigned char
 		currentSpan;
-	unsigned int
-		r = 1,
-		k = 0,
-		i = 0,
-		offset = 0;
-	signed int
-		x, y;
+	int
+		i = 0;
+	hexPos
+		pos;
+	Dynarr
+		around;
+
 	if (spanLevel > MapSpan)
 	{
 		ERROR ("Got meaningless request to grow above the max span level; discarding. (max: %d; request: %d)", MapSpan, spanLevel);
@@ -186,58 +183,14 @@ void mapForceGrowAtLevelForDistance (SUBHEX subhex, unsigned char spanLevel, uns
 		currentSpan--;
 	}
 
-	subhexLocalCoordinates (centre, &x, &y);
-	DEBUG ("our centre value is at span level %d, at local coordinates %d, %d (and our target span is %d)", subhexSpanLevel (centre), x, y, spanLevel);
-
-	/* if we've gotten here, {centre} is at the right span level (i.e.,
-	 * spanLevel) and we're ready to start attempting to grow outwards.
-	 * things could be in several states here:
-	 * - if we had to change the span level, the centre value will definitely
-	 *   be at local 0,0
-	 * - if we /didn't/ have to change the span level, the centre value could
-	 *   be at local anywhere
-	 * - if (distance + the local coordinate magnitude) > MapRadius we have to
-	 *   deal with traversing across other subdivs, but if the local magnitude
-	 *   isn't 0 (see above) then we may not have to be eqilateral in our
-	 *   traversal.
-	 * and as usual the subdiv traversal has to be recursive or else things
-	 * will break all over but most especially near the pole edges. the growth
-	 * also might have to affect higher span levels; if we have to traverse to
-	 * other subdivs but they don't exist yet, we'll have to create them.
-	 *  - xph 2011-05-21
-	 */
-
-	while (r <= distance)
+	i = 0;
+	around = map_posAround (centre, distance);
+	while ((pos = *(hexPos *)dynarr_at (around, i++)))
 	{
-		hex_rki2xy (r, k, i, &x, &y);
-		DEBUG ("generating relative hex from centre at offset {%u %u %u} %d, %d", r, k, i, x, y);
-		rel = mapRelativeSubhexWithCoordinateOffset (centre, 0, x, y);
-		newSub = mapRelativeTarget (rel);
-		DEBUG ("target has span %d", subhexSpanLevel (newSub));
-		/* it would be really nice to have a magical function here called "recursiveAddMapRelativeMarkerOntoLoadQueue" that would recursively add the map relative marker struct onto a load queue. it'd take the exact coordinate offset stored internally in the RELATIVEHEX struct and compare that to the subhex best-match target stored internally in the RELATIVEHEX struct, and if they don't match up (i.e., the target doesn't go down to the same span level as the coordinate offset since it's not loaded or generated yet; this is trivial to calculate since it's just target->span == rel->minSpan) then it will load/gen the next step in the chain, recursively creating new subhexes from the top down until it finishes. these subhexes-to-create would be pushed onto a priority queue, and the priority would depend on 1. the number of subhexes that push the same coordinate (i.e., many to-be-loaded subhexes that are all within the same unloaded subhex one span level up would all add the same value) and 2. the coordinate distance from the player, and it would keep adding values as parents are loaded up in the background without needing to be re-called (in practice it would add all the entries at once but the priority queue would be set up so the priority of a parent was strictly greater than the priority of any of its kids, probably by weighing the loader vastly towards subhexes with larger span)
-		 *
-		 * in the mean time we do nothing
-		 */
-
-		/* the 'force' part of the function name: let's just create a blank subdiv and hope for the best. definitely take this out soon.
-		 *  - xph 2011-05-30 */
-		//WARNING ("%s: attempting dangerous altering of a relative hex struct (%p).", __FUNCTION__, rel);
-		while (!isPerfectFidelity (rel))
-		{
-			currentSpan = subhexSpanLevel (rel->target);
-			offset = currentSpan - rel->minSpan - 1;
-			DEBUG ("trying offset at span %d (i: %d), which is %d, %d", currentSpan, offset, rel->x[offset], rel->y[offset]);
-			// this is wrong if the current span level is 1; it should be maphexcreate instead
-			newSub = mapSubdivCreate (rel->target, rel->x[offset], rel->y[offset]);
-			assert (newSub != NULL);
-			rel->target = newSub;
-		}
-		DEBUG ("Done at %d, %d", x, y);
-
-		mapRelativeDestroy (rel);
-		hex_nextValidCoord (&r, &k, &i);
+		hexPos_forceLoadTo (pos, 1);
 	}
-	DEBUG ("done iterating to grow in %s", __FUNCTION__);
+	dynarr_wipe (around, (void (*)(void *))map_freePos);
+	dynarr_destroy (around);
 }
 
 void mapForceGrowChildAt (SUBHEX subhex, signed int x, signed int y)
@@ -270,6 +223,32 @@ void mapLoadAround (hexPos pos)
 		mapForceGrowChildAt (platter, pos->x[i], pos->y[i]);
 		i--;
 	}
+}
+
+
+bool hexPos_forceLoadTo (hexPos pos, unsigned char span)
+{
+	int
+		activeSpan = MapSpan;
+	if (span < pos->focus)
+	{
+		WARNING ("Loading position to span %d when it only has focus to %d", span, pos->focus);
+	}
+	while (pos->platter[activeSpan])
+		activeSpan--;
+	if (activeSpan == MapSpan)
+	{
+		ERROR ("Cannot load position; given position has no existant platters");
+		return false;
+	}
+	
+	while (activeSpan >= span)
+	{
+		pos->platter[activeSpan] = mapSubdivCreate (pos->platter[activeSpan + 1], pos->x[activeSpan + 1], pos->y[activeSpan + 1]);
+		activeSpan--;
+	}
+
+	return true;
 }
 
 /***

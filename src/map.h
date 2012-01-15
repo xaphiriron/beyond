@@ -51,6 +51,8 @@ void mapForceGrowChildAt (SUBHEX subhex, signed int x, signed int y);
 
 void mapLoadAround (hexPos pos);
 
+bool hexPos_forceLoadTo (hexPos pos, unsigned char span);
+
 /***
  * SIMPLE CREATION AND INITIALIZATION FUNCTIONS
  */
