@@ -80,6 +80,12 @@ void textureFloodFill (TEXTURE t, signed int startX, signed int startY)
 	Dynarr
 		affectedPixels;
 
+	if (TextureColor[3] == 0x00)
+	{
+		ERROR ("Can't flood fill with a transparent color.");
+		return;
+	}
+
 	loc = vectorCreate (startX, startY, 0);
 	
 	if (textureOOB (t, loc))
@@ -288,6 +294,8 @@ bool textureOOB (const TEXTURE t, VECTOR3 coord)
 
 GLuint textureName (const TEXTURE t)
 {
+	if (!t)
+		return 0;
 	return t->name;
 }
 
@@ -408,5 +416,6 @@ GLuint textureBind (TEXTURE t)
 	glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
+	glBindTexture (GL_TEXTURE_2D, 0);
 	return t->name;
 }
