@@ -121,7 +121,7 @@ void position_placeOnHexStep (Entity e, HEX hex, HEXSTEP step)
 		ERROR ("Cannot place entity #%d on given hex (%p); it's a platter", entity_GUID (e), hex);
 		return;
 	}
-	newPos = map_at (hex->parent);
+	newPos = map_at ((SUBHEX)hex);
 	newVector = hex_xyCoord2Space (hex->x, hex->y);
 	newVector.y = step->height * HEX_SIZE_4;
 

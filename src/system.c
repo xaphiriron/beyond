@@ -304,6 +304,7 @@ void system_removeTimedFunction (void (*func)(TIMER))
 
 
 
+#include "map_internal.h"
 void systemCreatePlayer (Entity base)
 {
 	Entity
@@ -328,7 +329,8 @@ void systemCreatePlayer (Entity base)
 		worldSetRenderCacheCentre (place);
 
 		place = subhexData (place, 0, 0);
-		position_placeOnHexStep (player, (HEX)place, hexGroundStepNear ((HEX)place, 0));
+		assert (place && subhexSpanLevel (place) == 0);
+		position_placeOnHexStep (player, &place->hex, hexGroundStepNear (&place->hex, 0));
 	}
 	component_instantiate ("walking", player);
 	component_instantiate ("body", player);
