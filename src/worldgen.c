@@ -98,7 +98,7 @@ void worldGenerate (TIMER timer)
 {
 
 	// pick unexpanded arch at the highest level; expand it; repeat until there are no more arches on that level; repeat from top
-	//entity_message (base, NULL, "archExpand", NULL);
+	entity_message (base, NULL, "archExpand", NULL);
 
 	loadSetGoal (1);
 	loadSetLoaded (1);
@@ -170,7 +170,7 @@ static Dynarr archOrderFor (SUBHEX platter)
 	while (span > 1)
 	{
 		current = platterList[--span];
-		nearbyPlatters = map_posAround (current, 1);
+		nearbyPlatters = map_posAround (current, mapGetRadius () - 1);
 		i = 0;
 		while ((pos = *(hexPos *)dynarr_at (nearbyPlatters, i++)))
 		{

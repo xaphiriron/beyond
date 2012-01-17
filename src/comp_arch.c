@@ -246,7 +246,7 @@ void arch_setPattern (EntComponent comp, EntSpeech speech)
 			arch->data.size = 1;
 			break;
 	}
-	printf ("set size of arch #%d to %d\n", entity_GUID (component_entityAttached (comp)), arch->data.size);
+	//printf ("set size of arch #%d to %d\n", entity_GUID (component_entityAttached (comp)), arch->data.size);
 }
 
 void arch_updatePosition (EntComponent comp, EntSpeech speech)
@@ -264,7 +264,7 @@ void arch_updatePosition (EntComponent comp, EntSpeech speech)
 		ERROR ("can't update arch (%p, #%d) position: no position", this, entity_GUID (this));
 		return;
 	}
-	printf ("set position for arch #%d\n", entity_GUID (this));
+	//printf ("set position for arch #%d\n", entity_GUID (this));
 	platter = map_posBestMatchPlatter (pos);
 	if (subhexSpanLevel (platter) == 0)
 		platter = subhexParent (platter);
@@ -286,7 +286,7 @@ void arch_expand (EntComponent comp, EntSpeech speech)
 
 	int
 		i = 0,
-		childNumber = 10,
+		childNumber = 20,
 		subpatterns = 0;
 	Entity
 		child;
@@ -309,7 +309,7 @@ void arch_expand (EntComponent comp, EntSpeech speech)
 		child = entity_create ();
 		component_instantiate ("position", child);
 		component_instantiate ("arch", child);
-		childPos = map_randomPositionNear (pos, 2);
+		childPos = map_randomPositionNear (pos, 3);
 		map_posSwitchFocus (childPos, 1);
 		position_set (child, childPos);
 
@@ -381,6 +381,7 @@ void arch_imprint (Entity archEntity, SUBHEX at)
 	}
 	else
 	{
+		// given a large enough size or a close enough platter this could just be every hex in the platter - xph 2012 01 14
 		hexHull = map_posAround (map_posFocusedPlatter (archFocus), arch->data.size * 1.4);
 	}
 
@@ -893,6 +894,7 @@ void builder_system (Dynarr entities)
 			component_instantiate ("position", newArch);
 			component_instantiate ("arch", newArch);
 			entity_refresh (newArch);
+			entity_message (newArch, NULL, "setArchPattern", patternGet (1));
 			position_copy (newArch, speech->from);
 			printf ("created new arch; entity #%d\n", entity_GUID (newArch));
 		}
