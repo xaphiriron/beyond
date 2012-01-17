@@ -234,6 +234,8 @@ void input_sendGameEventMessage (const struct input_event * ie)
 		i = 0;
 	Entity
 		e = NULL;
+	struct xph_input
+		* inputData;
 	// CATCH AND HANDLE EVENTS THAT HAVE SYSTEM-WIDE REPERCUSSIONS
 	//DEBUG ("GOT INPUTEVENT TYPE %d", ie->ir);
 	/* this has become the home of the UI switching; this isn't a good thing. i don't know how to break it apart (presumably to be handled by the ui component??) but it's something that should be done. in the mean time, try to avoid tying the ui code with the input code any further.
@@ -266,24 +268,51 @@ void input_sendGameEventMessage (const struct input_event * ie)
 	i = 0;
 	while ((e = *(Entity *)dynarr_at (Input->controlledEntities, i++)) != NULL)
 	{
+		inputData = component_getData (entity_getAs (e, "input"));
+		if (!inputData->hasFocus)
+			continue;
 		entity_message (e, NULL, "CONTROL_INPUT", (void *)ie);
 	}
 	i = 0;
 	while ((e = *(Entity *)dynarr_at (Input->focusedEntities, i++)) != NULL)
 	{
+		inputData = component_getData (entity_getAs (e, "input"));
+		if (!inputData->hasFocus)
+			continue;
 		entity_message (e, NULL, "FOCUS_INPUT", (void *)ie);
 	}
 }
 
 
+bool input_setFocusable (Entity e, bool gainsFocus)
+{
+	struct xph_input
+		* input = component_getData (entity_getAs (e, "input"));
+	if (!input)
+		return false;
+	input->gainsFocus = gainsFocus;
+	if (!input->gainsFocus)
+		input->hasFocus = false;
+	return input->gainsFocus;
+}
+
 static void input_classDestroy (EntComponent comp, EntSpeech speech);
-static void input_componentDestroy (EntComponent inputComponent, EntSpeech speech);
+
+static void input_componentCreate (EntComponent comp, EntSpeech speech);
+static void input_componentDestroy (EntComponent comp, EntSpeech speech);
+
+static void input_gainFocus (EntComponent comp, EntSpeech speech);
+static void input_loseFocus (EntComponent comp, EntSpeech speech);
 
 void input_define (EntComponent inputComponent, EntSpeech speech)
 {
 	component_registerResponse ("input", "__classDestroy", input_classDestroy);
 
+	component_registerResponse ("input", "__create", input_componentCreate);
 	component_registerResponse ("input", "__destroy", input_componentDestroy);
+
+	component_registerResponse ("input", "gainFocus", input_gainFocus);
+	component_registerResponse ("input", "loseFocus", input_loseFocus);
 
 	Input = input_create ();
 }
@@ -294,13 +323,41 @@ static void input_classDestroy (EntComponent comp, EntSpeech speech)
 	Input = NULL;
 }
 
-static void input_componentDestroy (EntComponent inputComponent, EntSpeech speech)
+static void input_componentCreate (EntComponent comp, EntSpeech speech)
+{
+	struct xph_input
+		* input = xph_alloc (sizeof (struct xph_input));
+	input->gainsFocus = true;
+
+	component_setData (comp, input);
+}
+
+static void input_componentDestroy (EntComponent comp, EntSpeech speech)
 {
 	Entity
-		inputEntity = component_entityAttached (inputComponent);
+		this = component_entityAttached (comp);
+	struct xph_input
+		* input = component_getData (comp);
+	xph_free (input);
 
-	input_rmEntity (inputEntity, INPUT_CONTROLLED);
-	input_rmEntity (inputEntity, INPUT_FOCUSED);
+	input_rmEntity (this, INPUT_CONTROLLED);
+	input_rmEntity (this, INPUT_FOCUSED);
+}
+
+static void input_gainFocus (EntComponent comp, EntSpeech speech)
+{
+	struct xph_input
+		* input = component_getData (comp);
+
+	if (input->gainsFocus)
+		input->hasFocus = true;
+}
+
+static void input_loseFocus (EntComponent comp, EntSpeech speech)
+{
+	struct xph_input
+		* input = component_getData (comp);
+	input->hasFocus = false;
 }
 
 

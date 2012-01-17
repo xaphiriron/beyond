@@ -9,6 +9,15 @@
 #include "xph_memory.h"
 #include "dynarr.h"
 
+struct xph_input
+{
+	bool
+		gainsFocus,	// is this really necessary since i think having an input component period implies something /can/ be given focus
+		hasFocus;
+};
+
+bool input_setFocusable (Entity e, bool gainsFocus);
+
 enum input_control_types
 {
 	INPUT_CONTROLLED = 1,

@@ -317,6 +317,7 @@ void systemCreatePlayer (Entity base)
 	player = entity_create ();
 	if (component_instantiate ("input", player)) {
 		input_addEntity (player, INPUT_CONTROLLED);
+		entity_message (player, NULL, "gainFocus", NULL);
 	}
 	if (component_instantiate ("position", player))
 	{
@@ -345,9 +346,14 @@ void systemCreatePlayer (Entity base)
 	if (component_instantiate ("input", camera))
 	{
 		input_addEntity (camera, INPUT_CONTROLLED);
+		entity_message (camera, NULL, "gainFocus", NULL);
 	}
+
 	entity_refresh (camera);
 	entity_name (camera, "CAMERA");
+
+	entity_addToGroup (player, "WorldControlEntities");
+	entity_addToGroup (camera, "WorldControlEntities");
 
 	FUNCCLOSE ();
 }

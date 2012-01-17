@@ -122,6 +122,8 @@ void finalize (void)
 	entity_message (titleScreenMenu, NULL, "setBorder", (void *)6);
 	entity_message (titleScreenMenu, NULL, "setLineSpacing", (void *)4);
 
+	entity_message (titleScreenMenu, NULL, "gainFocus", NULL);
+
 	systemClearStates();
 	systemPushState (STATE_UI);
 }
