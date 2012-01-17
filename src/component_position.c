@@ -224,17 +224,7 @@ static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround
 		FUNCCLOSE ();
 		return;
 	}
-	else
-	{
-		posUpdate.relPosition = mapRelativeSubhexWithSubhex (oldGround, newGround);
-		if (posUpdate.relPosition == NULL)
-		{
-			ERROR ("CAN'T HANDLE THIS; NEED TO GENERATE A RELATIVEHEX FROM SCRATCH BUT CAN'T AAA (one that connects %p to %p", oldGround, newGround);
-			FUNCCLOSE ();
-			return;
-		}
-	}
-	posUpdate.difference = mapRelativeDistance (posUpdate.relPosition);
+	posUpdate.difference = mapDistanceBetween (oldGround, newGround);
 	entity_speak (this, "positionUpdate", &posUpdate);
 	memset (&posUpdate, '\0', sizeof (struct position_update));
 	FUNCCLOSE ();

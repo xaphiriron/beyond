@@ -89,7 +89,7 @@ SUBHEX map_posBestMatchPlatter (const hexPos pos);
 void map_posSwitchFocus (hexPos pos, unsigned char focus);
 void map_posUpdateWith (hexPos pos, const SUBHEX div);
 
-/* ditto with mapAdjacentSubhexes only this returns hexPos positions (returns a list of hexPos focused at the level of the subhex given, hitting all coordinates within a radius given by distance) */
+/* returns a dynarr of hexPos focused at the level of the subhex given, hitting all coordinates within a radius given by distance */
 Dynarr map_posAround (const SUBHEX subhex, unsigned int distance);
 
 /***
@@ -114,9 +114,6 @@ const signed int * mapPoleConnections (const char a, const char b);
  */
 char mapPoleTraversal (const char p, signed int x, signed int y);
 
-/* returns a dynarr with hx (distance) entries, each of which is a RELATIVEHEX denoting a subhex position radiating out from subhex
- */
-Dynarr mapAdjacentSubhexes (const SUBHEX subhex, unsigned int distance);
 
 /* all these functions may return values with target subhexes of lower fidelity (so the span of the original subhex argument is < the span of the target subhex); this can only traverse across currently-loaded subhexes
  *
@@ -124,7 +121,6 @@ Dynarr mapAdjacentSubhexes (const SUBHEX subhex, unsigned int distance);
  */
 RELATIVEHEX mapRelativeSubhexWithVectorOffset (const SUBHEX subhex, const VECTOR3 * offset);
 RELATIVEHEX mapRelativeSubhexWithCoordinateOffset (const SUBHEX subhex, const signed char relativeSpan, const signed int x, const signed int y);
-RELATIVEHEX mapRelativeSubhexWithSubhex (const SUBHEX subhex, const SUBHEX target);
 
 /* this does exactly what mapRelativeSubhexWithCoordinateOffset does only it returns the target or NULL if no perfect target and automatically destroys the relativehex */
 SUBHEX mapHexAtCoordinateAuto (const SUBHEX subhex, const signed short relativeSpan, const signed int x, const signed int y);
