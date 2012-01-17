@@ -16,6 +16,8 @@
 #include "comp_body.h"
 #include "comp_plant.h"
 #include "comp_chaser.h"
+#include "comp_gui.h"
+#include "comp_worldmap.h"
 
 static void bootstrap (void);
 static void load (TIMER t);
@@ -61,6 +63,8 @@ void bootstrap (void)
 	component_register ("builder", builder_define);
 	component_register ("plant", plant_define);
 	component_register ("chaser", chaser_define);
+	component_register ("gui", gui_define);
+	component_register ("worldmap", worldmap_define);
 
 	entitySystem_register ("input", input_system, 1, "input");
 	entitySystem_register ("walking", walking_system, 1, "walking");
@@ -68,11 +72,14 @@ void bootstrap (void)
 	entitySystem_register ("builder", builder_system, 1, "builder");
 	entitySystem_register ("plantUpdate", plantUpdate_system, 1, "plant");
 	entitySystem_register ("chaser", chaser_update, 1, "chaser");
+	entitySystem_register ("gui", gui_update, 1, "gui");
 
 	entitySystem_register ("mapLoad", mapLoad_system, 0);
 
 	entitySystem_register ("uiRender", uiRender_system, 1, "ui");
 	entitySystem_disableMessages ("uiRender");
+	entitySystem_register ("guiRender", gui_render, 1, "gui");
+	entitySystem_disableMessages ("guiRender");
 	entitySystem_register ("bodyRender", bodyRender_system, 2, "body", "position");
 	entitySystem_disableMessages ("bodyRender");
 	entitySystem_register ("cameraRender", cameraRender_system, 1, "camera");

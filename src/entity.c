@@ -370,6 +370,25 @@ const Dynarr entity_getGroup (const char * groupName)
 	return group->members;
 }
 
+void entity_messageGroup (const char * groupName, Entity from, char * message, void * arg)
+{
+	struct entity_group_map
+		* group;
+	Entity
+		member;
+	int
+		i = 0;
+	if (EntityGroups == NULL)
+		return;
+	group = *(struct entity_group_map **)dynarr_search (EntityGroups, entgroup_search, groupName);
+	if (!group)
+		return;
+	while ((member = *(Entity *)dynarr_at (group->members, i++)))
+	{
+		entity_message (member, from, message, arg);
+	}
+}
+
 static void group_destroy (struct entity_group_map * group)
 {
 	dynarr_destroy (group->members);

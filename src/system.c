@@ -147,6 +147,7 @@ void systemUpdate (void)
 		entitySystem_update ("chaser");
 
 		entitySystem_update ("ui");
+		entitySystem_update ("gui");
 	}
 
 	videoPrerender ();
@@ -158,6 +159,7 @@ void systemUpdate (void)
 	entitySystem_update ("cameraRender");
 
 	entitySystem_update ("uiRender");
+	entitySystem_update ("guiRender");
 	videoPostrender ();
 
 	FUNCCLOSE ();
@@ -309,7 +311,8 @@ void systemCreatePlayer (Entity base)
 {
 	Entity
 		player,
-		camera;
+		camera,
+		worldmap;
 	SUBHEX
 		place;
 
@@ -354,8 +357,20 @@ void systemCreatePlayer (Entity base)
 	entity_refresh (camera);
 	entity_name (camera, "CAMERA");
 
-	entity_addToGroup (player, "WorldControlEntities");
-	entity_addToGroup (camera, "WorldControlEntities");
+	entity_addToGroup (player, "PlayerAvatarEntities");
+	entity_addToGroup (camera, "PlayerAvatarEntities");
+
+	worldmap = entity_create ();
+	if (component_instantiate ("input", worldmap))
+	{
+		input_addEntity (worldmap, INPUT_CONTROLLED);
+	}
+	component_instantiate ("gui", worldmap);
+	component_instantiate ("worldmap", worldmap);
+	entity_refresh (worldmap);
+	entity_name (worldmap, "WORLDMAP");
+
+	entity_addToGroup (worldmap, "GUI");
 
 	FUNCCLOSE ();
 }

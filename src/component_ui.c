@@ -12,7 +12,6 @@
 
 #include "component_position.h"
 #include "component_input.h"
-#include "map.h"
 
 enum uiSkewTypes
 {
@@ -97,25 +96,12 @@ struct uiMenu
 		timer;
 };
 
-struct uiMapData
-{
-	enum uiPanelTypes
-		type;
-
-	Dynarr
-		scales;
-	unsigned char
-		currentScale;
-};
-
 union uiPanels
 {
 	enum uiPanelTypes
 		type;
 	struct uiStaticText
 		staticText;
-	struct uiMapData
-		map;
 	struct uiMenu
 		menu;
 };
@@ -177,8 +163,6 @@ static void uiMenuOpt_destroy (struct uiMenuOpt * opt);
 // should this maybe be something that a message can be sent about? - xph 2011 09 29
 static void uiMenu_setActiveIndex (UIPANEL ui, unsigned int index);
 static signed int uiMenu_mouseHit (UIPANEL ui, signed int mx, signed int my);
-
-static void uiWorldmapGenLevel (struct uiMapData * map, unsigned char span);
 
 static void uiDrawPane (signed int x, signed int y, signed int width, signed int height, const TEXTURE texture);
 static void ui_drawIndex (struct uiMenu * menu);
@@ -398,12 +382,6 @@ void ui_setType (EntComponent ui, EntSpeech speech)
 // 			dynarr_assign (uiData->staticText.fragments, 1, uiFragmentCreate ("and as you turn/ while wandering / across the waves / somewhere dark and deep / do you see the things you move away to see / or are you troubled by the things you don't understand\n\nmy life / is circling / around a line / that wrestles the sea / d / cause the more that we find out the more we wanna know / so let's not trouble with the things we don't understand / and we don't know / we don't know\n\ni know // the ocean floor was open long ago\nand currents started forming long ago\nwater began circling long ago\nthis ship started sinking long ago // so let's not trouble with the things we don't understand / and we don't know", ALIGN_RIGHT, -8, 8));
 
 			dynarr_assign (uiData->staticText.fragments, 1, uiFragmentCreate ("raise em til your arms tired\nlet em know you here\nthat you struggling surviving\nthat you gonna persevere", ALIGN_RIGHT, -8, 8));
-			break;
-
-		case UI_WORLDMAP:
-			uiData->map.scales = dynarr_create (mapGetSpan () + 1, sizeof (TEXTURE));
-			uiWorldmapGenLevel (&uiData->map, 0);
-			uiData->map.currentScale = 0;
 			break;
 
 		case UI_MENU:
@@ -677,32 +655,6 @@ void ui_handleInput (EntComponent ui, EntSpeech speech)
 		i = 0;
 	switch (uiData->type)
 	{
-		case UI_WORLDMAP:
-			switch (inputEvent->ir)
-			{
-				case IR_UI_WORLDMAP_SCALE_UP:
-					if (uiData->map.currentScale >= mapGetSpan ())
-						break;
-					uiData->map.currentScale++;
-					if (*(TEXTURE *)dynarr_at (uiData->map.scales, uiData->map.currentScale) == NULL)
-					{
-						uiWorldmapGenLevel (&uiData->map, uiData->map.currentScale);
-					}
-
-					break;
-				case IR_UI_WORLDMAP_SCALE_DOWN:
-					if (uiData->map.currentScale == 0)
-						break;
-					uiData->map.currentScale--;
-					if (*(TEXTURE *)dynarr_at (uiData->map.scales, uiData->map.currentScale) == NULL)
-					{
-						uiWorldmapGenLevel (&uiData->map, uiData->map.currentScale);
-					}
-					break;
-				default:
-					break;
-			}
-			break;
 		case UI_MENU:
 			switch (inputEvent->ir)
 			{
@@ -778,11 +730,6 @@ void ui_draw (EntComponent ui, EntSpeech speech)
 			}
 			break;
 
-		case UI_WORLDMAP:
-			glColor3f (1.0, 1.0, 1.0);
-			uiDrawPane ((width - (height - 32)) / 2, 16, height - 32, height - 32, *(TEXTURE *)dynarr_at (uiData->map.scales, uiData->map.currentScale));
-			break;
-
 		case UI_MENU:
 			frame = uiData->menu.frame;
 			ui_getXY (uiData, &x, &y);
@@ -828,7 +775,6 @@ void ui_system (Dynarr entities)
 {
 	Entity
 		uiEntity,
-		worldmapUI,
 		debugUI;
 	EntSpeech
 		speech;
@@ -842,24 +788,7 @@ void ui_system (Dynarr entities)
 
 	while ((speech = entitySystem_dequeueMessage ("ui")))
 	{
-		if (!strcmp (speech->message, "WORLDMAP_SWITCH"))
-		{
-			worldmapUI = entity_getByName ("worldmapUI");
-			if (worldmapUI)
-			{
-				entity_destroy (worldmapUI);
-				continue;
-			}
-			worldmapUI = entity_create ();
-			component_instantiate ("ui", worldmapUI);
-			entity_message (worldmapUI, NULL, "setType", (void *)UI_WORLDMAP);
-			component_instantiate ("input", worldmapUI);
-			input_addEntity (worldmapUI, INPUT_FOCUSED);
-
-			entity_refresh (worldmapUI);
-			entity_name (worldmapUI, "worldmapUI");
-		}
-		else if (!strcmp (speech->message, "DEBUGOVERLAY_SWITCH"))
+		if (!strcmp (speech->message, "DEBUGOVERLAY_SWITCH"))
 		{
 			debugUI = entity_getByName ("debugUI");
 			if (debugUI)
@@ -941,11 +870,6 @@ static void uiPanel_destroy (UIPANEL ui)
 			dynarr_map (ui->staticText.fragments, uiFragmentDestroy);
 			dynarr_destroy (ui->staticText.fragments);
 			uiFrame_destroy (ui->staticText.frame);
-			break;
-
-		case UI_WORLDMAP:
-			dynarr_map (ui->map.scales, (void (*)(void *))textureDestroy);
-			dynarr_destroy (ui->map.scales);
 			break;
 
 		case UI_MENU:
@@ -1133,22 +1057,6 @@ static signed int uiMenu_mouseHit (UIPANEL ui, signed int mx, signed int my)
 }
 
 
-
-static void uiWorldmapGenLevel (struct uiMapData * map, unsigned char span)
-{
-	SUBHEX
-		playerLocation;
-	Entity
-		player = entity_getByName ("PLAYER");
-	float
-		facing;
-	entity_message (player, NULL, "getHex", &playerLocation);
-	entity_message (player, NULL, "getHexAngle", &facing);
-
-	dynarr_assign (map->scales, span, mapGenerateMapTexture (playerLocation, facing, span));
-}
-
-
 static void uiDrawPane (signed int x, signed int y, signed int width, signed int height, const TEXTURE texture)
 {
 	float
@@ -1270,6 +1178,8 @@ static void uiDrawPane (signed int x, signed int y, signed int width, signed int
 	glTexCoord2f (xRepeat, 0);
 	glVertex3f (right - sx, top + sy, zNear);
 	glEnd ();
+
+	glBindTexture (GL_TEXTURE_2D, 0);
 }
 
 static void ui_drawIndex (struct uiMenu * menu)
@@ -1327,6 +1237,8 @@ static void ui_drawIndex (struct uiMenu * menu)
 	glTexCoord2f (tx + tw, ty);
 	glVertex3f (right, top, zNear);
 	glEnd ();
+
+	glBindTexture (GL_TEXTURE_2D, 0);
 }
 
 

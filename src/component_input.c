@@ -110,9 +110,6 @@ struct input * input_create ()
 	dynarr_assign (i->controlMap, IR_CAMERA_MODE_SWITCH, keys_create (1, SDLK_TAB));
 	dynarr_assign (i->controlMap, IR_WORLDMAP_SWITCH, keys_create (1, SDLK_SLASH));
 
-	dynarr_assign (i->controlMap, IR_UI_WORLDMAP_SCALE_UP, keys_create (1, SDLK_UP));
-	dynarr_assign (i->controlMap, IR_UI_WORLDMAP_SCALE_DOWN, keys_create (1, SDLK_DOWN));
-
 	dynarr_assign (i->controlMap, IR_UI_MENU_INDEX_UP, keys_create (1, SDLK_UP));
 	dynarr_assign (i->controlMap, IR_UI_MENU_INDEX_DOWN, keys_create (1, SDLK_DOWN));
 	dynarr_assign (i->controlMap, IR_UI_CONFIRM, keys_create (1, SDLK_RETURN));
@@ -233,7 +230,8 @@ void input_sendGameEventMessage (const struct input_event * ie)
 	int
 		i = 0;
 	Entity
-		e = NULL;
+		e = NULL,
+		worldmap;
 	struct xph_input
 		* inputData;
 	// CATCH AND HANDLE EVENTS THAT HAVE SYSTEM-WIDE REPERCUSSIONS
@@ -256,7 +254,19 @@ void input_sendGameEventMessage (const struct input_event * ie)
 			video_wireframeSwitch ();
 			break;
 		case IR_WORLDMAP_SWITCH:
-			entitySystem_message ("ui", NULL, "WORLDMAP_SWITCH", NULL);
+			worldmap = entity_getByName ("WORLDMAP");
+			if (input_hasFocus (worldmap))
+			{
+				printf ("focusing world\n");
+				entity_message (worldmap, NULL, "loseFocus", NULL);
+				entity_messageGroup ("PlayerAvatarEntities", NULL, "gainFocus", NULL);
+			}
+			else
+			{
+				printf ("focusing map\n");
+				entity_messageGroup ("PlayerAvatarEntities", NULL, "loseFocus", NULL);
+				entity_message (worldmap, NULL, "gainFocus", NULL);
+			}
 			break;
 		case IR_DEBUG_SWITCH:
 			entitySystem_message ("ui", NULL, "DEBUGOVERLAY_SWITCH", NULL);
@@ -294,6 +304,15 @@ bool input_setFocusable (Entity e, bool gainsFocus)
 	if (!input->gainsFocus)
 		input->hasFocus = false;
 	return input->gainsFocus;
+}
+
+bool input_hasFocus (Entity e)
+{
+	struct xph_input
+		* input = component_getData (entity_getAs (e, "input"));
+	if (!input)
+		return false;
+	return input->hasFocus;
 }
 
 static void input_classDestroy (EntComponent comp, EntSpeech speech);
@@ -349,8 +368,9 @@ static void input_gainFocus (EntComponent comp, EntSpeech speech)
 	struct xph_input
 		* input = component_getData (comp);
 
-	if (input->gainsFocus)
-		input->hasFocus = true;
+	if (!input->gainsFocus)
+		return;
+	input->hasFocus = true;
 }
 
 static void input_loseFocus (EntComponent comp, EntSpeech speech)

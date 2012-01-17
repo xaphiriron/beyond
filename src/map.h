@@ -203,8 +203,6 @@ SUBHEX subhexParent (const SUBHEX subhex);
 bool subhexLocalCoordinates (const SUBHEX subhex, signed int * xp, signed int * yp);
 bool subhexPartlyLoaded (const SUBHEX subhex);
 
-bool hexColor (const HEX hex, unsigned char * rgb);
-
 // what was the idea of this...???
 //bool subhexCoordinateOffset (const SUBHEX subhex, const SUBHEX offset, unsigned char * spanLevel, signed int * xp, signed int * yp);
 
@@ -233,7 +231,5 @@ enum map_draw_types
 void drawHexSurface (const struct hexColumn * const hex, const HEXSTEP step, const VECTOR3 * const render, enum map_draw_types style);
 void drawHexUnderside (const struct hexColumn * const hex, const HEXSTEP step, MATSPEC material, const VECTOR3 * const render, enum map_draw_types style);
 void drawHexEdge (const struct hexColumn * const hex, const HEXSTEP step, unsigned int high1, unsigned int high2, unsigned int low1, unsigned int low2, int direction, const VECTOR3 * const render, enum map_draw_types style);
-
-TEXTURE mapGenerateMapTexture (SUBHEX centre, float facing, unsigned char span);
 
 #endif /* XPH_MAP_H */

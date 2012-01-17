@@ -607,7 +607,7 @@ void cameraRender_system (Dynarr entities)
 	}
 
 	video_getDimensions (&width, &height);	
-	if (systemState (System) == STATE_FREEVIEW && camera_getMode (this) == CAMERA_FIRST_PERSON)
+	if (input_hasFocus (this))
 	{
 		glLoadIdentity ();
 

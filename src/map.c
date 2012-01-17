@@ -2079,20 +2079,6 @@ bool subhexPartlyLoaded (const SUBHEX subhex)
 	
 }
 
-bool hexColor (const HEX hex, unsigned char * rgb)
-{
-	rgb[0] = 64 +
-		!!(hex->light & 0x01) * 127 +
-		!!(hex->light & 0x02) * 64;
-	rgb[1] = 64 +
-		!!(hex->light & 0x04) * 127 +
-		!!(hex->light & 0x08) * 64;
-	rgb[2] = 64 +
-		!!(hex->light & 0x10) * 127 +
-		!!(hex->light & 0x20) * 64;
-	return true;
-}
-
 VECTOR3 mapDistanceBetween (const SUBHEX a, const SUBHEX b)
 {
 	hexPos
@@ -2918,93 +2904,6 @@ static unsigned int vertex (int x, int y, int v)
 	assert (vertex < green (MapRadius + 2));
 	return vertex;
 }
-
-
-TEXTURE mapGenerateMapTexture (SUBHEX centre, float facing, unsigned char span)
-{
-	TEXTURE
-		texture;
-	VECTOR3
-		mapCoords,
-		rot;
-	SUBHEX
-		centreLevel = centre,
-		hex;
-	unsigned int
-		r = 0, k = 0, i = 0;
-	signed int
-		localX = 0, localY = 0,
-		x, y,
-		targetSpan = 0,
-		* scale;
-	unsigned char
-		color[3] = {0xff, 0xff, 0xff};
-
-	textureSetBackgroundColor (0x00, 0x00, 0x00, 0x7f);
-	texture = textureGenBlank (256, 256, 4);
-
-	subhexLocalCoordinates (centre, &localX, &localY);
-
-	while (targetSpan < (span + 1))
-	{
-		centreLevel = subhexParent (centreLevel);
-		targetSpan++;
-	}
-	if (centreLevel == NULL)
-	{
-		ERROR ("Can't construct map texture for span level %d", span);
-		return NULL;
-	}
-
-	while (r < 16)
-	{
-		hex_rki2xy (r, k, i, &x, &y);
-		//printf ("{%d %d %d} %d, %d\n", r, k, i, x, y);
-		hex = mapHexAtCoordinateAuto (centreLevel, -1, localX + x, localY + y);
-		//printf ("  got subhex %p\n", hex);
-		if (hex == NULL)
-		{
-			color[0] = 0x00;
-			color[1] = 0x00;
-			color[2] = 0x00;
-		}
-		else if (hex->type == HS_HEX)
-		{
-			hexColor (&hex->hex, color);
-		}
-		else
-		{
-			color[0] = mapDataGet (hex, "height") / (float)(1 << 9) * 255;
-			color[1] = mapDataGet (hex, "height") / (float)(1 << 9) * 255;
-			color[2] = mapDataGet (hex, "height") / (float)(1 << 9) * 255;
-		}
-
-		scale = mapSpanCentres (span);
-		//printf ("  got %p with %d\n", scale, span);
-
-		mapCoords = hex_xyCoord2Space
-		(
-			x * scale[0] + y * scale[2],
-			x * scale[1] + y * scale[3]
-		);
-		mapCoords = vectorDivideByScalar (&mapCoords, 52 * hexMagnitude (scale[0], scale[1]));
-
-		rot = mapCoords;
-		mapCoords.x = rot.x * cos (-facing) - rot.z * sin (-facing);
-		mapCoords.z = rot.x * sin (-facing) + rot.z * cos (-facing);
-
-		mapCoords = vectorMultiplyByScalar (&mapCoords, 14);
-		textureSetColor (color[0], color[1], color[2], 0xcf);
-		textureDrawHex (texture, vectorCreate (128.0 + mapCoords.x, 128.0 + mapCoords.z, 0.0), 6, -facing);
-		//printf ("{%d %d %d} %d, %d (real offset: %d, %d) at %2.2f, %2.2f (span %d) -- %2.2x%2.2x%2.2x / %p\n", r, k, i, x, y, localX + x, localY + y, mapCoords.x, mapCoords.z, span, color[0], color[1], color[2], hex);
-		
-		hex_nextValidCoord (&r, &k, &i);
-	}
-	textureBind (texture);
-
-	return texture;
-}
-
 
 /***
  * ENTITY/SYSTEM/COMPONENT CODE HERE

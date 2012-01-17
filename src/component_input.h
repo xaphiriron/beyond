@@ -17,6 +17,7 @@ struct xph_input
 };
 
 bool input_setFocusable (Entity e, bool gainsFocus);
+bool input_hasFocus (Entity e);
 
 enum input_control_types
 {
@@ -48,8 +49,6 @@ enum input_responses {
 	IR_WORLDMAP_SWITCH,
 	IR_DEBUG_SWITCH,
 
-	IR_UI_WORLDMAP_SCALE_UP,
-	IR_UI_WORLDMAP_SCALE_DOWN,
 	IR_UI_MENU_INDEX_UP,
 	IR_UI_MENU_INDEX_DOWN,
 	IR_UI_CANCEL,

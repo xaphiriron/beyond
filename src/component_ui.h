@@ -11,7 +11,6 @@ enum uiPanelTypes
 	UI_STATICTEXT,
 
 	UI_DEBUG_OVERLAY,
-	UI_WORLDMAP,
 
 	UI_MENU,
 };

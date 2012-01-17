@@ -37,6 +37,7 @@ void walking_stop (Entity e)
 	if (!walk)
 		return;
 	walk->dirsActive = WALK_MOVE_NONE;
+	walk->automoveActive = false;
 }
 
 void walking_begin_movement (Entity e, enum walk_move w);
@@ -176,6 +177,7 @@ void walking_doControlInputResponse (Entity e, const struct input_event * ie)
 static void walking_create (EntComponent comp, EntSpeech speech);
 static void walking_destroy (EntComponent comp, EntSpeech speech);
 static void walking_inputResponse (EntComponent comp, EntSpeech speech);
+static void walking_loseFocus (EntComponent comp, EntSpeech speech);
 
 void walking_define (EntComponent comp, EntSpeech speech)
 {
@@ -184,6 +186,8 @@ void walking_define (EntComponent comp, EntSpeech speech)
 	component_registerResponse ("walking", "__destroy", walking_destroy);
 
 	component_registerResponse ("walking", "CONTROL_INPUT", walking_inputResponse);
+
+	component_registerResponse ("walking", "loseFocus", walking_loseFocus);
 }
 
 static void walking_create (EntComponent comp, EntSpeech speech)
@@ -214,6 +218,13 @@ static void walking_inputResponse (EntComponent comp, EntSpeech speech)
 	Entity
 		this = component_entityAttached (comp);
 	walking_doControlInputResponse (this, speech->arg);
+}
+
+static void walking_loseFocus (EntComponent comp, EntSpeech speech)
+{
+	Entity
+		this = component_entityAttached (comp);
+	walking_stop (this);
 }
 
 
