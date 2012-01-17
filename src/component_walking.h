@@ -12,6 +12,9 @@
 
 #include "system.h"
 
+void walking_start (Entity e);
+void walking_stop (Entity e);
+
 void walking_define (EntComponent comp, EntSpeech speech);
 
 void walking_system (Dynarr entities);

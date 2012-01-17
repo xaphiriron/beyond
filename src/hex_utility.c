@@ -1,5 +1,7 @@
 #include "hex_utility.h"
 
+#include "xph_log.h"
+
 /***
  * You don't want to change these values unless you _really_ know what you're
  * doing. Certain functions depend on the specific ordering of H, or of XY, or
@@ -439,7 +441,7 @@ unsigned int baryInterpolate (const VECTOR3 const * p, const VECTOR3 const * c2,
 {
 	float
 		weight[3] = {0, 0, 0};
-	baryWeights (p, c2, c3, (float *)&weight);
+	baryWeights (p, c2, c3, weight);
 	return ceil (weight[0] * v1 + weight[1] * v2 + weight[2] * v3);
 }
 
@@ -455,12 +457,11 @@ void baryWeights (const VECTOR3 const * p, const VECTOR3 const * c2, const VECTO
 				 -p->x * (c3->z - p->z)) / base;
 	weight[2] = (-p->x * (c2->z - p->z) -
 				(c2->x - p->x) * -p->z) / base;
-/*
-	if (b[1] < 0.0 || b[1] > 1.0 ||
-		b[2] < 0.0 || b[2] > 1.0 ||
-		b[3] < 0.0 || b[3] > 1.0)
+
+	if (weight[0] < 0.0 || weight[0] > 1.0 ||
+		weight[1] < 0.0 || weight[1] > 1.0 ||
+		weight[2] < 0.0 || weight[2] > 1.0)
 	{
-		ERROR ("Coordinate outside barycentric triangle; final result was %.2f %.2f %.2f", b[1], b[2], b[3]);
+		ERROR ("Coordinate outside barycentric triangle; final result was %.2f %.2f %.2f", weight[0], weight[1], weight[2]);
 	}
-*/
 }

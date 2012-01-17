@@ -144,6 +144,7 @@ void systemUpdate (void)
 		entitySystem_update ("walking");
 		entitySystem_update ("builder");
 		entitySystem_update ("plantUpdate");
+		entitySystem_update ("chaser");
 
 		entitySystem_update ("ui");
 	}

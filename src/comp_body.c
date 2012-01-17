@@ -57,6 +57,12 @@ static void drawBody (Entity e)
 		radius = 52 / 2;
 	int
 		i = 0;
+	SUBHEX
+		baryPlatter[3];
+	float
+		baryWeight[3];
+	VECTOR3
+		baryPoint[3];
 	render = position_renderCoords (e);
 	view = position_getViewAxes (e);
 	facing = position_getHeading (e);
@@ -159,6 +165,28 @@ static void drawBody (Entity e)
 		render.z + view->up.z * 52
 	);
 	glEnd ();
+
+
+	position_baryPoints (e, baryPlatter, baryWeight);
+	baryPoint[0] = renderOriginDistance (baryPlatter[0]);
+	baryPoint[1] = renderOriginDistance (baryPlatter[1]);
+	baryPoint[2] = renderOriginDistance (baryPlatter[2]);
+
+	glBegin (GL_LINES);
+	glColor4f (1.0, 0.0, 0.0, baryWeight[0]);
+	glVertex3f (render.x, render.y + body->height, render.z);
+	glVertex3f (baryPoint[0].x, render.y + body->height, baryPoint[0].z);
+
+	glColor4f (1.0, 0.0, 0.0, baryWeight[1]);
+	glVertex3f (render.x, render.y + body->height, render.z);
+	glVertex3f (baryPoint[1].x, render.y + body->height, baryPoint[1].z);
+
+	glColor4f (1.0, 0.0, 0.0, baryWeight[2]);
+	glVertex3f (render.x, render.y + body->height, render.z);
+	glVertex3f (baryPoint[2].x, render.y + body->height, baryPoint[2].z);
+	glEnd ();
+
+
 };
 
 float body_height (Entity e)

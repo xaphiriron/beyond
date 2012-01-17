@@ -15,6 +15,7 @@
 #include "comp_arch.h"
 #include "comp_body.h"
 #include "comp_plant.h"
+#include "comp_chaser.h"
 
 static void bootstrap (void);
 static void load (TIMER t);
@@ -59,12 +60,14 @@ void bootstrap (void)
 	component_register ("body", body_define);
 	component_register ("builder", builder_define);
 	component_register ("plant", plant_define);
+	component_register ("chaser", chaser_define);
 
 	entitySystem_register ("input", input_system, 1, "input");
 	entitySystem_register ("walking", walking_system, 1, "walking");
 	entitySystem_register ("ui", ui_system, 1, "ui");
 	entitySystem_register ("builder", builder_system, 1, "builder");
 	entitySystem_register ("plantUpdate", plantUpdate_system, 1, "plant");
+	entitySystem_register ("chaser", chaser_update, 1, "chaser");
 
 	entitySystem_register ("mapLoad", mapLoad_system, 0);
 

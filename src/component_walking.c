@@ -21,6 +21,24 @@ struct walkmove_data {
 typedef struct walkmove_data * walkingComponent;
 typedef struct walkmove_data * walkData;
 
+void walking_start (Entity e)
+{
+	walkData
+		walk = component_getData (entity_getAs (e, "walking"));
+	if (!walk)
+		return;
+	walk->dirsActive = WALK_MOVE_FORWARD;
+}
+
+void walking_stop (Entity e)
+{
+	walkData
+		walk = component_getData (entity_getAs (e, "walking"));
+	if (!walk)
+		return;
+	walk->dirsActive = WALK_MOVE_NONE;
+}
+
 void walking_begin_movement (Entity e, enum walk_move w);
 void walking_end_movement (Entity e, enum walk_move w);
 

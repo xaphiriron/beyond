@@ -154,6 +154,60 @@ VECTOR3 position_renderCoords (Entity e)
 	return total;
 }
 
+VECTOR3 position_distanceBetween (Entity e, Entity t)
+{
+	POSITION
+		ep = component_getData (entity_getAs (e, "position")),
+		tp = component_getData (entity_getAs (t, "position"));
+	VECTOR3
+		distance = vectorCreate (0, 0, 0);
+	if (!ep || !tp)
+		return distance;
+	distance = mapDistance (ep->position, tp->position);
+	return distance;
+}
+
+// FIXME: this is yet more code that assumes the position in question will have a fidelity of 1. this is an issue because /almost assuredly/ this will not be the case in practice.
+
+void position_baryPoints (Entity e, SUBHEX * platters, float * weights)
+{
+	POSITION
+		pos = component_getData (entity_getAs (e, "position"));
+	hexPos
+		base;
+	int
+		x, y;
+	unsigned int
+		r, k, i,
+		third;
+	VECTOR3
+		inversePos,
+		distance[2];
+	if (!pos)
+		return;
+	base = pos->position;
+	
+	// 1. change the platter to focus < 1 ? 1 : focus instead of just 1
+	platters[0] = hexPos_platter (base, 1);
+	assert (platters[0] != NULL);
+	// 2. figure out a way to do the barycentric math when not using a span 1 platter
+	v2c (&pos->pos, &x, &y);
+	hex_xy2rki (x, y, &r, &k, &i);
+	platters[1] = mapHexAtCoordinateAuto (platters[0], 0, XY[k][X], XY[k][Y]);
+	// this isn't actually correct -- if positions were only in the centre of hexes this would be fine, but they can be anywhere. this check tends to get weights that have -0.02 or w/e as their third weight near the edges of the tris, since the wrong one is picked as the third - xph 2012 01 15
+	if (i < r / 2.0)
+		third = (k + 5) % 6;
+	else
+		third = (k + 1) % 6;
+	platters[2] = mapHexAtCoordinateAuto (platters[0], 0, XY[third][X], XY[third][Y]);
+
+	inversePos = vectorMultiplyByScalar (&pos->pos, -1);
+	distance[0] = mapDistanceBetween (platters[0], platters[1]);
+	distance[1] = mapDistanceBetween (platters[0], platters[2]);
+	//printf ("have pos %.2f,%.2f w/ 0,0; %.2f,%.2f; %.2f,%.2f\n", pos->pos.x, pos->pos.z, distance[0].x, distance[0].z, distance[1].x, distance[1].z);
+	baryWeights (&inversePos, &distance[0], &distance[1], weights);
+}
+
 
 static void position_messageGroundChange (const EntComponent c, SUBHEX oldGround, SUBHEX newGround)
 {
@@ -428,6 +482,29 @@ void position_rotateOnMouseInput (Entity e, const struct input_event * ie)
 	entity_speak (e, "orientationUpdate", NULL);
 	//printf ("view quat: %7.2f, %7.2f, %7.2f, %7.2f\n", cdata->viewQuat.w, cdata->viewQuat.x, cdata->viewQuat.y, cdata->viewQuat.z);
 }
+
+void position_face (Entity e, const VECTOR3 * face)
+{
+	POSITION
+		pos = component_getData (entity_getAs (e, "position"));
+	float
+		faceRot = atan2 (face->z, face->x),
+		currentRot = position_getHeading (e),
+		faceAngle;
+	QUAT
+		q;
+	if (!pos)
+		return;
+	faceAngle = (faceRot - currentRot);
+	//printf ("face angle used: %f\n", faceAngle);
+	q = quat_eulerToQuat (0, faceAngle, 0);
+	//printf ("rotation: (%f; %f) %.2f, %.2f, %.2f, %.2f\n", faceRot, currentRot, q.x, q.y, q.z, q.w);
+	pos->orientation = quat_multiply (&pos->orientation, &q);
+	pos->dirty = true;
+	entity_speak (e, "orientationUpdate", NULL);
+}
+
+
 
 float position_getHeading (const Entity e)
 {

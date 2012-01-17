@@ -40,7 +40,8 @@ hexPos position_get (Entity e);
 void position_placeOnHexStep (Entity e, HEX hex, HEXSTEP step);
 
 VECTOR3 position_renderCoords (Entity e);
-
+VECTOR3 position_distanceBetween (Entity e, Entity t);
+void position_baryPoints (Entity e, SUBHEX * platters, float * weights);
 
 
 void position_unset (Entity e);
@@ -52,6 +53,7 @@ void position_copy (Entity target, const Entity source);
 void position_setOrientation (Entity e, const QUAT q);
 
 void position_rotateOnMouseInput (Entity e, const struct input_event * ie);
+void position_face (Entity e, const VECTOR3 * face);
 
 float position_getHeading (const Entity e);
 float position_getPitch (const Entity e);
