@@ -9,6 +9,15 @@ struct xph_worldmap_data
 	unsigned char
 		spanFocus,
 		worldSpan;
+	int
+		typeFocus;
+	Dynarr
+		types;
+	enum spantypefocus
+	{
+		FOCUS_SPAN,
+		FOCUS_TYPE
+	} spanTypeFocus;
 	TEXTURE
 		* spanTextures;
 };

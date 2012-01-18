@@ -1733,7 +1733,7 @@ static void mapDataDestroy (struct mapData * md)
 	xph_free (md);
 }
 
-void mapDataSet (SUBHEX at, char * type, signed int amount)
+void mapDataSet (SUBHEX at, const char * type, signed int amount)
 {
 	struct mapDataEntry
 		* match;
@@ -1751,7 +1751,7 @@ void mapDataSet (SUBHEX at, char * type, signed int amount)
 	match->value = amount;
 }
 
-signed int mapDataAdd (SUBHEX at, char * type, signed int amount)
+signed int mapDataAdd (SUBHEX at, const char * type, signed int amount)
 {
 	struct mapDataEntry
 		* match;
@@ -1773,7 +1773,7 @@ signed int mapDataAdd (SUBHEX at, char * type, signed int amount)
 	return match->value;
 }
 
-signed int mapDataGet (SUBHEX at, char * type)
+signed int mapDataGet (SUBHEX at, const char * type)
 {
 	struct mapDataEntry
 		* match;
@@ -1789,6 +1789,13 @@ signed int mapDataGet (SUBHEX at, char * type)
 		return 0;
 	}
 	return match->value;
+}
+
+const Dynarr mapDataTypes (SUBHEX at)
+{
+	if (at->type == HS_HEX)
+		return NULL;
+	return at->sub.mapInfo->entries;
 }
 
 static int mapIntrCmp (const void * a, const void * b)
@@ -2579,7 +2586,6 @@ void mapDraw (const float const * matrix)
 		ERROR ("Cannot draw map: Render cache is uninitialized.");
 		return;
 	}
-	glBindTexture (GL_TEXTURE_2D, 0);
 	while (i < tier1Detail)
 	{
 		pos = *(hexPos *)dynarr_at (RenderCache, i);

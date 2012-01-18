@@ -113,6 +113,7 @@ struct input * input_create ()
 	dynarr_assign (i->controlMap, IR_UI_MENU_INDEX_UP, keys_create (1, SDLK_UP));
 	dynarr_assign (i->controlMap, IR_UI_MENU_INDEX_DOWN, keys_create (1, SDLK_DOWN));
 	dynarr_assign (i->controlMap, IR_UI_CONFIRM, keys_create (1, SDLK_RETURN));
+	dynarr_assign (i->controlMap, IR_UI_MODE_SWITCH, keys_create (1, SDLK_TAB));
 
 	dynarr_assign (i->controlMap, IR_DEBUG_SWITCH, keys_create (1, SDLK_F3));
 

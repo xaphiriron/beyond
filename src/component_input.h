@@ -54,6 +54,8 @@ enum input_responses {
 	IR_UI_CANCEL,
 	IR_UI_CONFIRM,
 
+	IR_UI_MODE_SWITCH,
+
 	IR_UI_MOUSEMOVE,
 	IR_UI_MOUSECLICK,
 

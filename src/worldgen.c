@@ -96,12 +96,50 @@ void worldFinalize ()
 
 void worldGenerate (TIMER timer)
 {
+	static int
+		delay = 0;
+
+	int
+		i = 0,
+		max = fx (MapRadius),
+		x, y;
+
+	SUBHEX
+		pole[3],
+		active;
+	pole[0] = mapPole ('r');
+	pole[1] = mapPole ('g');
+	pole[2] = mapPole ('b');
+	mapForceSubdivide (pole[0]);
+	mapForceSubdivide (pole[1]);
+	mapForceSubdivide (pole[2]);
+
+	i = 0;
+	while (i < max)
+	{
+		hex_unlineate (i, &x, &y);
+		active = subhexData (pole[0], x, y);
+		mapDataSet (active, "tempAvg", 2048 - ((MapRadius + 1) - hexMagnitude (x, y)) * 2048);
+		mapDataSet (active, "tempVar", ((MapRadius + 1) - hexMagnitude (x, y)) * 1024);
+		active = subhexData (pole[1], x, y);
+		mapDataSet (active, "tempAvg", 2048 - ((MapRadius + 1) - hexMagnitude (x, y)) * 2048);
+		mapDataSet (active, "tempVar", ((MapRadius + 1) - hexMagnitude (x, y)) * 1024);
+		active = subhexData (pole[2], x, y);
+		mapDataSet (active, "tempAvg", 2048 - ((MapRadius + 1) - hexMagnitude (x, y)) * 2048);
+		mapDataSet (active, "tempVar", ((MapRadius + 1) - hexMagnitude (x, y)) * 1024);
+		i++;
+	}
 
 	// pick unexpanded arch at the highest level; expand it; repeat until there are no more arches on that level; repeat from top
 	entity_message (base, NULL, "archExpand", NULL);
 
-	loadSetGoal (1);
-	loadSetLoaded (1);
+	loadSetGoal (65536);
+	while (!outOfTime (timer) && delay < 65536)
+	{
+		delay++;
+		loadSetLoaded (delay);
+	}
+	printf ("ran out of time at %d\n", i);
 }
 
 /***
