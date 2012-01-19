@@ -441,7 +441,7 @@ void worldImprint (SUBHEX at)
 		int
 			j,
 			adjHeight[2],
-			adjHeightAvg;
+			cornerHeight;
 		HEXSTEP
 			baseStep;
 		baseStep = *(HEXSTEP *)dynarr_at (hex->hex.steps, 0);
@@ -450,15 +450,9 @@ void worldImprint (SUBHEX at)
 		{
 			adjHeight[0] = mapDataBaryInterpolate (at, x + XY[j][X], y + XY[j][Y], "height");
 			adjHeight[1] = mapDataBaryInterpolate (at, x + XY[(j + 1) % 6][X], y + XY[(j + 1) % 6][Y], "height");
-			adjHeightAvg = (adjHeight[0] + adjHeight[1]) / 2;
-			if (adjHeightAvg < height)
-			{
-				SETCORNER (baseStep->corners, j, (adjHeightAvg - height) / 2 - 1);
-			}
-			else if (adjHeightAvg > height)
-			{
-				SETCORNER (baseStep->corners, j, (adjHeightAvg - height) / 2 + 1);
-			}
+
+			cornerHeight = (height + adjHeight[0] + adjHeight[1]) / 3;
+			SETCORNER (baseStep->corners, j, cornerHeight - height);
 			
 			j++;
 		}
