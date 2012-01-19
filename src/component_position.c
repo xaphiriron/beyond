@@ -194,16 +194,15 @@ void position_baryPoints (Entity e, SUBHEX * platters, float * weights)
 	v2c (&pos->pos, &x, &y);
 	hex_xy2rki (x, y, &r, &k, &i);
 	platters[1] = mapHexAtCoordinateAuto (platters[0], 0, XY[k][X], XY[k][Y]);
-	// this isn't actually correct -- if positions were only in the centre of hexes this would be fine, but they can be anywhere. this check tends to get weights that have -0.02 or w/e as their third weight near the edges of the tris, since the wrong one is picked as the third - xph 2012 01 15
-	if (i < r / 2.0)
-		third = (k + 5) % 6;
-	else
+	distance[0] = mapDistanceBetween (platters[0], platters[1]);
+	if (turns (pos->pos.x, pos->pos.z, 0.0, 0.0, distance[0].x, distance[0].z) == RIGHT)
 		third = (k + 1) % 6;
+	else
+		third = (k + 5) % 6;
 	platters[2] = mapHexAtCoordinateAuto (platters[0], 0, XY[third][X], XY[third][Y]);
+	distance[1] = mapDistanceBetween (platters[0], platters[2]);
 
 	inversePos = vectorMultiplyByScalar (&pos->pos, -1);
-	distance[0] = mapDistanceBetween (platters[0], platters[1]);
-	distance[1] = mapDistanceBetween (platters[0], platters[2]);
 	//printf ("have pos %.2f,%.2f w/ 0,0; %.2f,%.2f; %.2f,%.2f\n", pos->pos.x, pos->pos.z, distance[0].x, distance[0].z, distance[1].x, distance[1].z);
 	baryWeights (&inversePos, &distance[0], &distance[1], weights);
 }
