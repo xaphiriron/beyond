@@ -273,6 +273,7 @@ void loadSetLoaded (unsigned int loaded)
 		return;
 	}
 	SysLoader.loaded = loaded;
+	SysLoader.percentage = loaded / SysLoader.goal * 100;
 }
 
 void loadSetText (char * displayText)
@@ -404,23 +405,16 @@ void systemRender (Dynarr entities)
 	{
 		glDisable (GL_DEPTH_TEST);
 		glColor3f (0.0, 0.0, 0.0);
+
 		glBegin (GL_QUADS);
-		glVertex3f (video_pixelXMap (0), video_pixelYMap (0), video_getZnear ());
-		glVertex3f (video_pixelXMap (0), video_pixelYMap (height), video_getZnear ());
-		glVertex3f (video_pixelXMap (width), video_pixelYMap (height), video_getZnear ());
-		glVertex3f (video_pixelXMap (width), video_pixelYMap (0), video_getZnear ());
-
-		glColor3f (0.0, 0.0, 1.0);
-		glVertex3f (0, 0, zNear);
-		glVertex3f (5, 0, zNear);
-		glVertex3f (5, 5, zNear);
-		glVertex3f (0, 5, zNear);
-
+		glVertex3f (video_pixelXMap (0), video_pixelYMap (0), zNear);
+		glVertex3f (video_pixelXMap (0), video_pixelYMap (height), zNear);
+		glVertex3f (video_pixelXMap (width), video_pixelYMap (height), zNear);
+		glVertex3f (video_pixelXMap (width), video_pixelYMap (0), zNear);
 		glEnd ();
 		glColor3f (1.0, 1.0, 1.0);
 		fontPrint ("loading...", width/2, height/2);
 
-		
 		snprintf (loadStr, 64, "(%d / %d, %.2f%%)", SysLoader.loaded, SysLoader.goal, SysLoader.percentage);
 
 		fontPrint (loadStr, width/2, height/2 + 32);
