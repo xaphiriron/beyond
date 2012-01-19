@@ -21,13 +21,19 @@ ALIGN_JUSTIFY = 4
 */
 };
 
+typedef struct font_textcache * Text;
+
 void fontLoad (const char * path, int fontSize);
 void fontUnload ();
 
 int fontLineHeight ();
 
+Text fontGenerate (const char * text, enum textAlignType align, int x, int y, int w);
+void fontDestroyText (Text t);
+
 enum textAlignType fontPrintAlign (enum textAlignType);
 void fontPrint (const char * text, int x, int y);
+void fontTextPrint (Text t);
 
 
 #endif /* XPH_FONT_H */

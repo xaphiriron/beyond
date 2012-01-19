@@ -1,13 +1,13 @@
 #include "font.h"
 
-static int next_power (int n)
+struct font_textcache
 {
+	float
+		* vertices,
+		* textures;
 	int
-		r = 1;
-	while (r < n)
-		r <<= 1;
-	return r;
-}
+		glyphs;
+};
 
 struct font_char
 {
@@ -17,6 +17,16 @@ struct font_char
 		xadvance,
 		topBearing;
 };
+
+static int next_power (int n)
+{
+	int
+		r = 1;
+	while (r < n)
+		r <<= 1;
+	return r;
+}
+
 
 #define GLYPH_COUNT 256
 
@@ -185,6 +195,200 @@ enum textAlignType fontPrintAlign (enum textAlignType align)
 }
 
 
+Text fontGenerate (const char * text, enum textAlignType align, int x, int y, int w)
+{
+	Text
+		words = xph_alloc (sizeof (struct font_textcache));
+
+	unsigned int
+		width, height;
+	int
+		i = 0,
+		lineAdvance = 0,
+		tabAdvance = 0;
+	unsigned char
+		c;
+	float
+		glX, glY, glW, glH,
+		gltX, gltY, gltW, gltH,
+		glTB,
+		zNear = video_getZnear () - 0.001;
+
+	words->vertices = xph_alloc (sizeof (float) * 4 * 3 * strlen (text));
+	words->textures = xph_alloc (sizeof (float) * 4 * 2 * strlen (text));
+	words->glyphs = 0;
+
+	video_getDimensions (&width, &height);
+	if (x < 0)
+		glX = video_xMap (width + x);
+	else
+		glX = video_xMap (x);
+	if (y < 0)
+		glY = video_yMap (height + (y + FontSizeInPx));
+	else
+		glY = video_yMap (y + FontSizeInPx);
+
+	// this is obnoxious but a right-aligned line has to be stepped through backwards and it's just easier to write it its own traversal code rather than try to make the standard loop go backwards or forwards depending - xph 2012 01 08
+	if (align == ALIGN_RIGHT)
+	{
+		const char
+			* nextLine = text;
+		bool
+			doneReading = false;
+		nextLine = strchr (nextLine + 1, '\n');
+		if (nextLine)
+			i = nextLine - text;
+		else
+			i = strlen (text);
+		c = text[i];
+		while (!doneReading)
+		{
+			c = text[--i];
+			switch (c)
+			{
+				case '\n':
+					glX = video_xMap (x);
+					glY += video_yOffset (FontSizeInPx);
+					lineAdvance = 0;
+
+					// can't just break since we're in a switch, but since hitting this means we're at the end of the text; you can just return - xph 2012 01 08
+					if (!nextLine)
+					{
+						doneReading = true;
+						break;
+					}
+
+					nextLine = strchr (nextLine + 1, '\n');
+					if (nextLine)
+						i = nextLine - text;
+					else
+						i = strlen (text);
+					continue;
+				case ' ':
+					glX -= video_xOffset (GlyphSheet->glyphs[c].xadvance);
+					lineAdvance -= GlyphSheet->glyphs[c].xadvance;
+					continue;
+			}
+			if (doneReading)
+				break;
+			glW = video_xOffset (GlyphSheet->glyphs[c].width);
+			glH = video_yOffset (GlyphSheet->glyphs[c].height);
+			glTB = video_yOffset (-GlyphSheet->glyphs[c].topBearing);
+
+			glX -= video_xOffset (GlyphSheet->glyphs[c].xadvance);
+			lineAdvance -= GlyphSheet->glyphs[c].xadvance;
+			fontTexelCoords (c, &gltX, &gltY, &gltW, &gltH);
+
+			words->vertices[words->glyphs * 3 + 0] = glX;
+			words->vertices[words->glyphs * 3 + 1] = glY + glTB + glH;
+			words->vertices[words->glyphs * 3 + 2] = zNear;
+			words->textures[words->glyphs * 2 + 0] = gltX;
+			words->textures[words->glyphs * 2 + 1] = gltY + gltH;
+			words->glyphs++;
+			words->vertices[words->glyphs * 3 + 0] = glX + glW;
+			words->vertices[words->glyphs * 3 + 1] = glY + glTB + glH;
+			words->vertices[words->glyphs * 3 + 2] = zNear;
+			words->textures[words->glyphs * 2 + 0] = gltX + gltW;
+			words->textures[words->glyphs * 2 + 1] = gltY + gltH;
+			words->glyphs++;
+			words->vertices[words->glyphs * 3 + 0] = glX + glW;
+			words->vertices[words->glyphs * 3 + 1] = glY + glTB;
+			words->vertices[words->glyphs * 3 + 2] = zNear;
+			words->textures[words->glyphs * 2 + 0] = gltX + gltW;
+			words->textures[words->glyphs * 2 + 1] = gltY;
+			words->glyphs++;
+			words->vertices[words->glyphs * 3 + 0] = glX;
+			words->vertices[words->glyphs * 3 + 1] = glY + glTB;
+			words->vertices[words->glyphs * 3 + 2] = zNear;
+			words->textures[words->glyphs * 2 + 0] = gltX;
+			words->textures[words->glyphs * 2 + 1] = gltY;
+			words->glyphs++;
+
+			if (i == 0)
+			{
+				glX = video_xMap (x);
+				glY += video_yOffset (FontSizeInPx);
+				lineAdvance = 0;
+
+				if (!nextLine)
+					break;
+				nextLine = strchr (nextLine + 1, '\n');
+				if (nextLine)
+					i = nextLine - text;
+				else
+					i = strlen (text);
+				continue;
+			}
+		}
+	}
+	else
+	{
+		while ((c = text[i++]))
+		{
+			switch (c)
+			{
+				case '\n':
+					glX = video_xMap (x);
+					glY += video_yOffset (FontSizeInPx);
+					lineAdvance = 0;
+					continue;
+				case '\t':
+					tabAdvance = (GlyphSheet->glyphs[' '].xadvance * 8) - lineAdvance % (GlyphSheet->glyphs[' '].xadvance * 8);
+					lineAdvance += tabAdvance;
+					glX += video_xOffset (tabAdvance);
+					continue;
+				case ' ':
+					glX += video_xOffset (GlyphSheet->glyphs[c].xadvance);
+					lineAdvance += GlyphSheet->glyphs[c].xadvance;
+					continue;
+				default:
+					break;
+			}
+			glW = video_xOffset (GlyphSheet->glyphs[c].width);
+			glH = video_yOffset (GlyphSheet->glyphs[c].height);
+			glTB = video_yOffset (-GlyphSheet->glyphs[c].topBearing);
+			fontTexelCoords (c, &gltX, &gltY, &gltW, &gltH);
+
+			words->vertices[words->glyphs * 3 + 0] = glX;
+			words->vertices[words->glyphs * 3 + 1] = glY + glTB + glH;
+			words->vertices[words->glyphs * 3 + 2] = zNear;
+			words->textures[words->glyphs * 2 + 0] = gltX;
+			words->textures[words->glyphs * 2 + 1] = gltY + gltH;
+			words->glyphs++;
+			words->vertices[words->glyphs * 3 + 0] = glX + glW;
+			words->vertices[words->glyphs * 3 + 1] = glY + glTB + glH;
+			words->vertices[words->glyphs * 3 + 2] = zNear;
+			words->textures[words->glyphs * 2 + 0] = gltX + gltW;
+			words->textures[words->glyphs * 2 + 1] = gltY + gltH;
+			words->glyphs++;
+			words->vertices[words->glyphs * 3 + 0] = glX + glW;
+			words->vertices[words->glyphs * 3 + 1] = glY + glTB;
+			words->vertices[words->glyphs * 3 + 2] = zNear;
+			words->textures[words->glyphs * 2 + 0] = gltX + gltW;
+			words->textures[words->glyphs * 2 + 1] = gltY;
+			words->glyphs++;
+			words->vertices[words->glyphs * 3 + 0] = glX;
+			words->vertices[words->glyphs * 3 + 1] = glY + glTB;
+			words->vertices[words->glyphs * 3 + 2] = zNear;
+			words->textures[words->glyphs * 2 + 0] = gltX;
+			words->textures[words->glyphs * 2 + 1] = gltY;
+			words->glyphs++;
+
+			glX += video_xOffset (GlyphSheet->glyphs[c].xadvance);
+			lineAdvance += GlyphSheet->glyphs[c].xadvance;
+		}
+	}
+
+	return words;
+}
+
+void fontDestroyText (Text t)
+{
+	xph_free (t->vertices);
+	xph_free (t->textures);
+	xph_free (t);
+}
+
 /*
 {
 	// * 4 since there are four points per quad; * 3/2 since there are 3/2 values per point (3 space, 2 texture)
@@ -193,6 +397,8 @@ enum textAlignType fontPrintAlign (enum textAlignType align)
 		* glyphTexs = xph_alloc (sizeof (float) * 4 * 2 * strlen (text));
 	int
 		quadsUsed = 0;
+	GLuint
+		TextBuffer;
 
 	// generate buffer
 	glGenBuffer (1, &TextBuffer);
@@ -228,144 +434,27 @@ static void fontTexelCoords (unsigned int point, float * x, float * y, float * w
 // TODO: a 'width' argument to allow for centred or justified text (+ automatic word-wrapping?)
 void fontPrint (const char * text, int x, int y)
 {
-	unsigned int
-		width, height;
-	int
-		i = 0,
-		lineAdvance = 0,
-		tabAdvance = 0;
-	unsigned char
-		c;
-	float
-		glX, glY, glW, glH,
-		gltX, gltY, gltW, gltH,
-		glTB,
-		zNear = video_getZnear () - 0.001;
+	Text
+		words = fontGenerate (text, TextAlign, x, y, 0);
+	fontTextPrint (words);
+	fontDestroyText (words);
+	return;
+}
 
-	video_getDimensions (&width, &height);
-	if (x < 0)
-		glX = video_xMap (width + x);
-	else
-		glX = video_xMap (x);
-	if (y < 0)
-		glY = video_yMap (height + (y + FontSizeInPx));
-	else
-		glY = video_yMap (y + FontSizeInPx);
+void fontTextPrint (Text t)
+{
+	glEnableClientState (GL_VERTEX_ARRAY);
+	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
 
+	glColor4ub (0xff, 0xff, 0xff, 0xff);
 	glBindTexture (GL_TEXTURE_2D, GlyphSheet->name);
 
-	if (TextAlign == ALIGN_RIGHT)
-	{
-		// this is obnoxious but a right-aligned line has to be stepped through backwards and it's just easier to write it its own traversal code rather than try to make the standard loop go backwards or forwards depending - xph 2012 01 08
-		const char
-			* nextLine = text;
-		nextLine = strchr (nextLine + 1, '\n');
-		if (nextLine)
-			i = nextLine - text;
-		else
-			i = strlen (text);
-		c = text[i];
-		glBegin (GL_QUADS);
-		while ((c = text[--i]))
-		{
-			switch (c)
-			{
-				case '\n':
-					glX = video_xMap (x);
-					glY += video_yOffset (FontSizeInPx);
-					lineAdvance = 0;
+	glVertexPointer (3, GL_FLOAT, 0, t->vertices);
+	glTexCoordPointer (2, GL_FLOAT, 0, t->textures);
+	glDrawArrays (GL_QUADS, 0, t->glyphs);
 
-					// can't just break since we're in a switch, but since hitting this means we're at the end of the text youcan just return - xph 2012 01 08
-					if (!nextLine)
-					{
-						glEnd ();
-						return;
-					}
-					nextLine = strchr (nextLine + 1, '\n');
-					if (nextLine)
-						i = nextLine - text;
-					else
-						i = strlen (text);
-					continue;
-				case ' ':
-					glX -= video_xOffset (GlyphSheet->glyphs[c].xadvance);
-					lineAdvance -= GlyphSheet->glyphs[c].xadvance;
-					continue;
-			}
-			glW = video_xOffset (GlyphSheet->glyphs[c].width);
-			glH = video_yOffset (GlyphSheet->glyphs[c].height);
-			glTB = video_yOffset (-GlyphSheet->glyphs[c].topBearing);
+	glDisableClientState (GL_VERTEX_ARRAY);
+	glDisableClientState (GL_TEXTURE_COORD_ARRAY);
 
-			glX -= video_xOffset (GlyphSheet->glyphs[c].xadvance);
-			lineAdvance -= GlyphSheet->glyphs[c].xadvance;
-			fontTexelCoords (c, &gltX, &gltY, &gltW, &gltH);
-
-			glTexCoord2f (gltX, gltY + gltH);
-			glVertex3f (glX, glY + glTB + glH, zNear);
-			glTexCoord2f (gltX + gltW, gltY + gltH);
-			glVertex3f (glX + glW, glY + glTB + glH, zNear);
-			glTexCoord2f (gltX + gltW, gltY);
-			glVertex3f (glX + glW, glY + glTB, zNear);
-			glTexCoord2f (gltX, gltY);
-			glVertex3f (glX, glY + glTB, zNear);
-
-			if (i == 0)
-			{
-				glX = video_xMap (x);
-				glY += video_yOffset (FontSizeInPx);
-				lineAdvance = 0;
-
-				if (!nextLine)
-					break;
-				nextLine = strchr (nextLine + 1, '\n');
-				if (nextLine)
-					i = nextLine - text;
-				else
-					i = strlen (text);
-				continue;
-			}
-		}
-	}
-
-	glBegin (GL_QUADS);
-	while ((c = text[i++]))
-	{
-		switch (c)
-		{
-			case '\n':
-				glX = video_xMap (x);
-				glY += video_yOffset (FontSizeInPx);
-				lineAdvance = 0;
-				continue;
-			case '\t':
-				tabAdvance = (GlyphSheet->glyphs[' '].xadvance * 8) - lineAdvance % (GlyphSheet->glyphs[' '].xadvance * 8);
-				lineAdvance += tabAdvance;
-				glX += video_xOffset (tabAdvance);
-				continue;
-			case ' ':
-				glX += video_xOffset (GlyphSheet->glyphs[c].xadvance);
-				lineAdvance += GlyphSheet->glyphs[c].xadvance;
-				continue;
-			default:
-				break;
-		}
-		glW = video_xOffset (GlyphSheet->glyphs[c].width);
-		glH = video_yOffset (GlyphSheet->glyphs[c].height);
-		glTB = video_yOffset (-GlyphSheet->glyphs[c].topBearing);
-
-		fontTexelCoords (c, &gltX, &gltY, &gltW, &gltH);
-
-		glTexCoord2f (gltX, gltY + gltH);
-		glVertex3f (glX, glY + glTB + glH, zNear);
-		glTexCoord2f (gltX + gltW, gltY + gltH);
-		glVertex3f (glX + glW, glY + glTB + glH, zNear);
-		glTexCoord2f (gltX + gltW, gltY);
-		glVertex3f (glX + glW, glY + glTB, zNear);
-		glTexCoord2f (gltX, gltY);
-		glVertex3f (glX, glY + glTB, zNear);
-
-		glX += video_xOffset (GlyphSheet->glyphs[c].xadvance);
-		lineAdvance += GlyphSheet->glyphs[c].xadvance;
-	}
-	glEnd ();
+	glBindTexture (GL_TEXTURE_2D, 0);
 }
