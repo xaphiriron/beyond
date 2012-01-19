@@ -689,7 +689,7 @@ static void parseImprintArg (Pattern context, Graph var)
 		* imprintArgs [] = {"target", "scale", "from", "value", ""},
 		* targets [] = {"centre", "inside", "border", ""},
 		* scales [] = {"constant", "linear", "sine", "exponent", ""},
-		* materials [] = {"mat_air", "mat_stone", "mat_dirt", "mat_grass", ""};
+		* materials [] = {"air", "stone", "dirt", "grass", "sand", "snow", "silt", "water", ""};
 	
 	argIndex = arg_match (imprintTypes, var->name);
 	printf ("got %s w/ index of %d\n", var->name, argIndex);

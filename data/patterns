@@ -3,42 +3,35 @@ pattern
 	name	"stone circle"
 	shape
 		circle
-			radius ( 8, 12 )
+			radius ( 4, 8 )
 	subvars
 		:radius radius
 		:height ( 7, 14 )
 	imprint
+		transmute
+			target inside
+			value snow
 		height
 			target inside
 			from centre
-			scale exponent
-			value -14
-		smooth
-			target inside
-			value 0xff
-		transmute
-			area surface
-			target inside
-			value mat_grass
+			scale sine
+			value -21
 	subpatterns
-		border
-			2 "standing stone"
-				multiple
-		centre
-			3 "centre space"
+		"standing stone"
+		"centre space"
 pattern
 	id		2
 	name	"standing stone"
 	shape
-		point
+		circle
+			radius 1
 	imprint
-		border
-			height
-				from centre
-				raise :height
-			transmute-surface
-				depth 4
-				value mat_stone
+		transmute
+			value silt
+		height
+			from centre
+			value 18
+			scale linear
 pattern
 	id		3
 	name	"centre space"
@@ -48,4 +41,4 @@ pattern
 	imprint
 		transmute
 			target inside
-			value mat_dirt
+			value silt

@@ -2459,9 +2459,12 @@ static void mapBakeHex (HEX hex)
 		high[2] = {0, 0},
 		low[2] = {0, 0},
 		* join;
+	// 2 = opaque, 1 = translucent, 0 = transparent; a join is drawn when the step's opacity is higher than the adjacent step's
+	char
+		stepOpacity,
+		lastOpacity = 0,
+		lastAdjOpacity = 0;
 	bool
-		lastStepTransparent = true,
-		lastAdjStepTransparent = true,
 		validJoin = false;
 	while (dir < 6)
 	{
@@ -2482,14 +2485,20 @@ static void mapBakeHex (HEX hex)
 		step->info.jit[4] = &VertexJitter [vertex (hex->x, hex->y, 5)];
 		step->info.jit[5] = &VertexJitter [vertex (hex->x, hex->y, 0)];
 
-		if (!lastStepTransparent && matParam (step->material, "transparent"))
+		stepOpacity = matParam (step->material, "opaque")
+			? 2
+			: matParam (step->material, "translucent")
+				? 1
+				: 0;
+
+		if (lastOpacity > stepOpacity)
 			lastStep->info.undersideVisible = true;
-		if (lastStepTransparent && !matParam (step->material, "transparent"))
+		if (stepOpacity > lastOpacity && stepOpacity != 0)
 			step->info.surfaceVisible = true;
 
-		if (matParam (step->material, "transparent"))
+		if (stepOpacity == 0)
 		{
-			lastStepTransparent = true;
+			lastOpacity = stepOpacity;
 			lastStep = step;
 			continue;
 		}
@@ -2504,7 +2513,7 @@ static void mapBakeHex (HEX hex)
 				step->info.visibleJoin[dir] = dynarr_create (2, sizeof (unsigned int *));
 			adjHex = hex->adjacent[dir];
 			lastAdjStep = NULL;
-			lastAdjStepTransparent = true;
+			lastAdjOpacity = 0;
 			j = dynarr_size (adjHex->steps);
 			while ((adjStep = *(HEXSTEP *)dynarr_at (adjHex->steps, --j)))
 			{
@@ -2512,30 +2521,34 @@ static void mapBakeHex (HEX hex)
 				// FIXME: i think all these uses of EDGE_HIGHER might be wrong since it's very much a directional test but i don't remember which vertices are being checked -- it should be step dir & dir + 1 vs adjacent dir + 4 & and + 3 but i haven't checked because i'm dumb - xph 2012 01 11
 				if (EDGE_HIGHER (dir, step, adjStep))
 				{
-					lastAdjStepTransparent = matParam (adjStep->material, "transparent");
+					lastAdjOpacity = matParam (adjStep->material, "opaque")
+						? 2
+						: matParam (adjStep->material, "translucent")
+							? 1
+							: 0;
 					lastAdjStep = adjStep;
 					continue;
 				}
 
-				if (lastAdjStep && !lastAdjStepTransparent && FULLHEIGHT (lastAdjStep, (dir + 4) % 6) > FULLHEIGHT (step, dir))
+				if (lastAdjStep && stepOpacity < lastAdjOpacity && FULLHEIGHT (lastAdjStep, (dir + 4) % 6) > FULLHEIGHT (step, dir))
 					high[0] = FULLHEIGHT (lastAdjStep, (dir + 4) % 6);
 				else
 					high[0] = FULLHEIGHT (step, dir);
 
 
-				if (lastAdjStep && !lastAdjStepTransparent && FULLHEIGHT (lastAdjStep, (dir + 3) % 6) > FULLHEIGHT (step, (dir + 1) % 6))
+				if (lastAdjStep && stepOpacity < lastAdjOpacity && FULLHEIGHT (lastAdjStep, (dir + 3) % 6) > FULLHEIGHT (step, (dir + 1) % 6))
 					high[1] = FULLHEIGHT (lastAdjStep, (dir + 3) % 6);
 				else
 					high[1] = FULLHEIGHT (step, (dir + 1) % 6);
 
 
-				if (lastAdjStepTransparent && nextStep && !EDGE_HIGHER (dir, nextStep, adjStep))
+				if (stepOpacity > lastAdjOpacity && nextStep && !EDGE_HIGHER (dir, nextStep, adjStep))
 				{
 					low[0] = FULLHEIGHT (nextStep, dir);
 					low[1] = FULLHEIGHT (nextStep, (dir + 1) % 6);
 					validJoin = true;
 				}
-				else if (lastAdjStepTransparent && !EDGE_HIGHER (dir, step, adjStep))
+				else if (stepOpacity > lastAdjOpacity && !EDGE_HIGHER (dir, step, adjStep))
 				{
 					low[0] = FULLHEIGHT (adjStep, (dir + 4) % 6);
 					low[1] = FULLHEIGHT (adjStep, (dir + 3) % 6);
@@ -2552,13 +2565,18 @@ static void mapBakeHex (HEX hex)
 					dynarr_push (step->info.visibleJoin[dir], join);
 				}
 
-				lastAdjStepTransparent = matParam (adjStep->material, "transparent");
+
+				lastAdjOpacity = matParam (adjStep->material, "opaque")
+					? 2
+					: matParam (adjStep->material, "translucent")
+						? 1
+						: 0;
 				lastAdjStep = adjStep;
 			}
 			dir++;
 		}
 
-		lastStepTransparent = false;
+		lastOpacity = stepOpacity;
 		lastStep = step;
 	}
 }
@@ -2566,21 +2584,14 @@ static void mapBakeHex (HEX hex)
 void mapDraw (const float const * matrix)
 {
 	VECTOR3
-		centreOffset,
-		norm;
+		centreOffset;
 	hexPos
 		pos;
 	SUBHEX
 		sub;
 	unsigned int
-		tier1Detail = hx (AbsoluteViewLimit + 1),/*
-		tier2Detail = hx (AbsoluteViewLimit / 2),
-		tier3Detail = hx (AbsoluteViewLimit),*/
+		tier1Detail = hx (AbsoluteViewLimit + 1),
 		i = 0;
-	float
-		facing = matrixHeading (matrix),
-		platterAngle = 0,
-		diff = 0;
 	if (RenderCache == NULL)
 	{
 		ERROR ("Cannot draw map: Render cache is uninitialized.");
@@ -2590,51 +2601,33 @@ void mapDraw (const float const * matrix)
 	{
 		pos = *(hexPos *)dynarr_at (RenderCache, i);
 		sub = map_posFocusedPlatter (pos);
-		if (!sub)
+		if (!sub || sub->sub.loaded == false)
 		{
 			i++;
 			continue;
 		}
 		centreOffset = Distance[i];
-		if (i > 6)
-		{
-			norm = vectorNormalize (&centreOffset);
-			platterAngle = atan2 (norm.z, norm.x);
-			diff = facing - platterAngle;
-			if (diff > M_PI)
-				diff = (M_PI * -2) + diff;
-			if (diff < -M_PI)
-				diff = (M_PI * 2) + diff;
-			//printf ("render at %.2f, %.2f has angle %f (vs. facing of %f; diff %f)\n", norm.z, norm.x, platterAngle, facing, diff);
-			if (fabs (diff - M_PI_2) >= M_PI_2)
-			{
-				i++;
-				continue;
-			}
-		}
-
-		DEBUG ("trying to render the subhex %d-th in the cache (hexPos val: %p)", i, pos);
-		DEBUG (" - centre offset: %f %f %f", centreOffset.x, centreOffset.y, centreOffset.z);
-		//DEBUG (" - target: %p", sub);
-		i++;
-		if (sub == NULL || subhexSpanLevel (sub) != 1 || sub->sub.loaded == false)
-		{
-			//DEBUG ("skipping value; subhex is NULL (%p) or span level isn't 1 (%d)", sub, sub == NULL ? -1 : subhexSpanLevel (sub));
-			continue;
-		}
-		subhexDraw (&sub->sub, centreOffset);
-	}/*
-	while (i < tier2Detail)
-	{
+		subhexDraw (&sub->sub, centreOffset, HEX_SOLID);
 		i++;
 	}
-	while (i < tier3Detail)
+
+	i = 0;
+	while (i < tier1Detail)
 	{
+		pos = *(hexPos *)dynarr_at (RenderCache, i);
+		sub = map_posFocusedPlatter (pos);
+		if (!sub || sub->sub.loaded == false)
+		{
+			i++;
+			continue;
+		}
+		centreOffset = Distance[i];
+		subhexDraw (&sub->sub, centreOffset, HEX_TRANSLUCENT);
 		i++;
-	}*/
+	}
 }
 
-void subhexDraw (const SUBDIV sub, const VECTOR3 offset)
+void subhexDraw (const SUBDIV sub, const VECTOR3 offset, enum drawTypes type)
 {
 	SUBHEX
 		hex;
@@ -2648,7 +2641,7 @@ void subhexDraw (const SUBDIV sub, const VECTOR3 offset)
 	{
 		hex = sub->data[i];
 		assert (hex != NULL);
-		hexDraw (&hex->hex, offset);
+		hexDraw (&hex->hex, offset, type);
 		i++;
 	}
 	//FUNCCLOSE ();
@@ -2815,7 +2808,7 @@ void drawHexEdge (const struct hexColumn * const hex, const HEXSTEP step, unsign
 
 
 
-void hexDraw (const HEX hex, const VECTOR3 centreOffset)
+void hexDraw (const HEX hex, const VECTOR3 centreOffset, enum drawTypes drawType)
 {
 	VECTOR3
 		hexOffset = hex_xyCoord2Space (hex->x, hex->y),
@@ -2831,6 +2824,11 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset)
 
 	while ((step = *(HEXSTEP *)dynarr_at (hex->steps, --column)))
 	{
+		if (drawType == HEX_TRANSLUCENT && !matParam (step->material, "translucent"))
+			continue;
+		else if (drawType == HEX_SOLID && !matParam (step->material, "opaque"))
+			continue;
+
 		if (step->info.undersideVisible)
 			drawHexUnderside (hex, *(HEXSTEP *)dynarr_at (hex->steps, column - 1), step->material, &totalOffset, DRAW_NORMAL);
 		if (step->info.surfaceVisible)

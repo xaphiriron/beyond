@@ -6,6 +6,7 @@
 enum matOpacity
 {
 	MAT_OPAQUE,
+	MAT_TRANSLUCENT,
 	MAT_TRANSPARENT,
 };
 
@@ -66,6 +67,41 @@ void materialsGenerate ()
 	mat->color[3] = 0xff;
 	dynarr_assign (materialList, MAT_GRASS, mat);
 
+	mat = xph_alloc (sizeof (struct material_specification));
+	mat->id = MAT_SAND;
+	mat->opacity = MAT_OPAQUE;
+	mat->color[0] = 0xff;
+	mat->color[1] = 0xdd;
+	mat->color[2] = 0x77;
+	mat->color[3] = 0xff;
+	dynarr_assign (materialList, MAT_SAND, mat);
+
+	mat = xph_alloc (sizeof (struct material_specification));
+	mat->id = MAT_SNOW;
+	mat->opacity = MAT_OPAQUE;
+	mat->color[0] = 0xff;
+	mat->color[1] = 0xff;
+	mat->color[2] = 0xff;
+	mat->color[3] = 0xff;
+	dynarr_assign (materialList, MAT_SNOW, mat);
+
+	mat = xph_alloc (sizeof (struct material_specification));
+	mat->id = MAT_SILT;
+	mat->opacity = MAT_OPAQUE;
+	mat->color[0] = 0xaf;
+	mat->color[1] = 0x8f;
+	mat->color[2] = 0x6f;
+	mat->color[3] = 0xff;
+	dynarr_assign (materialList, MAT_SILT, mat);
+
+	mat = xph_alloc (sizeof (struct material_specification));
+	mat->id = MAT_WATER;
+	mat->opacity = MAT_TRANSLUCENT;
+	mat->color[0] = 0x22;
+	mat->color[1] = 0x66;
+	mat->color[2] = 0xcc;
+	mat->color[3] = 0x7f;
+	dynarr_assign (materialList, MAT_WATER, mat);
 }
 
 MATSPEC material (enum materials mat)
@@ -111,16 +147,11 @@ unsigned char materialParam (const MATSPEC mat, const char * param)
 	}
 	if (strcmp (param, "opaque") == 0)
 		return mat->opacity == MAT_OPAQUE;
-	if (strcmp (param, "transparent") == 0)
+	else if (!strcmp (param, "translucent"))
+		return mat->opacity == MAT_TRANSLUCENT;
+	else if (strcmp (param, "transparent") == 0)
 		return mat->opacity == MAT_TRANSPARENT;
 	else if (strcmp (param, "visible") == 0)
 		return mat->opacity != MAT_TRANSPARENT;
 	return 0;
-}
-
-bool matspecIsOpaque (const MATSPEC mat)
-{
-	if (mat == NULL)
-		return false;
-	return mat->opacity == MAT_OPAQUE;
 }

@@ -214,14 +214,20 @@ VECTOR3 mapDistance (const hexPos a, const hexPos b);
  * RENDERING FUNCTIONS
  */
 
+enum drawTypes
+{
+	HEX_SOLID,
+	HEX_TRANSLUCENT,
+};
+
 void mapBakeEdgeHexes (SUBHEX subhex, unsigned int dir);
 void mapBakeHexes (SUBHEX subhex);
 
 void worldSetRenderCacheCentre (SUBHEX origin);
 VECTOR3 renderOriginDistance (const SUBHEX hex);
 void mapDraw (const float const * matrix);
-void subhexDraw (const SUBDIV sub, const VECTOR3 offset);
-void hexDraw (const HEX hex, const VECTOR3 centreOffset);
+void subhexDraw (const SUBDIV sub, const VECTOR3 offset, enum drawTypes type);
+void hexDraw (const HEX hex, const VECTOR3 centreOffset, enum drawTypes type);
 
 enum map_draw_types
 {
