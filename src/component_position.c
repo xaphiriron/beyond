@@ -14,7 +14,10 @@ struct position_data { // POSITION
 	VECTOR3
 		pos;		// distance from the center of {ground}
 	SUBHEX
-		ground;
+		ground,
+		hex;
+	HEXSTEP
+		over;
 
 	hexPos
 		position;
@@ -38,9 +41,6 @@ void position_define (EntComponent position, EntSpeech speech)
 	component_registerResponse ("position", "__destroy", position_destroy);
 
 	component_registerResponse ("position", "CONTROL_INPUT", position_inputResponse);
-
-	component_registerResponse ("position", "getHex", position_getHex);
-	component_registerResponse ("position", "getHexAngle", position_getHexAngle);
 }
 
 static void position_create (EntComponent comp, EntSpeech speech)
@@ -132,6 +132,8 @@ void position_placeOnHexStep (Entity e, HEX hex, HEXSTEP step)
 	oldGround = pos->ground;
 	newGround = hexPos_platter (newPos, 1);
 	pos->ground = newGround;
+	pos->hex = (SUBHEX)hex;
+	pos->over = step;
 	entity_speak (e, "positionUpdate", NULL);
 	if (oldGround != newGround)
 		position_messageGroundChange (entity_getAs (e, "position"), oldGround, pos->ground);
@@ -205,6 +207,15 @@ void position_baryPoints (Entity e, SUBHEX * platters, float * weights)
 	inversePos = vectorMultiplyByScalar (&pos->pos, -1);
 	//printf ("have pos %.2f,%.2f w/ 0,0; %.2f,%.2f; %.2f,%.2f\n", pos->pos.x, pos->pos.z, distance[0].x, distance[0].z, distance[1].x, distance[1].z);
 	baryWeights (&inversePos, &distance[0], &distance[1], weights);
+}
+
+unsigned int position_height (Entity e)
+{
+	POSITION
+		pos = component_getData (entity_getAs (e, "position"));
+	if (!pos || !pos->over)
+		return 0;
+	return pos->over->height;
 }
 
 
@@ -316,6 +327,8 @@ bool position_move (Entity e, VECTOR3 move)
 	if (!newStep)
 		newStep = *(HEXSTEP *)dynarr_back (newHex->hex.steps);
 	newPosition.y = newStep->height * HEX_SIZE_4;
+	pdata->over = newStep;
+	pdata->hex = newHex;
 
 	if (!validMove)
 	{
@@ -639,30 +652,4 @@ const AXES * const position_getMoveAxesR (const POSITION p)
 	if (p->dirty)
 		position_updateAxesFromOrientation (p);
 	return &p->move;
-}
-
-
-/***
- * POSITION COMPONENT
- */
-
-void position_getHex (EntComponent position, EntSpeech speech)
-{
-	POSITION
-		pData = component_getData (position);
-	SUBHEX
-		* hex = speech->arg;
-	signed int
-		x, y;
-	v2c (&pData->pos, &x, &y);
-	*hex = subhexData (pData->ground, x, y);
-}
-
-void position_getHexAngle (EntComponent position, EntSpeech speech)
-{
-	POSITION
-		pData = component_getData (position);
-	float
-		* hexAngle = speech->arg;
-	*hexAngle = position_getHeadingR (pData);
 }

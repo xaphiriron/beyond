@@ -41,6 +41,8 @@ VECTOR3 position_renderCoords (Entity e);
 VECTOR3 position_distanceBetween (Entity e, Entity t);
 void position_baryPoints (Entity e, SUBHEX * platters, float * weights);
 
+unsigned int position_height (Entity e);
+
 
 void position_unset (Entity e);
 void position_setDirect (Entity e, VECTOR3 pos, SUBHEX ground);

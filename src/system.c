@@ -530,8 +530,8 @@ char * systemGenDebugStr ()
 		len = 0,
 		span = mapGetSpan (),
 		radius = mapGetRadius ();
-// 	unsigned int
-// 		height = 0;
+	unsigned int
+		height = 0;
 	Entity
 		player = entity_getByName ("PLAYER"),
 		camera = entity_getByName ("CAMERA");
@@ -568,7 +568,8 @@ char * systemGenDebugStr ()
 		len += snprintf (buffer, 63, "\t%d: %d, %d\n", i, x, y);
 		strncat (debugDisplay, buffer, DEBUGLEN - len);
 	}
-	len += snprintf (buffer, 63, "\nheight: ???\n");
+	height = position_height (player);
+	len += snprintf (buffer, 63, "\nheight: %u\n", height);
 	strncat (debugDisplay, buffer, DEBUGLEN - len);
 
 	return debugDisplay;
