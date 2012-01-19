@@ -960,7 +960,7 @@ SUBHEX hexPos_platter (const hexPos pos, unsigned char focus)
 {
 	assert (pos != NULL);
 	if (focus < pos->focus)
-		WARNING ("Getting the %d-th platter of a postion only focused to %d; (result: %p)", focus, pos->focus, pos->platter[focus]);
+		WARNING ("Getting the %d-th platter of a position only focused to %d; (result: %p)", focus, pos->focus, pos->platter[focus]);
 	return pos->platter[focus];
 }
 
@@ -1789,6 +1789,41 @@ signed int mapDataGet (SUBHEX at, const char * type)
 		return 0;
 	}
 	return match->value;
+}
+
+signed int mapDataBaryInterpolate (SUBHEX base, int x, int y, const char * type)
+{
+	unsigned int
+		r, k, i,
+		tri;
+	SUBHEX
+		platter[2];
+	VECTOR3
+		xyLoc,
+		distance[2];
+	int
+		value[3],
+		final;
+	float
+		weight[3];
+
+	hex_xy2rki (x, y, &r, &k, &i);
+	if (i < r / 2.0)
+		tri = (k + 5) % 6;
+	else
+		tri = (k + 1) % 6;
+	xyLoc = hex_xyCoord2Space (x, y);
+	xyLoc = vectorMultiplyByScalar (&xyLoc, -1);
+	platter[0] = mapHexAtCoordinateAuto (base, 0, XY[k][X], XY[k][Y]);
+	platter[1] = mapHexAtCoordinateAuto (base, 0, XY[tri][X], XY[tri][Y]);
+	distance[0] = mapDistanceBetween (base, platter[0]);
+	distance[1] = mapDistanceBetween (base, platter[1]);
+	value[0] = mapDataGet (base, type);
+	value[1] = mapDataGet (platter[0], type);
+	value[2] = mapDataGet (platter[1], type);
+	baryWeights (&xyLoc, &distance[0], &distance[1], weight);
+	final = value[0] * weight[0] + value[1] * weight[1] + value[2] * weight[2];
+	return final;
 }
 
 const Dynarr mapDataTypes (SUBHEX at)

@@ -12,6 +12,8 @@
 #include "component_position.h"
 #include "comp_arch.h"
 
+#include "comp_chaser.h"
+
 // this is very much a makeshift way of addressing arches; it's to be replaced with a general arch list or something??
 static Entity
 	base;
@@ -26,7 +28,7 @@ void worldInit ()
 		pos;
 	FUNCOPEN ();
 	
-	mapSetSpanAndRadius (4, 8);
+	mapSetSpanAndRadius (2, 8);
 	mapGeneratePoles ();
 
 	materialsGenerate ();
@@ -37,11 +39,11 @@ void worldInit ()
 
 	base = entity_create ();
 	component_instantiate ("position", base);
+	component_instantiate ("arch", base);
+	entity_refresh (base);
 	pos = map_randomPos ();
 	map_posSwitchFocus (pos, 1);
 	position_set (base, pos);
-	component_instantiate ("arch", base);
-
 	entity_message (base, NULL, "setArchPattern", patternGet (1));
 
 	FUNCCLOSE ();
@@ -50,9 +52,14 @@ void worldInit ()
 void worldFinalize ()
 {
 	hexPos
-		centre;
+		centre/*,
+		randPos*/;
 	Entity
-		plant;
+// 		npc1,
+// 		npc2,
+// 		npc3,
+		plant,
+		player;
 	SUBHEX
 		basePlatter,
 		baseHex;
@@ -69,6 +76,7 @@ void worldFinalize ()
 	map_posSwitchFocus (centre, 1);
 	printf ("creating player\n");
 	systemCreatePlayer (base);
+	player = entity_getByName ("PLAYER");
 
 	basePlatter = hexPos_platter (centre, 1);
 	baseHex = subhexData (basePlatter, 0, 0);
@@ -80,13 +88,48 @@ void worldFinalize ()
 	position_placeOnHexStep (plant, &baseHex->hex, baseStep);
 	//position_set (plant, map_copy (position_get (base)));
 
-//	Entity
-//		npc;
-// 	npc = entity_create ();
-// 	component_instantiate ("position", npc);
-// 	component_instantiate ("body", npc);
-// 	position_copy (npc, player);
-// 	entity_refresh (npc);
+/*
+	npc1 = entity_create ();
+	component_instantiate ("position", npc1);
+	component_instantiate ("body", npc1);
+	component_instantiate ("chaser", npc1);
+	component_instantiate ("walking", npc1);
+	entity_refresh (npc1);
+
+	npc2 = entity_create ();
+	component_instantiate ("position", npc2);
+	component_instantiate ("body", npc2);
+	component_instantiate ("chaser", npc2);
+	component_instantiate ("walking", npc2);
+	entity_refresh (npc2);
+
+	npc3 = entity_create ();
+	component_instantiate ("position", npc3);
+	component_instantiate ("body", npc3);
+	component_instantiate ("chaser", npc3);
+	component_instantiate ("walking", npc3);
+	entity_refresh (npc3);
+
+	randPos = map_randomPositionNear (centre, 1);
+	baseHex = hexPos_platter (randPos, 0);
+	position_placeOnHexStep (npc1, &baseHex->hex, hexGroundStepNear (&baseHex->hex, 0));
+	map_freePos (randPos);
+	chaser_target (npc1, player, 1.0);
+
+	randPos = map_randomPositionNear (centre, 1);
+	baseHex = hexPos_platter (randPos, 0);
+	position_placeOnHexStep (npc2, &baseHex->hex, hexGroundStepNear (&baseHex->hex, 0));
+	map_freePos (randPos);
+	chaser_target (npc2, player, 1.0);
+
+	randPos = map_randomPositionNear (centre, 1);
+	baseHex = hexPos_platter (randPos, 0);
+	position_placeOnHexStep (npc3, &baseHex->hex, hexGroundStepNear (&baseHex->hex, 0));
+	map_freePos (randPos);
+	chaser_target (npc3, player, 1.0);
+
+	printf ("made entity #%d, #%d, #%d; npcs\n", entity_GUID (npc1), entity_GUID (npc2), entity_GUID (npc3));
+	*/
 
 
 	systemClearStates();
@@ -96,50 +139,244 @@ void worldFinalize ()
 
 void worldGenerate (TIMER timer)
 {
-	static int
-		delay = 0;
+	static enum
+	{
+		SET_HEIGHT_BASE,
+		SUBDIVIDE_POLE_R,
+		SUBDIVIDE_POLE_G,
+		SUBDIVIDE_POLE_B,
+		SET_TEMP_POLE_R,
+		SET_TEMP_POLE_G,
+		SET_TEMP_POLE_B,
+		SET_HEIGHT_POLE_R,
+		SET_HEIGHT_POLE_G,
+		SET_HEIGHT_POLE_B,
+
+		SEALEVEL_CALC,
+		SET_LAND_SEA_POLE_R,
+		SET_LAND_SEA_POLE_G,
+		SET_LAND_SEA_POLE_B,
+
+		EXPAND_ARCH,
+		WORLDGEN_DONE,
+	} stage = SET_HEIGHT_BASE;
+	static SUBHEX
+		pole[3] = {NULL, NULL, NULL};
+	SUBHEX
+		active;
 
 	int
 		i = 0,
 		max = fx (MapRadius),
-		x, y;
+		x, y,
+		val;
+	static int
+		maxHeight = 0,
+		minHeight = INT_MAX,
+		seaLevel = 0;
 
-	SUBHEX
-		pole[3],
-		active;
-	pole[0] = mapPole ('r');
-	pole[1] = mapPole ('g');
-	pole[2] = mapPole ('b');
-	mapForceSubdivide (pole[0]);
-	mapForceSubdivide (pole[1]);
-	mapForceSubdivide (pole[2]);
-
-	i = 0;
-	while (i < max)
+	if (pole[0] == NULL)
 	{
-		hex_unlineate (i, &x, &y);
-		active = subhexData (pole[0], x, y);
-		mapDataSet (active, "tempAvg", 2048 - ((MapRadius + 1) - hexMagnitude (x, y)) * 2048);
-		mapDataSet (active, "tempVar", ((MapRadius + 1) - hexMagnitude (x, y)) * 1024);
-		active = subhexData (pole[1], x, y);
-		mapDataSet (active, "tempAvg", 2048 - ((MapRadius + 1) - hexMagnitude (x, y)) * 2048);
-		mapDataSet (active, "tempVar", ((MapRadius + 1) - hexMagnitude (x, y)) * 1024);
-		active = subhexData (pole[2], x, y);
-		mapDataSet (active, "tempAvg", 2048 - ((MapRadius + 1) - hexMagnitude (x, y)) * 2048);
-		mapDataSet (active, "tempVar", ((MapRadius + 1) - hexMagnitude (x, y)) * 1024);
-		i++;
+		pole[0] = mapPole ('r');
+		pole[1] = mapPole ('g');
+		pole[2] = mapPole ('b');
 	}
 
-	// pick unexpanded arch at the highest level; expand it; repeat until there are no more arches on that level; repeat from top
-	entity_message (base, NULL, "archExpand", NULL);
+	loadSetGoal (20);
 
-	loadSetGoal (65536);
-	while (!outOfTime (timer) && delay < 65536)
+	while (!outOfTime (timer) && stage < WORLDGEN_DONE)
 	{
-		delay++;
-		loadSetLoaded (delay);
+		switch (stage)
+		{
+			case SET_HEIGHT_BASE:
+				val = rand () & ((1 << 8) - 1);
+				if (maxHeight < val)
+					maxHeight = val;
+				if (minHeight > val)
+					minHeight = val;
+				mapDataSet (pole[0], "height", val);
+				val = rand () & ((1 << 8) - 1);
+				if (maxHeight < val)
+					maxHeight = val;
+				if (minHeight > val)
+					minHeight = val;
+				mapDataSet (pole[1], "height", val);
+				val = rand () & ((1 << 8) - 1);
+				if (maxHeight < val)
+					maxHeight = val;
+				if (minHeight > val)
+					minHeight = val;
+				mapDataSet (pole[2], "height", val);
+				loadSetLoaded (1);
+				break;
+			case SUBDIVIDE_POLE_R:
+				mapForceSubdivide (pole[0]);
+				loadSetLoaded (2);
+				break;
+			case SUBDIVIDE_POLE_G:
+				mapForceSubdivide (pole[1]);
+				loadSetLoaded (3);
+				break;
+			case SUBDIVIDE_POLE_B:
+				mapForceSubdivide (pole[2]);
+				loadSetLoaded (4);
+				break;
+			case SET_TEMP_POLE_R:
+				i = 0;
+				while (i < max)
+				{
+					hex_unlineate (i, &x, &y);
+					active = subhexData (pole[0], x, y);
+					mapDataSet (active, "tempAvg", 2048 - ((MapRadius + 1) - hexMagnitude (x, y)) * 2048);
+					mapDataSet (active, "tempVar", ((MapRadius + 1) - hexMagnitude (x, y)) * 1024);
+					i++;
+				}
+				loadSetLoaded (5);
+				break;
+			case SET_TEMP_POLE_G:
+				i = 0;
+				while (i < max)
+				{
+					hex_unlineate (i, &x, &y);
+					active = subhexData (pole[1], x, y);
+					mapDataSet (active, "tempAvg", 2048 - ((MapRadius + 1) - hexMagnitude (x, y)) * 2048);
+					mapDataSet (active, "tempVar", ((MapRadius + 1) - hexMagnitude (x, y)) * 1024);
+					i++;
+				}
+				loadSetLoaded (6);
+				break;
+			case SET_TEMP_POLE_B:
+				i = 0;
+				while (i < max)
+				{
+					hex_unlineate (i, &x, &y);
+					active = subhexData (pole[2], x, y);
+					mapDataSet (active, "tempAvg", 2048 - ((MapRadius + 1) - hexMagnitude (x, y)) * 2048);
+					mapDataSet (active, "tempVar", ((MapRadius + 1) - hexMagnitude (x, y)) * 1024);
+					i++;
+				}
+				loadSetLoaded (7);
+				break;
+			case SET_HEIGHT_POLE_R:
+				i = 0;
+				while (i < max)
+				{
+					hex_unlineate (i, &x, &y);
+					active = subhexData (pole[0], x, y);
+					mapDataAdd (active, "height", rand () & ((1 << 7) - 1));
+					val = mapDataGet (active, "height");
+					if (maxHeight < val)
+						maxHeight = val;
+					if (minHeight > val)
+						minHeight = val;
+					i++;
+				}
+				loadSetLoaded (8);
+				break;
+			case SET_HEIGHT_POLE_G:
+				i = 0;
+				while (i < max)
+				{
+					hex_unlineate (i, &x, &y);
+					active = subhexData (pole[1], x, y);
+					mapDataAdd (active, "height", rand () & ((1 << 7) - 1));
+					val = mapDataGet (active, "height");
+					if (maxHeight < val)
+						maxHeight = val;
+					if (minHeight > val)
+						minHeight = val;
+					i++;
+				}
+				loadSetLoaded (9);
+				break;
+			case SET_HEIGHT_POLE_B:
+				i = 0;
+				while (i < max)
+				{
+					hex_unlineate (i, &x, &y);
+					active = subhexData (pole[2], x, y);
+					mapDataAdd (active, "height", rand () & ((1 << 7) - 1));
+					val = mapDataGet (active, "height");
+					if (maxHeight < val)
+						maxHeight = val;
+					if (minHeight > val)
+						minHeight = val;
+					i++;
+				}
+				loadSetLoaded (10);
+				break;
+
+			case SEALEVEL_CALC:
+				seaLevel = minHeight + (maxHeight / 2);
+				break;
+			case SET_LAND_SEA_POLE_R:
+				i = 0;
+				while (i < max)
+				{
+					hex_unlineate (i, &x, &y);
+					active = subhexData (pole[0], x, y);
+					mapDataSet (active, "seaLevel", seaLevel);
+					val = mapDataGet (active, "height");
+					if (val <= seaLevel)
+						mapDataSet (active, "sea", 4);
+					else
+						mapDataSet (active, "land", 4);
+					i++;
+				}
+				break;
+			case SET_LAND_SEA_POLE_G:
+				i = 0;
+				while (i < max)
+				{
+					hex_unlineate (i, &x, &y);
+					active = subhexData (pole[1], x, y);
+					mapDataSet (active, "seaLevel", seaLevel);
+					val = mapDataGet (active, "height");
+					if (val <= seaLevel)
+						mapDataSet (active, "sea", 4);
+					else
+						mapDataSet (active, "land", 4);
+					i++;
+				}
+				break;
+			case SET_LAND_SEA_POLE_B:
+				i = 0;
+				while (i < max)
+				{
+					hex_unlineate (i, &x, &y);
+					active = subhexData (pole[2], x, y);
+					mapDataSet (active, "seaLevel", seaLevel);
+					val = mapDataGet (active, "height");
+					if (val <= seaLevel)
+						mapDataSet (active, "sea", 4);
+					else
+						mapDataSet (active, "land", 4);
+					i++;
+				}
+				break;
+
+
+			case EXPAND_ARCH:
+				//entity_message (base, NULL, "archExpand", NULL);
+				loadSetLoaded (19);
+				break;
+			case WORLDGEN_DONE:
+				
+				loadSetGoal (20);
+				loadSetLoaded (20);
+				break;
+		}
+		stage++;
 	}
-	printf ("ran out of time at %d\n", i);
+
+	if (stage >= WORLDGEN_DONE)
+	{
+		loadSetGoal (20);
+		loadSetLoaded (20);
+		return;
+	}
+	else
+		printf ("ran out of time on stage %d\n", stage);
 }
 
 /***
@@ -149,14 +386,85 @@ void worldGenerate (TIMER timer)
 void worldImprint (SUBHEX at)
 {
 	int
-		i = 0;
+		i = 0,
+		hexCount = fx (MapRadius),
+		x, y;
 	Entity
 		arch;
 	Dynarr
 		arches;
+	SUBHEX
+		hex;
+
+	signed int
+		height,
+		seaDiff,
+		seaLevel,
+		randVar;
+	unsigned int
+		matType;
 
 	if (subhexSpanLevel (at) != 1)
 		return;
+
+	while (i < hexCount)
+	{
+		hex_unlineate (i, &x, &y);
+		hex = subhexData (at, x, y);
+		height = mapDataBaryInterpolate (at, x, y, "height");
+		seaLevel = mapDataGet (at, "seaLevel");
+		randVar = (rand () & 7) - 3;
+		seaDiff = (height + randVar) - seaLevel;
+		if (seaDiff < -8)
+			matType = MAT_SILT;
+		else if (seaDiff < 8)
+			matType = MAT_SAND;
+		else if (seaDiff < 10)
+			matType = MAT_DIRT;
+		else if (seaDiff < 52)
+			matType = MAT_GRASS;
+		else if (seaDiff < 72)
+			matType = MAT_STONE;
+		else
+			matType = MAT_SNOW;
+
+		if (height < seaLevel)
+		{
+			hexSetBase (&hex->hex, height, material (matType));
+			hexCreateStep (&hex->hex, seaLevel, material (MAT_WATER));
+		}
+		else
+		{
+			hexSetBase (&hex->hex, height, material (matType));
+		}
+
+		int
+			j,
+			adjHeight[2],
+			adjHeightAvg;
+		HEXSTEP
+			baseStep;
+		baseStep = *(HEXSTEP *)dynarr_at (hex->hex.steps, 0);
+		j = 0;
+		while (j < 6)
+		{
+			adjHeight[0] = mapDataBaryInterpolate (at, x + XY[j][X], y + XY[j][Y], "height");
+			adjHeight[1] = mapDataBaryInterpolate (at, x + XY[(j + 1) % 6][X], y + XY[(j + 1) % 6][Y], "height");
+			adjHeightAvg = (adjHeight[0] + adjHeight[1]) / 2;
+			if (adjHeightAvg < height)
+			{
+				SETCORNER (baseStep->corners, j, (adjHeightAvg - height) / 2 - 1);
+			}
+			else if (adjHeightAvg > height)
+			{
+				SETCORNER (baseStep->corners, j, (adjHeightAvg - height) / 2 + 1);
+			}
+			
+			j++;
+		}
+
+		i++;
+	}
 
 	arches = archOrderFor (at);
 	i = 0;

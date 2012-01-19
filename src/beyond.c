@@ -106,7 +106,7 @@ void finalize (void)
 
 	/* this is just a filler that ought to be set elsewhere and remembered */
 	// this seed starts right next to a pole edge; use it for testing pole issues
-	t = 1326314242; //time (NULL);
+	t = time (NULL); // 1326314242;
 	srand (t);
 	printf ("seed: %d\n", t);
 
