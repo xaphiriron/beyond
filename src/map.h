@@ -141,6 +141,9 @@ signed int * const mapSpanCentres (const unsigned char span);
  * MAP DATA LAYER FUNCTIONS
  */
 
+void hex_addOccupant (HEX hex, HEXSTEP step, Entity e);
+void hex_removeOccupant (HEX hex, HEXSTEP step, Entity e);
+
 void mapDataSet (SUBHEX at, const char * type, signed int amount);
 signed int mapDataAdd (SUBHEX at, const char * type, signed int amount);
 signed int mapDataGet (SUBHEX at, const char * type);

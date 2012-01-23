@@ -288,6 +288,7 @@ SUBHEX mapHexCreate (const SUBHEX parent, signed int x, signed int y)
 	sh->hex.light = (r > MapRadius / 2) ^ (i % 2 | !r);
 
 	sh->hex.steps = dynarr_create (8, sizeof (HEXSTEP));
+	sh->hex.occupants = dynarr_create (2, sizeof (struct hex_occupant *));
 
 	hexSetBase (&sh->hex, 0, material (MAT_AIR));
 
@@ -465,6 +466,11 @@ void subhexDestroy (SUBHEX subhex)
 	}
 	else if (subhex->type == HS_HEX)
 	{
+		dynarr_map (subhex->hex.steps, xph_free);
+		dynarr_destroy (subhex->hex.steps);
+
+		dynarr_map (subhex->hex.occupants, xph_free);
+		dynarr_destroy (subhex->hex.occupants);
 	}
 	else
 	{
@@ -1698,6 +1704,37 @@ static bool coordinatesOverflow (const signed int x, const signed int y, const s
 
 static int mapIntrCmp (const void * a, const void * b);
 static int mapExtrCmp (const void * k, const void * d);
+
+void hex_addOccupant (HEX hex, HEXSTEP step, Entity e)
+{
+	struct hex_occupant
+		* occ = xph_alloc (sizeof (struct hex_occupant));
+	occ->occupant = e;
+	occ->over = step;
+	dynarr_push (hex->occupants, occ);
+	//printf ("#%d occupying a hex %d,%d at height %d\n", entity_GUID (e), hex->x, hex->y, step->height);
+}
+
+void hex_removeOccupant (HEX hex, HEXSTEP step, Entity e)
+{
+	struct hex_occupant
+		* occ;
+	int
+		i = 0;
+	
+	while ((occ = *(struct hex_occupant **)dynarr_at (hex->occupants, i)))
+	{
+		if (occ->over == step && occ->occupant == e)
+		{
+			//printf ("#%d leaving a hex %d,%d at height %d\n", entity_GUID (e), hex->x, hex->y, step->height);
+			dynarr_unset (hex->occupants, i);
+			dynarr_condense (hex->occupants);
+			xph_free (occ);
+			break;
+		}
+		i++;
+	}
+}
 
 static struct mapData * mapDataCreate ()
 {

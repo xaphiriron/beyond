@@ -14,8 +14,7 @@ struct position_data { // POSITION
 	VECTOR3
 		pos;		// distance from the center of {ground}
 	SUBHEX
-		ground,
-		hex;
+		ground;
 	HEXSTEP
 		over;
 
@@ -132,8 +131,8 @@ void position_placeOnHexStep (Entity e, HEX hex, HEXSTEP step)
 	oldGround = pos->ground;
 	newGround = hexPos_platter (newPos, 1);
 	pos->ground = newGround;
-	pos->hex = (SUBHEX)hex;
 	pos->over = step;
+	hex_addOccupant (hex, step, e);
 	entity_speak (e, "positionUpdate", NULL);
 	if (oldGround != newGround)
 		position_messageGroundChange (entity_getAs (e, "position"), oldGround, pos->ground);
@@ -304,7 +303,8 @@ bool position_move (Entity e, VECTOR3 move)
 		newPosition;
 	SUBHEX
 		newGround = NULL,
-		newHex;
+		newHex,
+		currentHex;
 	HEXSTEP
 		newStep;
 	bool
@@ -323,13 +323,25 @@ bool position_move (Entity e, VECTOR3 move)
 	validMove = mapMove (pdata->ground, &newRawPosition, &newGround, &newPosition);
 	v2c (&newPosition, &newX, &newY);
 	newHex = subhexData (newGround, newX, newY);
+	currentHex = hexPos_platter (pdata->position, 0);
 	newStep = hexGroundStepNear (&newHex->hex, pdata->pos.y / HEX_SIZE_4);
 	if (!newStep)
 		newStep = *(HEXSTEP *)dynarr_back (newHex->hex.steps);
 	newPosition.y = newStep->height * HEX_SIZE_4;
+	if (newHex != currentHex || newStep != pdata->over)
+	{
+		hex_removeOccupant (&currentHex->hex, pdata->over, e);
+		hex_addOccupant (&newHex->hex, newStep, e);
+	}
 	pdata->over = newStep;
-	pdata->hex = newHex;
 
+	/* FIXME: this valid move check is entirely pointless; i don't think
+	 * mapMove /can/ return false these days, and absolutely no code is written
+	 * to handle a position with a fidelity of less than perfect resolution
+	 * (including this function, which crashes when an entity tries to move
+	 * onto an unloaded hex); really this entire function is a mess
+	 *  - xph 2012 01 23
+	 */
 	if (!validMove)
 	{
 		if (newGround != NULL && subhexSpanLevel (pdata->ground) < subhexSpanLevel (newGround))

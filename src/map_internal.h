@@ -39,6 +39,14 @@ struct hex_render_info
 		dummy;
 };
 
+struct hex_occupant
+{
+	Entity
+		occupant;
+	struct hexStep
+		* over;
+};
+
 struct hexColumn
 {
 	enum hexOrSubdivType
@@ -51,7 +59,8 @@ struct hexColumn
 		light;
 
 	Dynarr
-		steps;
+		steps,
+		occupants;
 	struct hexColumn
 		* adjacent[6];
 
