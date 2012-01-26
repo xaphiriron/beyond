@@ -444,6 +444,9 @@ void component_cameraControlResponse (EntComponent camera, EntSpeech speech)
 	const struct input_event
 		* ie = speech->arg;
 
+	if (!ie->active)
+		return;
+
 	switch (ie->code)
 	{
 		case IR_CAMERA_MODE_SWITCH:
