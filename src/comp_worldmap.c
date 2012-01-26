@@ -11,6 +11,7 @@
 static void worldmap_create (EntComponent comp, EntSpeech speech);
 static void worldmap_destroy (EntComponent comp, EntSpeech speech);
 static void worldmap_input (EntComponent comp, EntSpeech speech);
+static void worldmap_gainFocus (EntComponent comp, EntSpeech speech);
 static void worldmap_loseFocus (EntComponent comp, EntSpeech speech);
 static void worldmap_draw (EntComponent comp, EntSpeech speech);
 
@@ -27,6 +28,7 @@ void worldmap_define (EntComponent comp, EntSpeech speech)
 	component_registerResponse ("worldmap", "FOCUS_INPUT", worldmap_input);
 	component_registerResponse ("worldmap", "CONTROL_INPUT", worldmap_input);
 
+	component_registerResponse ("worldmap", "gainFocus", worldmap_gainFocus);
 	component_registerResponse ("worldmap", "loseFocus", worldmap_loseFocus);
 
 	component_registerResponse ("worldmap", "guiDraw", worldmap_draw);
@@ -134,6 +136,18 @@ static void worldmap_input (EntComponent comp, EntSpeech speech)
 	}
 }
 
+static void worldmap_gainFocus (EntComponent comp, EntSpeech speech)
+{
+	worldmapData
+		map = component_getData (entity_getAs (Worldmap, "worldmap"));
+	hexPos
+		pos = position_get (entity_getByName ("PLAYER"));
+
+	map->types = mapDataTypes (hexPos_platter (pos, map->spanFocus));
+	if (map->types)
+		map->typeFocus = 0;
+}
+
 static void worldmap_loseFocus (EntComponent comp, EntSpeech speech)
 {
 	worldmapData
@@ -147,6 +161,7 @@ static void worldmap_loseFocus (EntComponent comp, EntSpeech speech)
 		map->spanTextures[i] = NULL;
 		i++;
 	}
+	map->types = NULL;
 	map->typeFocus = -1;
 	map->spanTypeFocus = FOCUS_SPAN;
 }
