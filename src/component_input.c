@@ -2,6 +2,8 @@
 
 #include "video.h"
 #include "system.h"
+#include "ogdl/ogdl.h"
+#include "xph_path.h"
 
 #include "component_ui.h"
 #include "graph_common.h"
@@ -60,6 +62,9 @@ static INPUT
 static Keycode * key_create (const char * name);
 static bool key_match (const Keycode * key, SDLKey sym);
 
+static void input_loadConfig (const Graph config);
+static void input_loadDefaults ();
+
 
 struct input * input_create ()
 {
@@ -69,26 +74,6 @@ struct input * input_create ()
 	i->focusedEntities = dynarr_create (2, sizeof (Entity *));
 
 	i->active = true;
-
-	// fill out the control map here or elsewhere (probably elsewhere in the config/defaults function), but it needs to be populated with the actual key data before any SDL events are checked.
-	dynarr_assign (i->controlMap, IR_QUIT, key_create ("Escape"));
-	dynarr_assign (i->controlMap, IR_VIEW_WIREFRAME_SWITCH, key_create ("W"));
-	dynarr_assign (i->controlMap, IR_FREEMOVE_MOVE_LEFT, key_create ("Left"));
-	dynarr_assign (i->controlMap, IR_FREEMOVE_MOVE_RIGHT, key_create ("Right"));
-	dynarr_assign (i->controlMap, IR_FREEMOVE_MOVE_FORWARD, key_create ("Up"));
-	dynarr_assign (i->controlMap, IR_FREEMOVE_MOVE_BACKWARD, key_create ("Down"));
-	dynarr_assign (i->controlMap, IR_FREEMOVE_AUTOMOVE, key_create ("Q"));
-	dynarr_assign (i->controlMap, IR_CAMERA_MODE_SWITCH, key_create ("Tab"));
-	dynarr_assign (i->controlMap, IR_WORLDMAP_SWITCH, key_create ("/"));
-
-	dynarr_assign (i->controlMap, IR_UI_MENU_INDEX_UP, key_create ("Up"));
-	dynarr_assign (i->controlMap, IR_UI_MENU_INDEX_DOWN, key_create ("Down"));
-	dynarr_assign (i->controlMap, IR_UI_CONFIRM, key_create ("Return"));
-	dynarr_assign (i->controlMap, IR_UI_MODE_SWITCH, key_create ("Tab"));
-
-	dynarr_assign (i->controlMap, IR_DEBUG_SWITCH, key_create ("F3"));
-
-	dynarr_assign (i->controlMap, IR_WORLD_PLACEARCH, key_create ("Z"));
 
 	return i;
 }
@@ -245,6 +230,9 @@ static void input_loseFocus (EntComponent comp, EntSpeech speech);
 
 void input_define (EntComponent inputComponent, EntSpeech speech)
 {
+	Graph
+		config;
+
 	component_registerResponse ("input", "__classDestroy", input_classDestroy);
 
 	component_registerResponse ("input", "__create", input_componentCreate);
@@ -254,6 +242,14 @@ void input_define (EntComponent inputComponent, EntSpeech speech)
 	component_registerResponse ("input", "loseFocus", input_loseFocus);
 
 	Input = input_create ();
+	config = Ogdl_load (absolutePath ("../data/settings"));
+	if (config)
+	{
+		input_loadConfig (config);
+		Graph_free (config);
+	}
+	else
+		input_loadDefaults ();
 }
 
 static void input_classDestroy (EntComponent comp, EntSpeech speech)
@@ -394,6 +390,103 @@ void input_system (Dynarr entities)
 				break;
 		}
 	}
+}
+
+
+static void input_loadConfig (const Graph config)
+{
+	// this requires the same indexing as the inputCodes enum in component_input.h
+	static char
+		* inputCodePaths [] =
+	{
+		"", // IR_NOTHING
+		".keys.world.forward", // IR_FREEMOVE_MOVE_FORWARD
+		".keys.world.backward", // IR_FREEMOVE_MOVE_BACKWARD
+		".keys.world.left", // IR_FREEMOVE_MOVE_LEFT
+		".keys.world.right", // IR_FREEMOVE_MOVE_RIGHT
+		".keys.world.automove", // IR_FREEMOVE_AUTOMOVE
+		"", // IR_FREEMOVE_MOUSEMOVE
+		"", // IR_FREEMOVE_MOUSECLICK
+		".keys.world.camera_mode", // IR_CAMERA_MODE_SWITCH
+		".keys.wireframe_mode", // IR_VIEW_WIREFRAME_SWITCH
+		".keys.worldmap", // IR_WORLDMAP_SWITCH
+		".keys.position_debug", // IR_DEBUG_SWITCH
+		".keys.ui.up", // IR_UI_MENU_INDEX_UP
+		".keys.ui.down", // IR_UI_MENU_INDEX_DOWN
+		".keys.ui.cancel", // IR_UI_CANCEL
+		".keys.ui.confirm", // IR_UI_CONFIRM
+		".keys.ui.mode", // IR_UI_MODE_SWITCH
+		"", // IR_UI_MOUSEMOVE
+		"", // IR_UI_MOUSECLICK
+		".keys.arch_test", // IR_WORLD_PLACEARCH
+		"", // IR_WORLDGEN
+		".keys.quit", // IR_QUIT
+		"", // IR_FINAL
+	};
+
+	int
+		i = 0;
+	Graph
+		node,
+		keybind;
+
+	Graph_print (config);
+	while (i < IR_FINAL)
+	{
+		if (inputCodePaths[i][0] == 0 || !(node = Graph_get (config, inputCodePaths[i])))
+		{
+			i++;
+			continue;
+		}
+		keybind = Graph_get (node, "[0]");
+		if (!keybind)
+		{
+			ERROR ("Key path \"%s\" has no binding; can't use", inputCodePaths[i]);
+			i++;
+			continue;
+		}
+		printf ("%s: %s\n", inputCodePaths[i], keybind->name);
+		dynarr_assign (Input->controlMap, i, key_create (keybind->name));
+		i++;
+	}
+}
+
+static void input_loadDefaults ()
+{
+	Graph
+		fakeConfig = Graph_new ("__root__"),
+		keys,
+		world,
+		ui;
+
+	Graph_set (fakeConfig, ".", Graph_new ("keys"));
+	keys = Graph_get (fakeConfig, "keys");
+
+	Graph_set (keys, ".quit", Graph_new ("Escape"));
+	Graph_set (keys, ".worldmap", Graph_new ("/"));
+	Graph_set (keys, ".wireframe_mode", Graph_new ("W"));
+	Graph_set (keys, ".position_debug", Graph_new ("F3"));
+	Graph_set (keys, ".arch_test", Graph_new ("Z"));
+
+	Graph_set (keys, ".world", NULL);
+	world = Graph_get (keys, "world");
+	Graph_set (world, ".left", Graph_new ("Left"));
+	Graph_set (world, ".right", Graph_new ("Right"));
+	Graph_set (world, ".forward", Graph_new ("Up"));
+	Graph_set (world, ".backward", Graph_new ("Down"));
+	Graph_set (world, ".automove", Graph_new ("Q"));
+	Graph_set (world, ".camera_mode", Graph_new ("Tab"));
+
+	Graph_set (keys, ".ui", NULL);
+	ui = Graph_get (keys, "ui");
+	Graph_set (ui, ".up", Graph_new ("Up"));
+	Graph_set (ui, ".down", Graph_new ("Down"));
+	Graph_set (ui, ".confirm", Graph_new ("Enter"));
+	Graph_set (ui, ".cancel", Graph_new ("Space"));
+	Graph_set (ui, ".mode", Graph_new ("Tab"));
+
+	input_loadConfig (fakeConfig);
+	Graph_free (fakeConfig);
 }
 
 

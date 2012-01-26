@@ -1,0 +1,19 @@
+keys
+	quit			Escape
+	worldmap		/
+	world
+		forward		Up
+		backward	Down
+		left		Left
+		right		Right
+		automove	Q
+		camera_mode	Tab
+	ui
+		up			Up
+		down		Down
+		confirm		Enter
+		cancel		Space
+		mode		Tab
+	wireframe_mode	W
+	position_debug	F3
+	arch_test		Z
