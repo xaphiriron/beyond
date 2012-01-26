@@ -2,7 +2,8 @@
 
 #include "map_internal.h"
 
-struct position_data { // POSITION
+struct position_data // POSITION
+{
 	AXES
 		view,
 		move;
@@ -13,8 +14,6 @@ struct position_data { // POSITION
 
 	VECTOR3
 		pos;		// distance from the center of {ground}
-	SUBHEX
-		ground;
 	HEXSTEP
 		over;
 
@@ -55,6 +54,9 @@ static void position_create (EntComponent comp, EntSpeech speech)
 	position->view.front = vectorCreate (0.0, 0.0, 1.0);
 	position->move.front = vectorCreate (0.0, 0.0, 1.0);
 	position->orientation = quat_create (1.0, 0.0, 0.0, 0.0);
+
+	position->position = NULL;
+	position->pos = vectorCreate (0, 0, 0);
 
 	component_setData (comp, position);
 }
@@ -124,18 +126,19 @@ void position_placeOnHexStep (Entity e, HEX hex, HEXSTEP step)
 	newVector = hex_xyCoord2Space (hex->x, hex->y);
 	newVector.y = step->height * HEX_SIZE_4;
 
+	oldGround = pos->position ? hexPos_platter (pos->position, 1) : NULL;
+	if (pos->position)
+		map_freePos (pos->position);
 	pos->position = newPos;
 	pos->pos = newVector;
 	entity_speak (e, "positionSet", NULL);
 
-	oldGround = pos->ground;
 	newGround = hexPos_platter (newPos, 1);
-	pos->ground = newGround;
 	pos->over = step;
 	hex_addOccupant (hex, step, e);
 	entity_speak (e, "positionUpdate", NULL);
 	if (oldGround != newGround)
-		position_messageGroundChange (entity_getAs (e, "position"), oldGround, pos->ground);
+		position_messageGroundChange (entity_getAs (e, "position"), oldGround, newGround);
 }
 
 
@@ -147,10 +150,9 @@ VECTOR3 position_renderCoords (Entity e)
 		total;
 	POSITION
 		position = component_getData (entity_getAs (e, "position"));
-	if (position->position)
-		platter = renderOriginDistance (hexPos_platter (position->position, 1));
-	else
-		platter = renderOriginDistance (position->ground);
+	if (!position->position)
+		return vectorCreate (0.0, 0.0, 0.0);
+	platter = renderOriginDistance (hexPos_platter (position->position, 1));
 	total = vectorAdd (&platter, &position->pos);
 	return total;
 }
@@ -249,11 +251,12 @@ void position_unset (Entity e)
 		oldGround;
 	POSITION
 		pdata = component_getData (pc);
-	if (pdata == NULL)
+	if (pdata == NULL || pdata->position == NULL)
 		return;
 	//printf ("%s (#%d)...\n", __FUNCTION__, entity_GUID (e));
-	oldGround = pdata->ground;
-	pdata->ground = NULL;
+	oldGround = hexPos_platter (pdata->position, 1);
+	map_freePos (pdata->position);
+	pdata->position = NULL;
 	position_messageGroundChange (pc, oldGround, NULL);
 
 	FUNCCLOSE ();
@@ -276,12 +279,11 @@ void position_setDirect (Entity e, VECTOR3 pos, SUBHEX ground)
 		return;
 	}
 	pdata->pos = pos;
-	oldGround = pdata->ground;
-	pdata->ground = ground;
+	oldGround = pdata->position ? hexPos_platter (pdata->position, 1) : NULL;
 
 	entity_speak (e, "positionUpdate", NULL);
 	if (oldGround != ground)
-		position_messageGroundChange (pc, oldGround, pdata->ground);
+		position_messageGroundChange (pc, oldGround, ground);
 
 	int
 		x = 0, y = 0;
@@ -320,7 +322,7 @@ bool position_move (Entity e, VECTOR3 move)
 	}
 	newRawPosition = vectorAdd (&pdata->pos, &move);
 
-	validMove = mapMove (pdata->ground, &newRawPosition, &newGround, &newPosition);
+	validMove = mapMove (hexPos_platter (pdata->position, 1), &newRawPosition, &newGround, &newPosition);
 	v2c (&newPosition, &newX, &newY);
 	newHex = subhexData (newGround, newX, newY);
 	currentHex = hexPos_platter (pdata->position, 0);
@@ -344,9 +346,9 @@ bool position_move (Entity e, VECTOR3 move)
 	 */
 	if (!validMove)
 	{
-		if (newGround != NULL && subhexSpanLevel (pdata->ground) < subhexSpanLevel (newGround))
+		if (newGround != NULL && subhexSpanLevel (hexPos_platter (pdata->position, 1)) < subhexSpanLevel (newGround))
 		{
-			INFO ("Entity #%d's move has lost resolution: moving to span-%d platter from span-%d platter", entity_GUID (e), subhexSpanLevel (newGround), subhexSpanLevel (pdata->ground));
+			INFO ("Entity #%d's move has lost resolution: moving to span-%d platter from span-%d platter", entity_GUID (e), subhexSpanLevel (newGround), subhexSpanLevel (hexPos_platter (pdata->position, 1)));
 		}
 		else
 		{
@@ -365,17 +367,10 @@ void position_copy (Entity target, const Entity source)
 	const POSITION
 		sourcePosition = component_getData (entity_getAs (source, "position"));
 	position_setOrientation (target, sourcePosition->orientation);
-	position_setDirect (target, sourcePosition->pos, sourcePosition->ground);
-	if (sourcePosition->position)
-		position_set (target, map_copy (sourcePosition->position));
-	else
-	{
-		// in a perfect world all positions would have their hexPos position set, but they don't since i'm in the middle of a long, protracted, and sloppy transition from storing raw SUBHEXes to storing hexPos. so if there isn't a hexPos we create one. - xph 2011 12 23
-		int
-			x, y;
-		v2c (&sourcePosition->pos, &x, &y);
-		position_set (target, map_at (subhexData (sourcePosition->ground, x, y)));
-	}
+	position_setDirect (target, sourcePosition->pos, hexPos_platter (sourcePosition->position, 1));
+	if (!sourcePosition->position)
+		return;
+	position_set (target, map_copy (sourcePosition->position));
 }
 
 void position_setOrientation (Entity e, const QUAT q)
@@ -633,9 +628,9 @@ SUBHEX position_getGround (const Entity e)
 }
 SUBHEX position_getGroundR (const POSITION p)
 {
-	if (p == NULL)
+	if (p == NULL || p->position == NULL)
 		return NULL;
-	return p->ground;
+	return hexPos_platter (p->position, 1);
 }
 
 const AXES * const position_getViewAxes (const Entity e)
