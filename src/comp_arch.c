@@ -862,7 +862,7 @@ void builder_inputResponse (EntComponent comp, EntSpeech speech)
 	const struct input_event
 		* input = speech->arg;
 
-	switch (input->ir)
+	switch (input->code)
 	{
 		case IR_WORLD_PLACEARCH:
 			// FIXME: extra information this message needs to transmit somehow: the centre of the blueprint, the blueprint data itself (which is probably gonna be more complex than just "this pattern")

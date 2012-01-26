@@ -656,7 +656,7 @@ void ui_handleInput (EntComponent ui, EntSpeech speech)
 	switch (uiData->type)
 	{
 		case UI_MENU:
-			switch (inputEvent->ir)
+			switch (inputEvent->code)
 			{
 				case IR_UI_MENU_INDEX_DOWN:
 					if (uiData->menu.activeIndex < dynarr_size (uiData->menu.fragments) - 1)
@@ -802,7 +802,6 @@ void ui_system (Dynarr entities)
 
 			entity_refresh (debugUI);
 			entity_name (debugUI, "debugUI");
-			systemToggleAttr (SYS_DEBUG);
 		}
 	}
 

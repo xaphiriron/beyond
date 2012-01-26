@@ -491,31 +491,6 @@ static void renderSkyCube ()
 }
 
 
-bool systemToggleAttr (enum system_toggle_states toggle)
-{
-	switch (toggle)
-	{
-		case SYS_DEBUG:
-			System->debug ^= 1;
-			return System->debug;
-		default:
-			break;
-	}
-	return false;
-}
-
-bool systemAttr (enum system_toggle_states state)
-{
-	switch (state)
-	{
-		case SYS_DEBUG:
-			return System->debug;
-		default:
-			break;
-	}
-	return false;
-}
-
 char * systemGenDebugStr ()
 {
 	signed int

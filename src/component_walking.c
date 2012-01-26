@@ -128,45 +128,55 @@ void walking_doControlInputResponse (Entity e, const struct input_event * ie)
 		wdata = component_getData (entity_getAs (e, "walking"));
 	if (wdata == NULL)
 		return;
-	switch (ie->ir)
+	switch (ie->code)
 	{
 		case IR_FREEMOVE_AUTOMOVE:
-			if (wdata->automoveActive)
-				walking_end_movement (e, WALK_MOVE_FORWARD);
-			else
-				walking_begin_movement (e, WALK_MOVE_FORWARD);
-			wdata->automoveActive ^= 1;
+			if (ie->active)
+			{
+				if (wdata->automoveActive)
+					walking_end_movement (e, WALK_MOVE_FORWARD);
+				else
+					walking_begin_movement (e, WALK_MOVE_FORWARD);
+				wdata->automoveActive ^= 1;
+			}
 			break;
 		case IR_FREEMOVE_MOVE_FORWARD:
-			wdata->automoveActive = false;
-			walking_begin_movement (e, WALK_MOVE_FORWARD);
-			break;
-		case IR_FREEMOVE_MOVE_BACKWARD:
-			if (wdata->automoveActive)
+			if (ie->active)
+			{
+				wdata->automoveActive = false;
+				walking_begin_movement (e, WALK_MOVE_FORWARD);
+			}
+			else
 			{
 				walking_end_movement (e, WALK_MOVE_FORWARD);
-				wdata->automoveActive = false;
 			}
-			walking_begin_movement (e, WALK_MOVE_BACKWARD);
+			break;
+		case IR_FREEMOVE_MOVE_BACKWARD:
+			if (ie->active)
+			{
+				if (wdata->automoveActive)
+				{
+					wdata->automoveActive = false;
+					walking_end_movement (e, WALK_MOVE_FORWARD);
+				}
+				walking_begin_movement (e, WALK_MOVE_BACKWARD);
+			}
+			else
+			{
+				walking_end_movement (e, WALK_MOVE_BACKWARD);
+			}
 			break;
 		case IR_FREEMOVE_MOVE_LEFT:
-			walking_begin_movement (e, WALK_MOVE_LEFT);
+			if (ie->active)
+				walking_begin_movement (e, WALK_MOVE_LEFT);
+			else
+				walking_end_movement (e, WALK_MOVE_LEFT);
 			break;
 		case IR_FREEMOVE_MOVE_RIGHT:
-			walking_begin_movement (e, WALK_MOVE_RIGHT);
-			break;
-
-		case ~IR_FREEMOVE_MOVE_FORWARD:
-			walking_end_movement (e, WALK_MOVE_FORWARD);
-			break;
-		case ~IR_FREEMOVE_MOVE_BACKWARD:
-			walking_end_movement (e, WALK_MOVE_BACKWARD);
-			break;
-		case ~IR_FREEMOVE_MOVE_LEFT:
-			walking_end_movement (e, WALK_MOVE_LEFT);
-			break;
-		case ~IR_FREEMOVE_MOVE_RIGHT:
-			walking_end_movement (e, WALK_MOVE_RIGHT);
+			if (ie->active)
+				walking_begin_movement (e, WALK_MOVE_RIGHT);
+			else
+				walking_end_movement (e, WALK_MOVE_RIGHT);
 			break;
 
 		default:

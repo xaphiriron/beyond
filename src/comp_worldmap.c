@@ -80,7 +80,10 @@ static void worldmap_input (EntComponent comp, EntSpeech speech)
 	hexPos
 		pos = position_get (entity_getByName ("PLAYER"));
 	// the span index is backwards compared to usual because i'd like it to maintain the usual span mapping, which is 0 = hex level, MapSpan = pole level - xph 2012 01 17
-	switch (input->ir)
+	if (!input->active)
+		return;
+
+	switch (input->code)
 	{
 		case IR_UI_MENU_INDEX_DOWN:
 			if (map->spanTypeFocus == FOCUS_SPAN && map->spanFocus != 0)

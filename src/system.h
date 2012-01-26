@@ -6,11 +6,6 @@
 
 #include "map.h"
 
-enum system_toggle_states
-{
-	SYS_DEBUG = 1,
-};
-
 enum system_states
 {
 	STATE_ERROR				= 0x0000,
@@ -98,9 +93,6 @@ void system_registerTimedFunction (void (*func)(TIMER), unsigned char weight);
 void system_removeTimedFunction (void (*func)(TIMER));
 
 void systemCreatePlayer ();
-
-bool systemToggleAttr (enum system_toggle_states toggle);
-bool systemAttr (enum system_toggle_states state);
 
 typedef enum object_messages {
   OM_SHUTDOWN,

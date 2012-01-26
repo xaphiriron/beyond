@@ -12,11 +12,9 @@
 struct xph_input
 {
 	bool
-		gainsFocus,	// is this really necessary since i think having an input component period implies something /can/ be given focus
 		hasFocus;
 };
 
-bool input_setFocusable (Entity e, bool gainsFocus);
 bool input_hasFocus (Entity e);
 
 enum input_control_types
@@ -67,37 +65,21 @@ enum input_responses {
 	IR_FINAL
 };
 
-struct input_event
+typedef struct input_event
 {
-	enum input_responses ir;
-	SDL_Event * event;
-};
+	enum input_responses
+		code;
+	bool
+		active;
+	SDL_Event
+		* event;
+} inputEvent;
 
 typedef struct input * INPUT;
-
-struct input_keys {
-  SDLKey key;
-  struct input_keys * next;
-};
-
-
-/* returns a value 0-n+1, where n is the number of entries in Input->keysPressed.
- * 0 means at least one of the keys in the keycombo was not pressed; any other
- * value is the index+1 of the highest (most recently pressed) key in the
- * keycombo, and should be considered the combo's "priority"-- if two
- * conflicting keycombos are pressed, the one with higher priority wins. (and
- * if there are two conflicting keycombos with the same priority, the longer
- * one wins)
- */
-int keysPressed (const struct input_keys *);
-bool input_controlActive (const enum input_responses ir);
 
 
 struct input * input_create ();
 void input_destroy (struct input *);
-
-struct input_keys * keys_create (int n, ...);
-void keys_destroy (struct input_keys * k);
 
 bool input_addEntity (Entity e, enum input_control_types t);
 bool input_rmEntity (Entity e, enum input_control_types t);
