@@ -446,7 +446,6 @@ void fontTextPrint (Text t)
 	glEnableClientState (GL_VERTEX_ARRAY);
 	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
 
-	glColor4ub (0xff, 0xff, 0xff, 0xff);
 	glBindTexture (GL_TEXTURE_2D, GlyphSheet->name);
 
 	glVertexPointer (3, GL_FLOAT, 0, t->vertices);

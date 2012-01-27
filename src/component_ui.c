@@ -653,6 +653,8 @@ void ui_handleInput (EntComponent ui, EntSpeech speech)
 		* opt;
 	signed int
 		i = 0;
+	if (!inputEvent->active)
+		return;
 	switch (uiData->type)
 	{
 		case UI_MENU:
