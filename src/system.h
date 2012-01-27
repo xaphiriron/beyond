@@ -5,6 +5,7 @@
 #include "entity.h"
 
 #include "map.h"
+#include "ogdl/ogdl.h"
 
 enum system_states
 {
@@ -32,8 +33,9 @@ typedef struct xph_system
 		* acc;
 
 	bool
-		quit,
-		debug;
+		quit;
+	Graph
+		config;
 } SYSTEM;
 
 extern SYSTEM

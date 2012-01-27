@@ -230,9 +230,6 @@ static void input_loseFocus (EntComponent comp, EntSpeech speech);
 
 void input_define (EntComponent inputComponent, EntSpeech speech)
 {
-	Graph
-		config;
-
 	component_registerResponse ("input", "__classDestroy", input_classDestroy);
 
 	component_registerResponse ("input", "__create", input_componentCreate);
@@ -242,12 +239,8 @@ void input_define (EntComponent inputComponent, EntSpeech speech)
 	component_registerResponse ("input", "loseFocus", input_loseFocus);
 
 	Input = input_create ();
-	config = Ogdl_load (absolutePath ("../data/settings"));
-	if (config)
-	{
-		input_loadConfig (config);
-		Graph_free (config);
-	}
+	if (System->config)
+		input_loadConfig (System->config);
 	else
 		input_loadDefaults ();
 }

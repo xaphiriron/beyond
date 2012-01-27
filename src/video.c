@@ -1,6 +1,9 @@
 #include "video.h"
 
 #include "xph_memory.h"
+#include "xph_log.h"
+#include "system.h"
+#include "ogdl/ogdl.h"
 
 #define VIDEO_DEFAULT_RESOLUTION	0.05
 
@@ -37,6 +40,8 @@ static VIDEO * video_create ();
 static void video_destroy (VIDEO * v);
 
 static void video_loadDefaultSettings (VIDEO * v);
+static void video_loadDefaults ();
+static void video_loadConfig (const Graph config);
 
 static void video_enableSDLmodules ();
 static void video_enableGLmodules ();
@@ -50,8 +55,16 @@ void videoInit ()
 	if (Video)
 		return;
 	Video = video_create ();
+	if (System->config)
+		video_loadConfig (System->config);
+	else
+		video_loadDefaults ();
 	video_loadDefaultSettings (Video);
-	video_initialize (Video);
+	if (!video_initialize (Video))
+	{
+		ERROR ("Failure while loading video; quitting");
+		System->quit = true;
+	}
 };
 
 void videoDestroy ()
@@ -94,12 +107,81 @@ static void video_destroy (VIDEO * v)
 	xph_free (v);
 }
 
+static void video_loadDefaults ()
+{
+	Graph
+		fakeConfig = Graph_new ("__root__"),
+		video,
+		size;
+
+	Graph_set (fakeConfig, ".video", NULL);
+	video = Graph_get (fakeConfig, "video");
+
+	Graph_set (video, ".fullscreen", Graph_new ("off"));
+	Graph_set (video, ".size", NULL);
+
+	size = Graph_get (video, "size");
+	Graph_set (size, ".960", NULL);
+	Graph_set (size, ".540", NULL);
+
+	video_loadConfig (fakeConfig);
+	Graph_free (fakeConfig);
+}
+
+static void video_loadConfig (const Graph config)
+{
+	Graph
+		fullscreenNode,
+		widthNode,
+		heightNode;
+	signed int
+		width,
+		height;
+	Graph_print (config);
+
+	Video->SDLmode = SDL_OPENGL;
+	fullscreenNode = Graph_get (config, ".video.fullscreen.[0]");
+	if (fullscreenNode)
+	{
+		if (strcmp (fullscreenNode->name, "on") == 0)
+			Video->SDLmode = SDL_OPENGL | SDL_FULLSCREEN;
+		else if (strcmp (fullscreenNode->name, "off") == 0)
+			Video->SDLmode = SDL_OPENGL;
+		else
+			ERROR ("For fullscreen: expected on|off");
+	}
+
+	widthNode = Graph_get (config, ".video.size.[0]");
+	heightNode = Graph_get (config, ".video.size.[1]");
+	if (widthNode && heightNode)
+	{
+		width = atoi (widthNode->name);
+		height = atoi (heightNode->name);
+		if (width <= 0 || height <= 0)
+		{
+			ERROR ("Video resolution of %d x %d not possible", width, height);
+		}
+		else
+		{
+			Video->width = width;
+			Video->height = height;
+		}
+	}
+	else
+	{
+		WARNING ("Video display resolution not specified; defaulting to 960 x 540");
+		Video->width = 960;
+		Video->height = 540;
+	}
+	
+	
+
+}
+
 static void video_loadDefaultSettings (VIDEO * v)
 {
 	char
 		title[] = "beyond 0.1";
-	v->height = 540;
-	v->width = 960;
 	v->orthographic = false;
 	v->doublebuffer = true;
 	v->resolution = VIDEO_DEFAULT_RESOLUTION;
@@ -107,8 +189,7 @@ static void video_loadDefaultSettings (VIDEO * v)
 	strncpy (v->title, title, strlen (title) + 1);
 	v->icon = NULL;
 	v->near = 20.0;
-	v->far = 5000.0;
-	v->SDLmode = SDL_OPENGL;
+	v->far = 10000.0;
 	v->screen = NULL;
 	v->renderWireframe = false;
 }

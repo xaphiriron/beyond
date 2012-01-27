@@ -16,6 +16,7 @@
 #include "component_camera.h"
 #include "component_position.h"
 
+#define CONFIGPATH "../data/settings"
 
 #define LOADERTEXTBUFFERSIZE 128
 struct loadingdata
@@ -53,7 +54,6 @@ void systemInit ()
 	System = xph_alloc (sizeof (SYSTEM));
 
 	System->quit = false;
-	System->debug = false;
 
 	System->clock = clock_create ();
 	System->timer_mult = 1.0;
@@ -74,6 +74,8 @@ void systemInit ()
 	// not really sure where these should go; they're going here for now.
 	system_registerTimedFunction (entity_purgeDestroyed, 0x7f);
 
+	System->config = Ogdl_load (absolutePath (CONFIGPATH));
+
 #ifdef MEM_DEBUG
 	atexit (xph_audit);
 #endif /* MEM_DEBUG */
@@ -86,6 +88,8 @@ void systemInit ()
 void systemDestroy ()
 {
 	videoDestroy ();
+
+	Graph_free (System->config);
 
 	dynarr_destroy (System->updateFuncs);
 	dynarr_destroy (System->state);

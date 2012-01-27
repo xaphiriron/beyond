@@ -17,3 +17,6 @@ keys
 	wireframe_mode	W
 	position_debug	F3
 	arch_test		Z
+video
+	fullscreen	off
+	size		( 960, 540 )
