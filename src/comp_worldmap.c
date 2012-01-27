@@ -72,6 +72,8 @@ static void worldmap_destroy (EntComponent comp, EntSpeech speech)
 
 static void worldmap_input (EntComponent comp, EntSpeech speech)
 {
+	Entity
+		this = component_entityAttached (comp);
 	worldmapData
 		map = component_getData (entity_getAs (Worldmap, "worldmap"));
 	struct input_event
@@ -132,6 +134,11 @@ static void worldmap_input (EntComponent comp, EntSpeech speech)
 			break;
 		case IR_UI_MODE_SWITCH:
 			map->spanTypeFocus ^= 1;
+			break;
+		case IR_WORLDMAP_SWITCH:
+			printf ("focusing world\n");
+			entity_message (this, NULL, "loseFocus", NULL);
+			entity_messageGroup ("PlayerAvatarEntities", NULL, "gainFocus", NULL);
 			break;
 		default:
 			break;

@@ -18,6 +18,7 @@
 #include "comp_chaser.h"
 #include "comp_gui.h"
 #include "comp_worldmap.h"
+#include "comp_player.h"
 
 static void bootstrap (void);
 static void load (TIMER t);
@@ -65,6 +66,7 @@ void bootstrap (void)
 	component_register ("chaser", chaser_define);
 	component_register ("gui", gui_define);
 	component_register ("worldmap", worldmap_define);
+	component_register ("player", player_define);
 
 	entitySystem_register ("input", input_system, 1, "input");
 	entitySystem_register ("walking", walking_system, 1, "walking");

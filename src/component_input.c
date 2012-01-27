@@ -144,8 +144,7 @@ void input_sendGameEventMessage (const struct input_event * ie)
 	int
 		i = 0;
 	Entity
-		e = NULL,
-		worldmap;
+		e = NULL;
 	struct xph_input
 		* inputData;
 	static Dynarr
@@ -164,33 +163,6 @@ void input_sendGameEventMessage (const struct input_event * ie)
 			break;
 		case IR_WORLDGEN:
 			system_message (OM_FORCEWORLDGEN, NULL, NULL);
-			break;
-		case IR_VIEW_WIREFRAME_SWITCH:
-			if (!ie->active)
-				break;
-			video_wireframeSwitch ();
-			break;
-		case IR_WORLDMAP_SWITCH:
-			if (!ie->active)
-				break;
-			worldmap = entity_getByName ("WORLDMAP");
-			if (input_hasFocus (worldmap))
-			{
-				printf ("focusing world\n");
-				entity_message (worldmap, NULL, "loseFocus", NULL);
-				entity_messageGroup ("PlayerAvatarEntities", NULL, "gainFocus", NULL);
-			}
-			else
-			{
-				printf ("focusing map\n");
-				entity_messageGroup ("PlayerAvatarEntities", NULL, "loseFocus", NULL);
-				entity_message (worldmap, NULL, "gainFocus", NULL);
-			}
-			break;
-		case IR_DEBUG_SWITCH:
-			if (!ie->active)
-				break;
-			entitySystem_message ("ui", NULL, "DEBUGOVERLAY_SWITCH", NULL);
 			break;
 		default:
 			break;

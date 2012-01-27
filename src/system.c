@@ -343,6 +343,7 @@ void systemCreatePlayer (Entity base)
 	component_instantiate ("walking", player);
 	component_instantiate ("body", player);
 	component_instantiate ("builder", player);
+	component_instantiate ("player", player);
 	entity_refresh (player);
 	entity_name (player, "PLAYER");
 

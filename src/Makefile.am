@@ -41,7 +41,8 @@ beyond_SOURCES = \
 	sprite.c sprite.h \
 	font.c font.h \
 	\
-	entity.c entity.h	\
+	entity.c entity.h \
+	comp_player.c comp_player.h \
 	comp_worldmap.c comp_worldmap.h \
 	comp_gui.c comp_gui.h \
 	comp_chaser.c comp_chaser.h \
