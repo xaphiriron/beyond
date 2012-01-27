@@ -16,8 +16,9 @@ struct input
 	Dynarr
 		controlMap,			// (Keycode *) which keys are mapped to
 							// which commands.
-		controlledEntities,	// entities to message with CONTROL_INPUT
-		focusedEntities;	// entities to message with FOCUS_INPUT
+		// FIXME: originally there were two classes of input: control input and focus input. control input would e.g., move the player and focus input would e.g., highlight an npc when selected. in practice this was useless and eventually i just condensed the input code so that everything gets FOCUS_INPUT messages now. but the extra dynarr remains for historical reasons. it honestly probably took longer to write this comment then it would have to expurgate the controlledEntities dynarr but hey, them's the breaks - xph 2012 01 27
+		controlledEntities,
+		focusedEntities;
 
 	bool
 		active;
@@ -147,6 +148,8 @@ void input_sendGameEventMessage (const struct input_event * ie)
 		worldmap;
 	struct xph_input
 		* inputData;
+	static Dynarr
+		targetCache = NULL;
 	// CATCH AND HANDLE EVENTS THAT HAVE SYSTEM-WIDE REPERCUSSIONS
 	//DEBUG ("GOT INPUTEVENT TYPE %d", ie->ir);
 	/* this has become the home of the UI switching; this isn't a good thing. i don't know how to break it apart (presumably to be handled by the ui component??) but it's something that should be done. in the mean time, try to avoid tying the ui code with the input code any further.
@@ -193,13 +196,16 @@ void input_sendGameEventMessage (const struct input_event * ie)
 			break;
 	}
 	// SEND MESSAGES OFF TO WORLD ENTITIES
+
+	if (targetCache == NULL)
+		targetCache = dynarr_create (4, sizeof (Entity));
 	i = 0;
 	while ((e = *(Entity *)dynarr_at (Input->controlledEntities, i++)) != NULL)
 	{
 		inputData = component_getData (entity_getAs (e, "input"));
 		if (!inputData->hasFocus)
 			continue;
-		entity_message (e, NULL, "CONTROL_INPUT", (void *)ie);
+		dynarr_push (targetCache, e);
 	}
 	i = 0;
 	while ((e = *(Entity *)dynarr_at (Input->focusedEntities, i++)) != NULL)
@@ -207,8 +213,14 @@ void input_sendGameEventMessage (const struct input_event * ie)
 		inputData = component_getData (entity_getAs (e, "input"));
 		if (!inputData->hasFocus)
 			continue;
+		dynarr_push (targetCache, e);
+	}
+	i = 0;
+	while ((e = *(Entity *)dynarr_at (targetCache, i++)))
+	{
 		entity_message (e, NULL, "FOCUS_INPUT", (void *)ie);
 	}
+	dynarr_clear (targetCache);
 }
 
 bool input_hasFocus (Entity e)

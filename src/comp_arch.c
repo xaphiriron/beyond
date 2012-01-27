@@ -842,7 +842,7 @@ void builder_define (EntComponent comp, EntSpeech speech)
 	component_registerResponse ("builder", "__create", builder_create);
 	component_registerResponse ("builder", "__destroy", builder_destroy);
 
-	component_registerResponse ("builder", "CONTROL_INPUT", builder_inputResponse);
+	component_registerResponse ("builder", "FOCUS_INPUT", builder_inputResponse);
 }
 
 void builder_create (EntComponent comp, EntSpeech speech)

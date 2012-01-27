@@ -26,7 +26,6 @@ void worldmap_define (EntComponent comp, EntSpeech speech)
 	component_registerResponse ("worldmap", "__destroy", worldmap_destroy);
 
 	component_registerResponse ("worldmap", "FOCUS_INPUT", worldmap_input);
-	component_registerResponse ("worldmap", "CONTROL_INPUT", worldmap_input);
 
 	component_registerResponse ("worldmap", "gainFocus", worldmap_gainFocus);
 	component_registerResponse ("worldmap", "loseFocus", worldmap_loseFocus);

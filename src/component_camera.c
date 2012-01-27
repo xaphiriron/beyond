@@ -383,7 +383,7 @@ void camera_define (EntComponent camera, EntSpeech speech)
 	component_registerResponse ("camera", "getMatrix", component_cameraGetMatrix);
 	component_registerResponse ("camera", "getTargetMatrix", component_cameraGetTargetMatrix);
 
-	component_registerResponse ("camera", "CONTROL_INPUT", component_cameraControlResponse);
+	component_registerResponse ("camera", "FOCUS_INPUT", component_cameraControlResponse);
 	/* here we are trusting if we get /any/ position/orientation updates
 	 * they're from something we care about. right now this is fine; the
 	 * camera is only subscribed to its target. but if speaking becomes a

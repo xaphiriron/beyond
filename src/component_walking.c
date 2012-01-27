@@ -195,7 +195,7 @@ void walking_define (EntComponent comp, EntSpeech speech)
 	component_registerResponse ("walking", "__create", walking_create);
 	component_registerResponse ("walking", "__destroy", walking_destroy);
 
-	component_registerResponse ("walking", "CONTROL_INPUT", walking_inputResponse);
+	component_registerResponse ("walking", "FOCUS_INPUT", walking_inputResponse);
 
 	component_registerResponse ("walking", "loseFocus", walking_loseFocus);
 }

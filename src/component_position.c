@@ -38,7 +38,7 @@ void position_define (EntComponent position, EntSpeech speech)
 	component_registerResponse ("position", "__create", position_create);
 	component_registerResponse ("position", "__destroy", position_destroy);
 
-	component_registerResponse ("position", "CONTROL_INPUT", position_inputResponse);
+	component_registerResponse ("position", "FOCUS_INPUT", position_inputResponse);
 }
 
 static void position_create (EntComponent comp, EntSpeech speech)
