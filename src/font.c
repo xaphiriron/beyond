@@ -435,8 +435,12 @@ static void fontTexelCoords (unsigned int point, float * x, float * y, float * w
 void fontPrint (const char * text, int x, int y)
 {
 	Text
-		words = fontGenerate (text, TextAlign, x, y, 0);
-	fontTextPrint (words);
+		words;
+	if (text[0] == 0)
+		return;
+	words = fontGenerate (text, TextAlign, x, y, 0);
+	if (words->glyphs != 0)
+		fontTextPrint (words);
 	fontDestroyText (words);
 	return;
 }
