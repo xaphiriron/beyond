@@ -16,8 +16,6 @@ struct input
 	Dynarr
 		controlMap,			// (Keycode *) which keys are mapped to
 							// which commands.
-		// FIXME: originally there were two classes of input: control input and focus input. control input would e.g., move the player and focus input would e.g., highlight an npc when selected. in practice this was useless and eventually i just condensed the input code so that everything gets FOCUS_INPUT messages now. but the extra dynarr remains for historical reasons. it honestly probably took longer to write this comment then it would have to expurgate the controlledEntities dynarr but hey, them's the breaks - xph 2012 01 27
-		controlledEntities,
 		focusedEntities;
 
 	bool
@@ -71,7 +69,6 @@ struct input * input_create ()
 {
 	struct input * i = xph_alloc (sizeof (struct input));
 	i->controlMap = dynarr_create (1, sizeof (Keycode *));
-	i->controlledEntities = dynarr_create (2, sizeof (Entity *));
 	i->focusedEntities = dynarr_create (2, sizeof (Entity *));
 
 	i->active = true;
@@ -84,7 +81,6 @@ void input_destroy (struct input * i)
 	dynarr_map (i->controlMap, xph_free);
 	dynarr_destroy (i->controlMap);
 
-	dynarr_destroy (i->controlledEntities);
 	dynarr_destroy (i->focusedEntities);
 	xph_free (i);
 }
@@ -92,35 +88,18 @@ void input_destroy (struct input * i)
 bool input_addEntity (Entity e, enum input_control_types t)
 {
 	assert (Input != NULL);
-	if (t == INPUT_CONTROLLED)
+	if (in_dynarr (Input->focusedEntities, e) == -1)
 	{
-		if (in_dynarr (Input->controlledEntities, e) == -1)
-			dynarr_push (Input->controlledEntities, e);
-		return true;
+		dynarr_push (Input->focusedEntities, e);
 	}
-	else if (t == INPUT_FOCUSED)
-	{
-		if (in_dynarr (Input->focusedEntities, e) == -1)
-			dynarr_push (Input->focusedEntities, e);
-		return true;
-	}
-	return false;
+	return true;
 }
 
 bool input_rmEntity (Entity e, enum input_control_types t)
 {
 	assert (Input != NULL);
-	if (t == INPUT_CONTROLLED)
-	{
-		dynarr_remove_condense (Input->controlledEntities, e);
-		return true;
-	}
-	else if (t == INPUT_FOCUSED)
-	{
-		dynarr_remove_condense (Input->focusedEntities, e);
-		return true;
-	}
-	return false;
+	dynarr_remove_condense (Input->focusedEntities, e);
+	return true;
 }
 
 void input_sendAction (enum input_responses action)
@@ -147,13 +126,10 @@ void input_sendGameEventMessage (const struct input_event * ie)
 		e = NULL;
 	struct xph_input
 		* inputData;
-	static Dynarr
+	Dynarr
 		targetCache = NULL;
 	// CATCH AND HANDLE EVENTS THAT HAVE SYSTEM-WIDE REPERCUSSIONS
 	//DEBUG ("GOT INPUTEVENT TYPE %d", ie->ir);
-	/* this has become the home of the UI switching; this isn't a good thing. i don't know how to break it apart (presumably to be handled by the ui component??) but it's something that should be done. in the mean time, try to avoid tying the ui code with the input code any further.
-	 *  - xph 2011 08 28
-	 */
 	if (!Input->active)
 		return;
 	switch (ie->code)
@@ -169,16 +145,7 @@ void input_sendGameEventMessage (const struct input_event * ie)
 	}
 	// SEND MESSAGES OFF TO WORLD ENTITIES
 
-	if (targetCache == NULL)
-		targetCache = dynarr_create (4, sizeof (Entity));
-	i = 0;
-	while ((e = *(Entity *)dynarr_at (Input->controlledEntities, i++)) != NULL)
-	{
-		inputData = component_getData (entity_getAs (e, "input"));
-		if (!inputData->hasFocus)
-			continue;
-		dynarr_push (targetCache, e);
-	}
+	targetCache = dynarr_create (4, sizeof (Entity));
 	i = 0;
 	while ((e = *(Entity *)dynarr_at (Input->focusedEntities, i++)) != NULL)
 	{
@@ -193,6 +160,7 @@ void input_sendGameEventMessage (const struct input_event * ie)
 		entity_message (e, NULL, "FOCUS_INPUT", (void *)ie);
 	}
 	dynarr_clear (targetCache);
+	dynarr_destroy (targetCache);
 }
 
 bool input_hasFocus (Entity e)
@@ -251,7 +219,6 @@ static void input_componentDestroy (EntComponent comp, EntSpeech speech)
 		* input = component_getData (comp);
 	xph_free (input);
 
-	input_rmEntity (this, INPUT_CONTROLLED);
 	input_rmEntity (this, INPUT_FOCUSED);
 }
 
@@ -286,6 +253,7 @@ void input_system (Dynarr entities)
 		switch (Input->event.type)
 		{
 			case SDL_MOUSEMOTION:
+				// these systemState calls seem entirely pointless (and this was coded back when i thought they weren't pointless, so there's not even a secret reason that i'm forgetting) - xph 2012 01 29
 				if (systemState () == STATE_FREEVIEW)
 				{
 					event.code = IR_FREEMOVE_MOUSEMOVE;
@@ -406,6 +374,8 @@ static void input_loadConfig (const Graph config)
 	Graph
 		node,
 		keybind;
+	Keycode
+		* key = NULL;
 
 	Graph_print (config);
 	while (i < IR_FINAL)
@@ -423,7 +393,14 @@ static void input_loadConfig (const Graph config)
 			continue;
 		}
 		printf ("%s: %s\n", inputCodePaths[i], keybind->name);
-		dynarr_assign (Input->controlMap, i, key_create (keybind->name));
+		key = key_create (keybind->name);
+		if (!key)
+		{
+			ERROR ("Unknown key \"%s\"; can't use", keybind->name);
+			i++;
+			continue;
+		}
+		dynarr_assign (Input->controlMap, i, key);
 		i++;
 	}
 }

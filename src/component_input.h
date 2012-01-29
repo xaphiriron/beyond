@@ -23,7 +23,7 @@ enum input_control_types
 	INPUT_FOCUSED,
 };
 
-enum input_responses { 
+enum input_responses {
 	IR_NOTHING,
 
 	IR_FREEMOVE_MOVE_FORWARD,
