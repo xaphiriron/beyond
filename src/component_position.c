@@ -540,8 +540,12 @@ float position_getHeadingR (const POSITION p)
 		return 0.0;
 	if (p->dirty == true)
 		WARNING ("Whoops getting outdated axes (heading)");
-	if (fcmp (p->view.up.y, 1.0) || fcmp (p->view.up.y, -1.0))
-		return atan2 (p->view.side.x, -p->view.side.z);
+// i don't know what the point of this was but it didn't calculate the right value - xph 2012 01 30
+// 	if (fcmp (p->view.up.y, 1.0) || fcmp (p->view.up.y, -1.0))
+// 	{
+// 		printf ("heading: case 1\n");
+// 		return atan2 (p->view.side.x, -p->view.side.z);
+// 	}
 	return atan2 (-p->view.front.x, p->view.front.z);
 }
 
