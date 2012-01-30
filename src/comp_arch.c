@@ -149,8 +149,6 @@ struct xph_pattern
 		subpatterns;
 };
 
-static void loadPatterns ();
-
 void arch_create (EntComponent comp, EntSpeech speech);
 void arch_destroy (EntComponent comp, EntSpeech speech);
 
@@ -172,8 +170,6 @@ void arch_define (EntComponent comp, EntSpeech speech)
 	component_registerResponse ("arch", "positionSet", arch_updatePosition);
 
 	component_registerResponse ("arch", "archExpand", arch_expand);
-
-	loadPatterns ();
 }
 
 void arch_create (EntComponent comp, EntSpeech speech)
@@ -509,7 +505,7 @@ Pattern patternGetByName (const char * name)
 	return NULL;
 }
 
-static void loadPatterns ()
+void patternLoadDefinitions (char * path)
 {
 	Graph
 		patternRoot,
@@ -532,10 +528,10 @@ static void loadPatterns ()
 		j = 0;
 
 	PatternList = dynarr_create (8, sizeof (struct xph_pattern));
-	patternRoot = Ogdl_load (absolutePath ("../data/patterns"));
+	patternRoot = Ogdl_load (path);
 	if (!patternRoot)
 	{
-		ERROR ("Could not load patterns file; expected it in {$base}/data/patterns");
+		ERROR ("Could not load patterns file; expected it in %s", path);
 		return;
 	}
 

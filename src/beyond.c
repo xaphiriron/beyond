@@ -19,6 +19,7 @@
 #include "comp_gui.h"
 #include "comp_worldmap.h"
 #include "comp_player.h"
+#include "comp_optlayout.h"
 
 static void bootstrap (void);
 static void load (TIMER * t);
@@ -67,6 +68,7 @@ void bootstrap (void)
 	component_register ("gui", gui_define);
 	component_register ("worldmap", worldmap_define);
 	component_register ("player", player_define);
+	component_register ("optlayout", optlayout_define);
 
 	entitySystem_register ("input", input_system, 1, "input");
 	entitySystem_register ("walking", walking_system, 1, "walking");
@@ -103,25 +105,23 @@ void finalize (void)
 	unsigned int
 		height,
 		width;
-	unsigned int
-		t;
-
-	/* this is just a filler that ought to be set elsewhere and remembered */
-	// this seed starts right next to a pole edge; use it for testing pole issues
-	t = time (NULL); // 1326314242;
-	srand (t);
-	printf ("seed: %d\n", t);
 
 	video_getDimensions (&height, &width);
 	titleScreenMenu = entity_create ();
+	component_instantiate ("gui", titleScreenMenu);
 	component_instantiate ("ui", titleScreenMenu);
-	entity_message (titleScreenMenu, NULL, "setType", (void *)UI_MENU);
 	component_instantiate ("input", titleScreenMenu);
-	input_addEntity (titleScreenMenu, INPUT_FOCUSED);
 	entity_refresh (titleScreenMenu);
+	gui_cancelCallback (titleScreenMenu, NULL);
+	input_addEntity (titleScreenMenu, INPUT_FOCUSED);
+	entity_message (titleScreenMenu, NULL, "setType", (void *)UI_MENU);
 
 	entity_message (titleScreenMenu, NULL, "addValue", "New Game");
 	entity_message (titleScreenMenu, NULL, "setAction", (void *)IR_WORLDGEN);
+
+	entity_message (titleScreenMenu, NULL, "addValue", "Options");
+	entity_message (titleScreenMenu, NULL, "setAction", (void *)IR_NOTHING);
+
 	entity_message (titleScreenMenu, NULL, "addValue", "Quit");
 	entity_message (titleScreenMenu, NULL, "setAction", (void *)IR_QUIT);
 

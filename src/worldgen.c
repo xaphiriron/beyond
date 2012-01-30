@@ -3,6 +3,8 @@
 #include "bit.h"
 #include "system.h"
 
+#include "xph_path.h"
+
 #include "hex_utility.h"
 #include "map.h"
 #include "map_internal.h"
@@ -11,6 +13,7 @@
 
 #include "component_position.h"
 #include "comp_arch.h"
+#include "comp_optlayout.h"
 
 #include "comp_chaser.h"
 
@@ -20,22 +23,50 @@ static Entity
 
 static Dynarr archOrderFor (SUBHEX platter);
 
+static unsigned char
+	worldSpan = 0;
+static unsigned long
+	worldSeed = 0;
+
+void worldConfig (Entity options)
+{
+	char
+		patternPath[PATH_MAX];
+	worldSpan = optlayout_optionNumValue (options, "World Size");
+	if (strcmp (optlayout_optionStrValue (options, "Seed"), "") == 0)
+		worldSeed = time (NULL);
+	else if (optlayout_optionIsNumeric (options, "Seed"))
+		worldSeed = optlayout_optionNumValue (options, "Seed");
+	else
+		worldSeed = hash (optlayout_optionStrValue (options, "Seed"));
+
+	worldSeed = 1327871116;
+
+	INFO ("%s: using seed of \'%ld\'", __FUNCTION__, worldSeed);
+	printf ("%s: using seed of \'%ld\'\n", __FUNCTION__, worldSeed);
+
+	entity_destroy (options);
+
+	strcpy (patternPath, "../");
+	strncat (patternPath, optlayout_optionStrValue (options, "Pattern Data"), PATH_MAX - 4);
+	patternLoadDefinitions (absolutePath (patternPath));
+
+	printf ("TRIGGERING WORLDGEN:\n");
+	systemLoad (worldInit, worldGenerate, worldFinalize);
+}
+
 void worldInit ()
 {
-	static unsigned long
-		seed = 0;
 	hexPos
 		pos;
 	FUNCOPEN ();
 	
-	mapSetSpanAndRadius (2, 8);
+	mapSetSpanAndRadius (worldSpan, 4);
 	mapGeneratePoles ();
 
 	materialsGenerate ();
 
-	seed = time (NULL);
-	INFO ("%s: using seed of \'%ld\'", __FUNCTION__, seed);
-	loadSetText ("Initializing...");
+	srand (worldSeed);
 
 	base = entity_create ();
 	component_instantiate ("position", base);

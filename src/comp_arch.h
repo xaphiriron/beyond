@@ -25,6 +25,8 @@ void arch_imprint (Entity arch, SUBHEX at);
 
 typedef struct xph_pattern * Pattern;
 
+void patternLoadDefinitions (char * path);
+
 Pattern patternGet (unsigned int id);
 Pattern patternGetByName (const char * name);
 
