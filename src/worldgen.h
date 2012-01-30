@@ -2,13 +2,15 @@
 #define XPH_WORLDGEN_H
 
 #include <stdbool.h>
-#include "timer.h"
+#include "xph_timer.h"
 #include "map.h"
+
+void worldConfig (Entity options);
 
 void worldInit ();
 void worldFinalize ();
 
-void worldGenerate (TIMER t);
+void worldGenerate (TIMER * t);
 
 void worldImprint (SUBHEX at);
 

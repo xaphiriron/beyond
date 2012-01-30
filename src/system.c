@@ -3,7 +3,7 @@
 #include <ctype.h>
 
 #include "video.h"
-#include "timer.h"
+#include "xph_timer.h"
 
 #include <GL/glpng.h>
 #include "texture.h"
@@ -22,7 +22,7 @@
 struct loadingdata
 {
 	void (*finishCallback)(void);
-	void (*loaderFunc)(TIMER);
+	void (*loaderFunc)(TIMER *);
 	unsigned int
 		goal,
 		loaded;
@@ -47,7 +47,7 @@ void systemUpdate (void);
 void systemInit ()
 {
 	TIMER
-		t;
+		* t;
 	if (System != NULL)
 		return;
 
@@ -55,21 +55,19 @@ void systemInit ()
 
 	System->quit = false;
 
-	System->clock = clock_create ();
 	System->timer_mult = 1.0;
-	System->timestep = 0.03;
- 	t = timerCreate ();
-	timerSetClock (t, System->clock);
+	System->timestep = 30;
+	t = timerCreate ();
 	timerSetScale (t, System->timer_mult);
 	System->acc = accumulator_create (t, System->timestep);
 	// this ought to force the update code to run once the first time through - xph 2011 06 17
-	System->acc->accumulated = System->timestep * 1.01;
+	System->acc->accumulated = System->timestep + 1;
 
 	System->state = dynarr_create (4, sizeof (enum system_states));
 	dynarr_push (System->state, STATE_LOADING);
 	// register system loading %/note callback here
 
-	System->updateFuncs = dynarr_create (2, sizeof (void (*)(TIMER)));
+	System->updateFuncs = dynarr_create (2, sizeof (void (*)(TIMER *)));
 
 	// not really sure where these should go; they're going here for now.
 	system_registerTimedFunction (entity_purgeDestroyed, 0x7f);
@@ -94,8 +92,7 @@ void systemDestroy ()
 	dynarr_destroy (System->updateFuncs);
 	dynarr_destroy (System->state);
 	accumulator_destroy (System->acc);
-	xtimerDestroyRegistry ();
-	clock_destroy (System->clock);
+	timerDestroyRegistry ();
 	xph_free (System);
 
 	System = NULL;
@@ -112,29 +109,51 @@ int systemLoop ()
 	return 0;
 }
 
+static unsigned long
+	startTime,
+	finishTime;
+void tickBegin ()
+{
+	startTime = SDL_GetTicks ();
+}
+
+void tickSleep ()
+{
+	unsigned long
+		timeTaken;
+	finishTime = SDL_GetTicks ();
+	timeTaken = finishTime - startTime;
+	if (timeTaken <= System->timestep)
+		SDL_Delay (System->timestep - timeTaken);
+	else
+	{
+		//WARNING ("processing tick took %lu milliseconds; %lu more than the tick guideline (%lu)", timeTaken, timeTaken - System->timestep, System->timestep);
+		SDL_Delay (0);
+	}
+}
+
 void systemUpdate (void)
 {
 	static TIMER
-		t = NULL;
-	void (*func)(TIMER);
+		* t = NULL;
+	void (*func)(TIMER *);
 	int
 		i;
 	FUNCOPEN ();
 
 	if (System == NULL)
 		return;
-	clock_update (System->clock);
-	xtimerUpdateAll ();
+	timerUpdateRegistry ();
 	accumulator_update (System->acc);
 
 	if (t == NULL)
 		t = timerCreate ();
 
-	timerSetClock (t, System->clock);
+	tickBegin ();
 	while (accumulator_withdrawlTime (System->acc))
 	{
 		i = 0;
-		while ((func = *(void (**)(TIMER))dynarr_at (System->updateFuncs, i)) != NULL)
+		while ((func = *(void (**)(TIMER *))dynarr_at (System->updateFuncs, i)) != NULL)
 		{
 			// FIXME: this is the amount of time in seconds to give each function. it ought to 1) be related to the accumulator delta and 2) be divided between update funcs by their priority (which is the second arg of the register function, but it's ignored completely right now)
 			timerSetGoal (t, 0.05);
@@ -165,12 +184,13 @@ void systemUpdate (void)
 	entitySystem_update ("uiRender");
 	entitySystem_update ("guiRender");
 	videoPostrender ();
+	tickSleep ();
 
 	FUNCCLOSE ();
 }
 
 
-const TIMER system_getTimer ()
+const TIMER * system_getTimer ()
 {
 	if (System == NULL)
 		return NULL;
@@ -230,9 +250,9 @@ bool systemClearStates ()
  * SYSTEM LOADING
  */
 
-static void systemCheckLoadState (const TIMER t);
+static void systemCheckLoadState (TIMER * t);
 
-void systemLoad (void (*initialize)(void), void (*loader)(TIMER), void (*finishCallback)(void))
+void systemLoad (void (*initialize)(void), void (*loader)(TIMER *), void (*finishCallback)(void))
 {
 	systemClearStates ();
 	systemPushState (STATE_LOADING);
@@ -245,7 +265,7 @@ void systemLoad (void (*initialize)(void), void (*loader)(TIMER), void (*finishC
 	initialize ();
 }
 
-static void systemCheckLoadState (const TIMER t)
+static void systemCheckLoadState (TIMER * t)
 {
 	FUNCOPEN ();
 	if (SysLoader.loaded < SysLoader.goal)
@@ -295,14 +315,14 @@ void loadSetText (char * displayText)
  * TIMED FUNCTIONS
  */
 
-void system_registerTimedFunction (void (*func)(TIMER), unsigned char weight)
+void system_registerTimedFunction (void (*func)(TIMER *), unsigned char weight)
 {
 	if (System == NULL)
 		return;
 	dynarr_push (System->updateFuncs, func);
 }
 
-void system_removeTimedFunction (void (*func)(TIMER))
+void system_removeTimedFunction (void (*func)(TIMER *))
 {
 	if (System == NULL)
 		return;

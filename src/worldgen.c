@@ -137,7 +137,7 @@ void worldFinalize ()
 	FUNCCLOSE ();
 }
 
-void worldGenerate (TIMER timer)
+void worldGenerate (TIMER * timer)
 {
 	static enum
 	{

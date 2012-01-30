@@ -30,8 +30,7 @@ beyond_SOURCES = \
 	dynarr.c dynarr.h \
 	lsystem.c lsystem.h \
 	video.c video.h	\
-	timer.c timer.h	\
-	accumulator.c accumulator.h \
+	xph_timer.c xph_timer.h	\
 	\
 	matspec.c matspec.h \
 	hex_utility.h hex_utility.c \

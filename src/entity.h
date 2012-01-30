@@ -3,7 +3,7 @@
 
 #include <stdarg.h>
 #include <stdbool.h>
-#include "timer.h"
+#include "xph_timer.h"
 #include "dynarr.h"
 
 typedef struct entity * Entity;
@@ -93,7 +93,7 @@ Dynarr entity_getWith (int n, ...);
  * ENTITY SYSTEM
  */
 
-void entity_purgeDestroyed (TIMER t);
+void entity_purgeDestroyed (TIMER * t);
 void entity_destroyEverything ();
 
 void entitySystem_register (const char * name, sysFunc updateFunc, int components, ...);

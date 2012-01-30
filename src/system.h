@@ -1,7 +1,7 @@
 #ifndef SYSTEM_H
 #define SYSTEM_H
 
-#include "accumulator.h"
+#include "xph_timer.h"
 #include "entity.h"
 
 #include "map.h"
@@ -25,10 +25,9 @@ typedef struct xph_system
 		updateFuncs,
 		state;			// stores enum system_states
 	float
-		timer_mult,
+		timer_mult;
+	unsigned long
 		timestep;
-	CLOCK
-		* clock;
 	ACCUMULATOR
 		* acc;
 
@@ -49,7 +48,7 @@ int systemLoop ();
 void systemRender (Dynarr entities);
 
 
-const TIMER system_getTimer ();
+const TIMER * system_getTimer ();
 
 /* TODO: states that are more useful. by which I mean, an interface that lets
  * them be used more easily. What I'm thinking of specifically here is a
@@ -80,7 +79,7 @@ bool systemClearStates ();				// entirely wipes the state stack
  *  3. add the loader function to the timed functions run each tick
  *  4. store finishCallback to be called when loading completes (see below)
  */
-void systemLoad (void (*initialize)(void), void (*loader)(TIMER), void (*finishCallback)(void));
+void systemLoad (void (*initialize)(void), void (*loader)(TIMER *), void (*finishCallback)(void));
 void loadSetGoal (unsigned int goal);
 void loadSetLoaded (unsigned int loaded);
 void loadSetText (char * displayText);
@@ -91,8 +90,8 @@ void loadSetText (char * displayText);
 
 char * systemGenDebugStr ();
 
-void system_registerTimedFunction (void (*func)(TIMER), unsigned char weight);
-void system_removeTimedFunction (void (*func)(TIMER));
+void system_registerTimedFunction (void (*func)(TIMER *), unsigned char weight);
+void system_removeTimedFunction (void (*func)(TIMER *));
 
 void systemCreatePlayer ();
 

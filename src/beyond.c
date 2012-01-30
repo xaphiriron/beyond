@@ -21,7 +21,7 @@
 #include "comp_player.h"
 
 static void bootstrap (void);
-static void load (TIMER t);
+static void load (TIMER * t);
 static void finalize (void);
 
 
@@ -137,7 +137,7 @@ void finalize (void)
 	systemPushState (STATE_UI);
 }
 
-void load (TIMER t)
+void load (TIMER * t)
 {
 	/* this is where any loading that's needed for the system ui or for title
 	 * screen effects should go

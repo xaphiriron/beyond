@@ -72,8 +72,6 @@ void walk_move (Entity e)
 		pdata = NULL;
   walkingComponent wdata = NULL;
   //const PHYSICS * physics = obj_getClassData (PhysicsObject, "physics");
-	const SYSTEM
-		* const sys = System;
 	const AXES
 		* moveAxes;
 	VECTOR3
@@ -118,8 +116,8 @@ void walk_move (Entity e)
     moveDirs = vectorMultiplyByScalar (&moveDirs, .7);
   }
 
-    newpos = vectorMultiplyByScalar (&moveDirs, sys->timestep);
-    position_move (e, newpos);
+	newpos = vectorMultiplyByScalar (&moveDirs, System->timestep / 1000.0);
+	position_move (e, newpos);
 }
 
 void walking_doControlInputResponse (Entity e, const struct input_event * ie)

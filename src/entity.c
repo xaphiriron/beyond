@@ -866,7 +866,7 @@ Dynarr entity_getWith (int n, ...)
  * ENTITY SYSTEM
  */
 
-void entity_purgeDestroyed (TIMER timer)
+void entity_purgeDestroyed (TIMER * timer)
 {
 	Entity
 		e;

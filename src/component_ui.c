@@ -93,7 +93,7 @@ struct uiMenu
 	float
 		fadeScale;
 	TIMER
-		timer;
+		* timer;
 };
 
 union uiPanels
@@ -819,7 +819,7 @@ void ui_system (Dynarr entities)
 				{
 					if (opt->highlight == 0.0)
 						continue;
-					opt->highlight -= lastTimestep (uiData->menu.timer) * uiData->menu.fadeScale;
+					opt->highlight -= uiData->menu.timer->lastUpdateSpan * uiData->menu.fadeScale;
 					if (opt->highlight < 0.0)
 						opt->highlight = 0.0;
 				}
@@ -1023,7 +1023,7 @@ static void uiMenu_setActiveIndex (UIPANEL ui, unsigned int index)
 	opt->highlight = 1.0;
 	ui->menu.lastIndex = ui->menu.activeIndex;
 	ui->menu.activeIndex = index;
-	timerSetGoal (ui->menu.timer, 0.20);
+	timerSetGoal (ui->menu.timer, 200);
 	timerStart (ui->menu.timer);
 }
 
