@@ -113,6 +113,8 @@ void finalize (void)
 	component_instantiate ("input", titleScreenMenu);
 	entity_refresh (titleScreenMenu);
 	gui_cancelCallback (titleScreenMenu, NULL);
+	gui_confirmCallback (titleScreenMenu, NULL);
+	gui_placeOnStack (titleScreenMenu);
 	input_addEntity (titleScreenMenu, INPUT_FOCUSED);
 	entity_message (titleScreenMenu, NULL, "setType", (void *)UI_MENU);
 

@@ -32,6 +32,8 @@ void worldConfig (Entity options)
 {
 	char
 		patternPath[PATH_MAX];
+	Dynarr
+		openFrames;
 	worldSpan = optlayout_optionNumValue (options, "World Size");
 	if (strcmp (optlayout_optionStrValue (options, "Seed"), "") == 0)
 		worldSeed = time (NULL);
@@ -50,6 +52,11 @@ void worldConfig (Entity options)
 	strcpy (patternPath, "../");
 	strncat (patternPath, optlayout_optionStrValue (options, "Pattern Data"), PATH_MAX - 4);
 	patternLoadDefinitions (absolutePath (patternPath));
+
+
+	openFrames = entity_getWith (1, "gui");
+	dynarr_map (openFrames, (void (*)(void *))entity_destroy);
+	dynarr_destroy (openFrames);
 
 	printf ("TRIGGERING WORLDGEN:\n");
 	systemLoad (worldInit, worldGenerate, worldFinalize);

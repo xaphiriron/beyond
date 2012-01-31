@@ -25,7 +25,7 @@ void gui_define (EntComponent comp, EntSpeech speech);
 void gui_update (Dynarr entities);
 void gui_render (Dynarr entities);
 
-void gui_setStack (Entity this, unsigned int stack);
+void gui_placeOnStack (Entity this);
 
 void gui_confirmCallback (Entity this, void (*callback)(Entity));
 void gui_cancelCallback (Entity this, void (*callback)(Entity));

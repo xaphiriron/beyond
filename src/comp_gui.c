@@ -3,6 +3,9 @@
 #include "video.h"
 #include "component_input.h"
 
+static Dynarr
+	GUIDepthStack = NULL;
+
 void gui_place (Entity e, int x, int y, int w, int h)
 {
 	GUI
@@ -25,16 +28,31 @@ void gui_setMargin (Entity e, int vert, int horiz)
 	gui->horizMargin = horiz;
 }
 
+static void gui_classDestroy (EntComponent comp, EntSpeech speech);
 static void gui_create (EntComponent comp, EntSpeech speech);
 static void gui_destroy (EntComponent comp, EntSpeech speech);
 static void gui_input (EntComponent comp, EntSpeech speech);
 
+static void gui_gainFocus (EntComponent comp, EntSpeech speech);
+
 void gui_define (EntComponent comp, EntSpeech speech)
 {
+	component_registerResponse ("gui", "__classDestroy", gui_classDestroy);
+
 	component_registerResponse ("gui", "__create", gui_create);
 	component_registerResponse ("gui", "__destroy", gui_destroy);
 
 	component_registerResponse ("gui", "FOCUS_INPUT", gui_input);
+
+	component_registerResponse ("gui", "gainFocus", gui_gainFocus);
+
+	GUIDepthStack = dynarr_create (4, sizeof (Entity *));
+}
+
+static void gui_classDestroy (EntComponent comp, EntSpeech speech)
+{
+	dynarr_destroy (GUIDepthStack);
+	GUIDepthStack = NULL;
 }
 
 static void gui_create (EntComponent comp, EntSpeech speech)
@@ -49,12 +67,27 @@ static void gui_create (EntComponent comp, EntSpeech speech)
 
 static void gui_destroy (EntComponent comp, EntSpeech speech)
 {
+	Entity
+		this = component_entityAttached (comp),
+		nextHighest;
 	GUI
 		gui = component_getData (comp);
-
 	xph_free (gui);
 
 	component_clearData (comp);
+
+	if (*(Entity *)dynarr_back (GUIDepthStack) == this)
+	{
+		dynarr_unset (GUIDepthStack, dynarr_size (GUIDepthStack) - 1);
+		if ((nextHighest = *(Entity *)dynarr_back (GUIDepthStack)))
+		{
+			entity_message (nextHighest, NULL, "gainFocus", NULL);
+		}
+	}
+	else
+	{
+		dynarr_remove_condense (GUIDepthStack, this);
+	}
 }
 
 // the usage of guiEntities here seems to imply that this code would be better off in a gui system -- it deals with interrellations between GUI elements in a way that involves the global scope, which means it should be systems code instead of component code - xph 2012 01 29
@@ -84,6 +117,17 @@ static void gui_input (EntComponent comp, EntSpeech speech)
 	}
 }
 
+void gui_gainFocus (EntComponent comp, EntSpeech speech)
+{
+	Entity
+		this = component_entityAttached (comp);
+	if (*(Entity *)dynarr_back (GUIDepthStack) != this)
+	{
+		dynarr_remove_condense (GUIDepthStack, this);
+		dynarr_push (GUIDepthStack, this);
+	}
+}
+
 
 void gui_update (Dynarr entities)
 {
@@ -105,7 +149,7 @@ void gui_render (Dynarr entities)
 	glLoadIdentity ();
 	glDisable (GL_DEPTH_TEST);
 
-	while ((active = *(Entity *)dynarr_at (entities, i++)))
+	while ((active = *(Entity *)dynarr_at (GUIDepthStack, i++)))
 	{
 		entity_message (active, NULL, "guiDraw", NULL);
 	}
@@ -113,6 +157,24 @@ void gui_render (Dynarr entities)
 	glEnable (GL_DEPTH_TEST);
 }
 
+
+void gui_placeOnStack (Entity this)
+{
+	Entity
+		prev;
+	GUI
+		gui = component_getData (entity_getAs (this, "gui"));
+	if (!gui)
+		return;
+	prev = *(Entity *)dynarr_back (GUIDepthStack);
+	if (prev != this)
+	{
+		dynarr_remove_condense (GUIDepthStack, this);
+		dynarr_push (GUIDepthStack, this);
+		entity_message (prev, NULL, "loseFocus", NULL);
+		entity_message (this, NULL, "gainFocus", NULL);
+	}
+}
 
 
 void gui_confirmCallback (Entity this, void (*callback)(Entity))

@@ -573,15 +573,12 @@ char * systemGenDebugStr ()
  * "MESSAGER"
  */
 
-// look let's just awknowledge this function is an abomination that should not exist and realize that certain workarounds are required until the code is updated to note require it at all :( - xph 2012 01 27
+// look let's just awknowledge this function is an abomination that should not exist and realize that certain workarounds are required until the code is updated to not require it at all :( - xph 2012 01 27
 #include "comp_optlayout.h"
 #include "comp_gui.h"
 
 int system_message (objMsg msg, void * a, void * b)
 {
-	Dynarr
-		arr;
-
 	Entity
 		worldOptions;
 	unsigned int
@@ -595,7 +592,6 @@ int system_message (objMsg msg, void * a, void * b)
 			return EXIT_SUCCESS;
 
 		case OM_FORCEWORLDGEN:
-
 			worldOptions = entity_create ();
 			component_instantiate ("gui", worldOptions);
 			component_instantiate ("optlayout", worldOptions);
@@ -606,6 +602,7 @@ int system_message (objMsg msg, void * a, void * b)
 			gui_place (worldOptions, width/4, 0, width/2, height);
 			gui_setMargin (worldOptions, 8, 8);
 			gui_confirmCallback (worldOptions, worldConfig);
+			gui_placeOnStack (worldOptions);
 
 			input_addEntity (worldOptions, INPUT_FOCUSED);
 			entity_message (worldOptions, NULL, "gainFocus", NULL);
@@ -613,12 +610,8 @@ int system_message (objMsg msg, void * a, void * b)
 			optlayout_addOption (worldOptions, "World Size", OPT_NUM, "4", NULL);
 			optlayout_addOption (worldOptions, "Seed", OPT_STRING, "", NULL);
 			optlayout_addOption (worldOptions, "Pattern Data", OPT_STRING, "data/patterns", "Generation rules to apply");
-
 			return EXIT_SUCCESS;
 
-			arr = entity_getWith (1, "ui");
-			dynarr_map (arr, (void (*)(void *))entity_destroy);
-			dynarr_destroy (arr);
 
 			return EXIT_SUCCESS;
 
