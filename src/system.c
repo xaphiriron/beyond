@@ -150,13 +150,13 @@ void systemUpdate (void)
 		t = timerCreate ();
 
 	tickBegin ();
-	while (accumulator_withdrawlTime (System->acc))
+	while (!System->quit && accumulator_withdrawlTime (System->acc))
 	{
 		i = 0;
 		while ((func = *(void (**)(TIMER *))dynarr_at (System->updateFuncs, i)) != NULL)
 		{
 			// FIXME: this is the amount of time in seconds to give each function. it ought to 1) be related to the accumulator delta and 2) be divided between update funcs by their priority (which is the second arg of the register function, but it's ignored completely right now)
-			timerSetGoal (t, 0.05);
+			timerSetGoal (t, 50);
 			timerUpdate (t);
 			func (t);
 			i++;
