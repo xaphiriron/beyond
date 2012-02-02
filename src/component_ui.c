@@ -676,13 +676,13 @@ void ui_handleInput (EntComponent ui, EntSpeech speech)
 					opt = *(struct uiMenuOpt **)dynarr_at (uiData->menu.menuOpt, uiData->menu.activeIndex);
 					input_sendAction (opt->action);
 					break;
-				case IR_UI_MOUSEMOVE:
+				case IR_MOUSEMOVE:
 					i = uiMenu_mouseHit (uiData, inputEvent->event->motion.x, inputEvent->event->motion.y);
 					if (i < 0)
 						break;
 					uiMenu_setActiveIndex (uiData, i);
 					break;
-				case IR_UI_MOUSECLICK:
+				case IR_MOUSECLICK:
 					i = uiMenu_mouseHit (uiData, inputEvent->event->button.x, inputEvent->event->button.y);
 					if (i < 0)
 						break;

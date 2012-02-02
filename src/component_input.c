@@ -256,24 +256,24 @@ void input_system (Dynarr entities)
 				// these systemState calls seem entirely pointless (and this was coded back when i thought they weren't pointless, so there's not even a secret reason that i'm forgetting) - xph 2012 01 29
 				if (systemState () == STATE_FREEVIEW)
 				{
-					event.code = IR_FREEMOVE_MOUSEMOVE;
+					event.code = IR_MOUSEMOVE;
 					input_sendGameEventMessage (&event);
 				}
 				else if (systemState () == STATE_UI)
 				{
-					event.code = IR_UI_MOUSEMOVE;
+					event.code = IR_MOUSEMOVE;
 					input_sendGameEventMessage (&event);
 				}
 				break;
 			case SDL_MOUSEBUTTONDOWN:
 				if (systemState () == STATE_FREEVIEW)
 				{
-					event.code = IR_FREEMOVE_MOUSECLICK;
+					event.code = IR_MOUSECLICK;
 					input_sendGameEventMessage (&event);
 				}
 				else if (systemState () == STATE_UI)
 				{
-					event.code = IR_UI_MOUSECLICK;
+					event.code = IR_MOUSECLICK;
 					input_sendGameEventMessage (&event);
 				}
 				break;
@@ -350,8 +350,8 @@ static void input_loadConfig (const Graph config)
 		".keys.world.left", // IR_FREEMOVE_MOVE_LEFT
 		".keys.world.right", // IR_FREEMOVE_MOVE_RIGHT
 		".keys.world.automove", // IR_FREEMOVE_AUTOMOVE
-		"", // IR_FREEMOVE_MOUSEMOVE
-		"", // IR_FREEMOVE_MOUSECLICK
+		"", // IR_MOUSEMOVE
+		"", // IR_MOUSECLICK
 		".keys.world.camera_mode", // IR_CAMERA_MODE_SWITCH
 		".keys.wireframe_mode", // IR_VIEW_WIREFRAME_SWITCH
 		".keys.worldmap", // IR_WORLDMAP_SWITCH
@@ -361,10 +361,9 @@ static void input_loadConfig (const Graph config)
 		".keys.ui.cancel", // IR_UI_CANCEL
 		".keys.ui.confirm", // IR_UI_CONFIRM
 		".keys.ui.mode", // IR_UI_MODE_SWITCH
-		"", // IR_UI_MOUSEMOVE
-		"", // IR_UI_MOUSECLICK
 		".keys.arch_test", // IR_WORLD_PLACEARCH
 		"", // IR_WORLDGEN
+		"", // IR_OPTIONS
 		".keys.quit", // IR_QUIT
 		"", // IR_FINAL
 	};
