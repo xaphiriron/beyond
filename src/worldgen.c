@@ -42,8 +42,6 @@ void worldConfig (Entity options)
 	else
 		worldSeed = hash (optlayout_optionStrValue (options, "Seed"));
 
-	worldSeed = 1327871116;
-
 	INFO ("%s: using seed of \'%ld\'", __FUNCTION__, worldSeed);
 	printf ("%s: using seed of \'%ld\'\n", __FUNCTION__, worldSeed);
 
