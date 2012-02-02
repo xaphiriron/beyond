@@ -96,11 +96,10 @@ void system_removeTimedFunction (void (*func)(TIMER *));
 void systemCreatePlayer ();
 
 typedef enum object_messages {
-  OM_SHUTDOWN,
+	OM_SHUTDOWN,
 	// i'd rather not add object junk at this point but input needs a way of signaling to the system that worldgen should happen, since i sure don't want to put the systemLoad () call in input.c
 	OM_FORCEWORLDGEN,
-
-  OM_FINAL
+	OM_OPTIONS
 } objMsg;
 
 int system_message (objMsg msg, void * a, void * b);

@@ -132,6 +132,7 @@ void input_sendGameEventMessage (const struct input_event * ie)
 	//DEBUG ("GOT INPUTEVENT TYPE %d", ie->ir);
 	if (!Input->active)
 		return;
+	// this switch makes me really sad; there's got to be a better way to trigger game events than by doing things this way - xph 2012 01 31
 	switch (ie->code)
 	{
 		case IR_QUIT:
@@ -139,6 +140,9 @@ void input_sendGameEventMessage (const struct input_event * ie)
 			break;
 		case IR_WORLDGEN:
 			system_message (OM_FORCEWORLDGEN, NULL, NULL);
+			break;
+		case IR_OPTIONS:
+			system_message (OM_OPTIONS, NULL, NULL);
 			break;
 		default:
 			break;
@@ -263,6 +267,7 @@ void input_system (Dynarr entities)
 				{
 					event.code = IR_MOUSEMOVE;
 					input_sendGameEventMessage (&event);
+					entitySystem_message ("gui", NULL, "FOCUS_INPUT", &event);
 				}
 				break;
 			case SDL_MOUSEBUTTONDOWN:
@@ -275,6 +280,7 @@ void input_system (Dynarr entities)
 				{
 					event.code = IR_MOUSECLICK;
 					input_sendGameEventMessage (&event);
+					entitySystem_message ("gui", NULL, "FOCUS_INPUT", &event);
 				}
 				break;
 

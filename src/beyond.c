@@ -122,7 +122,7 @@ void finalize (void)
 	entity_message (titleScreenMenu, NULL, "setAction", (void *)IR_WORLDGEN);
 
 	entity_message (titleScreenMenu, NULL, "addValue", "Options");
-	entity_message (titleScreenMenu, NULL, "setAction", (void *)IR_NOTHING);
+	entity_message (titleScreenMenu, NULL, "setAction", (void *)IR_OPTIONS);
 
 	entity_message (titleScreenMenu, NULL, "addValue", "Quit");
 	entity_message (titleScreenMenu, NULL, "setAction", (void *)IR_QUIT);

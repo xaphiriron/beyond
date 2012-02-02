@@ -580,7 +580,8 @@ char * systemGenDebugStr ()
 int system_message (objMsg msg, void * a, void * b)
 {
 	Entity
-		worldOptions;
+		worldOptions,
+		gameOptions;
 	unsigned int
 		width, height;
 
@@ -592,31 +593,55 @@ int system_message (objMsg msg, void * a, void * b)
 			return EXIT_SUCCESS;
 
 		case OM_FORCEWORLDGEN:
+			video_getDimensions (&width, &height);
+
 			worldOptions = entity_create ();
 			component_instantiate ("gui", worldOptions);
+			gui_place (worldOptions, width/4, 0, width/2, height);
+			gui_setMargin (worldOptions, 8, 8);
 			component_instantiate ("optlayout", worldOptions);
 			component_instantiate ("input", worldOptions);
 			entity_refresh (worldOptions);
 
-			video_getDimensions (&width, &height);
-			gui_place (worldOptions, width/4, 0, width/2, height);
-			gui_setMargin (worldOptions, 8, 8);
 			gui_confirmCallback (worldOptions, worldConfig);
 			gui_placeOnStack (worldOptions);
 
 			input_addEntity (worldOptions, INPUT_FOCUSED);
 			entity_message (worldOptions, NULL, "gainFocus", NULL);
 
-			optlayout_addOption (worldOptions, "World Size", OPT_NUM, "4", NULL);
+			optlayout_addOption (worldOptions, "World Size", OPT_NUM, "3", NULL);
 			optlayout_addOption (worldOptions, "Seed", OPT_STRING, "", NULL);
-			optlayout_addOption (worldOptions, "Pattern Data", OPT_STRING, "data/patterns", "Generation rules to apply");
+			optlayout_addOption (worldOptions, "Pattern Data", OPT_STRING, "data/patterns", "File to get generation rules from");
 			return EXIT_SUCCESS;
 
+		case OM_OPTIONS:
+			video_getDimensions (&width, &height);
+
+			gameOptions = entity_create ();
+			component_instantiate ("gui", gameOptions);
+			gui_place (gameOptions, width/4, 0, width/2, height);
+			gui_setMargin (gameOptions, 8, 8);
+			component_instantiate ("optlayout", gameOptions);
+			component_instantiate ("input", gameOptions);
+			entity_refresh (gameOptions);
+
+			gui_confirmCallback (gameOptions, NULL); // TODO: write the config-updating function and put it here
+			gui_placeOnStack (gameOptions);
+
+			input_addEntity (gameOptions, INPUT_FOCUSED);
+			entity_message (gameOptions, NULL, "gainFocus", NULL);
+
+			// TODO: this needs a way of selecting the currently-active options as the default, presumably through reading System->config (so like make the code that establishes this entity its own function)
+			// TODO: need optlayout dropdown box + "Custom..." w/ two numeric fields for this; that implies a lot of mucking about with optlayout code and the way options are defined within it
+			optlayout_addOption (gameOptions, "Screen Resolution", OPT_STRING, "800x600", NULL);
+			optlayout_addOption (gameOptions, "Fullscreen", OPT_FLAG, "off", NULL);
+
+			// TODO: this also needs /panes/; so video options and key options and game options aren't all thrown together on the same screen :(
+			//optlayout_addOption (gameOptions,
 
 			return EXIT_SUCCESS;
 
 		default:
-			// no passing. no reason to.
 			break;
 	}
 	return EXIT_FAILURE;

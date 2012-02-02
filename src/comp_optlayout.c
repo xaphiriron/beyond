@@ -1,11 +1,13 @@
 #include "comp_optlayout.h"
 
-#include "comp_gui.h"
 #include "font.h"
 #include "video.h"
 
 static bool option_parseString (struct option * opt, const char * string);
 static struct option * option_byName (Dynarr opts, const char * name);
+
+static void optlayout_confirmClick (Entity this, GUITarget target);
+static void optlayout_cancelClick (Entity this, GUITarget target);
 
 void optlayout_create (EntComponent comp, EntSpeech speech);
 void optlayout_destroy (EntComponent comp, EntSpeech speech);
@@ -22,13 +24,32 @@ void optlayout_define (EntComponent comp, EntSpeech speech)
 	component_registerResponse ("optlayout", "FOCUS_INPUT", optlayout_input);
 }
 
+// FIXME: we have to set the gui dimensions before creating the optlayout because there's not a good place to put the continue/cancel init aside from here. this is part of a general problem of not really being able to resize anything
 void optlayout_create (EntComponent comp, EntSpeech speech)
 {
 	struct optlayout
-		* opt = xph_alloc (sizeof (struct optlayout));
-	opt->options = dynarr_create (2, sizeof (struct option *));
+		* layout = xph_alloc (sizeof (struct optlayout));
+	layout->options = dynarr_create (2, sizeof (struct option *));
 
-	component_setData (comp, opt);
+	component_setData (comp, layout);
+
+	Entity
+		this = component_entityAttached (comp);
+	int
+		x, y,
+		w, h,
+		hm, vm,
+		fontHeight;
+
+	gui_xy (this, &x, &y);
+	gui_wh (this, &w, &h);
+	gui_vhMargin (this, &hm, &vm);
+	fontHeight = fontLineHeight ();
+
+	layout->confirm = gui_addTarget (this, x, y + h - (vm * 2 + fontHeight), w / 2, fontHeight + vm, NULL, optlayout_confirmClick);
+
+	layout->cancel = gui_addTarget (this, x + w / 2, y + h - (vm * 2 + fontHeight), w / 2, fontHeight + vm, NULL, optlayout_cancelClick);
+
 }
 
 void optlayout_destroy (EntComponent comp, EntSpeech speech)
@@ -73,21 +94,39 @@ void optlayout_draw (EntComponent comp, EntSpeech speech)
 	glColor4ub (0x00, 0x00, 0x00, 0xaf);
 	gui_drawPane (this);
 	
-	fontPrintAlign (ALIGN_LEFT);
 	while ((opt = *(struct option **)dynarr_at (layout->options, i)))
 	{
+		if (opt->target->hasHover)
+		{
+			glColor4ub (0x00, 0x99, 0xff, 0xaf);
+			gui_drawTargetPane (opt->target);
+		}
 		glColor4ub (0xff, 0xff, 0xff, 0xff);
-		fontPrint (opt->name, guiX + guiHMargin, guiY + guiVMargin + (i + infoLines) * fontHeight);
-		fontPrint (opt->dataAsString, guiX + guiW / 2, guiY + guiVMargin + (i + infoLines) * fontHeight);
+		fontPrintAlign (ALIGN_RIGHT);
+		fontPrint (opt->name, guiX + guiW / 2 - guiHMargin, guiY + guiVMargin + (i + infoLines) * (fontHeight + guiVMargin / 2));
+		fontPrintAlign (ALIGN_LEFT);
+		fontPrint (opt->dataAsString, guiX + guiW / 2 + guiHMargin, guiY + guiVMargin + (i + infoLines) * (fontHeight + guiVMargin / 2));
 		if (opt->info[0] != 0)
 		{
 			infoLines++;
 			glColor4ub (0xaf, 0xaf, 0xaf, 0xff);
-			fontPrint (opt->info, guiX + guiHMargin + fontHeight / 2, guiY + guiVMargin + (i + infoLines) * fontHeight);
+			fontPrint (opt->info, guiX + guiHMargin + fontHeight / 2, guiY + guiVMargin + (i + infoLines) * (fontHeight + guiVMargin / 2));
 		}
 		i++;
 	}
+	if (layout->confirm->hasHover)
+	{
+		glColor4ub (0x00, 0x99, 0xff, 0xaf);
+		gui_drawTargetPane (layout->confirm);
+	}
+	glColor4ub (0xff, 0xff, 0xff, 0xff);
 	fontPrint ("Continue", guiX + guiHMargin * 2, guiY + guiH - (guiVMargin * 2 + fontHeight));
+	if (layout->cancel->hasHover)
+	{
+		glColor4ub (0x00, 0x99, 0xff, 0xaf);
+		gui_drawTargetPane (layout->cancel);
+	}
+	glColor4ub (0xff, 0xff, 0xff, 0xff);
 	fontPrintAlign (ALIGN_RIGHT);
 	fontPrint ("Cancel", guiX + guiW - guiHMargin * 2, guiY + guiH - (guiVMargin * 2 + fontHeight));
 }
@@ -106,12 +145,28 @@ void optlayout_input (EntComponent comp, EntSpeech speech)
 
 }
 
+static void optlayout_confirmClick (Entity this, GUITarget target)
+{
+	input_sendAction (IR_UI_CONFIRM);
+}
+
+static void optlayout_cancelClick (Entity this, GUITarget target)
+{
+	entity_message (this, NULL, "loseFocus", NULL);
+	entity_destroy (this);
+}
+
 void optlayout_addOption (Entity this, const char * name, enum option_data_types type, const char * defaultVal, const char * info)
 {
 	struct optlayout
 		* layout = component_getData (entity_getAs (this, "optlayout"));
 	struct option
 		* opt;
+	int
+		x, y,
+		w, h,
+		hm, vm,
+		fontHeight;
 	if (!layout)
 		return;
 	opt = xph_alloc (sizeof (struct option));
@@ -121,6 +176,14 @@ void optlayout_addOption (Entity this, const char * name, enum option_data_types
 		strncpy (opt->info, info, 256);
 	option_parseString (opt, defaultVal);
 	dynarr_push (layout->options, opt);
+
+	gui_xy (this, &x, &y);
+	gui_wh (this, &w, &h);
+	gui_vhMargin (this, &hm, &vm);
+	fontHeight = fontLineHeight ();
+	opt->target = gui_addTarget (this, x, y + vm + (fontHeight + vm / 2) * layout->lines, w, (fontHeight + vm / 2) * (info ? 2 : 1), NULL, NULL);
+
+	layout->lines += info ? 2 : 1;
 }
 
 static bool option_parseString (struct option * opt, const char * string)

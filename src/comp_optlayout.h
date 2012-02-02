@@ -4,12 +4,18 @@
 #include "entity.h"
 
 #include "component_input.h"
+#include "comp_gui.h"
 
 struct optlayout
 {
 	Dynarr
 		options;
-	void (* finalizeCallback)(Entity);
+	int
+		lines,
+		hasFocus;
+	GUITarget
+		confirm,
+		cancel;
 };
 
 struct option
@@ -18,6 +24,8 @@ struct option
 		name[32],
 		info[256];
 
+	GUITarget
+		target;
 
 	char
 		dataAsString[32];

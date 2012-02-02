@@ -53,6 +53,7 @@ enum input_responses {
 	IR_WORLD_PLACEARCH,
 
 	IR_WORLDGEN,
+	IR_OPTIONS,
 	IR_QUIT,
 
 	IR_FINAL
