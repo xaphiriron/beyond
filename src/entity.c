@@ -374,18 +374,23 @@ void entity_messageGroup (const char * groupName, Entity from, char * message, v
 {
 	struct entity_group_map
 		* group;
-	Entity
-		member;
-	int
-		i = 0;
 	if (EntityGroups == NULL)
 		return;
 	group = *(struct entity_group_map **)dynarr_search (EntityGroups, entgroup_search, groupName);
 	if (!group)
 		return;
-	while ((member = *(Entity *)dynarr_at (group->members, i++)))
+	entity_messageDynarr (group->members, from, message, arg);
+}
+
+void entity_messageDynarr (Dynarr arr, Entity from, char * message, void * arg)
+{
+	Entity
+		entity;
+	int
+		i = 0;
+	while ((entity = *(Entity *)dynarr_at (arr, i++)))
 	{
-		entity_message (member, from, message, arg);
+		entity_message (entity, from, message, arg);
 	}
 }
 

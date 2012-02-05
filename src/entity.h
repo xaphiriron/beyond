@@ -48,6 +48,8 @@ bool entity_addToGroup (Entity e, const char * groupName);
 const Dynarr entity_getGroup (const char * group);
 void entity_messageGroup (const char * group, Entity from, char * message, void * arg);
 
+void entity_messageDynarr (Dynarr arr, Entity from, char * message, void * arg);
+
 /* call after adding or removing components; this updates the system lists the entity is on - xph 2011 10 27 */
 void entity_refresh (Entity e);
 
