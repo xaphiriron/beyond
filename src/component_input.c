@@ -88,10 +88,7 @@ void input_destroy (struct input * i)
 bool input_addEntity (Entity e, enum input_control_types t)
 {
 	assert (Input != NULL);
-	if (in_dynarr (Input->focusedEntities, e) == -1)
-	{
-		dynarr_push (Input->focusedEntities, e);
-	}
+	// THIS FUNCTION ISN'T NEEDED ANYMORE; INSTANTIATING AN INPUT COMPONENT AUTOMATICALLY ADDS AN ENTITY TO THE INPUT LIST
 	return true;
 }
 
@@ -209,10 +206,14 @@ static void input_classDestroy (EntComponent comp, EntSpeech speech)
 
 static void input_componentCreate (EntComponent comp, EntSpeech speech)
 {
+	Entity
+		this = component_entityAttached (comp);
 	struct xph_input
 		* input = xph_alloc (sizeof (struct xph_input));
 
 	component_setData (comp, input);
+
+	dynarr_push (Input->focusedEntities, this);
 }
 
 static void input_componentDestroy (EntComponent comp, EntSpeech speech)
@@ -223,7 +224,7 @@ static void input_componentDestroy (EntComponent comp, EntSpeech speech)
 		* input = component_getData (comp);
 	xph_free (input);
 
-	input_rmEntity (this, INPUT_FOCUSED);
+	dynarr_remove_condense (Input->focusedEntities, this);
 }
 
 static void input_gainFocus (EntComponent comp, EntSpeech speech)
@@ -257,31 +258,17 @@ void input_system (Dynarr entities)
 		switch (Input->event.type)
 		{
 			case SDL_MOUSEMOTION:
-				// these systemState calls seem entirely pointless (and this was coded back when i thought they weren't pointless, so there's not even a secret reason that i'm forgetting) - xph 2012 01 29
-				if (systemState () == STATE_FREEVIEW)
-				{
-					event.code = IR_MOUSEMOVE;
-					input_sendGameEventMessage (&event);
-				}
-				else if (systemState () == STATE_UI)
-				{
-					event.code = IR_MOUSEMOVE;
-					input_sendGameEventMessage (&event);
-					entitySystem_message ("gui", NULL, "FOCUS_INPUT", &event);
-				}
+				event.code = IR_MOUSEMOVE;
+				input_sendGameEventMessage (&event);
 				break;
 			case SDL_MOUSEBUTTONDOWN:
-				if (systemState () == STATE_FREEVIEW)
-				{
-					event.code = IR_MOUSECLICK;
-					input_sendGameEventMessage (&event);
-				}
-				else if (systemState () == STATE_UI)
-				{
-					event.code = IR_MOUSECLICK;
-					input_sendGameEventMessage (&event);
-					entitySystem_message ("gui", NULL, "FOCUS_INPUT", &event);
-				}
+				event.code = IR_MOUSECLICK;
+				input_sendGameEventMessage (&event);
+				break;
+			case SDL_MOUSEBUTTONUP:
+				event.code = IR_MOUSECLICK;
+				event.active = false;
+				input_sendGameEventMessage (&event);
 				break;
 
 			case SDL_KEYDOWN:
