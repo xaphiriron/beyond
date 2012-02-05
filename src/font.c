@@ -323,12 +323,31 @@ Text fontGenerate (const char * text, enum textAlignType align, int x, int y, in
 	}
 	else
 	{
+		int
+			lineCheck = 0,
+			lineLength = 0;
+		if (align == ALIGN_CENTRE)
+		{
+			lineCheck = i;
+			while ((c = text[lineCheck++]) && c != '\n')
+				lineLength += GlyphSheet->glyphs[c].xadvance;
+			glX = video_xMap (x + (w - lineLength) / 2);
+		}
+
 		while ((c = text[i++]))
 		{
 			switch (c)
 			{
 				case '\n':
-					glX = video_xMap (x);
+					if (align == ALIGN_CENTRE)
+					{
+						lineCheck = i;
+						while ((c = text[lineCheck++]) && c != '\n')
+							lineLength += GlyphSheet->glyphs[c].xadvance;
+						glX = video_xMap (x + (w - lineLength) / 2);
+					}
+					else
+						glX = video_xMap (x);
 					glY += video_yOffset (FontSizeInPx);
 					lineAdvance = 0;
 					continue;

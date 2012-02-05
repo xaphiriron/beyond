@@ -14,9 +14,9 @@
 enum textAlignType {
 ALIGN_LEFT = 1,
 ALIGN_RIGHT = 2,
-/*
 ALIGN_CENTER = 3,
 ALIGN_CENTRE = 3,
+/*
 ALIGN_JUSTIFY = 4
 */
 };
