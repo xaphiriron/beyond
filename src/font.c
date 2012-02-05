@@ -458,14 +458,15 @@ void fontPrint (const char * text, int x, int y)
 	if (text[0] == 0)
 		return;
 	words = fontGenerate (text, TextAlign, x, y, 0);
-	if (words->glyphs != 0)
-		fontTextPrint (words);
+	fontTextPrint (words);
 	fontDestroyText (words);
 	return;
 }
 
 void fontTextPrint (Text t)
 {
+	if (!t || t->glyphs == 0)
+		return;
 	glEnableClientState (GL_VERTEX_ARRAY);
 	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
 
