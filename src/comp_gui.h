@@ -16,6 +16,8 @@ struct xph_gui
 		stack;
 	Entity
 		frame;
+	Dynarr
+		subs;
 };
 
 void gui_place (Entity e, int x, int y, int w, int h);
@@ -37,6 +39,7 @@ bool gui_wh (Entity e, int * w, int * h);
 bool gui_vhMargin (Entity e, int * v, int * h);
 
 Entity gui_getFrame (Entity this);
+Dynarr gui_getSubs (Entity this);
 
 // gui doesn't use these itself but it's an easy way to draw the "canonical" gui size/location
 void gui_drawPane (Entity e);

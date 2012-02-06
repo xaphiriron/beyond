@@ -31,10 +31,23 @@ void gui_setMargin (Entity e, int vert, int horiz)
 void gui_setFrame (Entity this, Entity frame)
 {
 	GUI
-		gui = component_getData (entity_getAs (this, "gui"));
+		gui = component_getData (entity_getAs (this, "gui")),
+		oldFrame,
+		newFrame;
 	if (!gui)
 		return;
+	if (gui->frame)
+	{
+		if (gui->frame == frame)
+			return;
+		oldFrame = component_getData (entity_getAs (gui->frame, "gui"));
+		assert (oldFrame);
+		dynarr_remove_condense (oldFrame->subs, this);
+	}
 	gui->frame = frame;
+	newFrame = component_getData (entity_getAs (gui->frame, "gui"));
+	assert (newFrame);
+	dynarr_push (newFrame->subs, this);
 }
 
 static void gui_classDestroy (EntComponent comp, EntSpeech speech);
@@ -42,6 +55,7 @@ static void gui_create (EntComponent comp, EntSpeech speech);
 static void gui_destroy (EntComponent comp, EntSpeech speech);
 
 static void gui_gainFocus (EntComponent comp, EntSpeech speech);
+static void gui_loseFocus (EntComponent comp, EntSpeech speech);
 
 void gui_define (EntComponent comp, EntSpeech speech)
 {
@@ -51,6 +65,7 @@ void gui_define (EntComponent comp, EntSpeech speech)
 	component_registerResponse ("gui", "__destroy", gui_destroy);
 
 	component_registerResponse ("gui", "gainFocus", gui_gainFocus);
+	component_registerResponse ("gui", "loseFocus", gui_loseFocus);
 
 	GUIDepthStack = dynarr_create (4, sizeof (Entity *));
 }
@@ -65,6 +80,7 @@ static void gui_create (EntComponent comp, EntSpeech speech)
 {
 	GUI
 		gui = xph_alloc (sizeof (struct xph_gui));
+	gui->subs = dynarr_create (2, sizeof (Entity));
 
 	component_setData (comp, gui);
 }
@@ -76,6 +92,8 @@ static void gui_destroy (EntComponent comp, EntSpeech speech)
 		nextHighest;
 	GUI
 		gui = component_getData (comp);
+	// TODO: should this: update all its subs to have no frame/update all its subs to have its frame if it has one/destroy all subs/do nothing??? (currently doing nothing)
+	xph_free (gui->subs);
 	xph_free (gui);
 
 	component_clearData (comp);
@@ -98,8 +116,21 @@ void gui_gainFocus (EntComponent comp, EntSpeech speech)
 {
 	Entity
 		this = component_entityAttached (comp);
+	GUI
+		gui = component_getData (comp);
 	if (in_dynarr (GUIDepthStack, this) != -1)
 		gui_placeOnStack (this);
+
+	entity_messageDynarr (gui->subs, this, "gainFocus", NULL);
+}
+
+void gui_loseFocus (EntComponent comp, EntSpeech speech)
+{
+	Entity
+		this = component_entityAttached (comp);
+	GUI
+		gui = component_getData (comp);
+	entity_messageDynarr (gui->subs, this, "loseFocus", NULL);
 }
 
 
@@ -205,6 +236,15 @@ Entity gui_getFrame (Entity this)
 	if (!gui)
 		return NULL;
 	return gui->frame;
+}
+
+Dynarr gui_getSubs (Entity this)
+{
+	GUI
+		gui = component_getData (entity_getAs (this, "gui"));
+	if (!gui)
+		return NULL;
+	return gui->subs;
 }
 
 void gui_drawPane (Entity e)

@@ -23,8 +23,6 @@ void optlayout_destroy (EntComponent comp, EntSpeech speech);
 void optlayout_draw (EntComponent comp, EntSpeech speech);
 void optlayout_input (EntComponent comp, EntSpeech speech);
 
-void optlayout_gainFocus (EntComponent comp, EntSpeech speech);
-void optlayout_loseFocus (EntComponent comp, EntSpeech speech);
 
 static void optlayout_cancelCallback (Entity cancel);
 
@@ -35,9 +33,6 @@ void optlayout_define (EntComponent comp, EntSpeech speech)
 
 	component_registerResponse ("optlayout", "guiDraw", optlayout_draw);
 	component_registerResponse ("optlayout", "FOCUS_INPUT", optlayout_input);
-
-	component_registerResponse ("optlayout", "gainFocus", optlayout_gainFocus);
-	component_registerResponse ("optlayout", "loseFocus", optlayout_loseFocus);
 
 	component_register ("option", option_define);
 }
@@ -158,30 +153,6 @@ void optlayout_input (EntComponent comp, EntSpeech speech)
 		default:
 			break;
 	}
-}
-
-void optlayout_gainFocus (EntComponent comp, EntSpeech speech)
-{
-	Entity
-		this = component_entityAttached (comp);
-	struct optlayout
-		* layout = component_getData (entity_getAs (this, "optlayout"));
-
-	entity_messageDynarr (layout->options, this, "gainFocus", NULL);
-	entity_message (layout->confirm, this, "gainFocus", NULL);
-	entity_message (layout->cancel, this, "gainFocus", NULL);
-}
-
-void optlayout_loseFocus (EntComponent comp, EntSpeech speech)
-{
-	Entity
-		this = component_entityAttached (comp);
-	struct optlayout
-		* layout = component_getData (entity_getAs (this, "optlayout"));
-
-	entity_messageDynarr (layout->options, this, "loseFocus", NULL);
-	entity_message (layout->confirm, this, "loseFocus", NULL);
-	entity_message (layout->cancel, this, "loseFocus", NULL);
 }
 
 void optlayout_confirm (Entity this, actionCallback callback)
