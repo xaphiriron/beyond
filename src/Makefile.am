@@ -41,6 +41,8 @@ beyond_SOURCES = \
 	font.c font.h \
 	\
 	entity.c entity.h \
+	comp_menu.c comp_menu.h \
+	comp_textlabel.c comp_textlabel.h \
 	comp_clickable.c comp_clickable.h \
 	comp_optlayout.c comp_optlayout.h \
 	comp_player.c comp_player.h \
@@ -53,7 +55,6 @@ beyond_SOURCES = \
 	component_position.c component_position.h	\
 	component_camera.c component_camera.h		\
 	component_input.c component_input.h		\
-	component_ui.c component_ui.h \
 	component_walking.c component_walking.h	\
 	\
 	system.c system.h \

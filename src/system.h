@@ -88,8 +88,6 @@ void loadSetText (char * displayText);
  *  - xph 2011 06 16
  */
 
-char * systemGenDebugStr ();
-
 void system_registerTimedFunction (void (*func)(TIMER *), unsigned char weight);
 void system_removeTimedFunction (void (*func)(TIMER *));
 

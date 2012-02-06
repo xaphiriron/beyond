@@ -5,7 +5,6 @@
 #include "ogdl/ogdl.h"
 #include "xph_path.h"
 
-#include "component_ui.h"
 #include "graph_common.h"
 
 struct input

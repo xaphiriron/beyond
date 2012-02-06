@@ -8,7 +8,6 @@
 #include "xph_path.h"
 
 #include "component_input.h"
-#include "component_ui.h"
 #include "component_camera.h"
 #include "component_walking.h"
 
@@ -62,7 +61,6 @@ void bootstrap (void)
 	component_register ("camera", camera_define);
 	component_register ("walking", walking_define);
 	component_register ("input", input_define);
-	component_register ("ui", ui_define);
 	component_register ("arch", arch_define);
 	component_register ("body", body_define);
 	component_register ("builder", builder_define);
@@ -78,7 +76,6 @@ void bootstrap (void)
 
 	entitySystem_register ("input", input_system, 1, "input");
 	entitySystem_register ("walking", walking_system, 1, "walking");
-	entitySystem_register ("ui", ui_system, 1, "ui");
 	entitySystem_register ("builder", builder_system, 1, "builder");
 	entitySystem_register ("plantUpdate", plantUpdate_system, 1, "plant");
 	entitySystem_register ("chaser", chaser_update, 1, "chaser");
@@ -86,8 +83,6 @@ void bootstrap (void)
 
 	entitySystem_register ("mapLoad", mapLoad_system, 0);
 
-	entitySystem_register ("uiRender", uiRender_system, 1, "ui");
-	entitySystem_disableMessages ("uiRender");
 	entitySystem_register ("guiRender", gui_render, 1, "gui");
 	entitySystem_disableMessages ("guiRender");
 	entitySystem_register ("bodyRender", bodyRender_system, 2, "body", "position");
@@ -100,7 +95,6 @@ void bootstrap (void)
 	entitySystem_register ("TEMPsystemRender", systemRender, 0);
 	entitySystem_disableMessages ("TEMPsystemRender");
 
-	uiLoadPanelTexture ("../img/frame.png");
 	loadSetText ("Loading...");
 }
 

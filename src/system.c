@@ -1,7 +1,5 @@
 #include "system.h"
 
-#include <ctype.h>
-
 #include "video.h"
 #include "xph_timer.h"
 
@@ -9,10 +7,7 @@
 #include "texture.h"
 #include "font.h"
 
-#include "worldgen.h"
-
 #include "component_input.h"
-#include "component_ui.h"
 #include "component_camera.h"
 #include "component_position.h"
 
@@ -31,10 +26,6 @@ struct loadingdata
 	char
 		displayText[LOADERTEXTBUFFERSIZE];
 };
-
-#define DEBUGLEN	256
-char
-	debugDisplay[DEBUGLEN];
 
 static struct loadingdata
 	SysLoader;
@@ -169,6 +160,7 @@ void systemUpdate (void)
 		entitySystem_update ("plantUpdate");
 		entitySystem_update ("chaser");
 
+		entitySystem_update ("debug");
 		entitySystem_update ("ui");
 		entitySystem_update ("gui");
 	}
@@ -513,60 +505,6 @@ static void renderSkyCube ()
 	glEnd ();
 	glEnable (GL_DEPTH_TEST);
 	glClear (GL_DEPTH_BUFFER_BIT);
-}
-
-
-char * systemGenDebugStr ()
-{
-	signed int
-		x = 0,
-		y = 0,
-		len = 0,
-		span = mapGetSpan (),
-		radius = mapGetRadius ();
-	unsigned int
-		height = 0;
-	Entity
-		player = entity_getByName ("PLAYER"),
-		camera = entity_getByName ("CAMERA");
-	hexPos
-		position = position_get (player);
-	SUBHEX
-		platter;
-	unsigned char
-		focus = hexPos_focus (position),
-		i = 0;
-	char
-		buffer[64];
-	
-	memset (debugDisplay, 0, DEBUGLEN);
-	len = snprintf (buffer, 63, "Player Entity: #%d\nCamera Entity: #%d\n\n", entity_GUID (player), entity_GUID (camera));
-	strncpy (debugDisplay, buffer, len);
-
-
-	len += snprintf (buffer, 63, "scale: %d,%d\n\ton %c:\n", span, radius, toupper (subhexPoleName (hexPos_platter (position, span))));
-	strncat (debugDisplay, buffer, DEBUGLEN - len);
-
-	i = span;
-	while (i > 0)
-	{
-		i--;
-		if (i < focus)
-		{
-			len += snprintf (buffer, 63, "\t%d: **, **\n", i);
-			strncat (debugDisplay, buffer, DEBUGLEN - len);
-			continue;
-		}
-		platter = hexPos_platter (position, i);
-		subhexLocalCoordinates (platter, &x, &y);
-		len += snprintf (buffer, 63, "\t%d: %d, %d\n", i, x, y);
-		strncat (debugDisplay, buffer, DEBUGLEN - len);
-	}
-	height = position_height (player);
-	len += snprintf (buffer, 63, "\nheight: %u\n", height);
-	strncat (debugDisplay, buffer, DEBUGLEN - len);
-
-	return debugDisplay;
 }
 
 /***
