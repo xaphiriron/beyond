@@ -28,10 +28,18 @@ void gui_setMargin (Entity e, int vert, int horiz)
 	gui->horizMargin = horiz;
 }
 
+void gui_setFrame (Entity this, Entity frame)
+{
+	GUI
+		gui = component_getData (entity_getAs (this, "gui"));
+	if (!gui)
+		return;
+	gui->frame = frame;
+}
+
 static void gui_classDestroy (EntComponent comp, EntSpeech speech);
 static void gui_create (EntComponent comp, EntSpeech speech);
 static void gui_destroy (EntComponent comp, EntSpeech speech);
-static void gui_input (EntComponent comp, EntSpeech speech);
 
 static void gui_gainFocus (EntComponent comp, EntSpeech speech);
 
@@ -41,8 +49,6 @@ void gui_define (EntComponent comp, EntSpeech speech)
 
 	component_registerResponse ("gui", "__create", gui_create);
 	component_registerResponse ("gui", "__destroy", gui_destroy);
-
-	component_registerResponse ("gui", "FOCUS_INPUT", gui_input);
 
 	component_registerResponse ("gui", "gainFocus", gui_gainFocus);
 
@@ -59,9 +65,6 @@ static void gui_create (EntComponent comp, EntSpeech speech)
 {
 	GUI
 		gui = xph_alloc (sizeof (struct xph_gui));
-	gui->confirmCallback = gui_defaultCallback;
-	gui->cancelCallback = gui_defaultCallback;
-	gui->targets = dynarr_create (2, sizeof (struct xph_gui_target *));
 
 	component_setData (comp, gui);
 }
@@ -73,8 +76,6 @@ static void gui_destroy (EntComponent comp, EntSpeech speech)
 		nextHighest;
 	GUI
 		gui = component_getData (comp);
-	dynarr_map (gui->targets, xph_free);
-	dynarr_destroy (gui->targets);
 	xph_free (gui);
 
 	component_clearData (comp);
@@ -93,54 +94,12 @@ static void gui_destroy (EntComponent comp, EntSpeech speech)
 	}
 }
 
-// the usage of guiEntities here seems to imply that this code would be better off in a gui system -- it deals with interrellations between GUI elements in a way that involves the global scope, which means it should be systems code instead of component code - xph 2012 01 29
-static void gui_input (EntComponent comp, EntSpeech speech)
-{
-	Entity
-		this = component_entityAttached (comp);
-	GUI
-		gui = component_getData (comp);
-	inputEvent
-		* event = speech->arg;
-	struct xph_gui_target
-		* hit;
-
-	if (!event->active)
-		return;
-	switch (event->code)
-	{
-		case IR_UI_CONFIRM:
-			if (gui->confirmCallback)
-				gui->confirmCallback (this);
-			break;
-		case IR_UI_CANCEL:
-			if (gui->cancelCallback)
-				gui->cancelCallback (this);
-			break;
-		case IR_MOUSEMOVE:
-			hit = gui_hit (this, event->event->motion.x, event->event->motion.y);
-			if (hit && hit->hover)
-				hit->hover (this, hit);
-			break;
-		case IR_MOUSECLICK:
-			hit = gui_hit (this, event->event->button.x, event->event->button.y);
-			if (hit && hit->click)
-				hit->click (this, hit);
-			break;
-		default:
-			break;
-	}
-}
-
 void gui_gainFocus (EntComponent comp, EntSpeech speech)
 {
 	Entity
 		this = component_entityAttached (comp);
-	if (*(Entity *)dynarr_back (GUIDepthStack) != this)
-	{
-		dynarr_remove_condense (GUIDepthStack, this);
-		dynarr_push (GUIDepthStack, this);
-	}
+	if (in_dynarr (GUIDepthStack, this) != -1)
+		gui_placeOnStack (this);
 }
 
 
@@ -148,20 +107,9 @@ void gui_update (Dynarr entities)
 {
 	EntSpeech
 		message;
-	inputEvent
-		* event;
 
 	while ((message = entitySystem_dequeueMessage ("gui")))
 	{
-		if (strcmp (message->message, "FOCUS_INPUT") == 0)
-		{
-			event = message->arg;
-			switch (event->code)
-			{
-				default:
-					break;
-			}
-		}
 	}
 }
 
@@ -202,99 +150,16 @@ void gui_placeOnStack (Entity this)
 	}
 }
 
-GUITarget gui_addTarget (Entity this, int x, int y, int w, int h, targetCallback hover, targetCallback click)
-{
-	GUI
-		gui = component_getData (entity_getAs (this, "gui"));
-	struct xph_gui_target
-		* target;
-	if (!gui)
-		return NULL;
-	target = xph_alloc (sizeof (struct xph_gui_target));
-	target->x = x;
-	target->y = y;
-	target->w = w;
-	target->h = h;
-	target->click = click;
-	if (hover)
-		target->hover = hover;
-	else
-		target->hover = gui_defaultHover;
-	dynarr_push (gui->targets, target);
-	return target;
-}
-
-struct xph_gui_target * gui_hit (Entity this, int x, int y)
-{
-	GUI
-		gui = component_getData (entity_getAs (this, "gui"));
-	struct xph_gui_target
-		* target;
-	int
-		i = 0;
-	if (!gui)
-		return NULL;
-	while ((target = *(struct xph_gui_target **)dynarr_at (gui->targets, i++)))
-	{
-		if (x >= target->x && x < target->x + target->w
-		 && y >= target->y && y < target->y + target->h)
-			return target;
-	}
-	return NULL;
-}
-
-void gui_rmTarget (Entity this, struct xph_gui_target * target)
+bool gui_inside (Entity this, int x, int y)
 {
 	GUI
 		gui = component_getData (entity_getAs (this, "gui"));
 	if (!gui)
-		return;
-	dynarr_remove_condense (gui->targets, target);
-	xph_free (target);
-}
-
-void gui_confirmCallback (Entity this, void (*callback)(Entity))
-{
-	GUI
-		gui = component_getData (entity_getAs (this, "gui"));
-	if (!gui)
-		return;
-	gui->confirmCallback = callback;
-}
-
-void gui_cancelCallback (Entity this, void (*callback)(Entity))
-{
-	GUI
-		gui = component_getData (entity_getAs (this, "gui"));
-	if (!gui)
-		return;
-	gui->cancelCallback = callback;
-}
-
-void gui_defaultCallback (Entity gui)
-{
-	entity_message (gui, NULL, "loseFocus", NULL);
-	entity_destroy (gui);
-}
-
-void gui_defaultHover (Entity this, GUITarget hit)
-{
-	GUI
-		gui = component_getData (entity_getAs (this, "gui"));
-	GUITarget
-		target;
-	int
-		i = 0;
-	if (gui->lastHover == hit)
-		return;
-	while ((target = *(GUITarget *)dynarr_at (gui->targets, i++)))
-	{
-		if (target == hit)
-			target->hasHover = true;
-		else
-			target->hasHover = false;
-	}
-	gui->lastHover = hit;
+		return false;
+	if (x >= gui->x && x < gui->x + gui->w
+	 && y >= gui->y && y < gui->y + gui->h)
+		return true;
+	return false;
 }
 
 bool gui_xy (Entity e, int * x, int * y)
@@ -333,6 +198,14 @@ bool gui_vhMargin (Entity e, int * v, int * h)
 	return true;
 }
 
+Entity gui_getFrame (Entity this)
+{
+	GUI
+		gui = component_getData (entity_getAs (this, "gui"));
+	if (!gui)
+		return NULL;
+	return gui->frame;
+}
 
 void gui_drawPane (Entity e)
 {
@@ -348,31 +221,6 @@ void gui_drawPane (Entity e)
 	bottom = video_yMap (gui->y + gui->h);
 	left = video_xMap (gui->x);
 	right = video_xMap (gui->x + gui->w);
-	zNear = video_getZnear () - 0.001;
-
-	glBindTexture (GL_TEXTURE_2D, 0);
-
-	glBegin (GL_TRIANGLE_FAN);
-	glVertex3f (left, top, zNear);
-	glVertex3f (left, bottom, zNear);
-	glVertex3f (right, bottom, zNear);
-	glVertex3f (right, top, zNear);
-	glEnd ();
-
-	return;
-}
-
-void gui_drawTargetPane (GUITarget target)
-{
-	float
-		top, bottom,
-		left, right,
-		zNear;
-	assert (target);
-	top = video_yMap (target->y);
-	bottom = video_yMap (target->y + target->h);
-	left = video_xMap (target->x);
-	right = video_xMap (target->x + target->w);
 	zNear = video_getZnear () - 0.001;
 
 	glBindTexture (GL_TEXTURE_2D, 0);

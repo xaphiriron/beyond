@@ -603,7 +603,7 @@ int system_message (objMsg msg, void * a, void * b)
 			component_instantiate ("input", worldOptions);
 			entity_refresh (worldOptions);
 
-			gui_confirmCallback (worldOptions, worldConfig);
+			optlayout_confirm (worldOptions, worldConfig);
 			gui_placeOnStack (worldOptions);
 
 			input_addEntity (worldOptions, INPUT_FOCUSED);
@@ -625,7 +625,7 @@ int system_message (objMsg msg, void * a, void * b)
 			component_instantiate ("input", gameOptions);
 			entity_refresh (gameOptions);
 
-			gui_confirmCallback (gameOptions, NULL); // TODO: write the config-updating function and put it here
+			optlayout_confirm (gameOptions, NULL); // TODO: write the config-updating function and put it here
 			gui_placeOnStack (gameOptions);
 
 			input_addEntity (gameOptions, INPUT_FOCUSED);
@@ -637,7 +637,6 @@ int system_message (objMsg msg, void * a, void * b)
 			optlayout_addOption (gameOptions, "Fullscreen", OPT_FLAG, "off", NULL);
 
 			// TODO: this also needs /panes/; so video options and key options and game options aren't all thrown together on the same screen :(
-			//optlayout_addOption (gameOptions,
 
 			return EXIT_SUCCESS;
 

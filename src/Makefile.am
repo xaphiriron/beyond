@@ -41,6 +41,7 @@ beyond_SOURCES = \
 	font.c font.h \
 	\
 	entity.c entity.h \
+	comp_clickable.c comp_clickable.h \
 	comp_optlayout.c comp_optlayout.h \
 	comp_player.c comp_player.h \
 	comp_worldmap.c comp_worldmap.h \

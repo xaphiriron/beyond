@@ -28,12 +28,16 @@ static unsigned char
 static unsigned long
 	worldSeed = 0;
 
-void worldConfig (Entity options)
+void worldConfig (Entity confirm)
 {
 	char
 		patternPath[PATH_MAX];
 	Dynarr
 		openFrames;
+	Entity
+		options = gui_getFrame (confirm);
+	assert (entity_getAs (options, "optlayout") != NULL);
+
 	worldSpan = optlayout_optionNumValue (options, "World Size");
 	if (strcmp (optlayout_optionStrValue (options, "Seed"), "") == 0)
 		worldSeed = time (NULL);

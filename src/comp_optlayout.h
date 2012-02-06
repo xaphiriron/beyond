@@ -5,6 +5,9 @@
 
 #include "component_input.h"
 #include "comp_gui.h"
+#include "comp_clickable.h"
+
+#include "font.h"
 
 struct optlayout
 {
@@ -13,9 +16,12 @@ struct optlayout
 	int
 		lines,
 		hasFocus;
-	GUITarget
+	Entity
 		confirm,
 		cancel;
+	Text
+		confirmText,
+		cancelText;
 };
 
 struct option
@@ -24,11 +30,12 @@ struct option
 		name[32],
 		info[256];
 
-	GUITarget
-		target;
-
+	bool
+		textFocus;
 	char
 		dataAsString[32];
+	int
+		dataCursor;
 	enum option_data_types
 	{
 		OPT_STRING,
@@ -54,6 +61,8 @@ struct option
 };
 
 void optlayout_define (EntComponent comp, EntSpeech speech);
+
+void optlayout_confirm (Entity this, actionCallback callback);
 
 void optlayout_addOption (Entity this, const char * name, enum option_data_types type, const char * defaultVal, const char * info);
 

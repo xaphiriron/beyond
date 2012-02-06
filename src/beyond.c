@@ -20,6 +20,7 @@
 #include "comp_worldmap.h"
 #include "comp_player.h"
 #include "comp_optlayout.h"
+#include "comp_clickable.h"
 
 static void bootstrap (void);
 static void load (TIMER * t);
@@ -69,6 +70,7 @@ void bootstrap (void)
 	component_register ("worldmap", worldmap_define);
 	component_register ("player", player_define);
 	component_register ("optlayout", optlayout_define);
+	component_register ("clickable", clickable_define);
 
 	entitySystem_register ("input", input_system, 1, "input");
 	entitySystem_register ("walking", walking_system, 1, "walking");
@@ -112,8 +114,6 @@ void finalize (void)
 	component_instantiate ("ui", titleScreenMenu);
 	component_instantiate ("input", titleScreenMenu);
 	entity_refresh (titleScreenMenu);
-	gui_cancelCallback (titleScreenMenu, NULL);
-	gui_confirmCallback (titleScreenMenu, NULL);
 	gui_placeOnStack (titleScreenMenu);
 	input_addEntity (titleScreenMenu, INPUT_FOCUSED);
 	entity_message (titleScreenMenu, NULL, "setType", (void *)UI_MENU);
