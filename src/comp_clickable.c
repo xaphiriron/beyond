@@ -26,6 +26,7 @@ static void clickable_create (EntComponent comp, EntSpeech speech)
 		click = xph_alloc (sizeof (struct xph_clickable));
 	// TODO: write some 3d picking code so it's possible to have clickable things in 3d space
 	click->inside = gui_inside;
+	click->inputResponse = IR_NOTHING;
 
 	component_setData (comp, click);
 }
@@ -77,8 +78,13 @@ static void clickable_input (EntComponent comp, EntSpeech speech)
 			else if (click->hasClick)
 			{
 				// if pointer is still inside, fire click event
-				if (hit && click->click)
-					click->click (this);
+				if (hit)
+				{
+					if (click->inputResponse != IR_NOTHING)
+						input_sendAction (click->inputResponse);
+					if (click->click)
+						click->click (this);
+				}
 				click->hasClick = false;
 			}
 			break;
@@ -103,6 +109,15 @@ void clickable_setClickCallback (Entity this, actionCallback clickAct)
 	if (!click)
 		return;
 	click->click = clickAct;
+}
+
+void clickable_setClickInputResponse (Entity this, enum input_responses response)
+{
+	Clickable
+		click = component_getData (entity_getAs (this, "clickable"));
+	if (!click)
+		return;
+	click->inputResponse = response;
 }
 
 bool clickable_hasHover (Entity this)
