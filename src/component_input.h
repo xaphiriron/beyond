@@ -35,6 +35,7 @@ enum input_responses {
 
 	IR_MOUSEMOVE,
 	IR_MOUSECLICK,
+	IR_TEXT,
 
 	IR_CAMERA_MODE_SWITCH,
 

@@ -19,7 +19,8 @@ struct input
 		focusedEntities;
 
 	bool
-		active;
+		active,
+		textMode;
 };
 
 typedef union xph_key
@@ -72,6 +73,7 @@ struct input * input_create ()
 	i->focusedEntities = dynarr_create (2, sizeof (Entity *));
 
 	i->active = true;
+	i->textMode = true;
 
 	return i;
 }
@@ -284,6 +286,13 @@ void input_system (Dynarr entities)
 					}
 					i++;
 				}
+				if (Input->textMode)
+				{
+					event.event = &Input->event;
+					event.code = IR_TEXT;
+					event.active = true;
+					input_sendGameEventMessage (&event);
+				}
 				break;
 			case SDL_KEYUP:
 				i = 0;
@@ -345,6 +354,7 @@ static void input_loadConfig (const Graph config)
 		".keys.world.automove", // IR_FREEMOVE_AUTOMOVE
 		"", // IR_MOUSEMOVE
 		"", // IR_MOUSECLICK
+		"", // IR_TEXT
 		".keys.world.camera_mode", // IR_CAMERA_MODE_SWITCH
 		".keys.wireframe_mode", // IR_VIEW_WIREFRAME_SWITCH
 		".keys.worldmap", // IR_WORLDMAP_SWITCH
