@@ -892,12 +892,23 @@ void entity_purgeDestroyed (TIMER * timer)
 	if (!ToBeDestroyed)
 		return;
 
-	while ((e = entity_get (*(unsigned int *)dynarr_pop (ToBeDestroyed))) != NULL)
+	int
+		i = 0;
+	// entities are destroyed in the order their destruction is called for; any other order can (will) cause problems when there are entities that destroy other entities on destruction. (or at least i /think/ that was the cause of this one bug -- it was a double free ultimately caused by caching sub-entities [in gui code] and destroying them on destruction; if those entities had been already freed there was a dangling pointer dereference that, in the entity code at least, took the form of entities getting destroyed more-or-less randomly) - xph 2012 02 05
+	while ((e = entity_get (*(unsigned int *)dynarr_at (ToBeDestroyed, i++))))
 	{
 		entity_purge (e);
-		if (timer != NULL && outOfTime (timer))
+		if (timer && outOfTime (timer))
+		{
+			while (i > 0)
+			{
+				dynarr_unset (ToBeDestroyed, --i);
+			}
+			dynarr_condense (ToBeDestroyed);
 			return;
+		}
 	}
+	dynarr_clear (ToBeDestroyed);
 	FUNCCLOSE ();
 }
 
