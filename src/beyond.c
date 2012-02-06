@@ -21,6 +21,8 @@
 #include "comp_player.h"
 #include "comp_optlayout.h"
 #include "comp_clickable.h"
+#include "comp_textlabel.h"
+#include "comp_menu.h"
 
 static void bootstrap (void);
 static void load (TIMER * t);
@@ -71,6 +73,8 @@ void bootstrap (void)
 	component_register ("player", player_define);
 	component_register ("optlayout", optlayout_define);
 	component_register ("clickable", clickable_define);
+	component_register ("textlabel", textlabel_define);
+	component_register ("menu", menu_define);
 
 	entitySystem_register ("input", input_system, 1, "input");
 	entitySystem_register ("walking", walking_system, 1, "walking");
@@ -108,30 +112,18 @@ void finalize (void)
 		height,
 		width;
 
-	video_getDimensions (&height, &width);
+	video_getDimensions (&width, &height);
 	titleScreenMenu = entity_create ();
 	component_instantiate ("gui", titleScreenMenu);
-	component_instantiate ("ui", titleScreenMenu);
 	component_instantiate ("input", titleScreenMenu);
+	component_instantiate ("menu", titleScreenMenu);
 	entity_refresh (titleScreenMenu);
 	gui_placeOnStack (titleScreenMenu);
-	input_addEntity (titleScreenMenu, INPUT_FOCUSED);
-	entity_message (titleScreenMenu, NULL, "setType", (void *)UI_MENU);
-
-	entity_message (titleScreenMenu, NULL, "addValue", "New Game");
-	entity_message (titleScreenMenu, NULL, "setAction", (void *)IR_WORLDGEN);
-
-	entity_message (titleScreenMenu, NULL, "addValue", "Options");
-	entity_message (titleScreenMenu, NULL, "setAction", (void *)IR_OPTIONS);
-
-	entity_message (titleScreenMenu, NULL, "addValue", "Quit");
-	entity_message (titleScreenMenu, NULL, "setAction", (void *)IR_QUIT);
-
-	entity_message (titleScreenMenu, NULL, "setWidth", (void *)(int)(width / 4));
-	entity_message (titleScreenMenu, NULL, "setPosType", (void *)(PANEL_X_CENTER | PANEL_Y_ALIGN_23));
-	entity_message (titleScreenMenu, NULL, "setFrameBG", (void *)FRAMEBG_SOLID);
-	entity_message (titleScreenMenu, NULL, "setBorder", (void *)6);
-	entity_message (titleScreenMenu, NULL, "setLineSpacing", (void *)4);
+	gui_place (titleScreenMenu, width / 4, height / 2, width / 2, height / 4);
+	gui_setMargin (titleScreenMenu, 4, 4);
+	menu_addItem (titleScreenMenu, "New Game", IR_WORLDGEN);
+	menu_addItem (titleScreenMenu, "Options", IR_OPTIONS);
+	menu_addItem (titleScreenMenu, "Quit", IR_QUIT);
 
 	entity_message (titleScreenMenu, NULL, "gainFocus", NULL);
 

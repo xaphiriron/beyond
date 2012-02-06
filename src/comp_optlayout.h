@@ -4,10 +4,7 @@
 #include "entity.h"
 
 #include "component_input.h"
-#include "comp_gui.h"
 #include "comp_clickable.h"
-
-#include "font.h"
 
 struct optlayout
 {
@@ -19,9 +16,6 @@ struct optlayout
 	Entity
 		confirm,
 		cancel;
-	Text
-		confirmText,
-		cancelText;
 };
 
 struct option

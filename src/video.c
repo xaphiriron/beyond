@@ -197,6 +197,7 @@ static void video_loadDefaultSettings (VIDEO * v)
 
 static void video_enableSDLmodules ()
 {
+	SDL_EnableUNICODE (true);
 	//SDL_ShowCursor (SDL_DISABLE);
 	//SDL_WM_GrabInput (SDL_GRAB_ON);
 }

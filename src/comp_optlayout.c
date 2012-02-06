@@ -3,7 +3,8 @@
 #include "font.h"
 #include "video.h"
 
-#include "comp_clickable.h"
+#include "comp_gui.h"
+#include "comp_textlabel.h"
 
 static void option_define (EntComponent comp, EntSpeech speech);
 
@@ -63,26 +64,23 @@ void optlayout_create (EntComponent comp, EntSpeech speech)
 	component_instantiate ("gui", layout->confirm);
 	component_instantiate ("clickable", layout->confirm);
 	component_instantiate ("input", layout->confirm);
+	component_instantiate ("textlabel", layout->confirm);
 	entity_refresh (layout->confirm);
 	gui_place (layout->confirm, x, y + h - (vm * 2 + fontHeight), w / 2, fontHeight + vm);
 	gui_setFrame (layout->confirm, this);
 	clickable_setClickCallback (layout->confirm, NULL);
+	textlabel_set (layout->confirm, "Continue", ALIGN_CENTRE, x, y + h - (vm * 2 + fontHeight), w / 2);
 
 	layout->cancel = entity_create ();
 	component_instantiate ("gui", layout->cancel);
 	component_instantiate ("clickable", layout->cancel);
 	component_instantiate ("input", layout->cancel);
+	component_instantiate ("textlabel", layout->cancel);
 	entity_refresh (layout->cancel);
 	gui_place (layout->cancel, x + w / 2, y + h - (vm * 2 + fontHeight), w / 2, fontHeight + vm);
 	gui_setFrame (layout->cancel, this);
 	clickable_setClickCallback (layout->cancel, optlayout_cancelCallback);
-/*
-	layout->confirm = gui_addTarget (this, x, y + h - (vm * 2 + fontHeight), w / 2, fontHeight + vm, NULL, optlayout_confirmClick);
-
-	layout->cancel = gui_addTarget (this, x + w / 2, y + h - (vm * 2 + fontHeight), w / 2, fontHeight + vm, NULL, optlayout_cancelClick);
-*/
-	layout->confirmText = fontGenerate ("Continue", ALIGN_CENTRE, x, y + h - (vm * 2 + fontHeight), w / 2);
-	layout->cancelText = fontGenerate ("Cancel", ALIGN_CENTRE, x + w / 2, y + h - (vm * 2 + fontHeight), w / 2);
+	textlabel_set (layout->cancel, "Cancel", ALIGN_CENTRE, x + w / 2, y + h - (vm * 2 + fontHeight), w / 2);
 }
 
 void optlayout_destroy (EntComponent comp, EntSpeech speech)
@@ -94,8 +92,6 @@ void optlayout_destroy (EntComponent comp, EntSpeech speech)
 	dynarr_destroy (opt->options);
 	entity_destroy (opt->cancel);
 	entity_destroy (opt->confirm);
-	fontDestroyText (opt->cancelText);
-	fontDestroyText (opt->confirmText);
 	xph_free (opt);
 
 	component_clearData (comp);
@@ -120,11 +116,11 @@ void optlayout_draw (EntComponent comp, EntSpeech speech)
 	}
 	clickable_draw (layout->confirm);
 	glColor4ub (0xff, 0xff, 0xff, 0xff);
-	fontTextPrint (layout->confirmText);
+	textlabel_draw (layout->confirm);
 
 	clickable_draw (layout->cancel);
 	glColor4ub (0xff, 0xff, 0xff, 0xff);
-	fontTextPrint (layout->cancelText);
+	textlabel_draw (layout->cancel);
 }
 
 void optlayout_input (EntComponent comp, EntSpeech speech)

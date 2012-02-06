@@ -14,6 +14,7 @@
 #include "component_position.h"
 #include "comp_arch.h"
 #include "comp_optlayout.h"
+#include "comp_gui.h"
 
 #include "comp_chaser.h"
 
