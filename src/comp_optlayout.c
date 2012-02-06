@@ -134,12 +134,27 @@ void optlayout_draw (EntComponent comp, EntSpeech speech)
 
 void optlayout_input (EntComponent comp, EntSpeech speech)
 {
+	struct optlayout
+		* layout = component_getData (comp);
 	inputEvent
 		* event = speech->arg;
+	Clickable
+		cancel,
+		confirm;
 	if (!event->active)
 		return;
 	switch (event->code)
 	{
+		case IR_UI_CONFIRM:
+			confirm = component_getData (entity_getAs (layout->confirm, "clickable"));
+			if (confirm->click)
+				confirm->click (layout->confirm);
+			break;
+		case IR_UI_CANCEL:
+			cancel = component_getData (entity_getAs (layout->cancel, "clickable"));
+			if (cancel->click)
+				cancel->click (layout->cancel);
+			break;
 		default:
 			break;
 	}
