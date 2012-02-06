@@ -573,6 +573,7 @@ void cameraRender_system (Dynarr entities)
 
 	if (!camera)
 		return;
+	assert (player);
 
 	view = position_getViewAxes (player);
 	pos = position_getLocalOffset (player);
