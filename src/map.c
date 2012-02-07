@@ -13,6 +13,14 @@
 #include "map_internal.h"
 #include "component_position.h"
 
+struct xph_world
+{
+	Dynarr
+		spanLoadedPlatters;
+};
+
+static struct xph_world
+	World;
 SUBHEX
 	* Poles = NULL;
 char
@@ -29,10 +37,11 @@ static bool coordinatesOverflow (const signed int x, const signed int y, const s
 static void subhexInitData (SUBHEX subhex);
 static void subhexSetData (SUBHEX subhex, signed int x, signed int y, SUBHEX child);
 
+static bool hexPos_forceLoadTo (hexPos pos, unsigned char span);
+
 static struct mapData * mapDataCreate ();
 static struct mapData * mapDataCopy (const struct mapData * md);
-static void mapDataDestroy (struct mapData * mb);
-
+static void mapDataDestroy (struct mapData * md);
 
 static void mapCheckLoadStatusAndImprint (void * rel_v);
 static void mapBakeHex (HEX hex);
@@ -44,8 +53,6 @@ static void map_posRecalcPlatters (hexPos pos);
 /***
  * MAP LOADING INTERNAL FUNCTION DECLARATIONS
  */
-static void mapQueueLoadAround (SUBHEX origin);
-static signed int mapUnloadDistant ();
 
 
 
@@ -75,7 +82,16 @@ unsigned char mapGetRadius ()
 bool mapGeneratePoles ()
 {
 	int
+		i = 0,
 		count = 3;
+
+	World.spanLoadedPlatters = dynarr_create (MapSpan, sizeof (Dynarr));
+	while (i <= MapSpan)
+	{
+		dynarr_assign (World.spanLoadedPlatters, i, dynarr_create (fx (2), sizeof (SUBHEX)));
+		i++;
+	}
+
 	// blah blah warn/error here if the pole values aren't already null
 	Poles = NULL;
 	PoleNames = NULL;
@@ -89,7 +105,7 @@ bool mapGeneratePoles ()
 		Poles[count] = mapSubdivCreate (NULL, 0, 0);
 	}
 	
-	return false;
+	return true;
 }
 
 bool worldExists ()
@@ -101,6 +117,22 @@ bool worldExists ()
 
 void worldDestroy ()
 {
+	Dynarr
+		loadedPlatters;
+	int
+		span = 0;
+
+	while (span <= MapSpan)
+	{
+		loadedPlatters = *(Dynarr *)dynarr_at (World.spanLoadedPlatters, span);
+		dynarr_map (loadedPlatters, (void (*)(void *))mapLoad_unload);
+		dynarr_destroy (loadedPlatters);
+		dynarr_unset (World.spanLoadedPlatters, span);
+		span++;
+	}
+	dynarr_destroy (World.spanLoadedPlatters);
+	World.spanLoadedPlatters = NULL;
+
 	int
 		 i = PoleCount;
 	while (i > 0)
@@ -201,31 +233,6 @@ void mapForceGrowChildAt (SUBHEX subhex, signed int x, signed int y)
 	}
 }
 
-void mapLoadAround (hexPos pos)
-{
-	SUBHEX
-		platter = NULL;
-	int
-		i = MapSpan;
-	while (i > pos->focus && pos->platter[i])
-	{
-		platter = pos->platter[i];
-		i--;
-	}
-	i++;
-	if (!platter)
-		return;
-
-	while (subhexSpanLevel (platter) > pos->focus)
-	{
-		platter = map_posBestMatchPlatter (pos);
-		assert (i >= 0);
-		mapForceGrowChildAt (platter, pos->x[i], pos->y[i]);
-		i--;
-	}
-}
-
-
 bool hexPos_forceLoadTo (hexPos pos, unsigned char span)
 {
 	int
@@ -250,6 +257,61 @@ bool hexPos_forceLoadTo (hexPos pos, unsigned char span)
 
 	return true;
 }
+
+void mapLoad_load (hexPos pos)
+{
+	assert (pos);
+	hexPos_forceLoadTo (pos, hexPos_focus (pos));
+}
+
+void mapLoad_unload (SUBHEX where)
+{
+	int
+		i = 0,
+		max = fx (MapRadius);
+	Entity
+		arch;
+	hexPos
+		archPosition;
+	if (!where)
+		return;
+	if (subhexSpanLevel (where) == 0)
+	{
+		WARNING ("Attempted direct unload of a hex column (%p)", where);
+		// TODO: free the hex column??
+		return;
+	}
+
+	// TODO: write the subdiv data to a map file
+
+	if (where->sub.data && subhexSpanLevel (where) != 1)
+	{
+		while (i < max)
+		{
+			if (where->sub.data[i])
+			{
+				WARNING ("Subhex %p has loaded subdivs; this unload is going to run long", where);
+				mapLoad_unload (where->sub.data[i]);
+			}
+			i++;
+		}
+		xph_free (where->sub.data);
+		where->sub.data = NULL;
+	}
+
+	i = 0;
+	while ((arch = *(Entity *)dynarr_at (where->sub.arches, i++)))
+	{
+		archPosition = position_get (arch);
+		// la la let's just null out the unloaded platter by hand
+		archPosition->platter[where->sub.span] = NULL;
+		subhexAddArch (where->sub.parent, arch);
+	}
+	// TODO: something something free arches and have them send a final report to their parent OR convert and attach them to the parent
+
+	subhexDestroy (where);
+}
+
 
 /***
  * SIMPLE CREATION AND INITIALIZATION FUNCTIONS
@@ -288,6 +350,7 @@ SUBHEX mapHexCreate (const SUBHEX parent, signed int x, signed int y)
 	sh->hex.light = (r > MapRadius / 2) ^ (i % 2 | !r);
 
 	sh->hex.steps = dynarr_create (8, sizeof (HEXSTEP));
+	sh->hex.spurs = dynarr_create (8, sizeof (hexSpur));
 	sh->hex.occupants = dynarr_create (2, sizeof (struct hex_occupant *));
 
 	hexSetBase (&sh->hex, 0, material (MAT_AIR));
@@ -410,6 +473,8 @@ SUBHEX mapSubdivCreate (SUBHEX parent, signed int x, signed int y)
 		mapForceSubdivide (sh);
 	}
 
+	dynarr_push (*(Dynarr *)dynarr_at (World.spanLoadedPlatters, sh->sub.span), sh);
+
 	return sh;
 }
 
@@ -421,8 +486,7 @@ static void subhexInitData (SUBHEX subhex)
 	if (subhex->type == HS_HEX)
 		return;
 	/* FIXME: see note in hex_utility.c about hx (); long story short these lines can drop the + 1 once that's fixed */
-	subhex->sub.data = xph_alloc (sizeof (SUBHEX) * hx (MapRadius + 1));
-	memset (subhex->sub.data, '\0', sizeof (SUBHEX) * hx (MapRadius + 1));
+	subhex->sub.data = xph_alloc (sizeof (SUBHEX) * fx (MapRadius));
 }
 
 static void subhexSetData (SUBHEX subhex, signed int x, signed int y, SUBHEX child)
@@ -447,7 +511,9 @@ void subhexDestroy (SUBHEX subhex)
 {
 	int
 		i = 0,
-		max = hx (MapRadius + 1); // FIXME: as usual see hex_utils.c:hx
+		max = fx (MapRadius),
+		parentIndex;
+
 	if (subhex->type == HS_SUB)
 	{
 		if (subhex->sub.data != NULL)
@@ -463,11 +529,21 @@ void subhexDestroy (SUBHEX subhex)
 		}
 		mapDataDestroy (subhex->sub.mapInfo);
 		dynarr_destroy (subhex->sub.arches);
+
+		if (subhex->sub.parent)
+		{
+			parentIndex = hex_linearXY (subhex->sub.x, subhex->sub.y);
+			subhex->sub.parent->sub.data[parentIndex] = NULL;
+		}
+		dynarr_remove_condense (*(Dynarr *)dynarr_at (World.spanLoadedPlatters, subhex->sub.span), subhex);
 	}
 	else if (subhex->type == HS_HEX)
 	{
 		dynarr_map (subhex->hex.steps, xph_free);
 		dynarr_destroy (subhex->hex.steps);
+
+		dynarr_map (subhex->hex.spurs, xph_free);
+		dynarr_destroy (subhex->hex.spurs);
 
 		dynarr_map (subhex->hex.occupants, xph_free);
 		dynarr_destroy (subhex->hex.occupants);
@@ -938,6 +1014,60 @@ hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y)
 	return scratch;
 }
 
+hexPos hexPos_from (const hexPos at, unsigned char span, int x, int y)
+{
+	hexPos
+		scratch = NULL;
+	SUBHEX
+		focus;
+
+	int
+		higherX = 0,
+		higherY = 0,
+		xRemainder = 0,
+		yRemainder = 0;
+
+	focus = hexPos_platter (at, span);
+	scratch = map_copy (at);
+	if (span == MapSpan)
+	{
+		// i'm unsure if this actually works right -- shouldn't there be some sort of calculation with the lower-span coordinates to update them? or something? something in some way similar to the hexMagnitude update block below? - xph 2011 12 15
+		scratch->platter[MapSpan] = mapPole (mapPoleTraversal (subhexPoleName (scratch->platter[MapSpan]), x, y));
+		map_posRecalcPlatters (scratch);
+		return scratch;
+	}
+
+	span++;
+
+	scratch->x[span] += x;
+	scratch->y[span] += y;
+
+	while (hexMagnitude (scratch->x[span], scratch->y[span]) > MapRadius)
+	{
+		assert (span <= MapSpan);
+		mapScaleCoordinates
+		(
+			1,
+			scratch->x[span], scratch->y[span],
+			&higherX, &higherY,
+			&xRemainder, &yRemainder
+		);
+		scratch->x[span] = xRemainder;
+		scratch->y[span] = yRemainder;
+		span++;
+		if (span > MapSpan)
+		{
+			scratch->platter[MapSpan] = mapPole (mapPoleTraversal (subhexPoleName (scratch->platter[MapSpan]), higherX, higherY));
+			break;
+		}
+		scratch->x[span] += higherX;
+		scratch->y[span] += higherY;
+	}
+
+	map_posRecalcPlatters (scratch);
+	return scratch;
+}
+
 void map_freePos (hexPos pos)
 {
 	assert (pos != NULL);
@@ -973,6 +1103,20 @@ SUBHEX hexPos_platter (const hexPos pos, unsigned char focus)
 unsigned char hexPos_focus (const hexPos pos)
 {
 	return pos->focus;
+}
+
+unsigned char hexPos_lastLoadedIndex (const hexPos pos)
+{
+	unsigned char
+		i = pos->focus;
+	while (i <= MapSpan)
+	{
+		if (pos->platter[i])
+			return i;
+		i++;
+	}
+	ERROR ("Position exists with absolutely no loaded platters");
+	return 0;
 }
 
 SUBHEX map_posFocusedPlatter (const hexPos pos)
@@ -1018,6 +1162,22 @@ Dynarr map_posAround (const SUBHEX subhex, unsigned int distance)
 	{
 		hex_unlineate (i, &x, &y);
 		dynarr_push (arr, map_from (subhex, 0, x, y));
+		i++;
+	}
+	return arr;
+}
+
+Dynarr hexPos_around (const hexPos pos, unsigned char span, unsigned int distance)
+{
+	Dynarr
+		arr = dynarr_create (fx (distance) + 1, sizeof (hexPos));
+	int
+		x, y,
+		i = 0;
+	while (i < fx (distance))
+	{
+		hex_unlineate (i, &x, &y);
+		dynarr_push (arr, hexPos_from (pos, span, x, y));
 		i++;
 	}
 	return arr;
@@ -1998,6 +2158,7 @@ union collide_marker map_lineCollide (const SUBHEX base, const VECTOR3 * local, 
 
 			if (collidingEdge != -1)
 			{
+				
 				//intersection = line_planeIntersection (local, ray, ???, ???);
 				
 			}
@@ -2037,7 +2198,12 @@ union collide_marker map_lineCollide (const SUBHEX base, const VECTOR3 * local, 
 				// collidingEdge is used in the next go-round to see if there's a join collision
 				collidingEdge = (begin + i) % 6;
 				active = mapHexAtCoordinateAuto (active, 0, XY[collidingEdge][X], XY[collidingEdge][Y]);
-				assert (active != NULL);
+				if (!active)
+				{
+					// ray passed out of the loaded world -- this shouldn't happen at all with the way the map loading code is structured currently (since it force loads as the player moves) but in the future it's possible. Also there's a creepy loading bug that means it can happen! Not sure what's up with that. - xph 2012 01 29
+					WARNING ("Raycast traveled over world edge");
+					return mark;
+				}
 				break;
 			}
 			i++;
@@ -2158,36 +2324,35 @@ bool subhexPartlyLoaded (const SUBHEX subhex)
 	
 }
 
-VECTOR3 mapDistanceBetween (const SUBHEX a, const SUBHEX b)
+bool mapCoordinateDistance (const hexPos a, const hexPos b, signed int * x, signed int * y, enum use_fidelity target)
 {
 	hexPos
-		aPos = map_at (a),
-		bPos = map_at (b);
-	VECTOR3
-		r = mapDistance (aPos, bPos);
-	map_freePos (aPos);
-	map_freePos (bPos);
-	return r;
-}
-
-VECTOR3 mapDistance (const hexPos a, const hexPos b)
-{
-	hexPos
-		difference = map_blankPos ();
+		difference;
 	int
+		focus,
+		span;
+	if (!a || !b)
+		return false;
+	difference = map_blankPos ();
+	if (target == MAP_USE_HIGHER_FIDELITY)
+	{
 		focus = a->focus < b->focus
 			? a->focus
-			: b->focus,
-		span;
-	VECTOR3
-		r = vectorCreate (0.0, 0.0, 0.0);
+			: b->focus;
+	}
+	else
+	{
+		focus = a->focus < b->focus
+			? b->focus
+			: a->focus;
+	}
 
-	// FIXME: i don't actually know if this will work right in all cases. notably: on crossing poles (definitely won't); on maps where there are so many span levels or there's such a large distance that a top-level difference isn't representable as an int when it's scaled to be in span 0 coordinates - xph 2011 12 24
+	// FIXME: i don't actually know if this will work right in all cases. notably: on maps where there are so many span levels or there's such a large distance that a top-level difference isn't representable as an int when it's scaled to be in span 0 coordinates - xph 2011 12 24
 	// using the raw coordinates, get the net distance
 	span = MapSpan;
 	while (span > focus)
 	{
-		// this may or may not deal properly with pole crossings. if it does work, it definitely doesn't generate the shortest possible distance, which is what we want.
+		// this is the chunk of code that determines which of the three pole connections generates the shortest distance, so there isn't weirdness around most pole edges - xph 2012 02 03
 		if (span == MapSpan && a->platter[span] != b->platter[span])
 		{
 			const int
@@ -2252,10 +2417,38 @@ VECTOR3 mapDistance (const hexPos a, const hexPos b)
 	}
 
 	// i don't remember why focus + 1 is the correct value but it probably has something to do with how hexPos coordinates are stored on the level above them
-	r = mapDistanceFromSubhexCentre (focus, difference->x[focus + 1], difference->y[focus + 1]);
-
+	*x = difference->x[focus + 1];
+	*y = difference->y[focus + 1];
 	map_freePos (difference);
+	
+	return true;
+}
 
+VECTOR3 mapDistanceBetween (const SUBHEX a, const SUBHEX b)
+{
+	hexPos
+		aPos = map_at (a),
+		bPos = map_at (b);
+	VECTOR3
+		r = mapDistance (aPos, bPos);
+	map_freePos (aPos);
+	map_freePos (bPos);
+	return r;
+}
+
+VECTOR3 mapDistance (const hexPos a, const hexPos b)
+{
+	int
+		focus = a->focus < b->focus
+			? a->focus
+			: b->focus;
+	int
+		x = 0,
+		y = 0;
+	VECTOR3
+		r;
+	mapCoordinateDistance (a, b, &x, &y, MAP_USE_HIGHER_FIDELITY);
+	r = mapDistanceFromSubhexCentre (focus, x, y);
 	return r;
 }
 
@@ -2263,9 +2456,6 @@ VECTOR3 mapDistance (const hexPos a, const hexPos b)
  * MAP LOADING FUNCTIONS
  */
 
-
-static Dynarr
-	RenderCache = NULL;
 SUBHEX
 	RenderOrigin = NULL;
 static unsigned char
@@ -2292,45 +2482,6 @@ static void initMapLoad ()
 	toLoad = dynarr_create (12, sizeof (SUBHEX));
 }
 */
-
-static void mapQueueLoadAround (SUBHEX origin)
-{
-/*
-	if (loadedPlatters == NULL)
-		initMapLoad ();
-*/
-	mapForceGrowAtLevelForDistance (origin, 1, 5);
-}
-
-/* i feel like this function is ignoring the fact that subhexes will
- * frequently be high-span (not just span-1 at all times) and i /also/ feel
- * like that will doubtless lead to problems when you accidentally unload a
- * pole or something like that
- *  - xph 2011 08 01
- */
-static signed int mapUnloadDistant ()
-{
-/*
-	int
-		x, y,
-		distance = 0,
-		i = 0;
-	SUBHEX
-		subhex = NULL;
-	if (loadedPlatters == NULL)
-		initMapLoad ();
-	while ((subhex = *(SUBHEX *)dynarr_at (toLoad, i++)) != NULL)
-	{
-		mapStepDistanceBetween (RenderOrigin, subhex, 1, &x, &y);
-		distance = hexMagnitude (x, y);
-		if (distance > (AbsoluteViewLimit * 2))
-		{
-			// unload subhex i guess
-		}
-	}
-*/
-	return -1;
-}
 
 /***
  * RENDERING FUNCTIONS
@@ -2363,38 +2514,11 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 	else if (subhexSpanLevel (origin) != 1)
 		ERROR ("The rendering origin isn't at maximum resolution; this may be a problem");
 
-	if (RenderCache != NULL)
-	{
-		dynarr_wipe (RenderCache, (void (*)(void *))map_freePos);
-		dynarr_destroy (RenderCache);
-	}
-
-	/* the instant map expansion rule:
-	 * this ought to add all the affected subhexes to a list to iterate
-	 * though, but for now an instant load will suffice.
-	 *  - xph 2011 08 01
-	 */
-
-	mapQueueLoadAround (origin);
-
-	RenderCache = map_posAround (origin, AbsoluteViewLimit);
-
 	/* this is painfully clever and yet somehow still weirdly constructed. so, as it turns out, no matter what the origin is or what other platters are being drawn, the actual offsets from the origin will be constant, because the map is laid out on a regular hexagonal grid. therefore, it's possible to calculate these platter offsets once and then use them forever afterward. this doesn't need real subhexes or even real hexposes to calculate the offsets, it's just i had already written the mapDistance function and there are all these hexPos values on hand already, so might as well put it here. it'd be more reasonable for this to be placed in some worldgen pre-render system, once i get to making the world map rendering code all systemic. - xph 2011 12 24*/
-	if (Distance == NULL)
+	if (VertexJitter == NULL)
 	{
-		hexPos
-			originPos,
-			cacheEntry;
 		float
-			rad;
-		originPos = map_at (RenderOrigin);
-		Distance = xph_alloc (sizeof (VECTOR3) * fx (AbsoluteViewLimit));
-		while ((cacheEntry = *(hexPos *)dynarr_at (RenderCache, i)))
-		{
-			Distance[i] = mapDistance (cacheEntry, originPos);
-			i++;
-		}
-		map_freePos (originPos);
+			rad = 0;
 		VertexJitter = xph_alloc (sizeof (VECTOR3) * green (MapRadius + 1));
 		i = 0;
 		while (i < green (MapRadius + 1))
@@ -2406,17 +2530,6 @@ void worldSetRenderCacheCentre (SUBHEX origin)
 			i++;
 		}
 	}
-
-	mapUnloadDistant ();
-
-	/* i really don't know if this is the right place for the imprinting code
-	 * -- it obviously has /something/ to do with rendering, but when we're
-	 * actually loading and saving platters instead of re-imprinting every
-	 * time the platter becomes visible i suspect this will pose a problem.
-	 * maybe???
-	 *   - xph 2011 07 28
-	 */
-	dynarr_map (RenderCache, mapCheckLoadStatusAndImprint);
 }
 
 VECTOR3 renderOriginDistance (const SUBHEX hex)
@@ -2432,21 +2545,23 @@ static void mapCheckLoadStatusAndImprint (void * rel_v)
 	int
 		i = 0,
 		loadCount = 0;
-	hexPos
-		pos;
 	assert (rel_v != NULL);
-	pos = rel_v;
-	target = map_posFocusedPlatter (pos);
+	target = rel_v;
 	/* higher span platters can still be imprinted and 'loaded' in the sense that their data values can be used to, like, the raycasting bg or something. ultimately they shouldn't be ignored, but for the time being they are */
+	//printf ("have subhex %p\n", target);
 	if (!target || subhexSpanLevel (target) != 1)
 		return;
+	//printf ("subhex exists and is span 1\n");
 	if (target->sub.loaded)
 		return;
+	//printf ("subhex isn't loaded\n");
 	if (!target->sub.imprintable)
 	{
+		//printf ("subhex not imprintable; rerunning imprint check\n");
 		while (i < 6)
 		{
 			adjacent = mapHexAtCoordinateAuto (target, 0, XY[i][X], XY[i][Y]);
+			//printf ("got %d-th adjacent subhex (%p)\n", i, adjacent);
 			if (adjacent != NULL)
 				loadCount++;
 			i++;
@@ -2455,30 +2570,33 @@ static void mapCheckLoadStatusAndImprint (void * rel_v)
 			target->sub.imprintable = true;
 		else
 			return;
+		//printf ("subhex has all six adjacent subhexes loaded\n");
 	}
-	if (!target->sub.loaded)
+	/* loaded needs to be set before the imprinting because the imprinting code checks to see if the hexes it's getting (i.e., nearby hexes it's using to get information about the world) are part of a loaded platter and discards them if they're not */
+	target->sub.loaded = true;
+	//printf ("imprinting subhex\n");
+	worldImprint (target);
+	//printf ("baking hexes\n");
+	mapBakeHexes (target);
+	i = 0;
+	while (i < 6)
 	{
-		/* loaded needs to be set before the imprinting because the imprinting code checks to see if the hexes it's getting (i.e., nearby hexes it's using to get information about the world) are part of a loaded platter and discards them if they're not */
-		target->sub.loaded = true;
-		worldImprint (target);
-		mapBakeHexes (target);
-		i = 0;
-		while (i < 6)
+		adjacent = mapHexAtCoordinateAuto (target, 0, XY[i][X], XY[i][Y]);
+		//printf ("checking adjacent subhex %p (%d-th) for edge recalc\n", adjacent, i);
+		if (adjacent != NULL && subhexSpanLevel (adjacent) == subhexSpanLevel (target) && adjacent->sub.loaded == true)
 		{
-			adjacent = mapHexAtCoordinateAuto (target, 0, XY[i][X], XY[i][Y]);
-			if (adjacent != NULL && subhexSpanLevel (adjacent) == subhexSpanLevel (target) && adjacent->sub.loaded == true)
-			{
-				/* FIXME: only some of these need to be updated (based on the i value) but I have no clue which and I'm too lazy to figure it out right now */
-				mapBakeEdgeHexes (adjacent, 0);
-				mapBakeEdgeHexes (adjacent, 1);
-				mapBakeEdgeHexes (adjacent, 2);
-				mapBakeEdgeHexes (adjacent, 3);
-				mapBakeEdgeHexes (adjacent, 4);
-				mapBakeEdgeHexes (adjacent, 5);
-			}
-			i++;
+			//printf ("baking adajcent hex edges\n");
+			/* FIXME: only some of these need to be updated (based on the i value) but I have no clue which and I'm too lazy to figure it out right now */
+			mapBakeEdgeHexes (adjacent, 0);
+			mapBakeEdgeHexes (adjacent, 1);
+			mapBakeEdgeHexes (adjacent, 2);
+			mapBakeEdgeHexes (adjacent, 3);
+			mapBakeEdgeHexes (adjacent, 4);
+			mapBakeEdgeHexes (adjacent, 5);
 		}
+		i++;
 	}
+	//printf ("done imprinting %p\n", target);
 }
 
 void mapBakeEdgeHexes (SUBHEX subhex, unsigned int dir)
@@ -2538,12 +2656,6 @@ static void mapBakeHex (HEX hex)
 		lastAdjOpacity = 0;
 	bool
 		validJoin = false;
-	while (dir < 6)
-	{
-		if (hex->adjacent[dir] == NULL)
-			hex->adjacent[dir] = (HEX)mapHexAtCoordinateAuto ((SUBHEX)hex, 0, XY[(dir + 1) % 6][X], XY[(dir + 1) % 6][Y]);
-		dir++;
-	}
 
 	i = dynarr_size (hex->steps);
 	while ((step = *(HEXSTEP *)dynarr_at (hex->steps, --i)) != NULL)
@@ -2583,10 +2695,24 @@ static void mapBakeHex (HEX hex)
 				dynarr_wipe (step->info.visibleJoin[dir], xph_free);
 			else
 				step->info.visibleJoin[dir] = dynarr_create (2, sizeof (unsigned int *));
-			adjHex = hex->adjacent[dir];
+			adjHex = (HEX)mapHexAtCoordinateAuto ((SUBHEX)hex, 0, XY[(dir + 1) % 6][X], XY[(dir + 1) % 6][Y]);
+			if (!adjHex)
+			{
+				ERROR ("Adjacent hex not loaded properly (who saw this coming.)");
+				continue;
+			}
 			lastAdjStep = NULL;
 			lastAdjOpacity = 0;
 			j = dynarr_size (adjHex->steps);
+			if (j == 1)
+			{
+				adjStep = *(HEXSTEP *)dynarr_at (adjHex->steps, 0);
+				if (adjStep->height == 0 && adjStep->material == material (MAT_AIR))
+				{
+					dir++;
+					continue;
+				}
+			}
 			while ((adjStep = *(HEXSTEP *)dynarr_at (adjHex->steps, --j)))
 			{
 				validJoin = false;
@@ -2657,22 +2783,22 @@ void mapDraw (const float const * matrix)
 {
 	VECTOR3
 		centreOffset;
-	hexPos
-		pos;
 	SUBHEX
 		sub;
 	unsigned int
 		tier1Detail = hx (AbsoluteViewLimit + 1),
 		i = 0;
-	if (RenderCache == NULL)
+	Dynarr
+		visiblePlatters;
+	visiblePlatters = *(Dynarr *)dynarr_at (World.spanLoadedPlatters, 1);
+	if (visiblePlatters == NULL)
 	{
 		ERROR ("Cannot draw map: Render cache is uninitialized.");
 		return;
 	}
 	while (i < tier1Detail)
 	{
-		pos = *(hexPos *)dynarr_at (RenderCache, i);
-		sub = map_posFocusedPlatter (pos);
+		sub = *(SUBHEX *)dynarr_at (visiblePlatters, i);
 		if (!sub || sub->sub.loaded == false)
 		{
 			i++;
@@ -2686,8 +2812,7 @@ void mapDraw (const float const * matrix)
 	i = 0;
 	while (i < tier1Detail)
 	{
-		pos = *(hexPos *)dynarr_at (RenderCache, i);
-		sub = map_posFocusedPlatter (pos);
+		sub = *(SUBHEX *)dynarr_at (visiblePlatters, i);
 		if (!sub || sub->sub.loaded == false)
 		{
 			i++;
@@ -2736,7 +2861,7 @@ void drawHexSurface (const struct hexColumn * const hex, const HEXSTEP step, con
 	switch (style)
 	{
 		case DRAW_HIGHLIGHT:
-			glDisable (GL_DEPTH_TEST);
+			glDepthFunc (GL_ALWAYS);
 			glColor4ub (0x00, 0x99, 0xff, 0x7f);
 			break;
 		case DRAW_NORMAL:
@@ -2762,7 +2887,7 @@ void drawHexSurface (const struct hexColumn * const hex, const HEXSTEP step, con
 
 	if (style == DRAW_HIGHLIGHT)
 	{
-		glEnable (GL_DEPTH_TEST);
+		glDepthFunc (GL_LESS);
 	}
 }
 
@@ -2783,7 +2908,7 @@ void drawHexUnderside (const struct hexColumn * const hex, const HEXSTEP step, M
 	switch (style)
 	{
 		case DRAW_HIGHLIGHT:
-			glDisable (GL_DEPTH_TEST);
+			glDepthFunc (GL_ALWAYS);
 			glColor4ub (0x00, 0x99, 0xff, 0x7f);
 			break;
 		case DRAW_NORMAL:
@@ -2809,7 +2934,7 @@ void drawHexUnderside (const struct hexColumn * const hex, const HEXSTEP step, M
 
 	if (style == DRAW_HIGHLIGHT)
 	{
-		glEnable (GL_DEPTH_TEST);
+		glDepthFunc (GL_LESS);
 	}
 }
 
@@ -2985,9 +3110,85 @@ static unsigned int vertex (int x, int y, int v)
  * ENTITY/SYSTEM/COMPONENT CODE HERE
  */
 
+static int
+	* UnloadedCount = NULL;
+
 void mapLoad_system (Dynarr entities)
 {
+	static SUBHEX
+		lastRenderOrigin = NULL;
+	SUBHEX
+		subdiv;
+	hexPos
+		at,
+		RenderPosition;
+	int
+		span = 0,
+		i = 0,
+		x, y;
+	Dynarr
+		loadedPlatters;
 	if (!worldExists ())
 		return;
-	
+	if (lastRenderOrigin == RenderOrigin)
+		return;
+	//printf ("%s: starting\n", __FUNCTION__);
+
+	/* the instant map expansion rule:
+	 * this ought to add all the affected subhexes to a list to iterate
+	 * though, but for now an instant load will suffice.
+	 *  - xph 2011 08 01
+	 */
+	mapForceGrowAtLevelForDistance (RenderOrigin, 1, 6);
+
+	lastRenderOrigin = RenderOrigin;
+	RenderPosition = map_at (RenderOrigin);
+
+	if (Distance == NULL)
+	{
+		Distance = xph_alloc (sizeof (VECTOR3) * fx (AbsoluteViewLimit));
+		UnloadedCount = xph_alloc (sizeof (int) * (MapSpan + 1));
+	}
+	memset (UnloadedCount, 0, sizeof (int) * (MapSpan + 1));
+
+	while (span < MapSpan)
+	{
+		//printf ("iterating through span %d platters\n", span);
+		loadedPlatters = *(Dynarr *)dynarr_at (World.spanLoadedPlatters, span);
+		i = 0;
+		while ((subdiv = *(SUBHEX *)dynarr_at (loadedPlatters, i)))
+		{
+			//printf ("  got %p (local coordinates: %d, %d)\n", subdiv, subdiv->sub.x, subdiv->sub.y);
+			at = map_at (subdiv);
+			//printf ("got at\n");
+			x = 0;
+			y = 0;
+			mapCoordinateDistance (at, RenderPosition, &x, &y, MAP_USE_LOWER_FIDELITY);
+			//printf ("got coord distance (%d, %d)\n", x, y);
+			if (hexMagnitude (x, y) > 8)
+			{
+				DEBUG ("unloading platter %p (distance: %d)\n", subdiv, hexMagnitude (x, y));
+				UnloadedCount[span]++;
+				mapLoad_unload (subdiv);
+				continue;
+			}
+			if (span == 1)
+				Distance[i] = mapDistance (at, RenderPosition);
+			hexPos_free (at);
+			//printf ("freed at\n");
+			i++;
+		}
+		//printf ("done w/ loop\n");
+		if (span == 1)
+		{
+			//printf ("imprinting span-1 platters\n");
+			dynarr_map (loadedPlatters, mapCheckLoadStatusAndImprint);
+			//printf ("done imprinting\n");
+		}
+		if (UnloadedCount[span])
+			DEBUG ("unloaded %3d span-%d platters\n", UnloadedCount[span], span);
+		span++;
+	}
+
+	hexPos_free (RenderPosition);
 }

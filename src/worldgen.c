@@ -109,12 +109,12 @@ void worldFinalize ()
 
 	FUNCOPEN ();
 
+	// FIXME: platters are currently imprinted based on the rendering cache, which isn't set until the player exists. this results in the player being placed on an empty pre-imprinting platter. this is dumb. - xph 2012 02 03
 	centre = position_get (base);
-	printf ("loading around %p\n", centre);
-	mapLoadAround (centre);
-	printf ("...\n");
-
 	map_posSwitchFocus (centre, 1);
+	printf ("loading the platter the player will be standing on (%p)\n", centre);
+	mapLoad_load (centre);
+
 	printf ("creating player\n");
 	systemCreatePlayer (base);
 	player = entity_getByName ("PLAYER");
@@ -172,9 +172,9 @@ void worldFinalize ()
 	printf ("made entity #%d, #%d, #%d; npcs\n", entity_GUID (npc1), entity_GUID (npc2), entity_GUID (npc3));
 	*/
 
-
 	systemClearStates();
 	systemPushState (STATE_FREEVIEW);
+
 	FUNCCLOSE ();
 }
 

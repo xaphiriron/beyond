@@ -49,9 +49,8 @@ void mapForceSubdivide (SUBHEX subhex);
 void mapForceGrowAtLevelForDistance (SUBHEX subhex, unsigned char absoluteSpan, unsigned int distance);
 void mapForceGrowChildAt (SUBHEX subhex, signed int x, signed int y);
 
-void mapLoadAround (hexPos pos);
-
-bool hexPos_forceLoadTo (hexPos pos, unsigned char span);
+void mapLoad_load (hexPos pos);
+void mapLoad_unload (SUBHEX where);
 
 /***
  * SIMPLE CREATION AND INITIALIZATION FUNCTIONS
@@ -78,19 +77,25 @@ hexPos map_randomPositionNear (const hexPos base, int range);
 hexPos map_copy (const hexPos original);
 hexPos map_at (const SUBHEX at);
 hexPos map_from (const SUBHEX at, short relativeSpan, int x, int y);
+hexPos hexPos_from (const hexPos at, unsigned char span, int x, int y);
 
 void map_freePos (hexPos pos);
+#define hexPos_free(x)	map_freePos (x)
 
 SUBHEX hexPos_platter (const hexPos pos, unsigned char focus);
 unsigned char hexPos_focus (const hexPos pos);
+unsigned char hexPos_lastLoadedIndex (const hexPos pos);
 
 SUBHEX map_posFocusedPlatter (const hexPos pos);
+#define hexPos_focused(x)	map_posFocusedPlatter (x)
 SUBHEX map_posBestMatchPlatter (const hexPos pos);
+#define hexPos_best(x)	map_posBestMatchPlatter (x)
 void map_posSwitchFocus (hexPos pos, unsigned char focus);
 void map_posUpdateWith (hexPos pos, const SUBHEX div);
 
 /* returns a dynarr of hexPos focused at the level of the subhex given, hitting all coordinates within a radius given by distance */
 Dynarr map_posAround (const SUBHEX subhex, unsigned int distance);
+Dynarr hexPos_around (const hexPos pos, unsigned char span, unsigned int distance);
 
 /***
  * MAP TRAVERSAL FUNCTIONS
@@ -211,6 +216,12 @@ bool subhexPartlyLoaded (const SUBHEX subhex);
 // what was the idea of this...???
 //bool subhexCoordinateOffset (const SUBHEX subhex, const SUBHEX offset, unsigned char * spanLevel, signed int * xp, signed int * yp);
 
+enum use_fidelity
+{
+	MAP_USE_LOWER_FIDELITY,
+	MAP_USE_HIGHER_FIDELITY
+};
+bool mapCoordinateDistance (const hexPos a, const hexPos b, signed int * x, signed int * y, enum use_fidelity target);
 VECTOR3 mapDistanceBetween (const SUBHEX a, const SUBHEX b);
 VECTOR3 mapDistance (const hexPos a, const hexPos b);
 

@@ -367,18 +367,19 @@ void arch_imprint (Entity archEntity, SUBHEX at)
 		 */
 		if (subhexSpanLevel (map_posFocusedPlatter (archFocus)) == 1)
 		{
+			// TODO: try to phase out usage of map_posAround in favor of hexPos_around since the latter will not explode (by which i mean crash) if the subhex in question isn't loaded - xph 2012 02 07
 			hexHull = map_posAround (subhexData (at, 0, 0), mapGetRadius ());
 		}
 		else
 		{
-			ERROR ("got a arch type we cannot handle yet. arch focus is null (%p) or arch focus isn't 0 (%d)", map_posFocusedPlatter (archFocus), subhexSpanLevel (map_posFocusedPlatter (archFocus)));
+			ERROR ("got a arch type we cannot handle yet. focus is either null (%p) or > 1 (%d)", map_posFocusedPlatter (archFocus), subhexSpanLevel (map_posFocusedPlatter (archFocus)));
 			return;
 		}
 	}
 	else
 	{
 		// given a large enough size or a close enough platter this could just be every hex in the platter - xph 2012 01 14
-		hexHull = map_posAround (map_posFocusedPlatter (archFocus), arch->data.size * 1.4);
+		hexHull = hexPos_around (archFocus, hexPos_focus (archFocus), arch->data.size * 1.4);
 	}
 
 	// what we could also do here is cull the hexes in the hull that aren't in the shape at all, so that we can operate on all the remaining ones (which we might be iterating through many times) without having to sanity-check them. (it might be useful to pre-generate the hull and use subsets of that for each imprinting but given that the pre-generation would probably happen when a bunch of platters inside the hull are unloaded it wouldn't be worth it i think)
@@ -454,7 +455,6 @@ void arch_imprint (Entity archEntity, SUBHEX at)
 			}
 		}
 	}
-
 
 	dynarr_wipe (hexHull, (void (*)(void *))map_freePos);
 	dynarr_destroy (hexHull);

@@ -152,23 +152,22 @@ void systemUpdate (void)
 			func (t);
 			i++;
 		}
-		entitySystem_update ("mapLoad");
 		entitySystem_update ("input");
+
+		entitySystem_update ("ui");
+		entitySystem_update ("gui");
 
 		entitySystem_update ("walking");
 		entitySystem_update ("builder");
-		entitySystem_update ("plantUpdate");
 		entitySystem_update ("chaser");
 
 		entitySystem_update ("debug");
-		entitySystem_update ("ui");
-		entitySystem_update ("gui");
+		entitySystem_update ("mapLoad");
 	}
 
 	videoPrerender ();
 	entitySystem_update ("TEMPsystemRender");
 	entitySystem_update ("bodyRender");
-	entitySystem_update ("plantRender");
 
 	// NOTE: this system can in some cases reset the viewmatrix; if you want to draw something in 3d space then have it run before this system. also given the complexity of rendering systems and highlighting and overlays and all that it might be a good idea to generalize the "set the viewmatrix to the in-the-world value" code so it doesn't have to depend on execution order any more than absolutely necessary (e.g., when doing blending) - xph 2011 12 22
 	entitySystem_update ("cameraRender");
