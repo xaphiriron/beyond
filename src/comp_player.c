@@ -46,6 +46,7 @@ void player_input (EntComponent comp, EntSpeech speech)
 			worldmap = entity_getByName ("WORLDMAP");
 			entity_messageGroup ("PlayerAvatarEntities", NULL, "loseFocus", NULL);
 			entity_message (worldmap, NULL, "gainFocus", NULL);
+			gui_placeOnStack (worldmap);
 			break;
 		case IR_DEBUG_SWITCH:
 			debugInfo = entity_getByName ("DEBUG_OVERLAY");
