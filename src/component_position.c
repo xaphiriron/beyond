@@ -505,6 +505,7 @@ void position_face (Entity e, const VECTOR3 * face)
 	if (!pos)
 		return;
 	faceAngle = (faceRot - currentRot);
+	faceAngle = faceAngle * (180.0 / M_PI);
 	//printf ("face angle used: %f\n", faceAngle);
 	q = quat_eulerToQuat (0, faceAngle, 0);
 	//printf ("rotation: (%f; %f) %.2f, %.2f, %.2f, %.2f\n", faceRot, currentRot, q.x, q.y, q.z, q.w);
@@ -546,7 +547,7 @@ float position_getHeadingR (const POSITION p)
 // 		printf ("heading: case 1\n");
 // 		return atan2 (p->view.side.x, -p->view.side.z);
 // 	}
-	return atan2 (-p->view.front.x, p->view.front.z);
+	return atan2 (p->view.front.z, p->view.front.x);
 }
 
 float position_getPitchR (const POSITION p)
