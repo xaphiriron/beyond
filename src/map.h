@@ -199,8 +199,15 @@ union collide_marker
 			heightHit;
 	} join;
 };
+typedef union collide_marker mapHit;
 
-union collide_marker map_lineCollide (const SUBHEX base, const VECTOR3 * local, const VECTOR3 * ray);
+void v2sc (const VECTOR3 * const position, int * x, int * y);
+bool pointInSkewHex (const VECTOR3 * const point, const VECTOR3 ** const jitterVals);
+
+mapHit map_lineHitsHex (const SUBHEX hex, const VECTOR3 * rayOrigin, const VECTOR3 * rayDir, int collidingEdge);
+int map_lineNextHex (const SUBHEX current, const VECTOR3 * rayOrigin, const VECTOR3 * rayDir);
+
+mapHit map_lineCollide (const SUBHEX base, const VECTOR3 * local, const VECTOR3 * ray);
 
 /***
  * INFORMATIONAL / GETTER FUNCTIONS

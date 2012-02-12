@@ -2097,6 +2097,67 @@ void subhexResetLoadStateForNewArch (SUBHEX at)
  * COLLISION
  */
 
+// these are internal rendering and collision functions/data
+static VECTOR3
+	* Distance = NULL,
+	* VertexJitter = NULL;
+
+static int green (int n);
+//static int red (int n);
+static unsigned int vertex (int x, int y, int v);
+
+void v2sc (const VECTOR3 * const pos, int * x, int * y)
+{
+	int
+		xGrid,
+		yGrid,
+		i = 0;
+	VECTOR3
+		offset,
+		centre;
+	VECTOR3
+		const *jitter[6];
+	assert (x != NULL && y != NULL);
+	
+	xGrid = (int)(pos->x / 45.0);
+	yGrid = (int)((pos->z - xGrid * 26.0) / 52.0);
+	centre = hex_xyCoord2Space (xGrid, yGrid);
+	offset = vectorSubtract (pos, &centre);
+	jitter[0] = &VertexJitter[vertex (xGrid, yGrid, 1)];
+	jitter[1] = &VertexJitter[vertex (xGrid, yGrid, 2)];
+	jitter[2] = &VertexJitter[vertex (xGrid, yGrid, 3)];
+	jitter[3] = &VertexJitter[vertex (xGrid, yGrid, 4)];
+	jitter[4] = &VertexJitter[vertex (xGrid, yGrid, 5)];
+	jitter[5] = &VertexJitter[vertex (xGrid, yGrid, 0)];
+	if (pointInSkewHex (&offset, jitter))
+	{
+		*x = xGrid;
+		*y = yGrid;
+		//printf ("%.2f, %.2f -> %d, %d\n", vector->x, vector->z, *x, *y);
+		return;
+	}
+	while (i < 6)
+	{
+		centre = hex_xyCoord2Space (xGrid + XY[i][X], yGrid + XY[i][Y]);
+		offset = vectorSubtract (pos, &centre);
+		jitter[0] = &VertexJitter[vertex (xGrid + XY[i][X], yGrid + XY[i][Y], 1)];
+		jitter[1] = &VertexJitter[vertex (xGrid + XY[i][X], yGrid + XY[i][Y], 2)];
+		jitter[2] = &VertexJitter[vertex (xGrid + XY[i][X], yGrid + XY[i][Y], 3)];
+		jitter[3] = &VertexJitter[vertex (xGrid + XY[i][X], yGrid + XY[i][Y], 4)];
+		jitter[4] = &VertexJitter[vertex (xGrid + XY[i][X], yGrid + XY[i][Y], 5)];
+		jitter[5] = &VertexJitter[vertex (xGrid + XY[i][X], yGrid + XY[i][Y], 0)];
+		if (pointInSkewHex (&offset, jitter))
+		{
+			*x = xGrid + XY[i][X];
+			*y = yGrid + XY[i][Y];
+			//printf ("%.2f, %.2f -> %d, %d\n", vector->x, vector->z, *x, *y);
+			return;
+		}
+		i++;
+	}
+	assert (false);
+}
+
 static VECTOR3 line_planeIntersection (const VECTOR3 * const lineOrigin, const VECTOR3 * const line, const VECTOR3 * const plane, float dist);
 
 static VECTOR3 line_planeIntersection (const VECTOR3 * const lineOrigin, const VECTOR3 * const line, const VECTOR3 * const plane, float dist)
@@ -2115,103 +2176,157 @@ static VECTOR3 line_planeIntersection (const VECTOR3 * const lineOrigin, const V
 	return r;
 }
 
-
-// FIXME: this assumes we're operating on a span 0 platter (i.e., an individual hex) but there aren't any code checks to ensure that
-union collide_marker map_lineCollide (const SUBHEX base, const VECTOR3 * local, const VECTOR3 * ray)
+bool pointInSkewHex (const VECTOR3 * const point, const VECTOR3 ** const jitterVals)
 {
-	union collide_marker
-		mark;
 	int
-		x, y,
-		distance = 0,
 		i = 0,
-		begin,
-		side,
-		collidingEdge = -1;
+		j,
+		t;
 	float
-		stepHeight,
-		rayAngle;
-	SUBHEX
-		active;
+		x, y,
+		nextX, nextY;
+	nextX = H[i][X] + jitterVals[i]->x;
+	nextY = H[i][Y] + jitterVals[i]->z;
+	while (i < 6)
+	{
+		j = i == 5 ? 0 : i + 1;
+		x = nextX;
+		y = nextY;
+		nextX = H[j][X] + jitterVals[j]->x;
+		nextY = H[j][Y] + jitterVals[j]->z;
+		t = turns (point->x, point->z, x, y, nextX, nextY);
+		if (t == RIGHT)
+			return false;
+		i++;
+	}
+	return true;
+}
+
+mapHit map_lineHitsHex (const SUBHEX hex, const VECTOR3 * rayOrigin, const VECTOR3 * rayDir, int collidingEdge)
+{
+	mapHit
+		hit;
+	int
+		i;
+	HEXSTEP
+		step;
 	VECTOR3
 		hexCentre,
 		hexNormal,
-		intersection = vectorCreate (0, 0, 0);
+		intersection;
+	float
+		stepHeight;
+	hit.type = HIT_NOTHING;
+	assert (hex);
+	assert (subhexSpanLevel (hex) == 0);
+	hexCentre = renderOriginDistance (hex);
+	assert (hex->hex.steps);
+	i = (rayDir->y <= 0.0) ? 0 : dynarr_size (hex->hex.steps);
+	while ((step = *(HEXSTEP *)dynarr_at (hex->hex.steps, (rayDir->y <= 0.0 ? i++ : --i))))
+	{
+		if (matParam (step->material, "transparent"))
+			continue;
+		if (collidingEdge != -1)
+		{
+			// TODO: hit against hex edge
+		}
+		// FIXME: this is a collision against the hex assuming its surface is flat. if the surface isn't flat there will be some inaccuracies
+		stepHeight = step->height * HEX_SIZE_4;
+		hexNormal = vectorCreate (0, 1, 0);
+		intersection = line_planeIntersection (rayOrigin, rayDir, &hexNormal, -stepHeight);
+		intersection = vectorSubtract (&intersection, &hexCentre);
+
+		if (pointInSkewHex (&intersection, step->info.jit))
+		{
+			hit.type = HIT_SURFACE;
+			hit.hex.hex = &hex->hex;
+			hit.hex.step = step;
+			return hit;
+		}
+	}
+
+	return hit;
+}
+
+int map_lineNextHex (const SUBHEX current, const VECTOR3 * rayOrigin, const VECTOR3 * rayDir)
+{
+	VECTOR3
+		hexCentre;
 	HEXSTEP
 		step;
+	int
+		i = 0,
+		pass[6];
+	char
+		letters[3];
+	letters[LEFT + 1] = 'L';
+	letters[RIGHT + 1] = 'R';
+	letters[THROUGH + 1] = 'T';
 
-	mark.type = HIT_NOTHING;
+	assert (current);
+	assert (subhexSpanLevel (current) == 0);
+	hexCentre = renderOriginDistance (current);
+	// it'll be important to figure out which step the ray passes /through/ even if it doesn't hit anything because that determines which jitter values are used for this check. but since every step on the same hex has the same jitter values currently, it doesn't matter. - xph 2012 02 11
+	step = *(HEXSTEP *)dynarr_front (current->hex.steps);
+	assert (step);
+	i = 0;
+	while (i < 6)
+	{
+		pass[i] = turns (hexCentre.x + H[i][X] + step->info.jit[i]->x, hexCentre.z + H[i][Y] + step->info.jit[i]->z, rayOrigin->x, rayOrigin->z, rayOrigin->x + rayDir->x, rayOrigin->z + rayDir->z);
+		i++;
+	}
+	i = 0;
+	while (i < 6)
+	{
+		if (pass[i] == LEFT && pass[(i + 1) % 6] == RIGHT)
+			return (i + 1) % 6;
+		i++;
+	}
+	ERROR ("Got hex that doesn't intersect with ray (corners: %c %c %c %c %c %c)", letters[pass[0]+1], letters[pass[1]+1], letters[pass[2]+1], letters[pass[3]+1], letters[pass[4]+1], letters[pass[5]+1]);
+	return -1;
+}
 
-	rayAngle = atan2 (ray->z, ray->x);
-	v2c (local, &x, &y);
-	active = mapHexAtCoordinateAuto (base, -1, x, y);
+// FIXME: this assumes we're operating on a span 0 platter (i.e., an individual hex) but there aren't any code checks to ensure that
+union collide_marker map_lineCollide (const SUBHEX base, const VECTOR3 * rayOrigin, const VECTOR3 * rayDir)
+{
+	union collide_marker
+		hit;
+	int
+		x, y,
+		distance = 0,
+		collidingEdge = -1;
+	SUBHEX
+		hex;
+
+	hit.type = HIT_NOTHING;
+
+	v2sc (rayOrigin, &x, &y);
+	hex = mapHexAtCoordinateAuto (base, -1, x, y);
+	assert (hex);
 
 	while (distance < 24)
 	{
-		hexCentre = renderOriginDistance (active);
+		hit = map_lineHitsHex (hex, rayOrigin, rayDir, collidingEdge);
+		if (hit.type != HIT_NOTHING)
+			return hit;
 
-		i = 0;
-		while ((step = *(struct hexStep **)dynarr_at (active->hex.steps, i++)))
+		collidingEdge = map_lineNextHex (hex, rayOrigin, rayDir);
+		if (collidingEdge == -1)
 		{
-			if (matParam (step->material, "transparent"))
-				continue;
-
-			if (collidingEdge != -1)
-			{
-				
-				//intersection = line_planeIntersection (local, ray, ???, ???);
-				
-			}
-
-			// FIXME: this is a collision against the hex assuming its surface is flat. if the surface isn't flat there will be some inaccuracies
-			stepHeight = step->height * HEX_SIZE_4;
-			hexNormal = vectorCreate (0, 1, 0);
-			intersection = line_planeIntersection (local, ray, &hexNormal, -stepHeight);
-			intersection = vectorSubtract (&intersection, &hexCentre);
-
-			if (pointInHex (&intersection))
-			{
-				mark.type = HIT_SURFACE;
-				mark.hex.hex = &active->hex;
-				mark.hex.step = step;
-				return mark;
-			}
+			ERROR ("Some kind of problem with finding the next ray target (dist: %d)", distance);
+			return hit;
 		}
-
-		i = 0;
-		while (turns (hexCentre.x + H[i][X], hexCentre.z + H[i][Y], local->x, local->z, local->x + ray->x, local->z + ray->z) != LEFT)
+		hex = mapHexAtCoordinateAuto (hex, 0, XY[collidingEdge][X], XY[collidingEdge][Y]);
+		if (!hex)
 		{
-			i++;
-			if (i > 6)
-			{
-				ERROR ("collision failed: got hex that didn't intersect with line at all");
-				return mark;
-			}
-		}
-		begin = i;
-		i = 1;
-		while (i < 6)
-		{
-			side = turns (hexCentre.x + H[(begin + i) % 6][X], hexCentre.z + H[(begin + i) % 6][Y], local->x, local->z, local->x + ray->x, local->z + ray->z);
-			if (side == RIGHT)
-			{
-				// collidingEdge is used in the next go-round to see if there's a join collision
-				collidingEdge = (begin + i) % 6;
-				active = mapHexAtCoordinateAuto (active, 0, XY[collidingEdge][X], XY[collidingEdge][Y]);
-				if (!active)
-				{
-					// ray passed out of the loaded world -- this shouldn't happen at all with the way the map loading code is structured currently (since it force loads as the player moves) but in the future it's possible. Also there's a creepy loading bug that means it can happen! Not sure what's up with that. - xph 2012 01 29
-					WARNING ("Raycast traveled over world edge");
-					return mark;
-				}
-				break;
-			}
-			i++;
+			// ray passed out of the loaded world -- this shouldn't happen at all with the way the map loading code is structured currently (since it force loads as the player moves) but in the future it's possible. Also there's a creepy loading bug that means it can happen! Not sure what's up with that. - xph 2012 01 29
+			WARNING ("Raycast traveled over world edge");
+			return hit;
 		}
 		distance++;
 	}
 
-	return mark;
+	return hit;
 }
 
 /***
@@ -2486,14 +2601,6 @@ static void initMapLoad ()
 /***
  * RENDERING FUNCTIONS
  */
-
-static VECTOR3
-	* Distance = NULL,
-	* VertexJitter = NULL;
-
-static int green (int n);
-//static int red (int n);
-static unsigned int vertex (int x, int y, int v);
 
 void worldSetRenderCacheCentre (SUBHEX origin)
 {
