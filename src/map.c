@@ -2104,19 +2104,21 @@ static int green (int n);
 //static int red (int n);
 static unsigned int vertex (int x, int y, int v);
 
-void v2sc (const VECTOR3 * const pos, int * x, int * y)
+void v2sc (const VECTOR3 * const pos, int * xCoord, int * yCoord)
 {
 	int
 		xGrid,
 		yGrid,
+		x, y,
 		i = 0;
 	VECTOR3
 		offset,
 		centre;
 	VECTOR3
 		const *jitter[6];
-	assert (x != NULL && y != NULL);
-	
+	assert (xCoord != NULL && yCoord != NULL);
+
+	// this int cast is one of the two sources of inaccuracy. these values are rounded to the nearest int and that rounding doesn't map cleanly to the distinction between regular hexes (the other source of inaccuracy is that the hexes themselves are inaccurate) - xph 02 12 2012
 	xGrid = (int)(pos->x / 45.0);
 	yGrid = (int)((pos->z - xGrid * 26.0) / 52.0);
 	centre = hex_xyCoord2Space (xGrid, yGrid);
@@ -2129,25 +2131,38 @@ void v2sc (const VECTOR3 * const pos, int * x, int * y)
 	jitter[5] = &VertexJitter[vertex (xGrid, yGrid, 0)];
 	if (pointInSkewHex (&offset, jitter))
 	{
-		*x = xGrid;
-		*y = yGrid;
+		*xCoord = xGrid;
+		*yCoord = yGrid;
 		//printf ("%.2f, %.2f -> %d, %d\n", vector->x, vector->z, *x, *y);
 		return;
 	}
-	while (i < 6)
+	i = 1;
+	while (i < fx(2))
 	{
-		centre = hex_xyCoord2Space (xGrid + XY[i][X], yGrid + XY[i][Y]);
+		hex_unlineate (i, &x, &y);
+		x += xGrid;
+		y += yGrid;
+		centre = hex_xyCoord2Space (x, y);
 		offset = vectorSubtract (pos, &centre);
-		jitter[0] = &VertexJitter[vertex (xGrid + XY[i][X], yGrid + XY[i][Y], 1)];
-		jitter[1] = &VertexJitter[vertex (xGrid + XY[i][X], yGrid + XY[i][Y], 2)];
-		jitter[2] = &VertexJitter[vertex (xGrid + XY[i][X], yGrid + XY[i][Y], 3)];
-		jitter[3] = &VertexJitter[vertex (xGrid + XY[i][X], yGrid + XY[i][Y], 4)];
-		jitter[4] = &VertexJitter[vertex (xGrid + XY[i][X], yGrid + XY[i][Y], 5)];
-		jitter[5] = &VertexJitter[vertex (xGrid + XY[i][X], yGrid + XY[i][Y], 0)];
+		if (hexMagnitude (x, y) > MapRadius)
+		{
+			// we need to convert x and y to get their correct vertex () offsets, and the easiest way to do that is by scaling the coordinates and checking the remainder value. we don't care about the upscaled value, but that function expects those args to be non-NULL - xph 02 12 2012
+			printf ("got hex coord (%d, %d) past map radius (%d) -- scaling\n", x, y, hexMagnitude (x, y));
+			int
+				throwawayX, throwawayY;
+			mapScaleCoordinates (1, x, y, &throwawayX, &throwawayY, &x, &y);
+			printf ("  to %d, %d (%d)\n", x, y, hexMagnitude (x, y));
+		}
+		jitter[0] = &VertexJitter[vertex (x, y, 1)];
+		jitter[1] = &VertexJitter[vertex (x, y, 2)];
+		jitter[2] = &VertexJitter[vertex (x, y, 3)];
+		jitter[3] = &VertexJitter[vertex (x, y, 4)];
+		jitter[4] = &VertexJitter[vertex (x, y, 5)];
+		jitter[5] = &VertexJitter[vertex (x, y, 0)];
 		if (pointInSkewHex (&offset, jitter))
 		{
-			*x = xGrid + XY[i][X];
-			*y = yGrid + XY[i][Y];
+			*xCoord = x;
+			*yCoord = y;
 			//printf ("%.2f, %.2f -> %d, %d\n", vector->x, vector->z, *x, *y);
 			return;
 		}

@@ -67,7 +67,6 @@ VECTOR3 hexGround_centerDistanceSpace (unsigned int radius, unsigned int dir);
 VECTOR3 hexPole_centerDistanceSpace (unsigned int dir);
 
 void v2c (const VECTOR3 * const vector, int * x, int * y);
-
 // this assumes a regular hexagon and a vector with the hex centre as the origin
 bool pointInHex (const VECTOR3 * const point);
 
