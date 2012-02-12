@@ -27,8 +27,6 @@ unsigned int hx (unsigned int n);
 // like hx but without the off-by-one issue
 unsigned int fx (unsigned int n);
 
-void hex_nextValidCoord (unsigned int * rp, unsigned int * kp, unsigned int * ip);
-bool hex_wellformedRKI (unsigned int r, unsigned int k, unsigned int i);
 void hex_rki2xy (unsigned int r, unsigned int k, unsigned int i, signed int * xp, signed int * yp);
 void hex_xy2rki (signed int x, signed int y, unsigned int * rp, unsigned int * kp, unsigned int * ip);
 

@@ -150,13 +150,11 @@ void worldDestroy ()
 
 void mapForceSubdivide (SUBHEX subhex)
 {
-	signed int
+	int
+		i = 0,
 		x = 0,
-		y = 0;
-	unsigned int
-		r = 0,
-		k = 0,
-		i = 0;
+		y = 0,
+		max = fx (MapRadius);
 	SUBHEX (*func)(const SUBHEX, signed int, signed int) = NULL;
 	if (subhex->type != HS_SUB)
 		return;
@@ -165,13 +163,13 @@ void mapForceSubdivide (SUBHEX subhex)
 	func = subhex->sub.span == 1
 		? mapHexCreate
 		: mapSubdivCreate;
-	while (r <= MapRadius)
+
+	while (i < max)
 	{
-		hex_rki2xy (r, k, i, &x, &y);
-		/* DEBUG ("radius: %d; xy: %d,%d; rki: %d %d %d; offset: %d; [%d]: &%p/%p", MapRadius, x, y, r, k, i, offset, offset, &subhex->sub.data[offset], subhex->sub.data[offset]); */
-		hex_nextValidCoord (&r, &k, &i);
+		hex_unlineate (i, &x, &y);
 		if (subhexData (subhex, x, y) == NULL)
 			func (subhex, x, y);
+		i++;
 	}
 }
 
