@@ -8,6 +8,8 @@
 #include <stdbool.h>
 #include "vector.h"
 
+#include "collision.h"
+
 /***
  * generic hex functions:
  */
@@ -43,18 +45,6 @@ bool hex_centerDistanceCoord (unsigned int radius, unsigned int dir, signed int 
 bool hexGround_centerDistanceCoord (unsigned int radius, unsigned int dir, signed int * xp, signed int * yp);
 bool hexPole_centerDistanceCoord (unsigned int dir, signed int * xp, signed int * yp);
 
-
-
-
-
-enum turns_values
-{
-	LEFT = -1,
-	THROUGH = 0,
-	RIGHT = 1
-};
-int turns (float ox, float oy, float lx1, float ly1, float lx2, float ly2);
-
 /***
  * generic hex functions involving vectors:
  */
@@ -69,8 +59,5 @@ VECTOR3 hexPole_centerDistanceSpace (unsigned int dir);
 void v2c (const VECTOR3 * const vector, int * x, int * y);
 // this assumes a regular hexagon and a vector with the hex centre as the origin
 bool pointInHex (const VECTOR3 * const point);
-
-unsigned int baryInterpolate (const VECTOR3 const * p, const VECTOR3 const * c1, const VECTOR3 const * c2, const unsigned int v1, const unsigned int v2, const unsigned int v3);
-void baryWeights (const VECTOR3 const * p, const VECTOR3 const * c2, const VECTOR3 const * c3, float * weights);
 
 #endif /* XPH_HEX_UTILITY_H */

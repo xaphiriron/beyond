@@ -6,14 +6,15 @@ AM_CPPFLAGS = -I/usr/include/freetype2 -Wall -Werror -O3
 #AM_CPPFLAGS = -Wall -Werror -fprofile-generate -ftest-coverage
 #AM_LDFLAGS = -fprofile-generate -lgcov
 
-lib_LTLIBRARIES = libfcmp.la libvector.la libquat.la libline.la libsph.la libmatrix.la libogdl.la
+lib_LTLIBRARIES = libfcmp.la libvector.la libquat.la libline.la libmatrix.la libcollide.la libogdl.la
 libfcmp_la_SOURCES = fcmp.c fcmp.h
 libvector_la_SOURCES = vector.c vector.h
 libquat_la_SOURCES = quaternion.c quaternion.h
 libline_la_SOURCES = line.c line.h
-libsph_la_SOURCES = sph.c sph.h
-libmatrix_la_SOURCES = matrix.c matrix.h
 #libline_la_LIBADD = libvector.la
+#libsph_la_SOURCES = sph.c sph.h
+libmatrix_la_SOURCES = matrix.c matrix.h
+libcollide_la_SOURCES = collision.c collision.h
 libogdl_la_SOURCES = ogdl/graph.c ogdl/path.c ogdl/ogdlparser.c ogdl/ogdllog.c ogdl/ogdl.h
 
 
@@ -63,9 +64,9 @@ beyond_LDADD = \
 	-lm -lGL -lSDL -lglpng \
 	-lfreetype \
 	libogdl.la \
+	libcollide.la \
 	libmatrix.la \
 	libline.la \
-	libsph.la \
 	libvector.la \
 	libquat.la \
 	libfcmp.la

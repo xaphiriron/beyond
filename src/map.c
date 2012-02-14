@@ -2147,11 +2147,9 @@ void v2sc (const VECTOR3 * const pos, int * xCoord, int * yCoord)
 		if (hexMagnitude (x, y) > MapRadius)
 		{
 			// we need to convert x and y to get their correct vertex () offsets, and the easiest way to do that is by scaling the coordinates and checking the remainder value. we don't care about the upscaled value, but that function expects those args to be non-NULL - xph 02 12 2012
-			printf ("got hex coord (%d, %d) past map radius (%d) -- scaling\n", x, y, hexMagnitude (x, y));
 			int
 				throwawayX, throwawayY;
 			mapScaleCoordinates (1, x, y, &throwawayX, &throwawayY, &x, &y);
-			printf ("  to %d, %d (%d)\n", x, y, hexMagnitude (x, y));
 		}
 		jitter[0] = &VertexJitter[vertex (x, y, 1)];
 		jitter[1] = &VertexJitter[vertex (x, y, 2)];
@@ -2169,24 +2167,6 @@ void v2sc (const VECTOR3 * const pos, int * xCoord, int * yCoord)
 		i++;
 	}
 	assert (false);
-}
-
-static VECTOR3 line_planeIntersection (const VECTOR3 * const lineOrigin, const VECTOR3 * const line, const VECTOR3 * const plane, float dist);
-
-static VECTOR3 line_planeIntersection (const VECTOR3 * const lineOrigin, const VECTOR3 * const line, const VECTOR3 * const plane, float dist)
-{
-	float
-		denom = plane->x * line->x + plane->y * line->y + plane->z * line->z,
-		t;
-	VECTOR3
-		r = vectorCreate (0, 0, 0);
-	if (fabs (denom) < FLT_EPSILON)
-		return r;	// line is parallel to plane
-	t = -(plane->x * lineOrigin->x + plane->y * lineOrigin->y + plane->z * lineOrigin->z + dist) / denom;
-	r.x = lineOrigin->x + line->x * t;
-	r.y = lineOrigin->y + line->y * t;
-	r.z = lineOrigin->z + line->z * t;
-	return r;
 }
 
 bool pointInSkewHex (const VECTOR3 * const point, const VECTOR3 ** const jitterVals)
@@ -2215,27 +2195,28 @@ bool pointInSkewHex (const VECTOR3 * const point, const VECTOR3 ** const jitterV
 	return true;
 }
 
-mapHit map_lineHitsHex (const SUBHEX hex, const VECTOR3 * rayOrigin, const VECTOR3 * rayDir, int collidingEdge)
+mapHit map_lineHitsHex (const SUBHEX hex, const LINE3 * const ray, int collidingEdge)
 {
 	mapHit
 		hit;
 	int
-		i;
+		i,
+		dir;
 	HEXSTEP
 		step;
 	VECTOR3
-		hexCentre,
-		hexNormal,
-		intersection;
+		hexCentre;
+	TRI3
+		tri;
 	float
-		stepHeight;
+		hitPoint;
 	hit.type = HIT_NOTHING;
 	assert (hex);
 	assert (subhexSpanLevel (hex) == 0);
 	hexCentre = renderOriginDistance (hex);
 	assert (hex->hex.steps);
-	i = (rayDir->y <= 0.0) ? 0 : dynarr_size (hex->hex.steps);
-	while ((step = *(HEXSTEP *)dynarr_at (hex->hex.steps, (rayDir->y <= 0.0 ? i++ : --i))))
+	i = (ray->dir.y <= 0.0) ? 0 : dynarr_size (hex->hex.steps);
+	while ((step = *(HEXSTEP *)dynarr_at (hex->hex.steps, (ray->dir.y <= 0.0 ? i++ : --i))))
 	{
 		if (matParam (step->material, "transparent"))
 			continue;
@@ -2243,25 +2224,29 @@ mapHit map_lineHitsHex (const SUBHEX hex, const VECTOR3 * rayOrigin, const VECTO
 		{
 			// TODO: hit against hex edge
 		}
-		// FIXME: this is a collision against the hex assuming its surface is flat. if the surface isn't flat there will be some inaccuracies
-		stepHeight = step->height * HEX_SIZE_4;
-		hexNormal = vectorCreate (0, 1, 0);
-		intersection = line_planeIntersection (rayOrigin, rayDir, &hexNormal, -stepHeight);
-		intersection = vectorSubtract (&intersection, &hexCentre);
 
-		if (pointInSkewHex (&intersection, step->info.jit))
+		dir = 0;
+		while (dir < 6)
 		{
-			hit.type = HIT_SURFACE;
-			hit.hex.hex = &hex->hex;
-			hit.hex.step = step;
-			return hit;
+			tri.pts[0] = hexCentre;
+			tri.pts[0].y = step->height * HEX_SIZE_4;
+			tri.pts[1] = vectorCreate (hexCentre.x + H[dir][X], FULLHEIGHT (step, dir) * HEX_SIZE_4, hexCentre.z + H[dir][Y]);
+			tri.pts[2] = vectorCreate (hexCentre.x + H[(dir + 1) % 6][X], FULLHEIGHT (step, (dir + 1) % 6) * HEX_SIZE_4, hexCentre.z + H[(dir + 1) % 6][Y]);
+			if (line_triHit (ray, &tri, &hitPoint))
+			{
+				hit.type = HIT_SURFACE;
+				hit.hex.hex = &hex->hex;
+				hit.hex.step = step;
+				return hit;
+			}
+			dir++;
 		}
 	}
 
 	return hit;
 }
 
-int map_lineNextHex (const SUBHEX current, const VECTOR3 * rayOrigin, const VECTOR3 * rayDir)
+int map_lineNextHex (const SUBHEX current, const LINE3 * const ray)
 {
 	VECTOR3
 		hexCentre;
@@ -2285,7 +2270,7 @@ int map_lineNextHex (const SUBHEX current, const VECTOR3 * rayOrigin, const VECT
 	i = 0;
 	while (i < 6)
 	{
-		pass[i] = turns (hexCentre.x + H[i][X] + step->info.jit[i]->x, hexCentre.z + H[i][Y] + step->info.jit[i]->z, rayOrigin->x, rayOrigin->z, rayOrigin->x + rayDir->x, rayOrigin->z + rayDir->z);
+		pass[i] = turns (hexCentre.x + H[i][X] + step->info.jit[i]->x, hexCentre.z + H[i][Y] + step->info.jit[i]->z, ray->origin.x, ray->origin.z, ray->origin.x + ray->dir.x, ray->origin.z + ray->dir.z);
 		i++;
 	}
 	i = 0;
@@ -2310,6 +2295,11 @@ union collide_marker map_lineCollide (const SUBHEX base, const VECTOR3 * rayOrig
 		collidingEdge = -1;
 	SUBHEX
 		hex;
+	LINE3
+		ray;
+
+	ray.origin = *rayOrigin;
+	ray.dir = *rayDir;
 
 	hit.type = HIT_NOTHING;
 
@@ -2319,11 +2309,11 @@ union collide_marker map_lineCollide (const SUBHEX base, const VECTOR3 * rayOrig
 
 	while (distance < 24)
 	{
-		hit = map_lineHitsHex (hex, rayOrigin, rayDir, collidingEdge);
+		hit = map_lineHitsHex (hex, &ray, collidingEdge);
 		if (hit.type != HIT_NOTHING)
 			return hit;
 
-		collidingEdge = map_lineNextHex (hex, rayOrigin, rayDir);
+		collidingEdge = map_lineNextHex (hex, &ray);
 		if (collidingEdge == -1)
 		{
 			ERROR ("Some kind of problem with finding the next ray target (dist: %d)", distance);

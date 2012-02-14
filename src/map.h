@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include "vector.h"
+#include "collision.h"
 #include "dynarr.h"
 #include "texture.h"
 
@@ -204,8 +205,8 @@ typedef union collide_marker mapHit;
 void v2sc (const VECTOR3 * const position, int * x, int * y);
 bool pointInSkewHex (const VECTOR3 * const point, const VECTOR3 ** const jitterVals);
 
-mapHit map_lineHitsHex (const SUBHEX hex, const VECTOR3 * rayOrigin, const VECTOR3 * rayDir, int collidingEdge);
-int map_lineNextHex (const SUBHEX current, const VECTOR3 * rayOrigin, const VECTOR3 * rayDir);
+mapHit map_lineHitsHex (const SUBHEX hex, const LINE3 * const ray, int collidingEdge);
+int map_lineNextHex (const SUBHEX current, const LINE3 * const ray);
 
 mapHit map_lineCollide (const SUBHEX base, const VECTOR3 * local, const VECTOR3 * ray);
 
