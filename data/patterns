@@ -27,7 +27,7 @@ pattern
 			radius 1
 	imprint
 		transmute
-			value silt
+			value stone
 		height
 			from centre
 			value 18
@@ -41,4 +41,4 @@ pattern
 	imprint
 		transmute
 			target inside
-			value silt
+			value sand

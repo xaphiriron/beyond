@@ -409,7 +409,7 @@ void worldGenerate (TIMER * timer)
 
 
 			case EXPAND_ARCH:
-				//entity_message (base, NULL, "archExpand", NULL);
+				entity_message (base, NULL, "archExpand", NULL);
 				loadSetLoaded (19);
 				break;
 			case WORLDGEN_DONE:
