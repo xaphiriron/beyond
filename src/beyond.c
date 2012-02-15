@@ -116,7 +116,8 @@ void finalize (void)
 	gui_place (titleScreenMenu, width / 4, height / 2, width / 2, height / 4);
 	gui_setMargin (titleScreenMenu, 4, 4);
 	menu_addItem (titleScreenMenu, "New Game", IR_WORLDGEN);
-	menu_addItem (titleScreenMenu, "Options", IR_OPTIONS);
+	// options currently can't be altered at realtime due to 1. the lack of usable UI interface; 2. the lack of option-saving code; 3. probably some other things too - xph 02 14 2012
+	//menu_addItem (titleScreenMenu, "Options", IR_OPTIONS);
 	menu_addItem (titleScreenMenu, "Quit", IR_QUIT);
 
 	entity_message (titleScreenMenu, NULL, "gainFocus", NULL);
