@@ -8,14 +8,14 @@ pattern
 		:radius radius
 		:height ( 7, 14 )
 	imprint
-		transmute
-			target inside
-			value snow
 		height
 			target inside
 			from centre
 			scale sine
-			value -21
+			value 21
+		transmute
+			target inside
+			value snow
 	subpatterns
 		"standing stone"
 		"centre space"
