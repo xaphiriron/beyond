@@ -1,3 +1,10 @@
+/* This file is part of "beyond (or whatever it's going to eventually be called) game thing".
+ * copyright 2012 xax
+ * "beyond (or whatever it's going to eventually be called) game thing" is free
+ * software: for full terms and conditions, and disclaimers, see COPYING and
+ * src/beyond.c, respectively.
+ */
+
 #include "component_input.h"
 
 #include "video.h"
@@ -159,7 +166,12 @@ void input_sendGameEventMessage (const struct input_event * ie)
 	i = 0;
 	while ((e = *(Entity *)dynarr_at (targetCache, i++)))
 	{
+		inputAction
+			callback;
+		inputData = component_getData (entity_getAs (e, "input"));
 		entity_message (e, NULL, "FOCUS_INPUT", (void *)ie);
+		if (inputData->actions && (callback = *(inputAction *)dynarr_at (inputData->actions, ie->code)))
+			callback (e, ie);
 	}
 	dynarr_clear (targetCache);
 	dynarr_destroy (targetCache);
@@ -223,6 +235,8 @@ static void input_componentDestroy (EntComponent comp, EntSpeech speech)
 		this = component_entityAttached (comp);
 	struct xph_input
 		* input = component_getData (comp);
+	if (input->actions)
+		dynarr_destroy (input->actions);
 	xph_free (input);
 
 	dynarr_remove_condense (Input->focusedEntities, this);
@@ -790,4 +804,17 @@ static bool key_match (const Keycode * key, SDLKey sym)
 			break;
 	}
 	return false;
+}
+
+
+void input_addAction (Entity this, enum input_responses code, inputAction action)
+{
+	struct xph_input
+		* inputData;
+	inputData = component_getData (entity_getAs (this, "input"));
+	if (!inputData)
+		return;
+	if (!inputData->actions)
+		inputData->actions = dynarr_create (16, sizeof (inputAction));
+	dynarr_assign (inputData->actions, code, action);
 }

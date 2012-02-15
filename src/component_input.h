@@ -1,3 +1,10 @@
+/* This file is part of "beyond (or whatever it's going to eventually be called) game thing".
+ * copyright 2012 xax
+ * "beyond (or whatever it's going to eventually be called) game thing" is free
+ * software: for full terms and conditions, and disclaimers, see COPYING and
+ * src/beyond.c, respectively.
+ */
+
 #ifndef XPH_COMPONENT_INPUT_H
 #define XPH_COMPONENT_INPUT_H
 
@@ -13,6 +20,8 @@ struct xph_input
 {
 	bool
 		hasFocus;
+	Dynarr
+		actions;
 };
 
 bool input_hasFocus (Entity e);
@@ -84,5 +93,8 @@ void input_sendGameEventMessage (const struct input_event * ie);
 
 void input_define (EntComponent inputComponent, EntSpeech speech);
 void input_system (Dynarr entities);
+
+typedef void (*inputAction)(Entity, const inputEvent * const);
+void input_addAction (Entity this, enum input_responses code, inputAction action);
 
 #endif /* XPH_COMPONENT_INPUT_H */
