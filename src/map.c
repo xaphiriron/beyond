@@ -2205,21 +2205,28 @@ bool pointInSkewHex (const VECTOR3 * const point, const VECTOR3 ** const jitterV
 mapHit map_lineHitsHex (const SUBHEX hex, const LINE3 * const ray)
 {
 	mapHit
-		hit;
+		joinHit,
+		triHit;
 	int
 		i, j,
-		dir;
+		dir,
+		nextDir;
 	HEXSTEP
 		step;
 	VECTOR3
 		hexCentre;
 	float
-		t;
+		t,
+		tAtJoinHit = FLT_MAX,
+		tAtTriHit = FLT_MAX;
+	bool
+		validHit;
 	unsigned int
 		* joinRaw;
 	VECTOR3
 		poly[4];
-	hit.type = HIT_NOTHING;
+	joinHit.type = HIT_NOTHING;
+	triHit.type = HIT_NOTHING;
 	assert (hex);
 	assert (subhexSpanLevel (hex) == 0);
 	hexCentre = renderOriginDistance (hex);
@@ -2236,30 +2243,26 @@ mapHit map_lineHitsHex (const SUBHEX hex, const LINE3 * const ray)
 			j = 0;
 			while ((joinRaw = *(unsigned int **)dynarr_at (step->info.visibleJoin[dir], j++)))
 			{
-				//printf ("checking against join %d.%d\n", collidingEdge, j - 1);
-				int
-					nextEdge = (dir + 1) % 6;
+				nextDir = (dir + 1) % 6;
 				float
 					xBase = hexCentre.x + H[dir][X] + step->info.jit[dir]->x,
-					xNext = hexCentre.x + H[nextEdge][X] + step->info.jit[nextEdge]->x,
+					xNext = hexCentre.x + H[nextDir][X] + step->info.jit[nextDir]->x,
 					yBase = hexCentre.z + H[dir][Y] + step->info.jit[dir]->z,
-					yNext = hexCentre.z + H[nextEdge][Y] + step->info.jit[nextEdge]->z;
-				bool
-					lineHit = false;
+					yNext = hexCentre.z + H[nextDir][Y] + step->info.jit[nextDir]->z;
 
 				if (joinRaw[0] == joinRaw[2])
 				{
 					poly[0] = vectorCreate (xBase, joinRaw[0] * HEX_SIZE_4, yBase);
 					poly[1] = vectorCreate (xNext, joinRaw[1] * HEX_SIZE_4, yNext);
 					poly[2] = vectorCreate (xNext, joinRaw[3] * HEX_SIZE_4, yNext);
-					lineHit = line_polyHit (ray, 3, poly, &t);
+					validHit = line_polyHit (ray, 3, poly, &t);
 				}
 				else if (joinRaw[1] == joinRaw[3])
 				{
 					poly[0] = vectorCreate (xBase, joinRaw[0] * HEX_SIZE_4, yBase);
 					poly[1] = vectorCreate (xNext, joinRaw[1] * HEX_SIZE_4, yNext);
 					poly[2] = vectorCreate (xBase, joinRaw[2] * HEX_SIZE_4, yBase);
-					lineHit = line_polyHit (ray, 3, poly, &t);
+					validHit = line_polyHit (ray, 3, poly, &t);
 				}
 				else
 				{
@@ -2268,19 +2271,19 @@ mapHit map_lineHitsHex (const SUBHEX hex, const LINE3 * const ray)
 					// join coords are in the form high[0] high[1] low[0] low[1] (so they can be drawn as a triangle strip) but that's not a clockwise order so we swap the 2nd and 3rd values here - xph 02 13 2012
 					poly[2] = vectorCreate (xNext, joinRaw[3] * HEX_SIZE_4, yNext);
 					poly[3] = vectorCreate (xBase, joinRaw[2] * HEX_SIZE_4, yBase);
-					lineHit = line_polyHit (ray, 4, poly, &t);
+					validHit = line_polyHit (ray, 4, poly, &t);
 				}
 
-				if (lineHit)
+				if (validHit && fabs (t) < tAtJoinHit)
 				{
-					hit.type = HIT_JOIN;
-					hit.join.hex = &hex->hex;
-					hit.join.step = step;
-					hit.join.dir = dir;
-					hit.join.index = j - 1;
+					joinHit.type = HIT_JOIN;
+					joinHit.join.hex = &hex->hex;
+					joinHit.join.step = step;
+					joinHit.join.dir = dir;
+					joinHit.join.index = j - 1;
 					/* heightHit */
+					tAtJoinHit = fabs (t);
 					//printf ("JOIN HIT ON %d; COLLIDINGEDGE WAS %d\n", collidingEdge, origEdge);
-					return hit;
 				}
 			}
 			dir++;
@@ -2293,18 +2296,24 @@ mapHit map_lineHitsHex (const SUBHEX hex, const LINE3 * const ray)
 			poly[0].y = step->height * HEX_SIZE_4;
 			poly[1] = vectorCreate (hexCentre.x + H[dir][X] + step->info.jit[dir]->x, FULLHEIGHT (step, dir) * HEX_SIZE_4, hexCentre.z + H[dir][Y] + step->info.jit[dir]->z);
 			poly[2] = vectorCreate (hexCentre.x + H[(dir + 1) % 6][X] + step->info.jit[(dir + 1) % 6]->x, FULLHEIGHT (step, (dir + 1) % 6) * HEX_SIZE_4, hexCentre.z + H[(dir + 1) % 6][Y] + step->info.jit[(dir + 1) % 6]->z);
-			if (line_triHit (ray, poly, &t))
+			validHit = line_triHit (ray, poly, &t);
+			if (validHit && fabs (t) < tAtTriHit)
 			{
-				hit.type = HIT_SURFACE;
-				hit.hex.hex = &hex->hex;
-				hit.hex.step = step;
-				return hit;
+				triHit.type = HIT_SURFACE;
+				triHit.hex.hex = &hex->hex;
+				triHit.hex.step = step;
+				tAtTriHit = fabs (t);
 			}
 			dir++;
 		}
+		if (tAtTriHit < tAtJoinHit && triHit.type != HIT_NOTHING)
+			return triHit;
+		else if (tAtJoinHit < tAtTriHit && joinHit.type != HIT_NOTHING)
+			return joinHit;
 	}
 
-	return hit;
+	triHit.type = HIT_NOTHING;
+	return triHit;
 }
 
 int map_lineNextHex (const SUBHEX current, const LINE3 * const ray)
