@@ -52,7 +52,7 @@ bool entity_name (Entity e, const char * name);
 Entity entity_getByName (const char * name);
 
 bool entity_addToGroup (Entity e, const char * groupName);
-const Dynarr entity_getGroup (const char * group);
+Dynarr entity_getGroup (const char * group);
 void entity_messageGroup (const char * group, Entity from, char * message, void * arg);
 
 void entity_messageDynarr (Dynarr arr, Entity from, char * message, void * arg);

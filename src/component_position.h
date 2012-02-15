@@ -77,10 +77,10 @@ QUAT position_getOrientation (const Entity e);
 QUAT position_getOrientationR (const POSITION p);
 SUBHEX position_getGround (const Entity e);
 SUBHEX position_getGroundR (const POSITION p);
-const AXES * const position_getViewAxes (const Entity e);
-const AXES * const position_getViewAxesR (const POSITION p);
-const AXES * const position_getMoveAxes (const Entity e);
-const AXES * const position_getMoveAxesR (const POSITION p);
+AXES * position_getViewAxes (const Entity e);
+AXES * position_getViewAxesR (const POSITION p);
+AXES * position_getMoveAxes (const Entity e);
+AXES * position_getMoveAxesR (const POSITION p);
 
 
 void position_getHex (EntComponent position, EntSpeech speech);

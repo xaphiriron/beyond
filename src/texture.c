@@ -262,7 +262,7 @@ void textureDrawHex (TEXTURE t, VECTOR3 centre, unsigned int size, float angle)
 
 void textureCopyChunkFromRaw (TEXTURE t, unsigned int x, unsigned int y, unsigned int width, unsigned int height, const TEXTURE raw, unsigned int rawX, unsigned int rawY)
 {
-	int
+	unsigned int
 		lines = 0;
 	unsigned char
 		* to = NULL,

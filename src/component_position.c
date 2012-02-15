@@ -645,28 +645,28 @@ SUBHEX position_getGroundR (const POSITION p)
 	return hexPos_platter (p->position, 1);
 }
 
-const AXES * const position_getViewAxes (const Entity e)
+AXES * position_getViewAxes (const Entity e)
 {
 	POSITION
 		pdata = component_getData (entity_getAs (e, "position"));
 	return position_getViewAxesR (pdata);
 }
 
-const AXES * const position_getViewAxesR (const POSITION p)
+AXES * position_getViewAxesR (const POSITION p)
 {
 	if (p->dirty)
 		position_updateAxesFromOrientation (p);
 	return &p->view;
 }
 
-const AXES * const position_getMoveAxes (const Entity e)
+AXES * position_getMoveAxes (const Entity e)
 {
 	POSITION
 		pdata = component_getData (entity_getAs (e, "position"));
 	return position_getMoveAxesR (pdata);
 }
 
-const AXES * const position_getMoveAxesR (const POSITION p)
+AXES * position_getMoveAxesR (const POSITION p)
 {
 	if (p->dirty)
 		position_updateAxesFromOrientation (p);

@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-AM_CPPFLAGS = -I/usr/include/freetype2 -Wall -Werror -O3
+AM_CPPFLAGS = -I/usr/include/freetype2 -Wall -Wextra -Werror -Wno-unused-parameter -O3
 #AM_CPPFLAGS = -Wall -Werror -O3 -DMEM_DEBUG
 
 #AM_CPPFLAGS = -Wall -Werror -fprofile-generate -ftest-coverage
@@ -16,6 +16,7 @@ libline_la_SOURCES = line.c line.h
 libmatrix_la_SOURCES = matrix.c matrix.h
 libcollide_la_SOURCES = collision.c collision.h
 libogdl_la_SOURCES = ogdl/graph.c ogdl/path.c ogdl/ogdlparser.c ogdl/ogdllog.c ogdl/ogdl.h
+libogdl_la_CPPFLAGS = -Wno-error=extra
 
 
 bin_PROGRAMS = beyond

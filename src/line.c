@@ -202,28 +202,3 @@ struct tval * line_addTval (struct line * l, float t, enum line_ttype type, void
   qsort (l->orderedTvals, l->tvalCount, sizeof (struct tval *), tval_sort);
   return new;
 }
-
-void line_rmTval (struct line * l, float t) {
-/*
-  int i = 0;
-  while (i < l->toffset) {
-    if (l->tvals[i]->t == t) {
-      line_rmTvalByOffset (l, i);
-      break;
-    }
-    i++;
-  }
-*/
-}
-
-void line_rmTvalByOffset (struct line * l, int i) {
-/*
-  if (l->toffset <= i) {
-    return;
-  }
-  destroy_tval (l->tvals[i]);
-  l->tvals[i] = l->tvals[--l->toffset];
-  l->tvals[l->toffset] = NULL;
-  qsort (l->tvals, l->toffset, sizeof (struct tval *), tval_sort);
-*/
-}

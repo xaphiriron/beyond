@@ -1161,7 +1161,8 @@ Dynarr map_posAround (const SUBHEX subhex, unsigned int distance)
 	Dynarr
 		arr = dynarr_create (fx (distance) + 1, sizeof (hexPos));
 	int
-		x, y,
+		x, y;
+	unsigned int
 		i = 0;
 	while (i < fx (distance))
 	{
@@ -1177,7 +1178,8 @@ Dynarr hexPos_around (const hexPos pos, unsigned char span, unsigned int distanc
 	Dynarr
 		arr = dynarr_create (fx (distance) + 1, sizeof (hexPos));
 	int
-		x, y,
+		x, y;
+	unsigned int
 		i = 0;
 	while (i < fx (distance))
 	{
@@ -1792,7 +1794,7 @@ bool mapScaleCoordinates (signed char relativeSpan, signed int x, signed int y, 
 
 static Dynarr
 	centreCache =  NULL;
-signed int * const mapSpanCentres (const unsigned char targetSpan)
+signed int * mapSpanCentres (const unsigned char targetSpan)
 {
 	signed int
 		* r,
@@ -2028,7 +2030,7 @@ signed int mapDataBaryInterpolate (SUBHEX base, int x, int y, const char * type)
 	return final;
 }
 
-const Dynarr mapDataTypes (SUBHEX at)
+Dynarr mapDataTypes (SUBHEX at)
 {
 	if (at->type == HS_HEX)
 		return NULL;
@@ -2062,7 +2064,7 @@ void subhexRemoveArch (SUBHEX at, Entity arch)
 	dynarr_remove_condense (at->sub.arches, arch);
 }
 
-const Dynarr subhexGetArches (const SUBHEX at)
+Dynarr subhexGetArches (const SUBHEX at)
 {
 	if (!at || subhexSpanLevel (at) < 1)
 		return NULL;
@@ -2107,7 +2109,7 @@ static VECTOR3
 	* Distance = NULL,
 	* VertexJitter = NULL;
 
-static int green (int n);
+static unsigned int green (int n);
 //static int red (int n);
 static unsigned int vertex (int x, int y, int v);
 
@@ -2116,7 +2118,8 @@ void v2sc (const VECTOR3 * const pos, int * xCoord, int * yCoord)
 	int
 		xGrid,
 		yGrid,
-		x, y,
+		x, y;
+	unsigned int
 		i = 0;
 	VECTOR3
 		offset,
@@ -2677,7 +2680,7 @@ static void initMapLoad ()
 
 void worldSetRenderCacheCentre (SUBHEX origin)
 {
-	int
+	unsigned int
 		i = 0;
 	if (origin == RenderOrigin)
 	{
@@ -2798,7 +2801,7 @@ void mapBakeEdgeHexes (SUBHEX subhex, unsigned int dir)
 
 void mapBakeHexes (SUBHEX subhex)
 {
-	int
+	size_t
 		offset = 0;
 	if (subhexSpanLevel (subhex) != 1)
 		return;
@@ -3235,7 +3238,7 @@ void hexDraw (const HEX hex, const VECTOR3 centreOffset, enum drawTypes drawType
 }
 
 
-static int green (int n)
+static unsigned int green (int n)
 {
 	return 6 * (n * n);
 }

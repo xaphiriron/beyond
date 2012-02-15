@@ -365,7 +365,7 @@ bool entity_addToGroup (Entity e, const char * groupName)
 	return true;
 }
 
-const Dynarr entity_getGroup (const char * groupName)
+Dynarr entity_getGroup (const char * groupName)
 {
 	struct entity_group_map
 		* group;
@@ -753,7 +753,8 @@ Dynarr entity_getWithv (int n, va_list comps)
 		c = NULL;
 	int
 		m = n,
-		j = 0,
+		j = 0;
+	unsigned int
 		highestGUID = 0;
 	bool
 		NULLbreak = false;

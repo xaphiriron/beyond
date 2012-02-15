@@ -41,7 +41,7 @@ void hex_xy2rki (signed int x, signed int y, unsigned int * rp, unsigned int * k
 
 unsigned int hex_linearCoord (unsigned int r, unsigned int k, unsigned int i);
 unsigned int hex_linearXY (signed int x, signed int y);
-void hex_unlineate (int l, signed int * x, signed int * y);
+void hex_unlineate (unsigned int l, signed int * x, signed int * y);
 
 unsigned int hex_distanceBetween (signed int ax, signed int ay, signed int bx, signed int by);
 unsigned int hexMagnitude (signed int x, signed int y);
@@ -49,8 +49,6 @@ unsigned int hexMagnitude (signed int x, signed int y);
 /* this calculates the x,y coordinate offset between the central hex of two adjacent grounds, both of radius {radius}, with the direction between the two being {dir} and the result set to {xp} and {yp}
  */
 bool hex_centerDistanceCoord (unsigned int radius, unsigned int dir, signed int * xp, signed int * yp);
-bool hexGround_centerDistanceCoord (unsigned int radius, unsigned int dir, signed int * xp, signed int * yp);
-bool hexPole_centerDistanceCoord (unsigned int dir, signed int * xp, signed int * yp);
 
 /***
  * generic hex functions involving vectors:
@@ -59,9 +57,6 @@ bool hexPole_centerDistanceCoord (unsigned int dir, signed int * xp, signed int 
 VECTOR3 hex_tileDistance (int length, unsigned int dir);
 VECTOR3 hex_coord2space (unsigned int r, unsigned int k, unsigned int i);
 VECTOR3 hex_xyCoord2Space (signed int x, signed int y);
-
-VECTOR3 hexGround_centerDistanceSpace (unsigned int radius, unsigned int dir);
-VECTOR3 hexPole_centerDistanceSpace (unsigned int dir);
 
 void v2c (const VECTOR3 * const vector, int * x, int * y);
 // this assumes a regular hexagon and a vector with the hex centre as the origin

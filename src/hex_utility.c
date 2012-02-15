@@ -66,10 +66,6 @@ const signed char XY [6][2] =
 	{1,-1},
 };
 
-static unsigned int
-	poleRadius = 65535,
-	groundRadius = 8;
-
 /***
  * this really ought to be 3 * n * (n + 1) + 1 instead, but so many fussy geometry functions depend on this that i'm afraid to change it
  * (the reason why is +1 leads to a progression of 1 7 19 37 etc, whereas -1 leads to a progression of 1 1 7 19 etc., and that leads to having to count from 1 instead of from 0)
@@ -182,7 +178,7 @@ unsigned int hex_linearXY (signed int x, signed int y)
 	return hex_linearCoord (r, k, i);
 }
 
-void hex_unlineate (int l, signed int * x, signed int * y)
+void hex_unlineate (unsigned int l, signed int * x, signed int * y)
 {
 	unsigned int
 		r = 0,
@@ -240,16 +236,6 @@ bool hex_centerDistanceCoord (unsigned int radius, unsigned int dir, signed int 
 	return true;
 }
 
-bool hexGround_centerDistanceCoord (unsigned int UNUSED, unsigned int dir, signed int * xp, signed int * yp)
-{
-	return hex_centerDistanceCoord (groundRadius, dir, xp, yp);
-}
-
-bool hexPole_centerDistanceCoord (unsigned int dir, signed int * xp, signed int * yp)
-{
-	return hex_centerDistanceCoord (poleRadius, dir, xp, yp);
-}
-
 
 /***
  * generic hex functions involving vectors:
@@ -261,7 +247,7 @@ VECTOR3 hex_tileDistance (int length, unsigned int dir)
 		l = (dir + 5) % 6;
 	VECTOR3
 		r = vectorCreate (0.0, 0.0, 0.0);
-	if (length == 0 || dir < 0 || dir >= 6)
+	if (length == 0 || dir > 5)
 	{
 		return r;
 	}
@@ -279,7 +265,7 @@ VECTOR3 hex_coord2space (unsigned int r, unsigned int k, unsigned int i)
 	{
 		return p;
 	}
-	assert (k >= 0 && k < 6);
+	assert (k < 6);
 	assert (i < r);
 	p = hex_tileDistance (r, k);
 	if (i == 0)
@@ -300,32 +286,6 @@ VECTOR3 hex_xyCoord2Space (signed int x, signed int y)
 	q = hex_tileDistance (y, 1);
 	q = vectorAdd (&p, &q);
 	return q;
-}
-
-VECTOR3 hexGround_centerDistanceSpace (unsigned int UNUSED, unsigned int dir)
-{
-	signed int
-		x, y;
-	VECTOR3
-		t, u;
-	hexGround_centerDistanceCoord (groundRadius, dir, &x, &y);
-	t = hex_tileDistance (x, 0);
-	u = hex_tileDistance (y, 1);
-	t = vectorAdd (&t, &u);
-	return t;
-}
-
-VECTOR3 hexPole_centerDistanceSpace (unsigned int dir)
-{
-	signed int
-		x, y;
-	VECTOR3
-		t, u;
-	hexPole_centerDistanceCoord (dir, &x, &y);
-	t = hex_tileDistance (x, 0);
-	u = hex_tileDistance (y, 1);
-	t = vectorAdd (&t, &u);
-	return t;
 }
 
 

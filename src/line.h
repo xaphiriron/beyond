@@ -73,7 +73,5 @@ struct tval * line_nthOrderedTval (const struct line * l, int i);
 
 
 struct tval * line_addTval (struct line * l, float t, enum line_ttype, void * intersection);
-void line_rmTval (struct line * l, float t);
-void line_rmTvalByOffset (struct line * l, int i);
 
 #endif /* LINE_H */
