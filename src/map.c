@@ -3117,6 +3117,7 @@ void drawHexEdge (const struct hexColumn * const hex, const HEXSTEP step, unsign
 	switch (style)
 	{
 		case DRAW_HIGHLIGHT:
+			glDepthFunc (GL_ALWAYS);
 			glColor4ub (0x00, 0x99, 0xff, 0x7f);
 			break;
 		case DRAW_NORMAL:
@@ -3164,6 +3165,11 @@ void drawHexEdge (const struct hexColumn * const hex, const HEXSTEP step, unsign
 		render->z + H[nextdir][Y] + jit[1].z
 	);
 	glEnd ();
+
+	if (style == DRAW_HIGHLIGHT)
+	{
+		glDepthFunc (GL_LESS);
+	}
 }
 
 
