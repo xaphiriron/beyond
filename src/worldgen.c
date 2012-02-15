@@ -235,24 +235,25 @@ void worldGenerate (TIMER * timer)
 
 	loadSetGoal (20);
 
+	// FIXME: it would not surprise me if this crashed worlds with too-small span limits
 	while (!outOfTime (timer) && stage < WORLDGEN_DONE)
 	{
 		switch (stage)
 		{
 			case SET_HEIGHT_BASE:
-				val = rand () & ((1 << 8) - 1);
+				val = rand () & ((1 << 11) - 1);
 				if (maxHeight < val)
 					maxHeight = val;
 				if (minHeight > val)
 					minHeight = val;
 				mapDataSet (pole[0], "height", val);
-				val = rand () & ((1 << 8) - 1);
+				val = rand () & ((1 << 11) - 1);
 				if (maxHeight < val)
 					maxHeight = val;
 				if (minHeight > val)
 					minHeight = val;
 				mapDataSet (pole[1], "height", val);
-				val = rand () & ((1 << 8) - 1);
+				val = rand () & ((1 << 11) - 1);
 				if (maxHeight < val)
 					maxHeight = val;
 				if (minHeight > val)
@@ -314,7 +315,7 @@ void worldGenerate (TIMER * timer)
 				{
 					hex_unlineate (i, &x, &y);
 					active = subhexData (pole[0], x, y);
-					mapDataAdd (active, "height", rand () & ((1 << 7) - 1));
+					mapDataAdd (active, "height", rand () & ((1 << 10) - 1));
 					val = mapDataGet (active, "height");
 					if (maxHeight < val)
 						maxHeight = val;
@@ -330,7 +331,7 @@ void worldGenerate (TIMER * timer)
 				{
 					hex_unlineate (i, &x, &y);
 					active = subhexData (pole[1], x, y);
-					mapDataAdd (active, "height", rand () & ((1 << 7) - 1));
+					mapDataAdd (active, "height", rand () & ((1 << 10) - 1));
 					val = mapDataGet (active, "height");
 					if (maxHeight < val)
 						maxHeight = val;
@@ -346,7 +347,7 @@ void worldGenerate (TIMER * timer)
 				{
 					hex_unlineate (i, &x, &y);
 					active = subhexData (pole[2], x, y);
-					mapDataAdd (active, "height", rand () & ((1 << 7) - 1));
+					mapDataAdd (active, "height", rand () & ((1 << 10) - 1));
 					val = mapDataGet (active, "height");
 					if (maxHeight < val)
 						maxHeight = val;
@@ -503,7 +504,11 @@ void worldImprint (SUBHEX at)
 			adjHeight[1] = mapDataBaryInterpolate (at, x + XY[(j + 1) % 6][X], y + XY[(j + 1) % 6][Y], "height");
 
 			cornerHeight = (height + adjHeight[0] + adjHeight[1]) / 3;
-			SETCORNER (baseStep->corners, j, cornerHeight - height);
+			//SETCORNER (baseStep->corners, j, (cornerHeight - height));
+			if (cornerHeight < height)
+				SETCORNER (baseStep->corners, j, (cornerHeight - height) + 1);
+			else
+				SETCORNER (baseStep->corners, j, (cornerHeight - height));
 			
 			j++;
 		}
