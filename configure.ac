@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.61)
-AC_INIT([beyond], [0.0.0.2], [xaxster@gmail.com])
+AC_INIT([beyond], [0.1], [xaxster@gmail.com])
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADER([config.h])
 
@@ -50,14 +50,17 @@ AC_HEADER_STDBOOL
 AC_HEADER_TIME
 
 # Checks for typedefs, structures, and compiler characteristics.
+AC_C_INLINE
 AC_C_CONST
 AC_TYPE_SIZE_T
 
 # Checks for library functions.
+AC_FUNC_ERROR_AT_LINE
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_FUNC_MEMCMP
-AC_CHECK_FUNCS([atexit gettimeofday memmove memset sqrt])
+AC_FUNC_STRTOD
+AC_CHECK_FUNCS([atexit gettimeofday memmove memset sqrt strchr strrchr strtol])
 
 AC_CONFIG_FILES([Makefile
                  src/Makefile
