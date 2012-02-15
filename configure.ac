@@ -20,7 +20,25 @@ AC_PROG_RANLIB
 AC_PROG_LIBTOOL
 
 # Checks for libraries.
-PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
+
+AC_ARG_ENABLE([check],
+	[AS_HELP_STRING([--enable-check],
+		[Build with the check library for unit testing])],
+	[],
+	[enable_check="no"]
+)
+
+AS_IF(
+	[test $enable_check = yes],
+		[PKG_CHECK_MODULES(
+			[CHECK],
+			[check >= 0.9.4],
+			[],
+			[AC_MSG_FAILURE([--enable-check was given, but test for check failed])]
+		)],
+	[]
+)
+
 AC_CHECK_LIB([m], [sqrt])
 AC_CHECK_LIB([GL], [glBegin])
 AC_CHECK_LIB([SDL], [SDL_Init])
