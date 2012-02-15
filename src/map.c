@@ -2195,21 +2195,23 @@ bool pointInSkewHex (const VECTOR3 * const point, const VECTOR3 ** const jitterV
 	return true;
 }
 
-mapHit map_lineHitsHex (const SUBHEX hex, const LINE3 * const ray, int collidingEdge)
+mapHit map_lineHitsHex (const SUBHEX hex, const LINE3 * const ray)
 {
 	mapHit
 		hit;
 	int
-		i,
+		i, j,
 		dir;
 	HEXSTEP
 		step;
 	VECTOR3
 		hexCentre;
-	TRI3
-		tri;
 	float
-		hitPoint;
+		t;
+	unsigned int
+		* joinRaw;
+	VECTOR3
+		poly[4];
 	hit.type = HIT_NOTHING;
 	assert (hex);
 	assert (subhexSpanLevel (hex) == 0);
@@ -2220,19 +2222,71 @@ mapHit map_lineHitsHex (const SUBHEX hex, const LINE3 * const ray, int colliding
 	{
 		if (matParam (step->material, "transparent"))
 			continue;
-		if (collidingEdge != -1)
+
+		dir = 0;
+		while (dir < 6)
 		{
-			// TODO: hit against hex edge
+			j = 0;
+			while ((joinRaw = *(unsigned int **)dynarr_at (step->info.visibleJoin[dir], j++)))
+			{
+				//printf ("checking against join %d.%d\n", collidingEdge, j - 1);
+				int
+					nextEdge = (dir + 1) % 6;
+				float
+					xBase = hexCentre.x + H[dir][X] + step->info.jit[dir]->x,
+					xNext = hexCentre.x + H[nextEdge][X] + step->info.jit[nextEdge]->x,
+					yBase = hexCentre.z + H[dir][Y] + step->info.jit[dir]->z,
+					yNext = hexCentre.z + H[nextEdge][Y] + step->info.jit[nextEdge]->z;
+				bool
+					lineHit = false;
+
+				if (joinRaw[0] == joinRaw[2])
+				{
+					poly[0] = vectorCreate (xBase, joinRaw[0] * HEX_SIZE_4, yBase);
+					poly[1] = vectorCreate (xNext, joinRaw[1] * HEX_SIZE_4, yNext);
+					poly[2] = vectorCreate (xNext, joinRaw[3] * HEX_SIZE_4, yNext);
+					lineHit = line_polyHit (ray, 3, poly, &t);
+				}
+				else if (joinRaw[1] == joinRaw[3])
+				{
+					poly[0] = vectorCreate (xBase, joinRaw[0] * HEX_SIZE_4, yBase);
+					poly[1] = vectorCreate (xNext, joinRaw[1] * HEX_SIZE_4, yNext);
+					poly[2] = vectorCreate (xBase, joinRaw[2] * HEX_SIZE_4, yBase);
+					lineHit = line_polyHit (ray, 3, poly, &t);
+				}
+				else
+				{
+					poly[0] = vectorCreate (xBase, joinRaw[0] * HEX_SIZE_4, yBase);
+					poly[1] = vectorCreate (xNext, joinRaw[1] * HEX_SIZE_4, yNext);
+					// join coords are in the form high[0] high[1] low[0] low[1] (so they can be drawn as a triangle strip) but that's not a clockwise order so we swap the 2nd and 3rd values here - xph 02 13 2012
+					poly[2] = vectorCreate (xNext, joinRaw[3] * HEX_SIZE_4, yNext);
+					poly[3] = vectorCreate (xBase, joinRaw[2] * HEX_SIZE_4, yBase);
+					lineHit = line_polyHit (ray, 4, poly, &t);
+				}
+
+				if (lineHit)
+				{
+					hit.type = HIT_JOIN;
+					hit.join.hex = &hex->hex;
+					hit.join.step = step;
+					hit.join.dir = dir;
+					hit.join.index = j - 1;
+					/* heightHit */
+					//printf ("JOIN HIT ON %d; COLLIDINGEDGE WAS %d\n", collidingEdge, origEdge);
+					return hit;
+				}
+			}
+			dir++;
 		}
 
 		dir = 0;
 		while (dir < 6)
 		{
-			tri.pts[0] = hexCentre;
-			tri.pts[0].y = step->height * HEX_SIZE_4;
-			tri.pts[1] = vectorCreate (hexCentre.x + H[dir][X], FULLHEIGHT (step, dir) * HEX_SIZE_4, hexCentre.z + H[dir][Y]);
-			tri.pts[2] = vectorCreate (hexCentre.x + H[(dir + 1) % 6][X], FULLHEIGHT (step, (dir + 1) % 6) * HEX_SIZE_4, hexCentre.z + H[(dir + 1) % 6][Y]);
-			if (line_triHit (ray, &tri, &hitPoint))
+			poly[0] = hexCentre;
+			poly[0].y = step->height * HEX_SIZE_4;
+			poly[1] = vectorCreate (hexCentre.x + H[dir][X] + step->info.jit[dir]->x, FULLHEIGHT (step, dir) * HEX_SIZE_4, hexCentre.z + H[dir][Y] + step->info.jit[dir]->z);
+			poly[2] = vectorCreate (hexCentre.x + H[(dir + 1) % 6][X] + step->info.jit[(dir + 1) % 6]->x, FULLHEIGHT (step, (dir + 1) % 6) * HEX_SIZE_4, hexCentre.z + H[(dir + 1) % 6][Y] + step->info.jit[(dir + 1) % 6]->z);
+			if (line_triHit (ray, poly, &t))
 			{
 				hit.type = HIT_SURFACE;
 				hit.hex.hex = &hex->hex;
@@ -2309,7 +2363,7 @@ union collide_marker map_lineCollide (const SUBHEX base, const VECTOR3 * rayOrig
 
 	while (distance < 24)
 	{
-		hit = map_lineHitsHex (hex, &ray, collidingEdge);
+		hit = map_lineHitsHex (hex, &ray);
 		if (hit.type != HIT_NOTHING)
 			return hit;
 

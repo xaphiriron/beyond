@@ -18,7 +18,7 @@ bool line_planeHit (const LINE3 * const line, const VECTOR3 * plane, float * tAt
 	return true;
 }
 
-bool line_triHit (const LINE3 * const line, const TRI3 * const tri, float * tAtIntersection)
+bool line_triHit (const LINE3 * const line, const VECTOR3 * const tri, float * tAtIntersection)
 {
 	VECTOR3
 		u, v,
@@ -29,45 +29,33 @@ bool line_triHit (const LINE3 * const line, const TRI3 * const tri, float * tAtI
 	float
 		t,
 		weight[3];
-
-	//printf ("RAY:\n\tORIGIN: %.2f, %.2f, %2.f\n\tDIR: %.2f, %.2f, %.2f\n", line->origin.x, rayOrigin->y, rayOrigin->z, rayDir->x, rayDir->y, rayDir->z);
-	//printf ("TRI:\n\t[0]: %.2f, %.2f, %.2f\n\t[1]: %.2f, %.2f, %.2f\n\t[2]: %.2f, %.2f, %.2f\n", tri->pts[0].x, tri->pts[0].y, tri->pts[0].z, tri->pts[1].x, tri->pts[1].y, tri->pts[1].z, tri->pts[2].x, tri->pts[2].y, tri->pts[2].z);
-	u = vectorSubtract (&tri->pts[2], &tri->pts[0]);
-	v = vectorSubtract (&tri->pts[1], &tri->pts[0]);
+	u = vectorSubtract (&tri[2], &tri[0]);
+	v = vectorSubtract (&tri[1], &tri[0]);
 	triPlane = vectorCross (&u, &v);
-	triPlane = vectorNormalize (&triPlane);
 	// the planeHit code doesn't have a magnitude argument so it's always a test against the plane through the origin. thus to accurately test we have to translate the line so that it's positioned relative to the plane origin (which we're arbitrarily using tri->pts[0] as) - xph 02 13 2012
-	transLine.origin = vectorSubtract (&line->origin, &tri->pts[0]);
+	transLine.origin = vectorSubtract (&line->origin, &tri[0]);
 	transLine.dir = line->dir;
-	//printf ("collision test: %.2f, %.2f, %.2f -> %.2f, %.2f, %.2f\n", transLine.origin.x, transLine.origin.y, transLine.origin.z, transLine.dir.x, transLine.dir.y, transLine.dir.z);
 	if (!line_planeHit (&transLine, &triPlane, &t))
 		return false;
-	//printf ("line %.2f, %.2f, %.2f -> %.2f, %.2f, %.2f hit plane w/ normal %.2f, %.2f, %.2f at %.2f, %.2f, %.2f\n", line->origin.x, line->origin.y, line->origin.z, line->dir.x, line->dir.y, line->dir.z, triPlane.x, triPlane.y, triPlane.z, line->origin.x + line->dir.x * t, line->origin.y + line->dir.y * t, line->origin.z + line->dir.z * t);
 	hit = vectorCreate
 	(
 		transLine.origin.x + line->dir.x * t,
 		transLine.origin.y + line->dir.y * t,
 		transLine.origin.z + line->dir.z * t
 	);
-
-	//printf ("BARYCENTRIC COORDS:\n\thit: %.2f, %.2f, %.2f\n\tu: %.2f, %.2f, %.2f\n\tv: %.2f, %.2f, %2.f\n", hit.x, hit.y, hit.z, u.x, u.y, u.z, v.x, v.y, v.z);
-
 	baryWeights (&hit, &u, &v, weight);
-	//printf ("WEIGHTS:\n\t%.2f, %.2f, %.2f\n", weight[0], weight[1], weight[2]);
 	if (weight[0] >= 0.00 && weight[0] <= 1.00 &&
 		weight[1] >= 0.00 && weight[1] <= 1.00 &&
 		weight[2] >= 0.00 && weight[2] <= 1.00)
 	{
 		if (tAtIntersection)
 			*tAtIntersection = t;
-		//printf (" -- HIT TRI -- \n");
 		return true;
 	}
-
 	return false;
 }
 
-bool line_quadHit (const LINE3 * const line, const VECTOR3 * const quad)
+bool line_polyHit (const LINE3 * const line, int points, const VECTOR3 * const poly, float * tAtIntersection)
 {
 	VECTOR3
 		u, v,
@@ -77,23 +65,28 @@ bool line_quadHit (const LINE3 * const line, const VECTOR3 * const quad)
 		transLine;
 	float
 		t;
-	u = vectorSubtract (&quad[1], &quad[0]);
-	v = vectorSubtract (&quad[2], &quad[0]);
+	u = vectorSubtract (&poly[1], &poly[0]);
+	v = vectorSubtract (&poly[2], &poly[0]);
 	plane = vectorCross (&u, &v);
 	plane = vectorNormalize (&plane);
 
 	// see note in the line_triHit function
-	transLine.origin = vectorSubtract (&line->origin, &quad[0]);
+	transLine.origin = vectorSubtract (&line->origin, &poly[0]);
 	transLine.dir = line->dir;
 	if (!line_planeHit (&transLine, &plane, &t))
 		return false;
 	hit = vectorCreate
 	(
-		transLine.origin.x + line->dir.x * t,
-		transLine.origin.y + line->dir.y * t,
-		transLine.origin.z + line->dir.z * t
+		line->origin.x + line->dir.x * t,
+		line->origin.y + line->dir.y * t,
+		line->origin.z + line->dir.z * t
 	);
-	
+	if (pointInPoly (&hit, points, poly))
+	{
+		if (tAtIntersection)
+			*tAtIntersection = t;
+		return true;
+	}
 	return false;
 }
 
@@ -108,17 +101,63 @@ int turns (float ox, float oy, float lx1, float ly1, float lx2, float ly2)
 		: LEFT;
 }
 
-bool pointInPoly (const VECTOR3 * const point, enum dim_drop drop, int points, const VECTOR3 * const poly)
+
+enum dim_drop
 {
+	DROP_X,
+	DROP_Y,
+	DROP_Z
+};
+
+bool pointInPoly (const VECTOR3 * const point, int points, const VECTOR3 * const poly)
+{
+	VECTOR3
+		u, v,
+		plane;
+	enum dim_drop
+		drop;
 	int
-		i = 0;
+		i = 0,
+		side,
+		sideMatch = 10;
+	float
+		x, y,
+		px[2], py[2];
+	if (points < 3)
+		return false;
+	u = vectorSubtract (&poly[1], &poly[0]);
+	v = vectorSubtract (&poly[2], &poly[0]);
+	plane = vectorCross (&u, &v);
+	drop =
+		(fabs(plane.x) > fabs(plane.y))
+			? (fabs(plane.x) > fabs(plane.z))
+				? DROP_X
+				: DROP_Z
+			: (fabs(plane.y) > fabs(plane.z))
+				? DROP_Y
+				: DROP_Z;
+
+	//printf ("dropping %c\n", drop == DROP_X ? 'X' : drop == DROP_Y ? 'Y' : 'Z');
+	x = (drop == DROP_X) ? point->y : point->x;
+	y = (drop == DROP_Z) ? point->y : point->z;
+	px[1] = (drop == DROP_X) ? poly[points-1].y : poly[points-1].x;
+	py[1] = (drop == DROP_Z) ? poly[points-1].y : poly[points-1].z;
 	while (i < points)
 	{
-		//if (turns () != RIGHT)
+		px[0] = px[1];
+		py[0] = py[1];
+		px[1] = (drop == DROP_X) ? poly[i].y : poly[i].x;
+		py[1] = (drop == DROP_Z) ? poly[i].y : poly[i].z;
+		side = turns (x, y, px[0], py[0], px[1], py[1]);
+
+		//printf ("%.2f, %.2f vs. %.2f, %.2f -> %.2f, %.2f: %c\n", x, y, px[0], py[0], px[1], py[1], d == RIGHT ? 'R' : d == LEFT ? 'L' : 'T');
+
+		if (sideMatch != 10 && side != sideMatch)
 			return false;
+		sideMatch = side;
 		i++;
 	}
-	return false;
+	return true;
 }
 
 // find the barycentric weights on p from the points 0,0 (implicitly c1), c2, and c3. the weights are stored in weights[0],[1], and [2]

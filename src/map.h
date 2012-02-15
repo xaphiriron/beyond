@@ -205,7 +205,7 @@ typedef union collide_marker mapHit;
 void v2sc (const VECTOR3 * const position, int * x, int * y);
 bool pointInSkewHex (const VECTOR3 * const point, const VECTOR3 ** const jitterVals);
 
-mapHit map_lineHitsHex (const SUBHEX hex, const LINE3 * const ray, int collidingEdge);
+mapHit map_lineHitsHex (const SUBHEX hex, const LINE3 * const ray);
 int map_lineNextHex (const SUBHEX current, const LINE3 * const ray);
 
 mapHit map_lineCollide (const SUBHEX base, const VECTOR3 * local, const VECTOR3 * ray);
