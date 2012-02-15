@@ -9,6 +9,7 @@
 #define XPH_TEXTURE_INTERNAL_H
 
 #include <GL/gl.h>
+#include <SDL/SDL_image.h>
 
 struct xph_texture
 {
@@ -20,6 +21,8 @@ struct xph_texture
 
 	GLuint
 		name;
+	SDL_Surface
+		* surface;
 
 	unsigned char
 		* data;

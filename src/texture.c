@@ -9,7 +9,7 @@
 #include "texture_internal.h"
 
 #include <string.h>
-#include <GL/glpng.h>
+#include <SDL/SDL_image.h>
 
 #include "xph_memory.h"
 #include "xph_log.h"
@@ -341,10 +341,10 @@ TEXTURE textureGenFromImage (const char * path)
 {
 	TEXTURE
 		t = xph_alloc (sizeof (struct xph_texture));
-	pngRawInfo
-		raw;
+	SDL_Surface
+		* surface;
 
-	pngLoadRaw (absolutePath (path), &raw);
+	surface = IMG_Load (absolutePath (path));
 
 	/* FIXME: this is where we would be doing the verification to make sure
 	 * this image is actually the kind of image we can use as a texture (e.g.,
@@ -352,16 +352,12 @@ TEXTURE textureGenFromImage (const char * path)
 	 * handle that yet]) but uhhh it's not done yet
 	 *  - xph 2011 08 26
 	 */
-	t->width = raw.Width;
-	t->height = raw.Height;
-	t->mode = raw.Components;
+	t->width = surface->w;
+	t->height = surface->h;
+	t->mode = surface->format->BytesPerPixel;
 	t->name = 0;
-	t->data = raw.Data;
-	if (raw.Palette)
-	{
-		free (raw.Palette);
-		raw.Palette = NULL;
-	}
+	t->data = surface->pixels;
+	t->surface = surface;
 
 	return t;
 }
@@ -370,15 +366,21 @@ void textureDestroy (TEXTURE t)
 {
 	if (!t)
 		return;
+	if (t->surface)
+	{
+		SDL_FreeSurface (t->surface);
+		t->surface = NULL;
+	}
+	else if (t->data)
+	{
+		free (t->data);
+		t->data = NULL;
+	}
+
 	if (t->name)
 	{
 		glDeleteTextures (1, &t->name);
 		t->name = 0;
-	}
-	if (t->data)
-	{
-		free (t->data);
-		t->data = NULL;
 	}
 	xph_free (t);
 }

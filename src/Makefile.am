@@ -38,7 +38,6 @@ beyond_SOURCES = \
 	map.c map.h \
 	worldgen.c worldgen.h \
 	\
-	sprite.c sprite.h \
 	font.c font.h \
 	\
 	entity.c entity.h \
@@ -61,7 +60,7 @@ beyond_SOURCES = \
 	system.c system.h \
 	beyond.c
 beyond_LDADD = \
-	-lm -lGL -lSDL -lglpng \
+	-lm -lGL -lSDL -lSDL_image \
 	-lfreetype \
 	libogdl.la \
 	libcollide.la \

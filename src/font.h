@@ -11,7 +11,6 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
-#include <GL/glpng.h>
 #include "video.h"
 #include "xph_log.h"
 #include "xph_path.h"

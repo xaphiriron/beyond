@@ -10,7 +10,6 @@
 #include "video.h"
 #include "xph_timer.h"
 
-#include <GL/glpng.h>
 #include "texture.h"
 #include "font.h"
 
