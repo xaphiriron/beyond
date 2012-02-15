@@ -96,10 +96,10 @@ void worldFinalize ()
 		centre/*,
 		randPos*/;
 	Entity
-// 		npc1,
-// 		npc2,
-// 		npc3,
-		plant,
+//		npc1,
+//		npc2,
+//		npc3,
+//		plant,
 		player;
 	SUBHEX
 		basePlatter,
@@ -122,55 +122,65 @@ void worldFinalize ()
 	basePlatter = hexPos_platter (centre, 1);
 	baseHex = subhexData (basePlatter, 0, 0);
 	baseStep = hexGroundStepNear (&baseHex->hex, 0);
-	plant = entity_create ();
-	component_instantiate ("position", plant);
-	component_instantiate ("plant", plant);
-	entity_refresh (plant);
-	position_placeOnHexStep (plant, &baseHex->hex, baseStep);
+	//plant = entity_create ();
+	//component_instantiate ("position", plant);
+	//component_instantiate ("plant", plant);
+	//entity_refresh (plant);
+	//position_placeOnHexStep (plant, &baseHex->hex, baseStep);
 	//position_set (plant, map_copy (position_get (base)));
 
-/*
-	npc1 = entity_create ();
-	component_instantiate ("position", npc1);
-	component_instantiate ("body", npc1);
-	component_instantiate ("chaser", npc1);
-	component_instantiate ("walking", npc1);
-	entity_refresh (npc1);
-
-	npc2 = entity_create ();
-	component_instantiate ("position", npc2);
-	component_instantiate ("body", npc2);
-	component_instantiate ("chaser", npc2);
-	component_instantiate ("walking", npc2);
-	entity_refresh (npc2);
-
-	npc3 = entity_create ();
-	component_instantiate ("position", npc3);
-	component_instantiate ("body", npc3);
-	component_instantiate ("chaser", npc3);
-	component_instantiate ("walking", npc3);
-	entity_refresh (npc3);
-
-	randPos = map_randomPositionNear (centre, 1);
-	baseHex = hexPos_platter (randPos, 0);
-	position_placeOnHexStep (npc1, &baseHex->hex, hexGroundStepNear (&baseHex->hex, 0));
-	map_freePos (randPos);
-	chaser_target (npc1, player, 1.0);
-
-	randPos = map_randomPositionNear (centre, 1);
-	baseHex = hexPos_platter (randPos, 0);
-	position_placeOnHexStep (npc2, &baseHex->hex, hexGroundStepNear (&baseHex->hex, 0));
-	map_freePos (randPos);
-	chaser_target (npc2, player, 1.0);
-
-	randPos = map_randomPositionNear (centre, 1);
-	baseHex = hexPos_platter (randPos, 0);
-	position_placeOnHexStep (npc3, &baseHex->hex, hexGroundStepNear (&baseHex->hex, 0));
-	map_freePos (randPos);
-	chaser_target (npc3, player, 1.0);
-
-	printf ("made entity #%d, #%d, #%d; npcs\n", entity_GUID (npc1), entity_GUID (npc2), entity_GUID (npc3));
-	*/
+// 	npc1 = entity_create ();
+// 	component_instantiate ("position", npc1);
+// 	component_instantiate ("body", npc1);
+// 	component_instantiate ("chaser", npc1);
+// 	component_instantiate ("walking", npc1);
+// 	entity_refresh (npc1);
+// 
+// 	npc2 = entity_create ();
+// 	component_instantiate ("position", npc2);
+// 	component_instantiate ("body", npc2);
+// 	component_instantiate ("chaser", npc2);
+// 	component_instantiate ("walking", npc2);
+// 	entity_refresh (npc2);
+// 
+// 	npc3 = entity_create ();
+// 	component_instantiate ("position", npc3);
+// 	component_instantiate ("body", npc3);
+// 	component_instantiate ("chaser", npc3);
+// 	component_instantiate ("walking", npc3);
+// 	entity_refresh (npc3);
+// 
+// 	printf ("randpos\n");
+// 	randPos = map_randomPositionNear (centre, 0);
+// 	printf ("basehex\n");
+// 	baseHex = hexPos_platter (randPos, 0);
+// 	printf ("place (%p)\n", baseHex);
+// 	position_placeOnHexStep (npc1, &baseHex->hex, hexGroundStepNear (&baseHex->hex, 0));
+// 	printf ("freepos\n");
+// 	map_freePos (randPos);
+// 
+// 	randPos = map_randomPositionNear (centre, 0);
+// 	baseHex = hexPos_platter (randPos, 0);
+// 	position_placeOnHexStep (npc2, &baseHex->hex, hexGroundStepNear (&baseHex->hex, 0));
+// 	map_freePos (randPos);
+// 
+// 	randPos = map_randomPositionNear (centre, 0);
+// 	baseHex = hexPos_platter (randPos, 0);
+// 	position_placeOnHexStep (npc3, &baseHex->hex, hexGroundStepNear (&baseHex->hex, 0));
+// 	map_freePos (randPos);
+// 
+// 	chaser_target (npc1, player, 0.2);
+// 	chaser_target (npc2, player, 0.2);
+// 	chaser_target (npc3, player, 0.2);
+// 	chaser_target (npc1, npc2, 1.0);
+// 	chaser_target (npc1, npc3, -1.0);
+// 	chaser_target (npc2, npc3, 1.0);
+// 	chaser_target (npc2, npc1, -1.0);
+// 	chaser_target (npc3, npc1, 1.0);
+// 	chaser_target (npc3, npc2, -1.0);
+// 
+// 	printf ("made entity #%d, #%d, #%d; npcs\n", entity_GUID (npc1), entity_GUID (npc2), entity_GUID (npc3));
+	
 
 	systemClearStates();
 	systemPushState (STATE_FREEVIEW);
