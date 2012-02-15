@@ -1,10 +1,17 @@
 #include "comp_gui.h"
 
 #include "video.h"
-#include "component_input.h"
 
 static Dynarr
 	GUIDepthStack = NULL;
+
+void gui_defaultClose (Entity this, const inputEvent const * event)
+{
+	entity_message (this, NULL, "loseFocus", NULL);
+	entity_destroy (this);
+}
+
+
 
 void gui_place (Entity e, int x, int y, int w, int h)
 {

@@ -2,6 +2,7 @@
 #define XPH_COMP_GUI_H
 
 #include "entity.h"
+#include "component_input.h"
 
 typedef struct xph_gui * GUI;
 
@@ -19,6 +20,8 @@ struct xph_gui
 	Dynarr
 		subs;
 };
+
+void gui_defaultClose (Entity this, const inputEvent const * event);
 
 void gui_place (Entity e, int x, int y, int w, int h);
 void gui_setMargin (Entity e, int vert, int horiz);

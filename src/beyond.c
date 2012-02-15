@@ -27,6 +27,7 @@ static void bootstrap (void);
 static void load (TIMER * t);
 static void finalize (void);
 
+static void blah_blah_GPL_whatever (Entity about);
 
 int main (int argc, char * argv[])
 {
@@ -49,7 +50,7 @@ int main (int argc, char * argv[])
 }
 
 
-void bootstrap (void)
+static void bootstrap (void)
 {
 	/* this is where any loading that's absolutely needed from the first frame
 	 * onwards should go -- sdl initialization, font loading, loading screen
@@ -98,7 +99,7 @@ void bootstrap (void)
 	loadSetText ("Loading...");
 }
 
-void finalize (void)
+static void finalize (void)
 {
 	Entity
 		titleScreenMenu;
@@ -115,10 +116,12 @@ void finalize (void)
 	gui_placeOnStack (titleScreenMenu);
 	gui_place (titleScreenMenu, width / 4, height / 2, width / 2, height / 4);
 	gui_setMargin (titleScreenMenu, 4, 4);
-	menu_addItem (titleScreenMenu, "New Game", IR_WORLDGEN);
+	menu_addItem (titleScreenMenu, "New Game", IR_WORLDGEN, NULL);
 	// options currently can't be altered at realtime due to 1. the lack of usable UI interface; 2. the lack of option-saving code; 3. probably some other things too - xph 02 14 2012
 	//menu_addItem (titleScreenMenu, "Options", IR_OPTIONS);
-	menu_addItem (titleScreenMenu, "Quit", IR_QUIT);
+	menu_addItem (titleScreenMenu, "Quit", IR_QUIT, NULL);
+
+	menu_addPositionedItem (titleScreenMenu, width - 32, height - 32, 32, 32, "?", IR_NOTHING, blah_blah_GPL_whatever);
 
 	entity_message (titleScreenMenu, NULL, "gainFocus", NULL);
 
@@ -126,7 +129,7 @@ void finalize (void)
 	systemPushState (STATE_UI);
 }
 
-void load (TIMER * t)
+static void load (TIMER * t)
 {
 	/* this is where any loading that's needed for the system ui or for title
 	 * screen effects should go
@@ -135,4 +138,29 @@ void load (TIMER * t)
 
 	loadSetGoal (1);
 	loadSetLoaded (1);
+}
+
+static void blah_blah_GPL_whatever (Entity about)
+{
+	Entity
+		gpl;
+	unsigned int
+		height,
+		width;
+
+	video_getDimensions (&width, &height);
+	gpl = entity_create ();
+	component_instantiate ("gui", gpl);
+	component_instantiate ("input", gpl);
+	component_instantiate ("menu", gpl);
+	component_instantiate ("textlabel", gpl);
+	entity_refresh (gpl);
+
+	gui_place (gpl, 16, 16, width - 32, height - 32);
+	input_addAction (gpl, IR_UI_CONFIRM, gui_defaultClose);
+	input_addAction (gpl, IR_UI_CANCEL, gui_defaultClose);
+	textlabel_set (gpl, "STANDARD LEGALLY-OBLIGATORY GPL BOILERPLATE\nThis program is free software: you can redistribute it and/or modify it under the terms of the GNU\nGeneral Public License as published by the Free Software Foundation, either version 3 of the\nLicense, or (at your option) any later version.\n\nThis program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;\nwithout even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR\n PURPOSE.  See the GNU General Public License for more details.\n\nYou should have received a copy of the GNU General Public License along with this program.  If\nnot, see <http://www.gnu.org/licenses/>.\n\ncopyright 2012 xaphiriron, gj, go me\n\nwow i hate licensing boilerplate i'm sorry you had to read that", ALIGN_LEFT, 16, 16, width - 32);
+
+	gui_placeOnStack (gpl);
+	
 }

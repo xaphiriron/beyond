@@ -1,7 +1,6 @@
 #include "comp_menu.h"
 
 #include "comp_gui.h"
-#include "comp_clickable.h"
 #include "comp_textlabel.h"
 
 static void menu_draw (EntComponent comp, EntSpeech speech);
@@ -22,6 +21,8 @@ static void menu_draw (EntComponent comp, EntSpeech speech)
 		i = 0;
 	glColor4ub (0x00, 0x00, 0x00, 0xaf);
 	gui_drawPane (this);
+	glColor4ub (0xff, 0xff, 0xff, 0xff);
+	textlabel_draw (this);
 	while ((menuItem = *(Entity *)dynarr_at (items, i++)))
 	{
 		clickable_draw (menuItem);
@@ -30,7 +31,7 @@ static void menu_draw (EntComponent comp, EntSpeech speech)
 	}
 }
 
-void menu_addItem (Entity this, const char * text, enum input_responses action)
+void menu_addItem (Entity this, const char * text, enum input_responses action, actionCallback callback)
 {
 	Entity
 		menuItem;
@@ -61,8 +62,35 @@ void menu_addItem (Entity this, const char * text, enum input_responses action)
 	yPlacement = y + vm + itemCount * (fontHeight + vm);
 
 	gui_place (menuItem, x + hm, yPlacement, w - (hm * 2), fontHeight + vm);
-	clickable_setClickInputResponse (menuItem, action);
+	if (action != IR_NOTHING)
+		clickable_setClickInputResponse (menuItem, action);
+	if (callback != NULL)
+		clickable_setClickCallback (menuItem, callback);
 	textlabel_set (menuItem, text, ALIGN_CENTRE, x + hm, yPlacement, w - (hm * 2));
+
+	gui_setFrame (menuItem, this);
+	if (input_hasFocus (this))
+		entity_message (menuItem, this, "gainFocus", NULL);
+}
+
+void menu_addPositionedItem (Entity this, int x, int y, int w, int h, const char * text, enum input_responses action, actionCallback callback)
+{
+	Entity
+		menuItem;
+	
+	menuItem = entity_create ();
+	component_instantiate ("gui", menuItem);
+	component_instantiate ("clickable", menuItem);
+	component_instantiate ("input", menuItem);
+	component_instantiate ("textlabel", menuItem);
+	entity_refresh (menuItem);
+
+	gui_place (menuItem, x, y, w, h);
+	if (action != IR_NOTHING)
+		clickable_setClickInputResponse (menuItem, action);
+	if (callback != NULL)
+		clickable_setClickCallback (menuItem, callback);
+	textlabel_set (menuItem, text, ALIGN_CENTRE, x, y, w);
 
 	gui_setFrame (menuItem, this);
 	if (input_hasFocus (this))
