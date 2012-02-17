@@ -14,6 +14,7 @@
 #include "map_internal.h"
 #include "component_position.h"
 #include "component_input.h"
+#include "comp_gui.h"
 
 static void worldmap_create (EntComponent comp, EntSpeech speech);
 static void worldmap_destroy (EntComponent comp, EntSpeech speech);
@@ -166,6 +167,8 @@ static void worldmap_gainFocus (EntComponent comp, EntSpeech speech)
 
 static void worldmap_loseFocus (EntComponent comp, EntSpeech speech)
 {
+	Entity
+		this = component_entityAttached (comp);
 	worldmapData
 		map = component_getData (entity_getAs (Worldmap, "worldmap"));
 	int
@@ -180,6 +183,7 @@ static void worldmap_loseFocus (EntComponent comp, EntSpeech speech)
 	map->types = NULL;
 	map->typeFocus = -1;
 	map->spanTypeFocus = FOCUS_SPAN;
+	gui_removeFromStack (this);
 }
 
 static void worldmap_draw (EntComponent comp, EntSpeech speech)

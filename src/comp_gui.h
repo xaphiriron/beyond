@@ -41,6 +41,7 @@ void gui_update (Dynarr entities);
 void gui_render (Dynarr entities);
 
 void gui_placeOnStack (Entity this);
+void gui_removeFromStack (Entity this);
 
 bool gui_inside (Entity this, int x, int y);
 

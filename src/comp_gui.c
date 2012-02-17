@@ -102,28 +102,17 @@ static void gui_create (EntComponent comp, EntSpeech speech)
 static void gui_destroy (EntComponent comp, EntSpeech speech)
 {
 	Entity
-		this = component_entityAttached (comp),
-		nextHighest;
+		this = component_entityAttached (comp);
 	GUI
 		gui = component_getData (comp);
+
+	gui_removeFromStack (this);
+
 	// TODO: should this: update all its subs to have no frame/update all its subs to have its frame if it has one/destroy all subs/do nothing??? (currently doing nothing)
 	xph_free (gui->subs);
 	xph_free (gui);
 
 	component_clearData (comp);
-
-	if (*(Entity *)dynarr_back (GUIDepthStack) == this)
-	{
-		dynarr_unset (GUIDepthStack, dynarr_size (GUIDepthStack) - 1);
-		if ((nextHighest = *(Entity *)dynarr_back (GUIDepthStack)))
-		{
-			entity_message (nextHighest, NULL, "gainFocus", NULL);
-		}
-	}
-	else
-	{
-		dynarr_remove_condense (GUIDepthStack, this);
-	}
 }
 
 void gui_gainFocus (EntComponent comp, EntSpeech speech)
@@ -192,6 +181,24 @@ void gui_placeOnStack (Entity this)
 		dynarr_push (GUIDepthStack, this);
 		entity_message (prev, NULL, "loseFocus", NULL);
 		entity_message (this, NULL, "gainFocus", NULL);
+	}
+}
+
+void gui_removeFromStack (Entity this)
+{
+	Entity
+		nextHighest;
+	if (*(Entity *)dynarr_back (GUIDepthStack) == this)
+	{
+		dynarr_unset (GUIDepthStack, dynarr_size (GUIDepthStack) - 1);
+		if ((nextHighest = *(Entity *)dynarr_back (GUIDepthStack)))
+		{
+			entity_message (nextHighest, NULL, "gainFocus", NULL);
+		}
+	}
+	else
+	{
+		dynarr_remove_condense (GUIDepthStack, this);
 	}
 }
 
