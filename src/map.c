@@ -355,7 +355,6 @@ SUBHEX mapHexCreate (const SUBHEX parent, signed int x, signed int y)
 	sh->hex.light = (r > MapRadius / 2) ^ (i % 2 | !r);
 
 	sh->hex.steps = dynarr_create (8, sizeof (HEXSTEP));
-	sh->hex.spurs = dynarr_create (8, sizeof (hexSpur));
 	sh->hex.occupants = dynarr_create (2, sizeof (struct hex_occupant *));
 
 	hexSetBase (&sh->hex, 0, material (MAT_AIR));
@@ -546,9 +545,6 @@ void subhexDestroy (SUBHEX subhex)
 	{
 		dynarr_map (subhex->hex.steps, xph_free);
 		dynarr_destroy (subhex->hex.steps);
-
-		dynarr_map (subhex->hex.spurs, xph_free);
-		dynarr_destroy (subhex->hex.spurs);
 
 		dynarr_map (subhex->hex.occupants, xph_free);
 		dynarr_destroy (subhex->hex.occupants);
