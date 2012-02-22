@@ -14,23 +14,26 @@
 
 #define VIDEO_DEFAULT_RESOLUTION	0.05
 
-struct video {
-  float
-    zNear,
-    zFar,
-    resolution;
-  char
-    * title,
-    * icon;
-  unsigned int
-    height,
-    width;
-  bool
-    orthographic,
-    doublebuffer;
+struct video
+{
+	float
+		zNear,
+		zFar,
+		resolution;
+	char
+		* title,
+		* icon;
+	unsigned int
+		height,
+		width;
+	bool
+		orthographic,
+		doublebuffer;
 
-  unsigned int SDLmode;
-  SDL_Surface * screen;
+	unsigned int
+		SDLmode;
+	SDL_Surface
+		* screen;
 
 	bool
 		renderWireframe;
