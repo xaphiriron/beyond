@@ -16,8 +16,8 @@
 
 struct video {
   float
-    near,
-    far,
+    zNear,
+    zFar,
     resolution;
   char
     * title,
@@ -195,8 +195,8 @@ static void video_loadDefaultSettings (VIDEO * v)
 	v->title = xph_alloc (strlen (title) + 1);
 	strncpy (v->title, title, strlen (title) + 1);
 	v->icon = NULL;
-	v->near = 20.0;
-	v->far = 10000.0;
+	v->zNear = 20.0;
+	v->zFar = 10000.0;
 	v->screen = NULL;
 	v->renderWireframe = false;
 }
@@ -337,10 +337,10 @@ static void video_regenerateDisplay (VIDEO * v)
 	glMatrixMode (GL_PROJECTION);
 	glLoadIdentity ();
 	if (v->orthographic == true)
-		glOrtho (-glWidth, glWidth, -glHeight, glHeight, v->near, v->far);
+		glOrtho (-glWidth, glWidth, -glHeight, glHeight, v->zNear, v->zFar);
 	else
-		glFrustum (-glWidth, glWidth, -glHeight, glHeight, v->near, v->far);
-	//printf ("%s: opengl frustum is %5.3f by %5.3f with a resolution of %5.3f and a near/far value of %5.3f/%5.3f\n", __FUNCTION__, glWidth, glHeight, v->resolution, glNear, glFar);
+		glFrustum (-glWidth, glWidth, -glHeight, glHeight, v->zNear, v->zFar);
+	//printf ("%s: opengl frustum is %5.3f by %5.3f with a resolution of %5.3f and a near/far value of %5.3f/%5.3f\n", __FUNCTION__, glWidth, glHeight, v->resolution, v->zNear, v->zFar);
 	glMatrixMode (GL_MODELVIEW);
 	glLoadIdentity ();
 }
@@ -349,7 +349,7 @@ float video_getZnear ()
 {
 	if (!Video)
 		return 0.0;
-	return -Video->near;
+	return -Video->zNear;
 }
 
 float video_getXResolution ()
