@@ -204,6 +204,11 @@ static void video_loadDefaultSettings (VIDEO * v)
 
 static void video_enableSDLmodules ()
 {
+	SDL_version
+		sdlversion;
+	SDL_VERSION (&sdlversion);
+	INFO ("Compiled with SDL version %d.%d.%d\n", sdlversion.major, sdlversion.minor, sdlversion.patch);
+
 	SDL_EnableUNICODE (true);
 	//SDL_ShowCursor (SDL_DISABLE);
 	//SDL_WM_GrabInput (SDL_GRAB_ON);
@@ -216,7 +221,8 @@ static void video_enableGLmodules ()
 		* glExtensions;
 	glVersion = glGetString (GL_VERSION);
 	glExtensions = glGetString (GL_EXTENSIONS);
-	printf ("Using GL version %s with extensions:\n\t%s\n", glVersion, glExtensions);
+	INFO ("Using GL version %s with extensions:", glVersion);
+	INFO ("\t%s", glExtensions);
 
 	glClearColor (0.1215, 0.0588, 0.1843, 0.0); // dark purple
 	glClearDepth (1.0);
@@ -240,9 +246,16 @@ static bool video_initialize (VIDEO * v)
 		* icon = NULL;
 	const SDL_VideoInfo
 		* info = NULL;
-	if (!v->screen && SDL_Init (SDL_INIT_VIDEO) < 0)
+	const char
+		* sdlError;
+	int
+		glError;
+	if (!v->screen && SDL_Init (SDL_INIT_VIDEO | SDL_INIT_NOPARACHUTE) < 0)
 	{
-		fprintf (stderr, "SDL failed to initialize. The error given was \"%s\".\n", SDL_GetError ());
+		if ((sdlError = SDL_GetError ()))
+			ERROR ("SDL failed to initialize. The error given was \"%s\".", sdlError);
+		else
+			ERROR ("SDL failed to initialize. There was no error given.");
 		return false;
 	}
 	if (v->icon)
@@ -259,34 +272,55 @@ static bool video_initialize (VIDEO * v)
 	info = SDL_GetVideoInfo ();
 	if (!info)
 	{
-		fprintf (stderr, "Can't get video info: %s; bad things are probably going to happen soon.\n", SDL_GetError());
+		if ((sdlError = SDL_GetError ()))
+			ERROR ("Can't get SDL video information. The error given was \"%s\".", sdlError);
+		else
+			ERROR ("Can't get SDL video information. There was no error given.");
 	}
 	else
 	{
 		v->SDLmode |= (info->hw_available ? SDL_HWSURFACE : 0);
-/* evidently the documentation lied to me and this does not in fact exist
-    if (v->width > info->current_w || v->height > info->current_h) {
-      printf ("The resolution we're about to try (%d,%d) is larger than your current resolution (%d,%d)... this might end badly.\n", v->width, v->height, info->current_w, info->current_h);
-    }
-*/
 	}
 	video_enableSDLmodules ();
 
   /* TODO: the perennial refrain here is that colour depth should be tested
    * and stored in the config, instead of dictated by fiat here in the source.
    */
-  SDL_GL_SetAttribute (SDL_GL_RED_SIZE, 5);
-  SDL_GL_SetAttribute (SDL_GL_GREEN_SIZE, 5);
-  SDL_GL_SetAttribute (SDL_GL_BLUE_SIZE, 5);
-  SDL_GL_SetAttribute (SDL_GL_DEPTH_SIZE, 16);
-  SDL_GL_SetAttribute (SDL_GL_DOUBLEBUFFER, v->doublebuffer == true ? 1 : 0);
+	SDL_GL_SetAttribute (SDL_GL_RED_SIZE, 5);
+	SDL_GL_SetAttribute (SDL_GL_GREEN_SIZE, 5);
+	SDL_GL_SetAttribute (SDL_GL_BLUE_SIZE, 5);
+	SDL_GL_SetAttribute (SDL_GL_DEPTH_SIZE, 16);
+	SDL_GL_SetAttribute (SDL_GL_DOUBLEBUFFER, v->doublebuffer == true ? 1 : 0);
 	if (v->screen == NULL)
 	{
-		v->screen = SDL_SetVideoMode (v->width, v->height, info == NULL ? 16 : info->vfmt->BitsPerPixel, v->SDLmode);
+		v->screen = SDL_SetVideoMode (v->width, v->height, info == NULL ? 0 : info->vfmt->BitsPerPixel, v->SDLmode);
 		if (v->screen == NULL)
 		{
-			fprintf (stderr, "SDL failed to start video. The error given was \"%s\".\n", SDL_GetError ());
+			if ((sdlError = SDL_GetError ())[0] != 0)
+				ERROR ("SDL failed to start video. The error given was \"%s\".", sdlError);
+			else
+				ERROR ("SDL failed to start video. There was no error given.");
 			return false;
+		}
+		else if (!(v->screen->flags & SDL_OPENGL))
+		{
+			if ((sdlError = SDL_GetError ())[0] != 0)
+				ERROR ("SDL was unable to create an OpenGL context. The error given was \"%s\"", sdlError);
+			else
+				ERROR ("SDL was unable to create an OpenGL context. There was no error given.");
+			return false;
+		}
+		else if ((sdlError = SDL_GetError ())[0] != 0)
+		{
+			WARNING ("SDL generated a non-fatal error while setting the video mode: %s", sdlError);
+		}
+
+		while ((glError = glGetError ()) != GL_NO_ERROR)
+		{
+			ERROR ("GL generated the error code on creation: %d\n", glError);
+			// if gl has no context it'll generate GL_INVALID_OPERATION in an infinite loop. this should never trigger since we catch the no-gl-context case above, but, you know, just in case - xph 02 22 2012
+			if (glError == GL_INVALID_OPERATION)
+				break;
 		}
 	}
 	video_enableGLmodules ();
