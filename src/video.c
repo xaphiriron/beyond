@@ -252,12 +252,17 @@ static bool video_initialize (VIDEO * v)
 		glError;
 	if (!v->screen && SDL_Init (SDL_INIT_VIDEO | SDL_INIT_NOPARACHUTE) < 0)
 	{
-		if ((sdlError = SDL_GetError ()))
+		if ((sdlError = SDL_GetError ())[0] != 0)
 			ERROR ("SDL failed to initialize. The error given was \"%s\".", sdlError);
 		else
 			ERROR ("SDL failed to initialize. There was no error given.");
 		return false;
 	}
+	else if ((sdlError = SDL_GetError ())[0] != 0)
+	{
+		WARNING ("SDL generated a non-fatal error while initializing: %s", sdlError);
+	}
+	SDL_ClearError ();
 	if (v->icon)
 	{
 		icon = SDL_LoadBMP (v->icon);
@@ -270,12 +275,14 @@ static bool video_initialize (VIDEO * v)
 	}
 
 	info = SDL_GetVideoInfo ();
+	sdlError = SDL_GetError ();
 	if (!info)
 	{
-		if ((sdlError = SDL_GetError ()))
+		if (sdlError[0] != 0)
 			ERROR ("Can't get SDL video information. The error given was \"%s\".", sdlError);
 		else
 			ERROR ("Can't get SDL video information. There was no error given.");
+		SDL_ClearError ();
 	}
 	else
 	{
@@ -294,9 +301,11 @@ static bool video_initialize (VIDEO * v)
 	if (v->screen == NULL)
 	{
 		v->screen = SDL_SetVideoMode (v->width, v->height, info == NULL ? 0 : info->vfmt->BitsPerPixel, v->SDLmode);
+		sdlError = SDL_GetError ();
+		
 		if (v->screen == NULL)
 		{
-			if ((sdlError = SDL_GetError ())[0] != 0)
+			if (sdlError[0] != 0)
 				ERROR ("SDL failed to start video. The error given was \"%s\".", sdlError);
 			else
 				ERROR ("SDL failed to start video. There was no error given.");
@@ -304,16 +313,17 @@ static bool video_initialize (VIDEO * v)
 		}
 		else if (!(v->screen->flags & SDL_OPENGL))
 		{
-			if ((sdlError = SDL_GetError ())[0] != 0)
+			if (sdlError[0] != 0)
 				ERROR ("SDL was unable to create an OpenGL context. The error given was \"%s\"", sdlError);
 			else
 				ERROR ("SDL was unable to create an OpenGL context. There was no error given.");
 			return false;
 		}
-		else if ((sdlError = SDL_GetError ())[0] != 0)
+		else if (sdlError[0] != 0)
 		{
 			WARNING ("SDL generated a non-fatal error while setting the video mode: %s", sdlError);
 		}
+		SDL_ClearError ();
 
 		while ((glError = glGetError ()) != GL_NO_ERROR)
 		{
