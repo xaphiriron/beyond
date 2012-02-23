@@ -11,17 +11,12 @@
 #include <errno.h>
 #include <stdlib.h>
 
+#include "xph_memory.h"
 #include "xph_log.h"
 #include <dirent.h>
 #include <unistd.h>
 
-#define PATHBUFFERSIZE	256
 #define DIR_SEPARATOR '/'
-
-static char
-	SystemPath[PATHBUFFERSIZE],
-	FullPathBuffer[PATHBUFFERSIZE];
-
 
 static char
 	* base = NULL;
@@ -62,24 +57,32 @@ char * xph_canonPath (const char * filename, char * buffer, size_t size)
 char * xph_canonCachePath (const char * filename)
 {
 	static char
-		cache[PATHBUFFERSIZE];
-	xph_canonPath (filename, cache, PATHBUFFERSIZE);
+		* cache = NULL;
+	static size_t
+		cacheSizeAllocated = 32;
+	while (cache == NULL || strlen (base) + strlen (filename) + 2 > cacheSizeAllocated)
+	{
+		xph_free (cache);
+		cacheSizeAllocated *= 2;
+		cache = xph_alloc (cacheSizeAllocated);
+	}
+	xph_canonPath (filename, cache, cacheSizeAllocated);
 	return cache;
 }
 
 bool xph_findBaseDir (const char * programPath)
 {
 	char
-		fullPath[PATHBUFFERSIZE];
-	char
-		* nextPath;
+		* nextPath,
+		* fullPath;
 	DIR
 		* active;
 	struct dirent
 		* dirent;
 	bool
 		hasDataDir;
-	strncpy (fullPath, programPath, PATHBUFFERSIZE - 1);
+	fullPath = xph_alloc (strlen (programPath) + 1);
+	strcpy (fullPath, programPath);
 	nextPath = strrchr (fullPath, DIR_SEPARATOR);
 	if (!nextPath)
 	{
@@ -105,6 +108,7 @@ bool xph_findBaseDir (const char * programPath)
 		if (hasDataDir)
 		{
 			xph_chdir (fullPath);
+			xph_free (fullPath);
 			return true;
 		}
 		if (!(nextPath = strrchr (fullPath, DIR_SEPARATOR)))
@@ -114,41 +118,4 @@ bool xph_findBaseDir (const char * programPath)
 		}
 		*nextPath = 0;
 	}
-}
-
-char * absolutePath (const char * relPath)
-{
-	strcpy (FullPathBuffer, SystemPath);
-	if (strlen (FullPathBuffer) + strlen (SystemPath) + 1 > PATHBUFFERSIZE)
-		ERROR ("About to overrun the path buffer; this is an exploit; whoops");
-	/* this is ugly in the case relPath := "./whatev" || "../foo/bar", but it
-	 * still works.
-	 */
-	strcat (FullPathBuffer, relPath);
-	return FullPathBuffer;
-}
-
-/* this is designed to be called only from main with argv[0]
- */
-void setSystemPath (const char * programPath)
-{
-	char
-		* f = NULL;
-	memset (SystemPath, 0, PATHBUFFERSIZE);
-	strcpy (SystemPath, programPath);
-	/* this is dumb; libtools places the actual executable in {base}/.libs and that's confusing so that's why this removes the executable name /and/ its base folder. there's got to be a way to do this better but i'd have to have the libtools dox to do it, and i don't.
-	 *  - xph 2011 06 14
-	 */
-	f = strrchr (SystemPath, '/');
-	while (*f != 0)
-	{
-		*f++ = 0;
-	}
-	f = strrchr (SystemPath, '/');
-	f++;
-	while (*f != 0)
-	{
-		*f++ = 0;
-	}
-	DEBUG ("Set system path to '%s'", SystemPath);
 }
