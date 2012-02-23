@@ -344,7 +344,7 @@ TEXTURE textureGenFromImage (const char * path)
 	SDL_Surface
 		* surface;
 
-	surface = IMG_Load (absolutePath (path));
+	surface = IMG_Load (xph_canonCachePath (path));
 
 	/* FIXME: this is where we would be doing the verification to make sure
 	 * this image is actually the kind of image we can use as a texture (e.g.,

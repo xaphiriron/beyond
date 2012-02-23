@@ -17,7 +17,7 @@
 #include "component_camera.h"
 #include "component_position.h"
 
-#define CONFIGPATH "../data/settings"
+#define CONFIGPATH "data/settings"
 
 #define LOADERTEXTBUFFERSIZE 128
 struct loadingdata
@@ -69,7 +69,7 @@ void systemInit ()
 	// not really sure where these should go; they're going here for now.
 	system_registerTimedFunction (entity_purgeDestroyed, 0x7f);
 
-	System->config = Ogdl_load (absolutePath (CONFIGPATH));
+	System->config = Ogdl_load (xph_canonCachePath (CONFIGPATH));
 
 #ifdef MEM_DEBUG
 	atexit (xph_audit);

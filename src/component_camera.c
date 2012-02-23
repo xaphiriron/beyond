@@ -73,7 +73,7 @@ static struct camera_data * camera_create ()
 	cd->offset[0] = cd->offset[5] = cd->offset[10] = cd->offset[15] = 1.0;
 	cd->m[0] = cd->m[5] = cd->m[10] = cd->m[15] = 1.0;
 
-	cd->cursor = textureGenFromImage ("../img/cursor.png");
+	cd->cursor = textureGenFromImage ("img/cursor.png");
 	textureBind (cd->cursor);
 
 	return cd;

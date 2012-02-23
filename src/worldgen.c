@@ -38,8 +38,6 @@ static unsigned long
 
 void worldConfig (Entity confirm)
 {
-	char
-		patternPath[PATH_MAX];
 	Dynarr
 		openFrames;
 	Entity
@@ -57,12 +55,7 @@ void worldConfig (Entity confirm)
 	INFO ("%s: using seed of \'%ld\'", __FUNCTION__, worldSeed);
 	printf ("%s: using seed of \'%ld\'\n", __FUNCTION__, worldSeed);
 
-	entity_destroy (options);
-
-	strcpy (patternPath, "../");
-	strncat (patternPath, optlayout_optionStrValue (options, "Pattern Data"), PATH_MAX - 4);
-	patternLoadDefinitions (absolutePath (patternPath));
-
+	patternLoadDefinitions (xph_canonCachePath (optlayout_optionStrValue (options, "Pattern Data")));
 
 	openFrames = entity_getWith (1, "gui");
 	dynarr_map (openFrames, (void (*)(void *))entity_destroy);

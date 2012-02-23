@@ -83,7 +83,7 @@ void fontLoad (const char * path, int fontSize)
 	unsigned int
 		c = 0,
 		textureIndex = 0;
-	char
+	const char
 		* absPath;
 	if (!Library)
 	{
@@ -95,7 +95,7 @@ void fontLoad (const char * path, int fontSize)
 		}
 	}
 	// the 0 is the face index, e.g., normal font instead of bold or italic (and indexes greater than 0 might not exist depending on the font)
-	absPath = absolutePath (path);
+	absPath = xph_canonCachePath (path);
 	error = FT_New_Face (Library, absPath, 0, &Face);
 	if (error)
 	{

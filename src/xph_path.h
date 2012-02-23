@@ -8,8 +8,14 @@
 #ifndef XPH_PATH_H
 #define XPH_PATH_H
 
-void setSystemPath (const char * programPath);
+#include <stdbool.h>
+#include <string.h>
 
-char * absolutePath (const char * relPath);
+int xph_chdir (const char * path);
+char * xph_canonPath (const char * filename, char * buffer, size_t size);
+char * xph_canonCachePath (const char * filename);
+
+
+bool xph_findBaseDir (const char * programPath);
 
 #endif /* XPH_PATH_H */

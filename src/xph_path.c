@@ -8,16 +8,113 @@
 #include "xph_path.h"
 
 #include <assert.h>
+#include <errno.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "xph_log.h"
+#include <dirent.h>
+#include <unistd.h>
 
-#define PATHBUFFERSIZE	1024
+#define PATHBUFFERSIZE	256
+#define DIR_SEPARATOR '/'
 
 static char
 	SystemPath[PATHBUFFERSIZE],
 	FullPathBuffer[PATHBUFFERSIZE];
+
+
+static char
+	* base = NULL;
+
+int xph_chdir (const char * path)
+{
+	int
+		r;
+	r = chdir (path);
+	if (r == 0)
+	{
+		if (base)
+			free (base);
+		base = getcwd (NULL, 0);
+	}
+	printf ("set working directory to \"%s\"\n", base);
+	return r;
+}
+
+char * xph_canonPath (const char * filename, char * buffer, size_t size)
+{
+	assert (buffer);
+	memset (buffer, 0, size);
+	if (strlen (base) + strlen (filename) + 1 > size)
+		return NULL;
+
+	if (strstr (filename, ".."))
+	{
+		strncpy (buffer, "no stop trying to put .. in paths >:E", size);
+		return buffer;
+	}
+	strcpy (buffer, base);
+	buffer[strlen(buffer)] = DIR_SEPARATOR;
+	strcat (buffer, filename);
+	return buffer;
+}
+
+char * xph_canonCachePath (const char * filename)
+{
+	static char
+		cache[PATHBUFFERSIZE];
+	xph_canonPath (filename, cache, PATHBUFFERSIZE);
+	return cache;
+}
+
+bool xph_findBaseDir (const char * programPath)
+{
+	char
+		fullPath[PATHBUFFERSIZE];
+	char
+		* nextPath;
+	DIR
+		* active;
+	struct dirent
+		* dirent;
+	bool
+		hasDataDir;
+	strncpy (fullPath, programPath, PATHBUFFERSIZE - 1);
+	nextPath = strrchr (fullPath, DIR_SEPARATOR);
+	if (!nextPath)
+	{
+		fprintf (stderr, "Program placed in invalid directory or given malformed directory string\n");
+		exit (1);
+	}
+	*nextPath = 0;
+	while (1)
+	{
+		hasDataDir = false;
+		active = opendir (fullPath);
+		if (active == NULL)
+		{
+			perror ("Unable to continue checking dirs: ");
+			exit (1);
+		}
+		while ((dirent = readdir (active)))
+		{
+			if (strcmp (dirent->d_name, "data") == 0 && (dirent->d_type == DT_UNKNOWN || dirent->d_type == DT_DIR))
+				hasDataDir = true;
+		}
+		closedir (active);
+		if (hasDataDir)
+		{
+			xph_chdir (fullPath);
+			return true;
+		}
+		if (!(nextPath = strrchr (fullPath, DIR_SEPARATOR)))
+		{
+			fprintf (stderr, "Could not find a valid working directory!\n");
+			exit (1);
+		}
+		*nextPath = 0;
+	}
+}
 
 char * absolutePath (const char * relPath)
 {

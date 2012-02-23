@@ -52,10 +52,10 @@ int main (int argc, char * argv[])
 		r;
 	logSetLevel (E_ALL & ~(E_FUNCLABEL | E_DEBUG | E_INFO));
 
-	setSystemPath (argv[0]);
+	xph_findBaseDir (argv[0]);
 	systemInit ();
 	// this is after the system init because it depends on opengl being started to make the textures it needs
-	fontLoad ("../data/FreeSans.ttf", 16);
+	fontLoad ("data/FreeSans.ttf", 16);
 	systemLoad (bootstrap, load, finalize);
 
 	r = systemLoop ();
