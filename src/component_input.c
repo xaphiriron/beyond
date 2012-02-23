@@ -14,7 +14,7 @@
 
 #include "graph_common.h"
 
-struct input
+struct xph_input_main
 {
 	SDL_Event
 		event;
@@ -62,7 +62,7 @@ typedef union xph_key
 		extra;
 } Keycode;
 
-static INPUT
+static XPH_INPUT_MAIN
 	Input = NULL;
 
 static Keycode * key_create (const char * name);
@@ -72,9 +72,10 @@ static void input_loadConfig (const Graph config);
 static void input_loadDefaults ();
 
 
-struct input * input_create ()
+XPH_INPUT_MAIN input_create ()
 {
-	struct input * i = xph_alloc (sizeof (struct input));
+	struct xph_input_main
+		* i = xph_alloc (sizeof (struct xph_input_main));
 	i->controlMap = dynarr_create (1, sizeof (Keycode *));
 	i->focusedEntities = dynarr_create (2, sizeof (Entity *));
 
@@ -84,7 +85,7 @@ struct input * input_create ()
 	return i;
 }
 
-void input_destroy (struct input * i)
+void input_destroy (XPH_INPUT_MAIN i)
 {
 	dynarr_map (i->controlMap, xph_free);
 	dynarr_destroy (i->controlMap);

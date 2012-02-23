@@ -79,11 +79,11 @@ typedef struct input_event
 		* event;
 } inputEvent;
 
-typedef struct input * INPUT;
+typedef struct xph_input_main * XPH_INPUT_MAIN;
 
 
-struct input * input_create ();
-void input_destroy (struct input *);
+XPH_INPUT_MAIN input_create ();
+void input_destroy (XPH_INPUT_MAIN);
 
 bool input_addEntity (Entity e, enum input_control_types t);
 bool input_rmEntity (Entity e, enum input_control_types t);
