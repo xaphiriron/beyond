@@ -100,6 +100,4 @@ void loadSetText (char * displayText);
 void system_registerTimedFunction (void (*func)(TIMER *), unsigned char weight);
 void system_removeTimedFunction (void (*func)(TIMER *));
 
-void systemCreatePlayer ();
-
 #endif /* SYSTEM_H */
