@@ -44,6 +44,9 @@ static void bootstrap (void);
 static void load (TIMER * t);
 static void finalize (void);
 
+static void start_new_game (Entity menu_item);
+static void create_options_menu (Entity menu_item);
+
 static void blah_blah_GPL_whatever (Entity about);
 
 int main (int argc, char * argv[])
@@ -53,6 +56,7 @@ int main (int argc, char * argv[])
 	logSetLevel (E_ALL & ~(E_FUNCLABEL | E_DEBUG | E_INFO));
 
 	xph_findBaseDir (argv[0]);
+
 	systemInit ();
 	// this is after the system init because it depends on opengl being started to make the textures it needs
 	fontLoad ("data/FreeSans.ttf", 16);
@@ -78,7 +82,6 @@ static void bootstrap (void)
 	component_register ("position", position_define);
 	component_register ("camera", camera_define);
 	component_register ("walking", walking_define);
-	component_register ("input", input_define);
 	component_register ("arch", arch_define);
 	component_register ("body", body_define);
 	component_register ("builder", builder_define);
@@ -133,9 +136,9 @@ static void finalize (void)
 	gui_placeOnStack (titleScreenMenu);
 	gui_place (titleScreenMenu, width / 4, height / 2, width / 2, height / 4);
 	gui_setMargin (titleScreenMenu, 4, 4);
-	menu_addItem (titleScreenMenu, "New Game", IR_WORLDGEN, NULL);
+	menu_addItem (titleScreenMenu, "New Game", IR_NOTHING, start_new_game);
 	// options currently can't be altered at realtime due to 1. the lack of usable UI interface; 2. the lack of option-saving code; 3. probably some other things too - xph 02 14 2012
-	//menu_addItem (titleScreenMenu, "Options", IR_OPTIONS);
+	menu_addItem (titleScreenMenu, "Options", IR_NOTHING, create_options_menu);
 	menu_addItem (titleScreenMenu, "Quit", IR_QUIT, NULL);
 
 	menu_addPositionedItem (titleScreenMenu, width - 32, height - 32, 32, 32, "?", IR_NOTHING, blah_blah_GPL_whatever);
@@ -156,6 +159,64 @@ static void load (TIMER * t)
 	loadSetGoal (1);
 	loadSetLoaded (1);
 }
+
+static void start_new_game (Entity menu_item)
+{
+	unsigned int
+		width, height;
+	Entity
+		worldOptions;
+
+	video_getDimensions (&width, &height);
+
+	worldOptions = entity_create ();
+	component_instantiate ("gui", worldOptions);
+	gui_place (worldOptions, width/4, 0, width/2, height);
+	gui_setMargin (worldOptions, 8, 8);
+	component_instantiate ("optlayout", worldOptions);
+	component_instantiate ("input", worldOptions);
+	entity_refresh (worldOptions);
+
+	optlayout_confirm (worldOptions, worldConfig);
+	gui_placeOnStack (worldOptions);
+
+	entity_message (worldOptions, NULL, "gainFocus", NULL);
+
+	optlayout_addOption (worldOptions, "World Size", OPT_NUM, "3", NULL);
+	optlayout_addOption (worldOptions, "Seed", OPT_STRING, "", NULL);
+	optlayout_addOption (worldOptions, "Pattern Data", OPT_STRING, "data/patterns", "File to get generation rules from");
+}
+
+static void create_options_menu (Entity menu_item)
+{
+	unsigned int
+		width, height;
+	Entity
+		gameOptions;
+
+	video_getDimensions (&width, &height);
+
+	gameOptions = entity_create ();
+	component_instantiate ("gui", gameOptions);
+	gui_place (gameOptions, width/4, 0, width/2, height);
+	gui_setMargin (gameOptions, 8, 8);
+	component_instantiate ("optlayout", gameOptions);
+	component_instantiate ("input", gameOptions);
+	entity_refresh (gameOptions);
+
+	optlayout_confirm (gameOptions, NULL); // TODO: write the config-updating function and put it here
+	gui_placeOnStack (gameOptions);
+
+	entity_message (gameOptions, NULL, "gainFocus", NULL);
+
+	// TODO: this needs a way of selecting the currently-active options as the default, presumably through reading System->config (so like make the code that establishes this entity its own function)
+	// TODO: need optlayout dropdown box + "Custom..." w/ two numeric fields for this; that implies a lot of mucking about with optlayout code and the way options are defined within it
+	optlayout_addOption (gameOptions, "Screen Resolution", OPT_STRING, "800x600", NULL);
+	optlayout_addOption (gameOptions, "Fullscreen", OPT_FLAG, "off", NULL);
+
+	// TODO: this also needs /panes/; so video options and key options and game options aren't all thrown together on the same screen :(
+}
+
 
 static void blah_blah_GPL_whatever (Entity about)
 {

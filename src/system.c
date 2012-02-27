@@ -38,6 +38,11 @@ static struct loadingdata
 
 SYSTEM
 	* System = NULL;
+Entity
+	SystemEntity = NULL;
+
+static void system_define (EntComponent component, EntSpeech speech);
+static void system_shutdown (Entity this, const inputEvent * const event);
 
 void systemUpdate (void);
 
@@ -77,7 +82,25 @@ void systemInit ()
 
 	videoInit ();
 
+	component_register ("SYSTEM", system_define);
+	component_register ("input", input_define);
+	SystemEntity = entity_create ();
+	component_instantiate ("SYSTEM", SystemEntity);
+	component_instantiate ("input", SystemEntity);
+	entity_refresh (SystemEntity);
+	entity_message (SystemEntity, NULL, "gainFocus", NULL);
+	input_addAction (SystemEntity, IR_QUIT, system_shutdown);
+
 	return;
+}
+
+static void system_define (EntComponent component, EntSpeech speech)
+{
+}
+
+static void system_shutdown (Entity this, const inputEvent * const event)
+{
+	System->quit = true;
 }
 
 void systemDestroy ()
@@ -93,6 +116,9 @@ void systemDestroy ()
 	xph_free (System);
 
 	System = NULL;
+	// FIXME: for some reason that i don't fully understand, destroying the system entity early (it's automatically destroyed with the other entities) makes entity_destroyEverything incapable of actually purging all other entities. this is probably a really dumb bug somewhere, but it's not really a major concern so i'm not going to hunt it down - xph 02 27 2012
+	//entity_destroy (SystemEntity);
+	SystemEntity = NULL;
 
 	entity_destroyEverything ();
 }
@@ -510,81 +536,4 @@ static void renderSkyCube ()
 	glEnd ();
 	glEnable (GL_DEPTH_TEST);
 	glClear (GL_DEPTH_BUFFER_BIT);
-}
-
-/***
- * "MESSAGER"
- */
-
-// look let's just awknowledge this function is an abomination that should not exist and realize that certain workarounds are required until the code is updated to not require it at all :( - xph 2012 01 27
-#include "comp_optlayout.h"
-#include "comp_gui.h"
-
-int system_message (objMsg msg, void * a, void * b)
-{
-	Entity
-		worldOptions,
-		gameOptions;
-	unsigned int
-		width, height;
-
-	switch (msg)
-	{
-		case OM_SHUTDOWN:
-			System->quit = true;
-			systemPushState (STATE_QUIT);
-			return EXIT_SUCCESS;
-
-		case OM_FORCEWORLDGEN:
-			video_getDimensions (&width, &height);
-
-			worldOptions = entity_create ();
-			component_instantiate ("gui", worldOptions);
-			gui_place (worldOptions, width/4, 0, width/2, height);
-			gui_setMargin (worldOptions, 8, 8);
-			component_instantiate ("optlayout", worldOptions);
-			component_instantiate ("input", worldOptions);
-			entity_refresh (worldOptions);
-
-			optlayout_confirm (worldOptions, worldConfig);
-			gui_placeOnStack (worldOptions);
-
-			input_addEntity (worldOptions, INPUT_FOCUSED);
-			entity_message (worldOptions, NULL, "gainFocus", NULL);
-
-			optlayout_addOption (worldOptions, "World Size", OPT_NUM, "3", NULL);
-			optlayout_addOption (worldOptions, "Seed", OPT_STRING, "", NULL);
-			optlayout_addOption (worldOptions, "Pattern Data", OPT_STRING, "data/patterns", "File to get generation rules from");
-			return EXIT_SUCCESS;
-
-		case OM_OPTIONS:
-			video_getDimensions (&width, &height);
-
-			gameOptions = entity_create ();
-			component_instantiate ("gui", gameOptions);
-			gui_place (gameOptions, width/4, 0, width/2, height);
-			gui_setMargin (gameOptions, 8, 8);
-			component_instantiate ("optlayout", gameOptions);
-			component_instantiate ("input", gameOptions);
-			entity_refresh (gameOptions);
-
-			optlayout_confirm (gameOptions, NULL); // TODO: write the config-updating function and put it here
-			gui_placeOnStack (gameOptions);
-
-			input_addEntity (gameOptions, INPUT_FOCUSED);
-			entity_message (gameOptions, NULL, "gainFocus", NULL);
-
-			// TODO: this needs a way of selecting the currently-active options as the default, presumably through reading System->config (so like make the code that establishes this entity its own function)
-			// TODO: need optlayout dropdown box + "Custom..." w/ two numeric fields for this; that implies a lot of mucking about with optlayout code and the way options are defined within it
-			optlayout_addOption (gameOptions, "Screen Resolution", OPT_STRING, "800x600", NULL);
-			optlayout_addOption (gameOptions, "Fullscreen", OPT_FLAG, "off", NULL);
-
-			// TODO: this also needs /panes/; so video options and key options and game options aren't all thrown together on the same screen :(
-
-			return EXIT_SUCCESS;
-
-		default:
-			break;
-	}
-	return EXIT_FAILURE;
 }

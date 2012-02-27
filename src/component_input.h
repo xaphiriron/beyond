@@ -24,8 +24,6 @@ struct xph_input
 		actions;
 };
 
-bool input_hasFocus (Entity e);
-
 enum input_control_types
 {
 	INPUT_CONTROLLED = 1,
@@ -62,8 +60,6 @@ enum input_responses {
 
 	IR_WORLD_PLACEARCH,
 
-	IR_WORLDGEN,
-	IR_OPTIONS,
 	IR_QUIT,
 
 	IR_FINAL
@@ -87,6 +83,8 @@ void input_destroy (XPH_INPUT_MAIN);
 
 bool input_addEntity (Entity e, enum input_control_types t);
 bool input_rmEntity (Entity e, enum input_control_types t);
+
+bool input_hasFocus (Entity e);
 
 void input_sendAction (enum input_responses);
 void input_sendGameEventMessage (const struct input_event * ie);

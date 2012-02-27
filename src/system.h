@@ -46,6 +46,8 @@ typedef struct xph_system
 
 extern SYSTEM
 	* System;
+extern Entity
+	SystemEntity;
 
 void systemInit ();
 void systemDestroy ();
@@ -99,14 +101,5 @@ void system_registerTimedFunction (void (*func)(TIMER *), unsigned char weight);
 void system_removeTimedFunction (void (*func)(TIMER *));
 
 void systemCreatePlayer ();
-
-typedef enum object_messages {
-	OM_SHUTDOWN,
-	// i'd rather not add object junk at this point but input needs a way of signaling to the system that worldgen should happen, since i sure don't want to put the systemLoad () call in input.c
-	OM_FORCEWORLDGEN,
-	OM_OPTIONS
-} objMsg;
-
-int system_message (objMsg msg, void * a, void * b);
 
 #endif /* SYSTEM_H */

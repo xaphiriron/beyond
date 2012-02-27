@@ -134,27 +134,11 @@ void input_sendGameEventMessage (const struct input_event * ie)
 		* inputData;
 	Dynarr
 		targetCache = NULL;
-	// CATCH AND HANDLE EVENTS THAT HAVE SYSTEM-WIDE REPERCUSSIONS
-	//DEBUG ("GOT INPUTEVENT TYPE %d", ie->ir);
+	//printf ("GOT INPUTEVENT TYPE %d\n", ie->code);
 	if (!Input->active)
 		return;
-	// this switch makes me really sad; there's got to be a better way to trigger game events than by doing things this way - xph 2012 01 31
-	switch (ie->code)
-	{
-		case IR_QUIT:
-			system_message (OM_SHUTDOWN, NULL, NULL);
-			break;
-		case IR_WORLDGEN:
-			system_message (OM_FORCEWORLDGEN, NULL, NULL);
-			break;
-		case IR_OPTIONS:
-			system_message (OM_OPTIONS, NULL, NULL);
-			break;
-		default:
-			break;
-	}
-	// SEND MESSAGES OFF TO WORLD ENTITIES
 
+	// SEND MESSAGES OFF TO WORLD ENTITIES
 	targetCache = dynarr_create (4, sizeof (Entity));
 	i = 0;
 	while ((e = *(Entity *)dynarr_at (Input->focusedEntities, i++)) != NULL)
@@ -328,19 +312,20 @@ void input_system (Dynarr entities)
 					if (Input->event.active.gain)
 					{
 						Input->active = true;
-						if (systemState () == STATE_FREEVIEW)
+						if (input_hasFocus (entity_getByName ("CAMERA")))
 							SDL_ShowCursor (SDL_DISABLE);
 					}
 					else
 					{
 						Input->active = false;
-						if (systemState () == STATE_FREEVIEW)
+						if (input_hasFocus (entity_getByName ("CAMERA")))
 							SDL_ShowCursor (SDL_ENABLE);
 					}
 				}
 				break;
 			case SDL_QUIT:
-				system_message (OM_SHUTDOWN, NULL, NULL);
+				event.code = IR_QUIT;
+				input_sendGameEventMessage (&event);
 				break;
 			default:
 				if ((SDL_GetAppState () & (SDL_APPMOUSEFOCUS | SDL_APPINPUTFOCUS)) == (SDL_APPMOUSEFOCUS | SDL_APPINPUTFOCUS))
@@ -379,8 +364,6 @@ static void input_loadConfig (const Graph config)
 		".keys.ui.confirm", // IR_UI_CONFIRM
 		".keys.ui.mode", // IR_UI_MODE_SWITCH
 		".keys.arch_test", // IR_WORLD_PLACEARCH
-		"", // IR_WORLDGEN
-		"", // IR_OPTIONS
 		".keys.quit", // IR_QUIT
 		"", // IR_FINAL
 	};
