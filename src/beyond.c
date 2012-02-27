@@ -237,6 +237,7 @@ static void blah_blah_GPL_whatever (Entity about)
 	gui_place (gpl, 16, 16, width - 32, height - 32);
 	input_addAction (gpl, IR_UI_CONFIRM, gui_defaultClose);
 	input_addAction (gpl, IR_UI_CANCEL, gui_defaultClose);
+	input_addAction (gpl, IR_TEXT, gui_defaultClose);
 	textlabel_set (gpl, "STANDARD LEGALLY-OBLIGATORY GPL BOILERPLATE\nThis program is free software: you can redistribute it and/or modify it under the terms of the GNU\nGeneral Public License as published by the Free Software Foundation, either version 3 of the\nLicense, or (at your option) any later version.\n\nThis program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;\nwithout even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR\n PURPOSE.  See the GNU General Public License for more details.\n\nYou should have received a copy of the GNU General Public License along with this program.  If\nnot, see <http://www.gnu.org/licenses/>.\n\ncopyright 2012 xaphiriron, gj, go me\n\nwow i hate licensing boilerplate i'm sorry you had to read that", ALIGN_LEFT, 16, 16, width - 32);
 
 	gui_placeOnStack (gpl);
